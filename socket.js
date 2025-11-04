@@ -1,8 +1,8 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
-const bodyParses = require("body-parser")
-const PORT = process.env.PORT || 3000
+const bodyParses = require("body-parser");
+const PORT = process.env.PORT || 8080;
 
 const app = express();
 const httpServer = createServer(app);
