@@ -6,9 +6,12 @@ const PORT = process.env.PORT || 8080;
 
 const app = express();
 const httpServer = createServer(app);
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "*"
+    origin: ["https://chessweb-five.vercel.app"], //domain frontend
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 
