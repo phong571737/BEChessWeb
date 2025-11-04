@@ -2,7 +2,7 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
 const bodyParses = require("body-parser")
-const PORT = 3000
+const PORT = process.env.PORT || 3000
 
 const app = express();
 const httpServer = createServer(app);
@@ -26,7 +26,6 @@ app.post("/move", (req, res) =>{
 
 io.on("connection", (socket) => {
   socket.emit('i am connected');
-
 });
 
 httpServer.listen(PORT, "0.0.0.0", function () {
