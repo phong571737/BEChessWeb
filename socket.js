@@ -17,17 +17,9 @@ const io = new Server(httpServer, {
 
 app.use(bodyParses.json());
 
-app.get("/", (req, res) => {
-  res.send("Backend ChessWeb is running");
-});
-
-app.post("/move", express.text({type: '*/*'}), (req, res) =>{
-
-  console.log("=== /move RECEIVED ===");
-  console.log("Headers:", req.headers);
-  console.log("RawBody:", req.body);
-
-  const data = req.body;
+app.post("/move", (req, res) =>{
+  const data = req.body; //uci or pgn
+  console.log("Move from pico", data);
 
   io.emit("pico_move", data);// send to web
   res.json({
