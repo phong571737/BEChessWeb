@@ -17,15 +17,22 @@ const io = new Server(httpServer, {
 
 app.use(bodyParses.json());
 
-app.post("/move", (req, res) =>{
-  const data = req.body; //uci or pgn
-  console.log("Move from pico", data);
+app.post("/move", express.text({type: '*/*'}), (req, res) => {
+  console.log("=== /move RECEIVED ===");
+  console.log("RawBody:", req.body);
 
-  io.emit("pico_move", data);// send to web
-  res.json({
-    status: "ok"
-  })
-})
+  let data = null;
+  try {
+    data = JSON.parse(req.body);
+    console.log("Parsed:", data);
+  } catch (e) {
+    console.log("JSON parse error:", e);
+    return res.status(400).json({ error: "Invalid JSON" });
+  }
+
+  io.emit("pico_move", data);
+  res.json({ status: "ok" });
+});
 
 io.on("connection", (socket) => {
   socket.emit('i am connected');
