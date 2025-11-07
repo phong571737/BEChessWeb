@@ -17,9 +17,17 @@ const io = new Server(httpServer, {
 
 app.use(bodyParses.json());
 
-app.post("/move", (req, res) =>{
-  const data = req.body; //uci or pgn
-  console.log("Move from pico", data);
+app.post("/move", express.text({type: '*/*'}), (req, res) =>{
+  console.log("=== /move RECEIVED ===");
+  console.log("Headers:", req.headers);
+  console.log("RawBody:", req.body);
+  try{
+    const data = JSON.parse(req.body); //uci or pgn
+    console.log("Parse", data);
+  }
+  catch(e){
+    console.log("JSON parse error:", e);
+  }
 
   io.emit("pico_move", data);// send to web
   res.json({
