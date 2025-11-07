@@ -1,7 +1,7 @@
 const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
-const bodyParses = require("body-parser");
+const bodyParser = require("body-parser");
 const PORT = process.env.PORT || 8080;
 
 const app = express();
@@ -15,7 +15,7 @@ const io = new Server(httpServer, {
   }
 });
 
-app.use(bodyParses.json());
+app.use(bodyParser.json());
 
 app.post("/move", (req, res) =>{
   const data = req.body; //uci or pgn
