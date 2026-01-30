@@ -22,7 +22,7 @@ app.use(bodyParser.json());
 connectDB().catch(console.error);
 
 // Get move from ESP
-app.post("/move", (req, res) =>{
+app.post("/move", async(req, res) =>{
   try{
     const data = req.body; //uci or pgn
     console.log("Move from Esp", data);
@@ -34,7 +34,9 @@ app.post("/move", (req, res) =>{
       createdAt: new Date(),
     };
 
-    io.emit("esp_move", data);// send to web
+    await moves.insertOne(doc);
+
+    io.emit("esp_move", doc);// send to web
     res.json({
       status: "ok"
     })
