@@ -34,7 +34,7 @@ app.post("/move", async(req, res) =>{
       createdAt: new Date(),
     };
 
-    await moves.insertOne(doc);
+    await moves.insertOne(doc); //insert to DB
 
     io.emit("esp_move", doc);// send to web
     res.json({
@@ -49,6 +49,6 @@ io.on("connection", (socket) => {
   socket.emit('i am connected');
 });
 
-// httpServer.listen(PORT, "0.0.0.0", function () {
-//   console.log("Server is running at port " + PORT);
-// });
+httpServer.listen(PORT, "0.0.0.0", function () {
+  console.log("Server is running at port " + PORT);
+});
