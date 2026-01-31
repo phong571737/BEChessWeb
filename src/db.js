@@ -1,9 +1,10 @@
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const uri = "mongodb+srv://chess:Chess855747@chess.mbbe5ug.mongodb.net/?appName=chess";
+const {env} = require("./config/environment");
+const MONGO_URI = env.MONGO_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
-const client = new MongoClient(uri, {
+const client = new MongoClient(MONGO_URI, {
   serverApi: {
     version: ServerApiVersion.v1,
     strict: true,
@@ -14,6 +15,7 @@ const client = new MongoClient(uri, {
 let movesCollection;
 async function connectDB() {
   try {
+    console.log(`AUTHOR = ${env.AUTHOR}`);
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     // Send a ping to confirm a successful connection
@@ -27,8 +29,10 @@ async function connectDB() {
   }
 }
 
+// Get data from database
 function getMoveCollections(){
-    return movesCollection;
+  if(!movesCollection) throw new Error("Must to connect Database first!");
+  return movesCollection;
 }
 
 module.exports = {connectDB, getMoveCollections};

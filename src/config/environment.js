@@ -1,0 +1,10 @@
+require("dotenv").config();
+
+
+const env = {
+    MONGO_URI: process.env.MONGO_URI,
+    AUTHOR: process.env.AUTHOR,
+    PORT: process.env.PORT
+}
+
+module.exports = {env};
