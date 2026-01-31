@@ -15,7 +15,6 @@ const client = new MongoClient(MONGO_URI, {
 let movesCollection;
 async function connectDB() {
   try {
-    console.log(`AUTHOR = ${env.AUTHOR}`);
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
     // Send a ping to confirm a successful connection
