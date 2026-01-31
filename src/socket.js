@@ -2,8 +2,8 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
 const bodyParser = require("body-parser");
-const {connectDB, getMoveCollections} = require("./db")
-const PORT = process.env.PORT || 8080;
+const {connectDB, getMoveCollections} = require("./db");
+const {env} = require("./config/environment");
 
 const app = express();
 const httpServer = createServer(app);
@@ -49,6 +49,6 @@ io.on("connection", (socket) => {
   socket.emit('i am connected');
 });
 
-httpServer.listen(PORT, "0.0.0.0", function () {
-  console.log("Server is running at port " + PORT);
+httpServer.listen(env.PORT, "0.0.0.0", function () {
+  console.log("Server is running at port " + env.PORT);
 });
