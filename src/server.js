@@ -13,7 +13,7 @@ async function StartServer() {
   app.use("/move", router);
 
   await connectDB();
-  initSocket();
+  initSocket(server);
 
   server.listen(env.PORT, ()=>{
     console.log("Server is running on: ", env.PORT);
