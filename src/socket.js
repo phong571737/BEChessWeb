@@ -2,9 +2,11 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
 const bodyParser = require("body-parser");
-const {connectDB, getMoveCollections} = require("./db");
+const {connectDB, getMoveCollections, LoadGameFromDB} = require("./db");
+const {Chess} = require("chess.js");
 const {env} = require("./config/environment");
 
+const game = new Chess();
 const app = express();
 const httpServer = createServer(app);
 
@@ -24,19 +26,42 @@ connectDB().catch(console.error);
 // Get move from ESP
 app.post("/move", async(req, res) =>{
   try{
-    const data = req.body; //uci or pgn
-    console.log("Move from Esp", data);
+    const {uci} = req.body; //uci or pgn
+    console.log("Move from Esp", uci);
+    
+    const from = uci.slice(0, 2); // start
+    const to = uci.slice(2, 4); // end
 
-    const moves = getMoveCollections();
+    const move = game.move({
+      from, 
+      to, 
+      promotion: "q"
+    })
 
-    const doc = {
-      ...data, 
+    if(!move){
+      return res.status(400).json({error: "Illegal move"});
+    }
+
+    const games = client.db("chess").collection("games");
+
+    const state = {
+      fen: game.fen(),
+      lastMove: {
+        from, 
+        to, 
+        uci
+      },
       createdAt: new Date(),
     };
 
-    await moves.insertOne(doc); //insert to DB
+    // await moves.insertOne(doc); //insert to DB
+    await games.updateOne(
+      {_id: "current_game"},
+      { $set: state},
+      {upsert: true}
+    );
 
-    io.emit("esp_move", doc);// send to web
+    io.emit("esp_move", state);// send to web
     res.json({
       status: "ok"
     })

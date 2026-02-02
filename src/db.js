@@ -28,10 +28,20 @@ async function connectDB() {
   }
 }
 
+async function LoadGameFromDB() {
+  const game = client.db("chess").collection("games");
+  const data = await game.findOne({_id: "current_game"});
+
+  if(!data?.fen){
+    game.load(data.fen);
+    console.log("Game restored from DB");
+  }
+}
+
 // Get data from database
 function getMoveCollections(){
   if(!movesCollection) throw new Error("Must to connect Database first!");
   return movesCollection;
 }
 
-module.exports = {connectDB, getMoveCollections};
+module.exports = {connectDB, getMoveCollections, LoadGameFromDB};
