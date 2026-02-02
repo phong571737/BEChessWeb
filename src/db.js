@@ -44,4 +44,4 @@ function getMoveCollections(){
   return movesCollection;
 }
 
-module.exports = {connectDB, getMoveCollections, LoadGameFromDB};
+module.exports = {connectDB, getMoveCollections, LoadGameFromDB, client};
