@@ -2,7 +2,7 @@ const { createServer } = require("http");
 const { Server } = require("socket.io");
 const express = require("express");
 const bodyParser = require("body-parser");
-const {connectDB, getMoveCollections, LoadGameFromDB} = require("./db");
+const {connectDB, getMoveCollections, LoadGameFromDB, client} = require("./db");
 const {Chess} = require("chess.js");
 const {env} = require("./config/environment");
 
@@ -13,7 +13,7 @@ const httpServer = createServer(app);
 const io = new Server(httpServer, {
   cors: {
     origin: ["https://chessweb-five.vercel.app"], //domain frontend
-    methods: ["POST"],
+    methods: ["GET", "POST"],
     credentials: true
   }
 });
