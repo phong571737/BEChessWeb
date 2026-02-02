@@ -1,6 +1,6 @@
 
 const { MongoClient, ServerApiVersion } = require('mongodb');
-const {env} = require("./config/environment");
+const {env} = require("../config/environment");
 const MONGO_URI = env.MONGO_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
