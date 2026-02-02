@@ -3,7 +3,7 @@ const {client} = require(".");
 const games = () => client.db("chess").collection("games");
 
 async function saveGame(state) {
-    return games.updateOne(
+    return games().updateOne(
         {_id: "current_game"},
         { 
             $set:{
