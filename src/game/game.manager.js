@@ -13,13 +13,14 @@ function makeMove(uci){
     })
 
     if(!move){
-      return res.status(400).json({error: "Illegal move"});
+      throw new Error("Illegal move");
     }
 
     return {
       fen: game.fen(),
       pgn: game.pgn(),
       lastMove: {from, to, uci},
+      turn: game.turn(),
     };
 }
 
