@@ -14,7 +14,7 @@ router.post("/", async(req, res) =>{
         await saveGame(state); //reload
 
         /**send to web */
-        getIO.emit("esp_move", state);
+        getIO().emit("esp_move", state);
         res.json({
             status: "ok"
         });
