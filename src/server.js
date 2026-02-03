@@ -11,6 +11,7 @@ async function StartServer() {
 
   app.use(express.json());
   app.use("/move", router);
+  app.use("/game", router); // get game/current
 
   await connectDB();
   initSocket(server);
