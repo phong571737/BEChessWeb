@@ -1,6 +1,6 @@
 const express = require("express");
 const {makeMove} = require("../game/game.manager");
-const {saveGame} = require("../db/game.repositories");
+const {loadGame, saveGame} = require("../db/game.repositories");
 const {getIO} = require("../socket")
 
 const router = express.Router();
@@ -20,6 +20,19 @@ router.post("/", async(req, res) =>{
         });
     }catch (err){
         res.status(400).json({error: err.message });
+    }
+});
+
+router.get("/current", async(req, res)=>{
+    try{
+        const game = await loadGame();
+        if(!game){
+            return res.json(null);
+        }
+
+        res.json(game);
+    }catch(err){
+        console.log(err);
     }
 });
 
