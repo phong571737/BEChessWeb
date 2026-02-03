@@ -11,7 +11,7 @@ router.post("/", async(req, res) =>{
         console.log("Move from Esp", uci);
 
         const state = makeMove(uci);
-        await saveGame(state);
+        await saveGame(state); //reload
 
         /**send to web */
         io.emit("esp_move", state);
