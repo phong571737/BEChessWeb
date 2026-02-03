@@ -11,8 +11,13 @@ function initSocket(server){
     });
 
     io.on("connection", socket =>{
-        console.log("Web connected");
+        console.log("Web connected", socket.id);
     })
 }
 
-module.exports = {initSocket, io};
+function getIO(){
+    if(!io) throw new Error("Socket.io is not initalized");
+    return io;
+}
+
+module.exports = {initSocket, getIO};
