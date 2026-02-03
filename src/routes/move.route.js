@@ -1,7 +1,7 @@
 const express = require("express");
 const {makeMove} = require("../game/game.manager");
 const {saveGame} = require("../db/game.repositories");
-const {io} = require("../socket")
+const {getIO} = require("../socket")
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.post("/", async(req, res) =>{
         await saveGame(state); //reload
 
         /**send to web */
-        io.emit("esp_move", state);
+        getIO.emit("esp_move", state);
         res.json({
             status: "ok"
         });
