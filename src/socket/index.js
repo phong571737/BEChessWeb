@@ -6,6 +6,7 @@ function initSocket(server){
     io = new Server(server, {
         cors:{
             origin: ["https://chessweb-five.vercel.app"], //domain frontend
+            methods: ['GET', 'POST'],
             credentials: true
         }
     });
