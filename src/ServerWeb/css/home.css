@@ -1,0 +1,49 @@
+/* ------------------------------ HEADER -------------------------*/
+.title-web{
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    gap: .75rem;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.title-name{
+    font-size: 25px;
+    color: var(--text-title-color);
+}
+
+.nav-header{
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 1rem 5%;
+    margin-bottom: 2rem;
+    border-bottom: 1px solid #f1f1f2;
+    background: white;
+}
+
+.nav-left{
+    display: flex;
+    list-style: none;
+    gap: 2rem;
+}
+
+.nav-left a{
+    position: relative;
+    font-size: 1.05rem;
+    font-weight: 510;
+    text-decoration: none;
+    color: var(--text-nav-color);
+}
+
+.nav-left a:hover{
+    color: var(--text-nav-hover);
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+    text-underline-offset: 1.45rem;
+}
+
+
+/*----------------------------- END HEADER ------------------*/
