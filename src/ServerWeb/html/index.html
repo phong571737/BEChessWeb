@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"
+        integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" 
+        crossorigin="anonymous"></script>
+        <!-- chessboard.js -->
+    <link rel="stylesheet" href="../../lib/chessboardjs-1.0.0/css/chessboard-1.0.0.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" 
+        integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" 
+        crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <link rel="stylesheet" href="/ServerWeb/css/variables.css">
+    <link rel="stylesheet" href="/ServerWeb/css/style.css">
+    <link rel="stylesheet" href="/ServerWeb/css/main_page.css">
+    <link rel="stylesheet" href="/ServerWeb/css/home.css">
+    
+    <!-- socket io -->
+    <script src="https://cdn.socket.io/4.8.3/socket.io.min.js" 
+        integrity="sha384-kzavj5fiMwLKzzD1f8S7TeoVIEi7uKHvbTA3ueZkrzYq75pNQUiUi6Dy98Q3fxb0" 
+        crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css" 
+    integrity="sha512-2SwdPD6INVrV/lHTZbO2nodKhrnDdJK9/kg2XD1r9uGqPo1cUbujc+IYdlYdEErWNu69gVcYgdxlmVmzTWnetw==" 
+    crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <title>TTlabChess</title>
+</head>
+<body>
+    <!-- Header -->
+    <header id="nav-wrapper">
+        <nav class="nav-header">
+            <div class="nav-left">
+                <a href="/" id="home-nav">Home</a>
+                <a href="/watch" id="watch-nav">Watch</a>
+                <a href="/played" id="game-nav">Game played</a>
+            </div>
+
+            <div class="title-web" >
+                <img src="/ServerWeb/img/logo.jpg" alt="" height="20px" width="20px">
+                <div class="title-name">TTLab Chess</div>
+            </div>
+        </nav>
+    </header>
+
+    <!-- MAIN PAGE -->
+    <div id="main-wrapper">
+        <main class="dashboard-game" id="dashboard-view">
+            <div class="dashboard-game-list">
+                <div class="empty-state" id="emptyState">
+                    <img class="empty-icon" src="/ServerWeb/img/logo_king.png" height="150px" width="150px"></img>
+                    <div class="empty-text">Chưa có ván cờ nào</div>
+                </div> 
+                <div class="game-playing"></div>
+            </div>
+        </main>
+    </div>
+
+
+    <script src="/lib/chessboardjs-1.0.0/js/chessboard-1.0.0.min.js"></script>
+    <script type="module" src="/ServerWeb/app.js"></script>
+</body>
+</html>

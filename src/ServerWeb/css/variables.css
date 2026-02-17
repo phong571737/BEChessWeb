@@ -1,0 +1,41 @@
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans:ital,wght@0,100..900;1,100..900&family=Noto+Serif:ital,wght@0,100..900;1,100..900&family=Nunito:ital,wght@0,200..1000;1,200..1000&family=PT+Serif:ital,wght@0,400;0,700;1,400;1,700&family=Roboto+Condensed:ital,wght@0,100..900;1,100..900&family=Ubuntu:ital,wght@0,300;0,400;0,500;0,700;1,300;1,400;1,500;1,700&display=swap');
+
+:root{
+    --bg: black;
+    --white: white;
+    --neon-orange: #FF5F1F;
+    --icon-text: 5px;
+    --Persimmon: #EC5800;
+    --text-btn: 12px;
+    --icon-btn:10px;
+    --Platinum: #E5E4E2;
+    --bg-color: linear-gradient(180deg, #f2f6fa , #e5eaf8);
+    --bg-pgn: #f9fafc;
+    --icon-color-download: #0E9F6E;
+    --square-move: rgba(236, 243, 116, 0.8);
+    --off-white: #FAF7F2;
+    --blue-bg: #CFE9F8;
+    --online-color: #629924;
+    --empty-board: #BAD1DF;
+    --border-bottom: #82929C;
+    --text-secondary: #999999;
+    --scroll-thumb-hover: #888888;
+    --scroll-thumb: #555555;
+    --text-nav-color: #828282;
+    --text-nav-hover: #4a649f;
+    --text-title-color: #132e56;
+    --text-empty: #18336e;
+    --board-lobby-color: linear-gradient(0deg,rgba(0, 0, 0, 1) 0%, rgba(243, 245, 249, 1) 50%, rgba(224, 227, 233, 1) 100%);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body{
+    /* background: var(--off-white) linear-gradient(to bottom, var(--blue-bg), var(--off-white)) no-repeat; */
+    background: var(--bg-color);
+    min-height: 100vh;
+}

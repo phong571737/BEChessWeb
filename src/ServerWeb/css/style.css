@@ -1,0 +1,176 @@
+/*--------------------- MAIN BOARD ------------------------*/
+.container-wrapper{
+    margin-top: 30px;
+    display: grid;
+    grid-template-columns: 1fr auto 400px 1fr;
+    grid-template-areas: 
+    ". board . ."
+    ". board cap-top ."
+    ". board user-top ."
+    ". board moves ."
+    ". board control ."
+    ". board user-bot ."
+    ". board cap-bot ."
+    ". board . ."
+    ". board . ."
+    ". board . ."
+    ". board . .";
+    column-gap: 15px;
+    grid-column: 3;
+}
+
+.main-board{
+    display: flex;
+    grid-area: board;
+    justify-content: center;
+    justify-self: center;
+    gap: 10.5px;
+}
+
+.myBoard{
+    width: 600px;
+    aspect-ratio: 1/1;
+}
+
+.pgn-table{
+    background-color: var(--off-white);
+    border-radius: 6px;
+}
+
+@media (min-width: 800px), (orientation: landscape) {
+    .pgn-table{
+        grid-area: 3/3/9/4;
+    }
+}
+
+.user-top{
+    grid-area: user-top;
+}
+
+.controls{
+    grid-area: control;
+}
+
+.user-bot{
+    grid-area: user-bot;
+}
+
+.moves{
+    grid-area: moves;
+}
+
+.flex-nav{
+    display: flex;
+    flex-flow: column;
+}
+
+.moves .nav-btn{
+    display: flex;
+    flex: 0 0 2.5rem;
+    font-size: .9em;
+    background-color: var(--blue-bg);
+}
+
+/* .moves.flex-nav #move-list{
+    flex: 0 0 7.4rem;
+} */
+
+#move-list{
+    display: flex;
+    flex-flow: row wrap;
+    will-change: scroll-position;
+    align-items: center;
+    overflow-y: auto;
+    align-content: flex-start;
+    line-height: 1.7;
+    flex: 0 0 7.4rem;
+}
+
+.move-list::-webkit-scrollbar-thumb{
+    background: var(--Platinum);
+}
+
+
+i5z{
+    flex:0 0 16.666%;
+    display: flex;
+    justify-content: center;
+}
+
+kwdb{
+    flex: 0 0 41.666%;
+    cursor: pointer;
+}
+
+.btn{
+    background: none;
+    border: none;
+    outline: none;
+    align-items: normal;
+    flex: 1;
+}
+
+button{
+    cursor: pointer;
+}
+
+.controls .control-icon{
+    display: flex;
+    
+    flex: 0 0 2.5rem;
+}
+
+.controls .control-icon i{
+    font-size: 20px;
+}
+
+@media(min-width: 800px), (orientation: landscape){
+    .user{
+        padding: .5em .5em .5em .3em;
+    }
+}
+
+/* white square color */
+.white-1e1d7 {
+    background-color: #e3e3e3 !important;
+}
+
+/* black square color */
+.black-3c85d {
+    background-color: #85644d !important;
+}
+
+[class^="square-"].last-move{
+    position: relative;
+}
+
+[class^="square-"].last-move::after{
+    content: "";
+    position: absolute;
+    background-color: var(--square-move);
+    inset: 0;
+    z-index: 1;
+}
+
+/* float the piece on the square */
+.piece-417db{
+    position: relative;
+    z-index: 2;
+}
+
+/*check animation*/
+.check{
+    animation: checkanimation 0.6s infinite;
+}
+
+@keyframes checkanimation{
+    0%{
+        box-shadow: inset 0 0 0 4px red;
+    }
+    50%{
+        box-shadow: inset 0 0 0 4px yellow;
+    }
+    100%{
+        box-shadow: inset 0 0 0 4px red;
+    }
+}
