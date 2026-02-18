@@ -1,4 +1,4 @@
-import { GameController } from "/ServerWeb/js/Game/game.controller.js";
+import { GameController } from "/ServerWeb/js/game/game.controller.js";
 import { UI } from "/ServerWeb/js/UI/ui.controller.js";
 
 export class BoardUI {
@@ -10,7 +10,7 @@ export class BoardUI {
 
     init() {
         this.board = Chessboard(this.elementID, {
-            draggable: true,
+            // draggable: true,
             position: GameController.fen(), //Get current fen
             onDragStart: this.onDragStart.bind(this),
             onSnapEnd: this.onSnapEnd.bind(this),
@@ -21,9 +21,10 @@ export class BoardUI {
 
     renderUpdate(from, to){
         if(this.board){
+            console.log("Render update is called");
             this.update();
             this.HighlightMove(from, to);
-            this.HightlightKing();
+            this.HighlightKing();
             UI.update();
         }
     }
@@ -61,7 +62,6 @@ export class BoardUI {
 
         this.HighlightMove(move.from, move.to);
         this.HightlightKing();
-
         UI.update();
     }
 
@@ -78,7 +78,7 @@ export class BoardUI {
     }
 
     /**add highlight when the king is checked */
-    HightlightKing() {
+    HighlightKing() {
         this.RemoveHighlightKing();
 
         if(!GameController.inCheck()) return; // not check

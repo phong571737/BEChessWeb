@@ -1,5 +1,5 @@
 import { UI } from "/ServerWeb/js/UI/ui.controller.js";
-import { GameController } from "/ServerWeb/js/Game/game.controller.js";
+import { GameController } from "/ServerWeb/js/game/game.controller.js";
 
 //the list of boards is displayed
 const activeboards = [];
@@ -16,6 +16,8 @@ export const GameSyncManager = {
             );
         }
 
+        boardInstance.HighlightKing();
+
         UI.update(); //update pgn table
     },
 
@@ -31,17 +33,20 @@ export const GameSyncManager = {
         /**Listen the move event */
         document.addEventListener("socket:move", (e) => {
             const data = e.detail;
-
             console.log("Receive data from server: ", data);
+
             const from = data.lastMove.from;
             const to = data.lastMove.to;
+
+            const serverGameID = data.gameID.replace(/^Board_/i, "");
 
             const move = GameController.move(from, to);
             GameController.lastMove = data.lastMove;
             UI.update();
             if (move) {
                 activeboards.forEach(board =>{
-                    if(board.gameID === data.gameID){
+                    const boardGameID = board.gameID.replace(/^Board_/i, "");
+                    if(boardGameID === serverGameID){
                         board.renderUpdate(from, to);
                     }
                 });
@@ -54,9 +59,7 @@ export const GameSyncManager = {
     },
 
     getAllBoards(){
-        console.log("Current activeboards array:", activeboards);
         const boards = activeboards.filter(board => board !== undefined && board !== null);
-        console.log("Get all boards:", boards);
         return boards;
     },
 }
