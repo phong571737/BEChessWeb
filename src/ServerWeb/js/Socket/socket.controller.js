@@ -1,6 +1,4 @@
 import { GameCard } from "/ServerWeb/js/components/gamecard.js";
-import { BoardUI } from "/ServerWeb/js/Board/board.ui.js";
-import { GameController } from "/ServerWeb/js/Game/game.controller.js";
 
 export const SocketController = {
     socket: null,
@@ -35,7 +33,7 @@ export const SocketController = {
             const path = window.location.pathname;
             console.log("Path: ", path);
             if(path.startsWith("/Board_")){
-                const gameID = `Board_${path.split("_")[1]}`;
+                const gameID = path.split("/")[1];
                 console.log("Requesting restore for:", gameID);
                 this.socket.emit("request_current_game", {gameID: gameID});
             }

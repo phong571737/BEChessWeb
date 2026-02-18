@@ -1,4 +1,4 @@
-import { GameController } from "/ServerWeb/js/Game/game.controller.js";
+import { GameController } from "/ServerWeb/js/game/game.controller.js";
 
 export const UI = {
     update() {

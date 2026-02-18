@@ -1,7 +1,7 @@
-import { BoardUI } from "/ServerWeb/js/Board/board.ui.js";
-import { GameSyncManager } from "/ServerWeb/js/Game/game.syncmanager.js";
-import { GameController } from "/ServerWeb/js/Game/game.controller.js";
-import { RouterPath } from "/ServerWeb/js/routers/index.js";
+import { BoardUI } from "/ServerWeb/js/board/board.ui.js";
+import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
+import { GameController } from "/ServerWeb/js/game/game.controller.js";
+import { RouterPath } from "/ServerWeb/js/routers/router.path.js";
 
 export const GameCard = {
     BoardWrapper(GameID){
@@ -55,6 +55,7 @@ export const GameCard = {
 
     /**open game */
     openGame(gameID){
-        RouterPath.navigationTo(`/board/${gameID}`);
+        const cleanID = gameID.replace(/^Board_/i, "");
+        RouterPath.navigationTo(`/board/${cleanID}`);
     },
 }
