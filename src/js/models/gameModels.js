@@ -1,6 +1,15 @@
-import {client} from "./index.js";
+import { getDB } from "../config/database.js";
 
-const games = () => client.db("chess").collection("games");
+// Get data from database
+export function getMoveCollections(){
+  return getDB().collection("moves");
+}
+
+export function getGameCollections(){
+    return getDB().collection("games");
+}
+
+const games = () => getDB().collection("games");
 
 export async function saveGame(state) {
     return games().updateOne(
