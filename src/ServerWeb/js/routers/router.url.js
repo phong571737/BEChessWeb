@@ -5,8 +5,8 @@ export function RouterURL(path){
 
     //navigation to board
     else if (path.startsWith("/board/")) {
-        const fullID = path.split("/")[2];
-        const gameID = fullID.replace(/^Board_/i, "");
+        const gameID = path.split("/")[2];
+        // const gameID = fullID.replace(/^Board_/i, "");
         console.log("Navigation to gameid: ", gameID);
         return {name: "board", params: {gameID}};
     }

@@ -16,20 +16,28 @@ export const BoardPage = {
         //if exists, display
         if (existingview) {
             existingview.style.display = "grid";
+            const controller = GameSyncManager.getController(gameID);
 
-            const boardInstance = GameSyncManager.getBoard(gameID);
-            if (boardInstance && boardInstance.board) {
-                requestAnimationFrame(() => {
-                    boardInstance.board.resize();
-                    if (GameController.lastMove) {
-                        boardInstance.HighlightMove(
-                            GameController.lastMove.from,
-                            GameController.lastMove.to
-                        );
+            requestAnimationFrame(() => {
+                const gameBoard = GameSyncManager.getBoards(gameID);
+                if (!gameBoard) return;
+
+                gameBoard.forEach(boardUI => {
+                    if (boardUI.board) {
+                        boardUI.board.resize();
+                        boardUI.update();
+
+                        if (controller.lastMove) {
+                            boardUI.HighlightMove(
+                                controller.lastMove.from,
+                                controller.lastMove.to
+                            );
+                        }
+
+                        boardUI.HighlightKing();
                     }
-                    boardInstance.HighlightKing();
                 });
-            }
+            });
             return;
         }
 
@@ -41,8 +49,9 @@ export const BoardPage = {
         ViewManager.register(viewID, game_board);
 
         /**create board instance */
-        const boardUI = new BoardUI(`Board_${gameID}`, gameID);
+        const controller = GameSyncManager.getController(gameID) // get controller
+        const boardUI = new BoardUI(`Board_${gameID}`, controller);
         boardUI.init();
-        GameSyncManager.addBoard(boardUI);
+        GameSyncManager.addBoard(gameID, boardUI);
     }
 }
