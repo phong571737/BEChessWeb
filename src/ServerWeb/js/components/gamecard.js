@@ -43,10 +43,12 @@ export const GameCard = {
         document.querySelector('.game-playing').appendChild(card);
 
         /**create board instance */
-        const boardUI = new BoardUI(`MiniBoard_${GameID}`, GameID);
+        // const gamecontroller = new GameController(GameID);
+        const controller = GameSyncManager.getController(GameID);
+        const boardUI = new BoardUI(`MiniBoard_${GameID}`, controller);
         boardUI.init();
-        GameSyncManager.addBoard(boardUI);
-        console.log("History before open:", GameController.game.history());
+
+        GameSyncManager.addBoard(GameID, boardUI);
 
         card.addEventListener('click', ()=>{
             this.openGame(GameID);
@@ -55,7 +57,7 @@ export const GameCard = {
 
     /**open game */
     openGame(gameID){
-        const cleanID = gameID.replace(/^Board_/i, "");
-        RouterPath.navigationTo(`/board/${cleanID}`);
+        // const cleanID = gameID.replace(/^Board_/i, "");
+        RouterPath.navigationTo(`/board/${gameID}`);
     },
 }

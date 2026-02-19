@@ -22,7 +22,6 @@ async function StartServer() {
   app.use(express.urlencoded({extended:true}));
   app.use(cors({
     origin: [
-      // "https://chessweb-five.vercel.app",//domain frontend
       "http://127.0.0.1:5500",
       `http://${env.IP_LAN}:${env.PORT}`
     ],

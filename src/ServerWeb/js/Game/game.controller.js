@@ -1,48 +1,55 @@
 import { Chess } from "/lib/chess.js/dist/esm/chess.js";
 
-export const GameController = {
-    game: new Chess(),
+export class GameController{
+    constructor(gameID){
+        this.gameID = gameID;
+        this.game = new Chess();
+        this.lastMove = null;
+
+        console.log("Create controller for:", gameID);
+        console.log("Chess instance:", this.game);
+    }
 
     loadFen(fen) {
         this.game.load(fen);
-    },
+    }
 
     loadPGN(pgn) {
         this.game.loadPgn(pgn);
-    },
+    }
 
     turn() {
         return this.game.turn();
-    },
+    }
 
     move(from, to) {
         console.log("Before move FEN:", this.game.fen());
         return this.game.move({ from, to, promotion: 'q' });
-    },
+    }
 
     undo() {
         return this.game.undo();
-    },
+    }
 
     fen() {
         return this.game.fen();
-    },
+    }
 
     pgn() {
         return this.game.pgn();
-    },
+    }
 
     inCheck() {
         return this.game.inCheck();
-    },
+    }
 
     isDraw() {
         return this.game.isDraw();
-    },
+    }
 
     isGameOver() {
         return this.game.isGameOver();
-    },
+    }
 
     FindKing(color) {
         const board = this.game.board();
@@ -57,6 +64,15 @@ export const GameController = {
                 }
             }
         }
+    }
+
+    makeMove(move){
+        const moved = this.game.move(move);
+
+        if(moved){
+            this.lastMove = move;
+        }
+        return moved;
     }
 
 }

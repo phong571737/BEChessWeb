@@ -1,22 +1,26 @@
 import { GameController } from "/ServerWeb/js/game/game.controller.js";
 
-export const UI = {
+export class UI {
+    constructor(gameController){
+        this.gameController = gameController;
+    }
+
     update() {
-        const status = GameController.inCheck()
+        const status = this.gameController.inCheck()
             ? 'Checkmate'
-            : GameController.isDraw()
+            : this.gameController.isDraw()
                 ? 'Draw'
-                : `${GameController.turn() === 'w' ? 'White' : 'Black'} to move`;
+                : `${this.gameController.turn() === 'w' ? 'White' : 'Black'} to move`;
 
         $('#status').text(status);
-        $('#fen').text(GameController.fen());
-        $('#pgn').text(GameController.pgn())
+        $('#fen').text(this.gameController.fen());
+        $('#pgn').text(this.gameController.pgn())
 
         this.updateMoveList();
-    },
+    }
 
     updateMoveList(){
-        const history = GameController.game.history({verbose: true});
+        const history = this.gameController.game.history({verbose: true});
         const movelist = document.getElementById("move-list");
         
         if(!movelist) return;
@@ -45,5 +49,5 @@ export const UI = {
             }
         }
         movelist.scrollTop = movelist.scrollHeight;
-    },
+    }
 };

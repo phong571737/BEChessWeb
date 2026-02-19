@@ -1,17 +1,23 @@
+import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
 import { GameController } from "/ServerWeb/js/game/game.controller.js";
 import { UI } from "/ServerWeb/js/UI/ui.controller.js";
 
 export class BoardUI {
-    constructor(elementID, gameID){
+    constructor(elementID, gameController){
+        console.log("BoardUI received:", gameController);
+        console.log("Type:", typeof gameController);
+        console.log("Has fen?", gameController?.fen);
         this.elementID = elementID;
-        this.gameID = gameID;
+        this.gameController = gameController;
+        this.gameID = gameController.gameID;
         this.board = null;
+        this.ui = new UI(gameController);
     }
 
     init() {
         this.board = Chessboard(this.elementID, {
             // draggable: true,
-            position: GameController.fen(), //Get current fen
+            position: this.gameController.fen(), //Get current fen
             onDragStart: this.onDragStart.bind(this),
             onSnapEnd: this.onSnapEnd.bind(this),
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
@@ -25,7 +31,7 @@ export class BoardUI {
             this.update();
             this.HighlightMove(from, to);
             this.HighlightKing();
-            UI.update();
+            this.ui.update();
         }
     }
 
@@ -35,16 +41,16 @@ export class BoardUI {
 
     onDragStart(source, piece, position, orientation) {
         // don't pick up pieces if the game is over
-        if (GameController.isGameOver()) return false;
+        if (this.gameController.isGameOver()) return false;
 
-        if (GameController.turn() === 'w' && piece.search(/^b/) !== -1
-        || GameController.turn() === 'b' && piece.search(/^w/) !== -1) {
+        if (this.gameController.turn() === 'w' && piece.search(/^b/) !== -1
+        || this.gameController.turn() === 'b' && piece.search(/^w/) !== -1) {
             return false;
         }
     }
 
     update(){
-        this.board.position(GameController.fen());
+        this.board.position(this.gameController.fen());
     }
 
     onSnapEnd() {
@@ -52,17 +58,26 @@ export class BoardUI {
     }
 
     onDrop(source, target) {
+        console.log("onDrop called!");
+        console.log("this.gameID:", this.gameID);
+        console.log("GameSyncManager:", GameSyncManager);
+
         console.log('From: ', source, 'to', target);
-        let move;
-        try {
-            move = GameController.move(source, target);
-        } catch (e) {
-            return 'snapback'; // invalidation
+        let moveObj = {
+            from: source,
+            to: target,
+            promotion: 'q'
+        };
+
+        const move = GameSyncManager.notifyMove(this.gameID, moveObj, this); //notify for all with id move
+        if(!move){
+            return 'snapback';
         }
 
-        this.HighlightMove(move.from, move.to);
-        this.HightlightKing();
-        UI.update();
+        this.update();
+        this.HighlightMove(moveObj.from, moveObj.to);
+        this.HighlightKing();
+        this.ui.update();
     }
 
     /**add highlight when the piece is moved */
@@ -74,21 +89,21 @@ export class BoardUI {
     }
 
     RemoveHighlightMove() {
-        $(`#${this.elementID} [class^="square-"]`).removeClass('last-move');
+        $(`#${this.elementID} [class*="square-"]`).removeClass('last-move');
     }
 
     /**add highlight when the king is checked */
     HighlightKing() {
         this.RemoveHighlightKing();
 
-        if(!GameController.inCheck()) return; // not check
+        if(!this.gameController.inCheck()) return; // not check
 
-        const kingsquare = GameController.FindKing(GameController.turn());
+        const kingsquare = this.gameController.FindKing(this.gameController.turn());
         if(kingsquare){
             this.HighlightSquare(kingsquare);
         }
 
-        UI.update();
+        this.ui.update();
     }
 
     HighlightSquare(square){
@@ -97,7 +112,7 @@ export class BoardUI {
     }
 
     RemoveHighlightKing() {
-        $(`#${this.elementID} [class^="square-"]`).removeClass('check');
+        $(`#${this.elementID} [class*="square-"]`).removeClass('check');
         console.log("Remove check the king");
     }
 }
