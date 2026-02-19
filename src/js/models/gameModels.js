@@ -11,9 +11,9 @@ export function getGameCollections(){
 
 const games = () => getDB().collection("games");
 
-export async function saveGame(state) {
+export async function saveGame(gameID, state) {
     return games().updateOne(
-        {_id: "current_game"},
+        {_id: gameID},
         { 
             $set:{
                 ...state,
@@ -27,6 +27,10 @@ export async function saveGame(state) {
     );
 }
 
-export async function loadGame() {
-    return games().findOne({ _id: "current_game"});
+export async function loadAllGame() {
+    return games().find({}).toArray();
+}
+
+export async function loadGame(gameID) {
+    return games().findOne({ _id: gameID});
 }

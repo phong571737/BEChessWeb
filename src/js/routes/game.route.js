@@ -1,6 +1,6 @@
 import express from "express";
 import { createGame } from "../game/game.manager.js";
-import { loadGame } from "../models/gameModels.js";
+import { loadAllGame } from "../models/gameModels.js";
 import {getIO} from "../sockets/index.js";
 
 export const gameRouter = express.Router();
@@ -36,7 +36,7 @@ gameRouter.post("/", async(req, res)=>{
  */
 gameRouter.get("/current", async(req, res)=>{
     try{
-        const game = await loadGame();
+        const game = await loadAllGame();
         if(!game){
             return res.json(null);
         }
