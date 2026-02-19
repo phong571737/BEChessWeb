@@ -1,10 +1,25 @@
 import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
+import { GameCard } from "/ServerWeb/js/components/gamecard.js";
 
 export const HomePage = {
-    render(){
+    async render(){
         ViewManager.hideAll();
         ViewManager.show("dashboard-view");
+
+        //fetch game from db
+        try{
+            const games = await fetch("/games/current")
+                                .then(r => r.json())
+            if(games && games.length > 0){
+                games.forEach(game =>{
+                    GameCard.addGame(game._id, game.fen, game.lastMove);
+                });
+            }
+        }catch(e){
+            console.error("Failed to restore game ", e);
+            
+        }
 
         /**Resize board when to home */
         requestAnimationFrame(()=>{

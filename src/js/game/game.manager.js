@@ -1,9 +1,26 @@
 import {Chess} from "chess.js";
+import { loadGame } from "../models/gameModels.js";
 
-// const game = new Chess();
 const games = new Map();
 
-export function makeMove(gameID, uci){
+export async function restorefromDB(gameID){
+  const data = await loadGame(gameID);
+  if(!data) return null;
+
+  const game = new Chess();
+  if(data.fen) game.load(data.fen);
+
+  games.set(gameID, game);
+  console.log(`Restored game ${gameID} from DB`);
+  return game;
+}
+
+export async function makeMove(gameID, uci){
+  if(!games.has(gameID)){
+    const restored = await restorefromDB(gameID);
+    if(!restored) throw new Error("Game not found");
+  }
+
   const game = games.get(gameID);
   if(!game){
     throw new Error("Game not found");

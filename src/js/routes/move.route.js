@@ -15,8 +15,8 @@ moveRouter.post("/", async(req, res) =>{
         const {uci, gameID} = req.body;
         console.log("Move from Esp", uci, gameID);
 
-        const state = makeMove(gameID, uci);
-        await saveGame(state); //reload
+        const state = await makeMove(gameID, uci);
+        await saveGame(gameID, state); //reload
 
         /**send to web */
         getIO().emit("esp_move", state);
