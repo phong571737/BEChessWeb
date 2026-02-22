@@ -2,7 +2,6 @@ import express from "express";
 import {makeMove} from "../game/game.manager.js";
 import { saveGame } from "../models/gameModels.js";
 import {getIO} from "../sockets/index.js";
-import { error } from "console";
 
 export const moveRouter = express.Router();
 
