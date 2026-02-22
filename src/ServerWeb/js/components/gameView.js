@@ -1,7 +1,8 @@
 export const GameView = {
-    createButton(classbtn, iconbtn){
+    createButton(classbtn, iconbtn, titlebtn){
         const btn = document.createElement('button');
         btn.className = `btn ${classbtn}`;
+        btn.title = titlebtn;
         
         const icon_btn = document.createElement('i');
         icon_btn.className = iconbtn;
@@ -32,11 +33,11 @@ export const GameView = {
         const nav_btn = document.createElement('div');
         nav_btn.className = 'nav-btn';
 
-        const backward_fast_btn = this.createButton("backward-fast", "fa-solid fa-backward-fast");
-        const backward_btn = this.createButton("backward", "fa-solid fa-backward-step");
-        const forward_btn = this.createButton("forward", "fa-solid fa-forward-step");
-        const forward_fast_btn = this.createButton("forward-fast", "fa-solid fa-forward-fast");
-        const edit_btn = this.createButton("edit", "fa-solid fa-pen-to-square");
+        const backward_fast_btn = this.createButton("backward-fast", "fa-solid fa-backward-fast", null);
+        const backward_btn = this.createButton("backward", "fa-solid fa-backward-step", null);
+        const forward_btn = this.createButton("forward", "fa-solid fa-forward-step", null);
+        const forward_fast_btn = this.createButton("forward-fast", "fa-solid fa-forward-fast", null);
+        const edit_btn = this.createButton("edit", "fa-solid fa-pen-to-square", "Chỉnh sửa");
         nav_btn.append(
             backward_fast_btn,
             backward_btn,
@@ -57,8 +58,8 @@ export const GameView = {
         const control_icons = document.createElement('div');
         control_icons.className = 'control-icon';
 
-        const back_btn = this.createButton("back", "fa-solid fa-rotate-left");
-        const surrender_btn = this.createButton("surrender", "fa-regular fa-font-awesome");
+        const back_btn = this.createButton("restart", "fa-solid fa-rotate-left", "Restart");
+        const surrender_btn = this.createButton("surrender", "fa-regular fa-font-awesome", "Đầu hàng");
         control_icons.append(
             back_btn,
             surrender_btn

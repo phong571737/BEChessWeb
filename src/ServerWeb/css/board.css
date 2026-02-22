@@ -71,10 +71,6 @@
     background-color: var(--blue-bg);
 }
 
-/* .moves.flex-nav #move-list{
-    flex: 0 0 7.4rem;
-} */
-
 #move-list{
     display: flex;
     flex-flow: row wrap;
@@ -91,13 +87,13 @@
 }
 
 
-i5z{
+.move-index{
     flex:0 0 16.666%;
     display: flex;
     justify-content: center;
 }
 
-kwdb{
+.pgn-move{
     flex: 0 0 41.666%;
     cursor: pointer;
 }
@@ -110,13 +106,22 @@ kwdb{
     flex: 1;
 }
 
+.fa-rotate-left:active{
+    transform: rotate(-90deg);
+}
+
+.btn:hover{
+    background-color: var(--icon-pick);
+}
+
 button{
     cursor: pointer;
 }
 
+
+
 .controls .control-icon{
     display: flex;
-    
     flex: 0 0 2.5rem;
 }
 

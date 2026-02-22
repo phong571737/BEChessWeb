@@ -46,6 +46,7 @@ export async function makeMove(gameID, uci){
    const state = {
     gameID,
     fen: game.fen(),
+    pgn: game.pgn(),
     lastMove: {
       from,
       to,
