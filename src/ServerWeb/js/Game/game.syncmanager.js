@@ -8,11 +8,11 @@ const gameController = new Map(); //1 gameid -> 1 gamecontroller
 export const GameSyncManager = {
     /**Get 1 controller from 1 id */
     getController(gameID) {
-        if (!gameController.has(gameID)) {
-            const controller = new GameController(gameID);
-            gameController.set(gameID, controller);
-        }
-        return gameController.get(gameID);
+        return gameController.get(gameID) || null;
+    },
+
+    setController(gameID, controller){
+        gameController.set(gameID, controller)
     },
 
     getBoards(gameID){

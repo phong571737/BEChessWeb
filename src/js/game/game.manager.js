@@ -1,21 +1,28 @@
 import {Chess} from "chess.js";
 import { loadGame } from "../models/gameModels.js";
+import expressListEndpoints from "express-list-endpoints";
 
 const games = new Map();
+const gameSeq = new Map();
 
 export async function restorefromDB(gameID){
   const data = await loadGame(gameID);
   if(!data) return null;
 
   const game = new Chess();
-  if(data.fen) game.load(data.fen);
+  if(data.pgn) {
+    game.loadPgn(data.pgn);
+  }else if(data.fen){
+    game.load(data.fen);
+  }
 
   games.set(gameID, game);
+  gameSeq.set(gameID, data.lastSeq ?? 0);
   console.log(`Restored game ${gameID} from DB`);
   return game;
 }
 
-export async function makeMove(gameID, uci){
+export async function makeMove(gameID, uci, seq){
   if(!games.has(gameID)){
     const restored = await restorefromDB(gameID);
     if(!restored) throw new Error("Game not found");
@@ -26,8 +33,24 @@ export async function makeMove(gameID, uci){
     throw new Error("Game not found");
   }
 
-  if(!uci){
-    throw new Error("UCI is required");
+  if(!uci || seq === undefined){
+    throw new Error("UCI or Seq is required");
+  }
+
+  const lastSeq = gameSeq.get(gameID) ?? 0;
+  const expectedSeq = lastSeq + 1;
+
+  //Check order
+  if(seq < expectedSeq){
+    return{
+      duplicate: true,
+      fen: game.fen(),
+      lastSeq,
+    }
+  }
+
+  if(seq > expectedSeq){
+    throw new Error(`Out of order expected ${expectedSeq}`);
   }
 
   const from = uci.slice(0, 2); // start
@@ -43,15 +66,14 @@ export async function makeMove(gameID, uci){
     throw new Error("Illegal move");
   }
 
+  gameSeq.set(gameID, seq);
+
    const state = {
     gameID,
     fen: game.fen(),
     pgn: game.pgn(),
-    lastMove: {
-      from,
-      to,
-      uci
-    }
+    lastSeq: seq,
+    lastMove: { from, to, uci}
   }
   return state;
 }

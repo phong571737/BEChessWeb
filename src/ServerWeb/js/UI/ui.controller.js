@@ -14,9 +14,10 @@ export class UI {
 
         $('#status').text(status);
         $('#fen').text(this.gameController.fen());
-        $('#pgn').text(this.gameController.pgn())
+        $('#pgn').text(this.gameController.pgn());
 
         this.updateMoveList();
+        this.updateMaterial();
     }
 
     updateMoveList(){
@@ -53,5 +54,35 @@ export class UI {
             }
         }
         movelist.scrollTop = movelist.scrollHeight;
+    }
+
+    /**This function is used to render pieces */
+    renderCaptured(container, pieces, color){
+        const type = ['q', 'r', 'b', 'n', 'p'];
+
+        type.forEach(t =>{
+            for(let i = 0;i < pieces[t]; i++){
+                const img = document.createElement("img");
+                img.src = `/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/${color}${t}.png`;
+                img.width = 30;
+                container.appendChild(img);
+            }
+        })
+    }
+
+    updateMaterial(){
+        const captured = this.gameController.getCapturedPieces();
+        const diff = this.gameController.getPointPieces();
+
+        const blackCaptured = document.getElementById("black-piece");
+        const whiteCaptured = document.getElementById("white-piece");
+
+        if(!blackCaptured || !whiteCaptured) return;
+
+        blackCaptured.innerHTML = "";
+        whiteCaptured.innerHTML = "";
+
+        this.renderCaptured(blackCaptured, captured.w, 'w');
+        this.renderCaptured(whiteCaptured, captured.b, 'b');
     }
 };

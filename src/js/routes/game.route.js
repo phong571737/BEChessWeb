@@ -1,6 +1,6 @@
 import express from "express";
 import { createGame } from "../game/game.manager.js";
-import { loadAllGame } from "../models/gameModels.js";
+import { loadAllGame, loadGame } from "../models/gameModels.js";
 import {getIO} from "../sockets/index.js";
 
 export const gameRouter = express.Router();
@@ -43,6 +43,24 @@ gameRouter.get("/current", async(req, res)=>{
         console.log("Current game: ", game);
         res.json(game);
     }catch(e){
+        console.log(e);
+    }
+});
+
+/**GET games/:id
+ * Get single game by id
+ */
+
+gameRouter.get("/:id", async(req, res) =>{
+    try{
+        const {id} = req.params;
+        const game = await loadGame(id);
+        if(!game){
+            return res.status(404).json({error: "Game not found"});
+        }
+
+        res.json(game);
+    }catch (e){
         console.log(e);
     }
 });

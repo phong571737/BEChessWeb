@@ -29,8 +29,8 @@ export const GameCard = {
     },
 
     /**create game */
-    addGame(GameID, fen=null, lastMove = null){
-        if(document.getElementById(`Board_${GameID}`)){
+    addGame(GameID, fen=null, lastMove = null, pgn=null){
+        if(document.getElementById(`MiniBoard_${GameID}`)){
             console.log("Game is exist: ", GameID);
             return;
         }
@@ -43,8 +43,22 @@ export const GameCard = {
         document.querySelector('.game-playing').appendChild(card);
 
         /**create board instance */
-        const controller = GameSyncManager.getController(GameID);
-        if(fen) controller.loadFen(fen);
+        let controller = GameSyncManager.getController(GameID);
+        if(!controller){
+            controller = new GameController({
+                gameID: GameID,
+                fen,
+                pgn,
+                lastMove
+            });
+            GameSyncManager.setController(GameID, controller);
+        }
+        // if(pgn){
+        //     controller.loadPGN(pgn);
+        // } 
+        // else if(fen){
+        //     controller.loadFen(fen);
+        // } 
 
         const boardUI = new BoardUI(`MiniBoard_${GameID}`, controller);
         boardUI.init();

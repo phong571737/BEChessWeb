@@ -32,7 +32,7 @@ export const RouterPath = {
 
     init() {
         const dashboard = document.getElementById("dashboard-view");
-        if (dashboard) ViewManager.register("dashboard-view", dashboard);
+        if (dashboard) ViewManager.setView("dashboard-view", dashboard);
 
         document.addEventListener("click", (e) => {
             const link = e.target.closest("a");
