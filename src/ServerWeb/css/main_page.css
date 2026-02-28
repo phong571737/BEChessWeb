@@ -2,7 +2,6 @@
     display: grid;
     grid-template-areas: ". . main . .";
     grid-template-columns:1fr 1fr minmax(auto, 1600px) 1fr 1fr;
-    margin-top: 30px;
 }
 
 .dashboard-game{

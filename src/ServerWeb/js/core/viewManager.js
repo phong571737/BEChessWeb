@@ -6,7 +6,7 @@ export const ViewManager = {
         return viewCache[id];
     },
 
-    register(id, element){
+    setView(id, element){
         viewCache[id] = element;
     },
 

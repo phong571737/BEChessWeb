@@ -23,6 +23,8 @@ export class BoardUI {
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
             onDrop: this.onDrop.bind(this),
         });
+
+        this.ui.update();
     }
 
     renderUpdate(from, to){

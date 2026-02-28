@@ -36,7 +36,6 @@
 }
 
 body{
-    /* background: var(--off-white) linear-gradient(to bottom, var(--blue-bg), var(--off-white)) no-repeat; */
     background: var(--bg-color);
     min-height: 100vh;
 }

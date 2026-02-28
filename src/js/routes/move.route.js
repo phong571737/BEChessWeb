@@ -11,16 +11,25 @@ export const moveRouter = express.Router();
 */
 moveRouter.post("/", async(req, res) =>{
     try{
-        const {uci, gameID} = req.body;
+        const {uci, gameID, seq} = req.body;
         console.log("Move from Esp", uci, gameID);
 
-        const state = await makeMove(gameID, uci);
+        const state = await makeMove(gameID, uci, seq);
+
+        if(state.duplicate){
+            return res.json({
+                status: "duplicated",
+                lastSeq: state.lastSeq,
+            });
+        }
+
         await saveGame(gameID, state); //reload
 
         /**send to web */
         getIO().emit("esp_move", state);
         res.json({
-            status: "ok"
+            status: "ok",
+            lastSeq: res.lastSeq,
         });
     }catch (err){
         res.status(400).json({error: err.message });

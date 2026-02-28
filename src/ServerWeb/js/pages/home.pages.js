@@ -13,12 +13,11 @@ export const HomePage = {
                                 .then(r => r.json())
             if(games && games.length > 0){
                 games.forEach(game =>{
-                    GameCard.addGame(game._id, game.fen, game.lastMove);
+                    GameCard.addGame(game._id, game.fen, game.lastMove, game.pgn);
                 });
             }
         }catch(e){
             console.error("Failed to restore game ", e);
-            
         }
 
         /**Resize board when to home */
