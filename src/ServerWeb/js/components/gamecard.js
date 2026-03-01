@@ -53,12 +53,6 @@ export const GameCard = {
             });
             GameSyncManager.setController(GameID, controller);
         }
-        // if(pgn){
-        //     controller.loadPGN(pgn);
-        // } 
-        // else if(fen){
-        //     controller.loadFen(fen);
-        // } 
 
         const boardUI = new BoardUI(`MiniBoard_${GameID}`, controller);
         boardUI.init();

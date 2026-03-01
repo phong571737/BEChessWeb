@@ -1,0 +1,22 @@
+.pgn-editor{
+    flex: 1;
+    resize: none;
+    border: none;
+    background: transparent;
+}
+
+.btn-save-cancel{
+    display: flex;
+    justify-content: space-between;
+}
+
+.wrapper-pgn-edit{
+    display: flex;
+    flex: 1;
+    height: 100%;
+    flex-direction: column;
+}
+
+.cancel-btn, .save-btn{
+    flex: 1;
+}

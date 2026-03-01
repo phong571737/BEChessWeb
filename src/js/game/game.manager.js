@@ -1,18 +1,18 @@
-import {Chess} from "chess.js";
+import { Chess } from "chess.js";
 import { loadGame } from "../models/gameModels.js";
 import expressListEndpoints from "express-list-endpoints";
 
 const games = new Map();
 const gameSeq = new Map();
 
-export async function restorefromDB(gameID){
+export async function restorefromDB(gameID) {
   const data = await loadGame(gameID);
-  if(!data) return null;
+  if (!data) return null;
 
   const game = new Chess();
-  if(data.pgn) {
+  if (data.pgn) {
     game.loadPgn(data.pgn);
-  }else if(data.fen){
+  } else if (data.fen) {
     game.load(data.fen);
   }
 
@@ -22,18 +22,18 @@ export async function restorefromDB(gameID){
   return game;
 }
 
-export async function makeMove(gameID, uci, seq){
-  if(!games.has(gameID)){
+export async function makeMove(gameID, uci, seq) {
+  if (!games.has(gameID)) {
     const restored = await restorefromDB(gameID);
-    if(!restored) throw new Error("Game not found");
+    if (!restored) throw new Error("Game not found");
   }
 
   const game = games.get(gameID);
-  if(!game){
+  if (!game) {
     throw new Error("Game not found");
   }
 
-  if(!uci || seq === undefined){
+  if (!uci || seq === undefined) {
     throw new Error("UCI or Seq is required");
   }
 
@@ -41,15 +41,15 @@ export async function makeMove(gameID, uci, seq){
   const expectedSeq = lastSeq + 1;
 
   //Check order
-  if(seq < expectedSeq){
-    return{
+  if (seq < expectedSeq) {
+    return {
       duplicate: true,
       fen: game.fen(),
       lastSeq,
     }
   }
 
-  if(seq > expectedSeq){
+  if (seq > expectedSeq) {
     throw new Error(`Out of order expected ${expectedSeq}`);
   }
 
@@ -57,29 +57,29 @@ export async function makeMove(gameID, uci, seq){
   const to = uci.slice(2, 4); // end
 
   const move = game.move({
-    from, 
-    to, 
+    from,
+    to,
     promotion: "q"
   })
 
-  if(!move){
+  if (!move) {
     throw new Error("Illegal move");
   }
 
   gameSeq.set(gameID, seq);
 
-   const state = {
+  const state = {
     gameID,
     fen: game.fen(),
     pgn: game.pgn(),
     lastSeq: seq,
-    lastMove: { from, to, uci}
+    lastMove: { from, to, uci }
   }
   return state;
 }
 
-export function createGame(gameID){
-  if(games.has(gameID)){ // if the game is exists
+export function createGame(gameID) {
+  if (games.has(gameID)) { // if the game is exists
     return games.get(gameID);
   }
 
@@ -88,10 +88,10 @@ export function createGame(gameID){
   return game;
 }
 
-export function getCurrentState(gameID){
+export function getCurrentState(gameID) {
   const game = games.get(gameID);
   console.log("All games:", [...games.keys()])
-  if(!game) return null;
+  if (!game) return null;
 
   return {
     gameID,
@@ -100,9 +100,23 @@ export function getCurrentState(gameID){
   };
 }
 
-export function loadPGN(gameID, pgn){
+export function loadPGN(gameID, pgn) {
   const game = games.get(gameID);
-  if(!game) throw new Error("Game not found");
+  if (!game) throw new Error("Game not found");
 
   game.loadPgn(pgn);
+}
+
+export function resetGame(gameID) {
+  //Create a new one if it is not already in RAM
+  if(!games.has(gameID)){
+    games.set(gameID, new Chess());
+  }
+
+  const game = games.get(gameID);
+  if(!game) 
+    throw new Error("Game not found");
+  game.reset();
+  gameSeq.set(gameID, 0);
+  return game
 }
