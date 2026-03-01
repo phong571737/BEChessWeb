@@ -17,6 +17,7 @@ export const GameView = {
         /**PGN container */
         const pgn_table = document.createElement('div');
         pgn_table.className = 'pgn-table';
+        pgn_table.id = 'pgn-table';
 
         /**the first user */
         const top_player = document.createElement('div');
@@ -46,6 +47,7 @@ export const GameView = {
         /**Move list */
         const moves = document.createElement('div');
         moves.className = 'moves flex-nav';
+        moves.id = 'moves';
 
         const nav_btn = document.createElement('div');
         nav_btn.className = 'nav-btn';

@@ -27,6 +27,8 @@
     --text-title-color: #132e56;
     --text-empty: #18336e;
     --board-lobby-color: linear-gradient(0deg,rgba(0, 0, 0, 1) 0%, rgba(243, 245, 249, 1) 50%, rgba(224, 227, 233, 1) 100%);
+    --text-choose: #afaca9;
+    --border-pgn-color: #C9D6DF;
 }
 
 * {
