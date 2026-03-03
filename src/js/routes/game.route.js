@@ -51,7 +51,6 @@ gameRouter.get("/current", async(req, res)=>{
 /**GET games/:id
  * Get single game by id
  */
-
 gameRouter.get("/:id", async(req, res) =>{
     try{
         const {id} = req.params;

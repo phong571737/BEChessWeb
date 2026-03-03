@@ -62,6 +62,8 @@
 }
 
 .black-captured{
+    display: flex;
+    align-items: center;
     grid-area: cap-top;
     border: 1px solid var(--border-pgn-color);
     padding: 10px;

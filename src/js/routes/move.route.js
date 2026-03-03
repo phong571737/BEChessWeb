@@ -16,22 +16,21 @@ moveRouter.post("/", async(req, res) =>{
 
         const state = await makeMove(gameID, uci, seq);
 
-        if(state.duplicate){
-            return res.json({
-                status: "duplicated",
-                lastSeq: state.lastSeq,
-            });
+        if(state.status != "ok"){
+            return res.json(state);
         }
 
         await saveGame(gameID, state); //reload
 
         /**send to web */
         getIO().emit("esp_move", state);
-        res.json({
-            status: "ok",
-            lastSeq: res.lastSeq,
-        });
+        res.json(state);
     }catch (err){
-        res.status(400).json({error: err.message });
+        console.error("System error", err);
+
+        res.status(500).json({
+            status: "server_error",
+            message: "Internal server error"
+        });
     }
 });
