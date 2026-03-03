@@ -25,57 +25,64 @@ export async function restorefromDB(gameID) {
 export async function makeMove(gameID, uci, seq) {
   if (!games.has(gameID)) {
     const restored = await restorefromDB(gameID);
-    if (!restored) throw new Error("Game not found");
+    if (!restored){
+      return {status: "not_found"}
+    }
   }
 
   const game = games.get(gameID);
-  if (!game) {
-    throw new Error("Game not found");
-  }
-
-  if (!uci || seq === undefined) {
-    throw new Error("UCI or Seq is required");
-  }
-
   const lastSeq = gameSeq.get(gameID) ?? 0;
   const expectedSeq = lastSeq + 1;
+  
+  if (!uci || seq === undefined) {
+    return { status: "invalid_request"}
+  }
 
-  //Check order
+  //duplicated
   if (seq < expectedSeq) {
     return {
-      duplicate: true,
+      status: "duplicate",
       fen: game.fen(),
       lastSeq,
     }
   }
 
+  //Out of order
   if (seq > expectedSeq) {
-    throw new Error(`Out of order expected ${expectedSeq}`);
+    return{
+      status: "out_of_order",
+      expectedSeq,
+      lastSeq
+    }
   }
 
   const from = uci.slice(0, 2); // start
   const to = uci.slice(2, 4); // end
 
-  const move = game.move({
-    from,
-    to,
-    promotion: "q"
-  })
-
-  if (!move) {
-    throw new Error("Illegal move");
+  let move;
+  try{
+    move = game.move({
+      from,
+      to,
+      promotion: "q"
+    })
+  }catch(e){
+    return {
+      status: "illegal",
+      lastSeq,
+    }
   }
 
   gameSeq.set(gameID, seq);
 
-  const state = {
+  return {
+    status: "ok",
     gameID,
     fen: game.fen(),
     pgn: game.pgn(),
     lastSeq: seq,
     lastMove: { from, to, uci }
   }
-  return state;
 }
 
 export function createGame(gameID) {
