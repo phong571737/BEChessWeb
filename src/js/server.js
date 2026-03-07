@@ -10,6 +10,9 @@ import open from "open";
 import expressListEndpoints from "express-list-endpoints";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
+import dns from "node:dns/promises";
+
+dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename); // src/js
@@ -21,10 +24,7 @@ async function StartServer() {
   app.use(express.json());
   app.use(express.urlencoded({extended:true}));
   app.use(cors({
-    origin: [
-      "http://127.0.0.1:5500",
-      `http://${env.IP_LAN}:${env.PORT}`
-    ],
+    origin: "*",
     methods: ['GET', 'POST'],
     credentials: true
   }));

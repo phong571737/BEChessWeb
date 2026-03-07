@@ -34,6 +34,20 @@ export class BoardUI {
             this.HighlightMove(from, to);
             this.HighlightKing();
             this.ui.update();
+
+            // checkmate
+            if (this.gameController.isGameOver()){
+                console.log("Game ended");
+                const pgn = this.gameController.pgn();
+                //fetch endgame to save game into db
+                fetch(`/games/${this.gameController.gameID}/endgame`, {
+                    method: "POST",
+                    headers:{
+                        "Content-Type": "application/json" 
+                    },
+                    body: JSON.stringify({pgn})
+                })
+            }
         }
     }
 
@@ -42,9 +56,10 @@ export class BoardUI {
     }
 
     onDragStart(source, piece, position, orientation) {
-        // don't pick up pieces if the game is over
-        if (this.gameController.isGameOver()) return false;
-
+        console.log("drag start");
+        if(this.gameController.isGameOver()){
+            return false;
+        }
         if (this.gameController.turn() === 'w' && piece.search(/^b/) !== -1
         || this.gameController.turn() === 'b' && piece.search(/^w/) !== -1) {
             return false;
@@ -74,6 +89,20 @@ export class BoardUI {
         const move = GameSyncManager.notifyMove(this.gameID, moveObj, this); //notify for all with id move
         if(!move){
             return 'snapback';
+        }
+
+        // don't pick up pieces if the game is over
+        if (this.gameController.isGameOver()){
+            console.log("Game ended");
+            const pgn = this.gameController.pgn();
+            //fetch endgame to save game into db
+            fetch(`/games/${this.gameController.gameID}/endgame`, {
+                method: "POST",
+                headers:{
+                    "Content-Type": "application/json" 
+                },
+                body: JSON.stringify({pgn})
+            })
         }
 
         this.update();

@@ -1,13 +1,13 @@
 import express from "express";
 import {makeMove} from "../game/game.manager.js";
-import { saveGame } from "../models/gameModels.js";
+import { saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
 
 export const moveRouter = express.Router();
 
 /**
  * POST /moves
- * Send move
+ * This api is used to send move
 */
 moveRouter.post("/", async(req, res) =>{
     try{

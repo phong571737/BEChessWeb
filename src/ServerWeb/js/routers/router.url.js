@@ -10,6 +10,10 @@ export function RouterURL(path){
         console.log("Navigation to gameid: ", gameID);
         return {name: "board", params: {gameID}};
     }
+    else if (path.startsWith("/played")){
+        console.log("Navigation to game played");
+        return {name: "played"};
+    }
 
     return {name: "notfound"};
 }

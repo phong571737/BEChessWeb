@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { loadGame } from "../models/gameModels.js";
+import { loadGame } from "../models/game.model.js";
 import expressListEndpoints from "express-list-endpoints";
 
 const games = new Map();
@@ -114,6 +114,8 @@ export function loadPGN(gameID, pgn) {
   game.loadPgn(pgn);
 }
 
+/**This function is used to reset the game 
+ * to its initial state */
 export function resetGame(gameID) {
   //Create a new one if it is not already in RAM
   if(!games.has(gameID)){
@@ -126,4 +128,14 @@ export function resetGame(gameID) {
   game.reset();
   gameSeq.set(gameID, 0);
   return game
+}
+
+/**This function is used to destroy board */
+export function destroyBoard(gameID){
+  if(!games.has(gameID)){
+    games.set(gameID, new Chess());
+  }
+
+  const game = games.get(gameID);
+  game.destroy();
 }
