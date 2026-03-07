@@ -1,4 +1,4 @@
-import { getGameCollections } from "../models/gameModels.js";
+import { getGameCollections } from "../models/game.model.js";
 
 export async function LoadGameFromDB() {
   const games = getGameCollections();
@@ -6,3 +6,4 @@ export async function LoadGameFromDB() {
 
   return data;
 }
+

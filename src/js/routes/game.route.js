@@ -1,14 +1,15 @@
 import express from "express";
 import { createGame, resetGame } from "../game/game.manager.js";
-import { loadAllGame, loadGame, saveGame } from "../models/gameModels.js";
+import { endGame, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
 import { Chess } from "chess.js";
+import { checkInitialBoard } from "../services/board.service.js";
 
 export const gameRouter = express.Router();
 
 /**
  * POST /games
- * create game
+ *This api is used to create game
  */
 gameRouter.post("/", async(req, res)=>{
     try{
@@ -33,7 +34,7 @@ gameRouter.post("/", async(req, res)=>{
 
 /**
  * POST /games/current
- * Get current game(F5)
+ * This api used to get current game(F5)
  */
 gameRouter.get("/current", async(req, res)=>{
     try{
@@ -49,7 +50,7 @@ gameRouter.get("/current", async(req, res)=>{
 });
 
 /**GET games/:id
- * Get single game by id
+ * This api is used to get single game by id
  */
 gameRouter.get("/:id", async(req, res) =>{
     try{
@@ -66,7 +67,7 @@ gameRouter.get("/:id", async(req, res) =>{
 });
 
 /**POST games/:id/pgn
- * Post edit pgn to server
+ * This api is used to post edit pgn to server
  */
 gameRouter.post("/:id/pgn", async(req, res) => {
     try{
@@ -86,7 +87,7 @@ gameRouter.post("/:id/pgn", async(req, res) => {
 });
 
 /**POST games/:id/restart
- * Post restart game
+ * This api is used to post restart game
  */
 gameRouter.post("/:id/restart", async(req, res) =>{
     try{
@@ -112,12 +113,17 @@ gameRouter.post("/:id/restart", async(req, res) =>{
     }
 });
 
-/**POST games/:id/remove
- * Post remove game
+/**POST games/:id/destroy
+ * This api is used to post destroy game
  */
-gameRouter.post("/:id/remove", async (req, res) =>{
+gameRouter.post("/:id/destroy", async (req, res) =>{
     try{
-
+        const gameID = req.params.id;
+        console.log("Destroy request: ", gameID);
+        const result = await removeGame(gameID);
+        res.json({
+            result
+        });
     }catch(e){
         console.log("Remove game", e);
         res.status(500).json({error: e.message});
@@ -125,7 +131,7 @@ gameRouter.post("/:id/remove", async (req, res) =>{
 });
 
 /**POST games/:id/resign
- * Post Resign game
+ * This api is used to post Resign game
  */
 gameRouter.post("/:id/resign", async (req, res) =>{
     try{
@@ -133,5 +139,44 @@ gameRouter.post("/:id/resign", async (req, res) =>{
     }catch(e){
         console.log("Resign game", e);
         res.status(500).json({error: e.message});
+    }
+});
+
+/**POST games/:id/endgame
+ * This api is used to post endgame 
+ */
+gameRouter.post("/:id/endgame", async (req, res) =>{
+    try{
+        const gameID = req.params.id;
+        const {pgn} = req.body;
+
+        if(!pgn){
+            return res.status(400).json({error: "PGN required"});
+        }
+
+        const result = await endGame(pgn);
+
+        res.json(result);
+    }catch (e){
+        console.log("End game error: ", e);
+    }
+});
+
+/**
+ * POST games/:id/initcheck
+ * This api is used to check board initial or not
+ */
+gameRouter.post("/:id/initcheck", async (req, res) =>{
+    try{
+        const gameID = req.params.id;
+        const board = req.body.board;
+        const result = checkInitialBoard(board);
+
+        res.json({
+            gameID, 
+            ...result
+        });
+    }catch(e){
+        console.log("Init check error", e);
     }
 });
