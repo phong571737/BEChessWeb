@@ -23,7 +23,9 @@ export const GameCard = {
         card.className = 'game-card';
 
         const boardwrapper = this.BoardWrapper(GameID);
-        card.appendChild(boardwrapper);
+        card.appendChild(
+            boardwrapper
+        );
 
         return card;
     },

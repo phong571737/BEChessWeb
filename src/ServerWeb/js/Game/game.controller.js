@@ -21,6 +21,14 @@ export class GameController{
         }
     }
 
+    setHeader(key, value){
+        this.game.setHeader(key, value);
+    }
+
+    getHeaders(){
+        return this.game.getHeaders();
+    }
+
     loadFen(fen) {
         this.game.load(fen);
     }
@@ -60,6 +68,10 @@ export class GameController{
 
     board(){
         return this.game.board();
+    }
+
+    isCheckmate(){
+        return this.game.isCheckmate();
     }
 
     isGameOver() {
@@ -137,4 +149,34 @@ export class GameController{
         return points;
     }
 
+    /**This function is used to determine the winner player */
+    getResult(){
+        //Whichever side gets their turn loses
+        if(this.isCheckmate()){
+            return this.turn() === "w" ? "0-1": "1:0";
+        }
+        //draw
+        if(this.isDraw()){
+            return "1/2-1/2"
+        }
+        return "*";
+    }
+
+    /**This function is used to set time that a game was played */
+    getFullDate(){
+        const date = new Date();
+        const year = date.getFullYear();//year
+        const month = String(date.getMonth() + 1).padStart(2, "0");// make sure the month  has 2 digits
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}.${month}.${day}`;
+    }
+
+    /**This function is used to set header of pgn */
+    setGameHeader(){
+        const result = this.getResult();
+        const date = this.getFullDate();
+        this.setHeader("Site", window.location.host);
+        this.setHeader("Date", date);
+        this.setHeader("Result", result);
+    }
 }

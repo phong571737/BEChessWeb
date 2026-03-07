@@ -7,6 +7,7 @@ export class UI {
         this.gameController = gameController;
         this.initEditButton();
         this.initRestartButton();
+        this.initRename();
     }
 
     update() {
@@ -230,5 +231,37 @@ export class UI {
             move_list.dataset.editting = "false";
             this.update();
         }
+    }
+
+    /**This function is used to rename */
+    initRename(){
+        const bname = document.getElementById("black-name");
+        const wname = document.getElementById("white-name");
+        const header = this.gameController.getHeaders();
+        console.log("header: ", header);
+        /**Add event when rename */
+        document.addEventListener("click", (e) =>{
+            if(e.target.closest("#top-icon")){
+                const newNameBlack = prompt("Nhập tên mới bên đen");
+                if(newNameBlack && newNameBlack.trim() !== "" ){
+                    bname.textContent = newNameBlack;
+
+                    this.gameController.setHeader('Black', newNameBlack);
+                    console.log("PGN after rename:");
+                    console.log(this.gameController.pgn());
+                }
+            }
+            if(e.target.closest("#bot-icon")){
+                const newNameWhite = prompt("Nhập tên bên trắng");
+                if(newNameWhite && newNameWhite.trim() !== "" ){
+                    wname.textContent = newNameWhite;
+
+                    this.gameController.setHeader('White', newNameWhite);
+
+                    console.log("PGN after rename:");
+                    console.log(this.gameController.pgn());
+                }
+            }
+        });
     }
 };

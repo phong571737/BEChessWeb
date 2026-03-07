@@ -18,10 +18,10 @@ export class BoardUI {
         this.board = Chessboard(this.elementID, {
             // draggable: true,
             position: this.gameController.fen(), //Get current fen
-            onDragStart: this.onDragStart.bind(this),
-            onSnapEnd: this.onSnapEnd.bind(this),
+            // onDragStart: this.onDragStart.bind(this),
+            // onSnapEnd: this.onSnapEnd.bind(this),
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
-            onDrop: this.onDrop.bind(this),
+            // onDrop: this.onDrop.bind(this),
         });
 
         this.ui.update();

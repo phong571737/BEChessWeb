@@ -22,10 +22,19 @@ export const GameView = {
         /**the first user */
         const top_player = document.createElement('div');
         top_player.className = 'user-link online user top-player';
-        // top_player.id = 'top-player';
+        top_player.id = 'top-player';
         const icon_top_user = document.createElement('i');
         icon_top_user.className = 'fa-solid fa-circle';
-        top_player.appendChild(icon_top_user);
+        icon_top_user.id = "top-icon";
+        const black_name = document.createElement('span');
+        black_name.className = 'black-name pad-name';
+        black_name.id = 'black-name';
+        black_name.textContent = 'Black Player';
+
+        top_player.append(
+            icon_top_user,
+            black_name
+        );
 
         //black captured
         const black_cap = document.createElement('div');
@@ -92,7 +101,16 @@ export const GameView = {
 
         const icon_bottom_user = document.createElement('i');
         icon_bottom_user.className = 'fa-solid fa-circle';
-        bottom_player.appendChild(icon_bottom_user);
+        icon_bottom_user.id = 'bot-icon';
+        const white_name = document.createElement('span');
+        white_name.className = 'white-name pad-name';
+        white_name.id = 'white-name';
+        white_name.textContent = 'White Player';
+
+        bottom_player.append(
+            icon_bottom_user,
+            white_name
+        );
 
         //white captured
         const white_cap = document.createElement('div');
