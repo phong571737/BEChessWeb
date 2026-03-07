@@ -1,6 +1,6 @@
 import express from "express";
 import { createGame, resetGame } from "../game/game.manager.js";
-import { endGame, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
 import { Chess } from "chess.js";
 import { checkInitialBoard } from "../services/board.service.js";
@@ -178,5 +178,29 @@ gameRouter.post("/:id/initcheck", async (req, res) =>{
         });
     }catch(e){
         console.log("Init check error", e);
+    }
+});
+
+/**PUT  games/:id/update
+ * This api is used to update data
+ */
+gameRouter.put("/:id/update", async (req, res) =>{
+    try{
+        const id = req.params.id;
+        const {date, result, pgn} = req.body;
+        if(!pgn){
+            return res.status(400).json({error: "PGN required"});
+        }
+
+        const game = await finishGame(id,  {
+            date,
+            result,
+            pgn,
+            status: "finished"
+        });
+        res.json(game);
+
+    }catch(e){
+
     }
 });

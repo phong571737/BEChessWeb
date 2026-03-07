@@ -56,3 +56,16 @@ export async function endGame(pgn) {
         createdAt: new Date(),
     }); 
 }
+
+/**This function is used to modify PGN */
+export async function finishGame(id, data) {
+    const game = games().findByIdAndUpdate(
+        id, 
+        {
+            ...data,
+            updateAt: new  Date()
+        },
+        {new: true}
+    );
+    return game;
+}

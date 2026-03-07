@@ -20,3 +20,15 @@
 .cancel-btn, .save-btn{
     flex: 1;
 }
+
+i.fa-solid.fa-circle{
+    cursor: pointer;
+}
+
+i.fa-solid.fa-circle:hover{
+    color: var(--neon-orange);
+}
+
+#top-icon::before{
+    pointer-events: none;
+}

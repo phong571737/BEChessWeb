@@ -13,12 +13,25 @@
     color: var(--text-title-color);
 }
 
+.setting-icon{
+    padding-left: 10px;
+}
+
+.setting-icon i{
+    color: var(--text-title-color);
+    font-size: 20px;
+}
+
+.setting-icon i:hover{
+    color: var(--neon-orange);
+}
+
 .nav-header{
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 1rem 5%;
+    padding: 1rem 1% 1rem 5%;
     margin-bottom: 2rem;
     border-bottom: 1px solid #f1f1f2;
     background: white;
