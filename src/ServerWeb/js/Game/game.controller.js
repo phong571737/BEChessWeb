@@ -4,10 +4,15 @@ export class GameController{
     constructor(gameID){
         this.game = new Chess();
         this.lastMove = null;
+        this.WhiteName = "White Player";
+        this.BlackName = "Black Player";
+        this.saved = false;
 
         if(typeof gameID === 'object' && gameID.gameID){
             this.gameID = gameID.gameID || gameID._id;
             this.lastMove = gameID.lastMove || null;
+            this.WhiteName = gameID.White || "White";
+            this.BlackName = gameID.Black || "Black";
 
             if(gameID.pgn){
                 this.loadPGN(gameID.pgn);
@@ -178,5 +183,7 @@ export class GameController{
         this.setHeader("Site", window.location.host);
         this.setHeader("Date", date);
         this.setHeader("Result", result);
+        this.setHeader("White", this.WhiteName);
+        this.setHeader("Black", this.BlackName);
     }
 }

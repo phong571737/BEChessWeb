@@ -1,0 +1,35 @@
+/* weight */
+.font-medium{
+    font-weight: var(--font-weight-medium);
+}
+
+.font-bold{
+    font-weight: var(--font-weight-bold);
+    font-family: sans-serif;
+}
+
+/* Text color */
+.text-green-600{
+    color: var(--color-green-600);
+}
+
+.text-red-500{
+    color: var(--color-red-500);
+}
+.text-gray-400{
+    color: var(--color-gray-400);
+}
+
+/* Bg color */
+.bg-green-600{
+    background-color: var(--color-green-600);
+}
+
+/* font size */
+.text-2xl{
+    font-size: var(--text-2xl);
+}
+
+.text-font{
+    font-family: sans-serif;
+}
