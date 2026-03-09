@@ -53,6 +53,10 @@ export const GameCard = {
                 pgn,
                 lastMove
             });
+
+            if(!pgn){
+                controller.setGameHeader();
+            }
             GameSyncManager.setController(GameID, controller);
         }
 

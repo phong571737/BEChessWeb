@@ -16,18 +16,14 @@ export class BoardUI {
 
     init() {
         this.board = Chessboard(this.elementID, {
-            // draggable: true,
             position: this.gameController.fen(), //Get current fen
-            // onDragStart: this.onDragStart.bind(this),
-            // onSnapEnd: this.onSnapEnd.bind(this),
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
-            // onDrop: this.onDrop.bind(this),
         });
 
         this.ui.update();
     }
 
-    renderUpdate(from, to){
+    async renderUpdate(from, to){
         if(this.board){
             console.log("Render update is called");
             this.update();
@@ -36,17 +32,26 @@ export class BoardUI {
             this.ui.update();
 
             // checkmate
-            if (this.gameController.isGameOver()){
+            if (this.gameController.isGameOver() && !this.gameController.saved){
                 console.log("Game ended");
+                this.gameController.saved = true;
+                this.gameController.setGameHeader();
+                this.gameController.setHeader("White", this.gameController.WhiteName);
+                this.gameController.setHeader("Black", this.gameController.BlackName);
                 const pgn = this.gameController.pgn();
-                //fetch endgame to save game into db
-                fetch(`/games/${this.gameController.gameID}/endgame`, {
-                    method: "POST",
-                    headers:{
-                        "Content-Type": "application/json" 
-                    },
-                    body: JSON.stringify({pgn})
-                })
+                try{
+                    //fetch endgame to save game into db
+                    const res = await fetch(`/games/${this.gameController.gameID}/endgame`, {
+                        method: "POST",
+                        headers:{
+                            "Content-Type": "application/json" 
+                        },
+                        body: JSON.stringify({pgn})
+                    })
+                    const data = await res.json();
+                }catch(e){
+                    console.log("Save game error: ", e);
+                }
             }
         }
     }
@@ -55,60 +60,12 @@ export class BoardUI {
         if(this.board) this.board.destroy();
     }
 
-    onDragStart(source, piece, position, orientation) {
-        console.log("drag start");
-        if(this.gameController.isGameOver()){
-            return false;
-        }
-        if (this.gameController.turn() === 'w' && piece.search(/^b/) !== -1
-        || this.gameController.turn() === 'b' && piece.search(/^w/) !== -1) {
-            return false;
-        }
-    }
-
     update(){
         this.board.position(this.gameController.fen());
     }
 
     onSnapEnd() {
         this.update();
-    }
-
-    onDrop(source, target) {
-        console.log("onDrop called!");
-        console.log("this.gameID:", this.gameID);
-        console.log("GameSyncManager:", GameSyncManager);
-
-        console.log('From: ', source, 'to', target);
-        let moveObj = {
-            from: source,
-            to: target,
-            promotion: 'q'
-        };
-
-        const move = GameSyncManager.notifyMove(this.gameID, moveObj, this); //notify for all with id move
-        if(!move){
-            return 'snapback';
-        }
-
-        // don't pick up pieces if the game is over
-        if (this.gameController.isGameOver()){
-            console.log("Game ended");
-            const pgn = this.gameController.pgn();
-            //fetch endgame to save game into db
-            fetch(`/games/${this.gameController.gameID}/endgame`, {
-                method: "POST",
-                headers:{
-                    "Content-Type": "application/json" 
-                },
-                body: JSON.stringify({pgn})
-            })
-        }
-
-        this.update();
-        this.HighlightMove(moveObj.from, moveObj.to);
-        this.HighlightKing();
-        this.ui.update();
     }
 
     /**add highlight when the piece is moved */

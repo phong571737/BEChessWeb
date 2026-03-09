@@ -70,8 +70,6 @@
     color: var(--text-empty);
 }
 
-
-/**test*/
 .board-wrapper{
     width: 100%;
     aspect-ratio: 1/1;
