@@ -7,10 +7,12 @@ import { env } from "./config/environment.js";
 import path from "path";
 import { fileURLToPath } from "url";
 import open from "open";
+import {Bonjour} from "bonjour-service";
 import expressListEndpoints from "express-list-endpoints";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
+import { info } from "node:console";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -42,9 +44,19 @@ async function StartServer() {
   initSocket(server);
 
   const endpoints = expressListEndpoints(app);
+  const bonjour = new Bonjour();
   console.log("Endpoints: ",endpoints);
   server.listen(env.PORT, "0.0.0.0", async () => {
     console.log("Server is running on: ", env.PORT);
+    const hostname = env.SERVER_NAME.toLowerCase().replace(/\s+/g, '') + '.local';
+
+    bonjour.publish({
+      name: env.SERVER_NAME,
+      type: "http",
+      port: env.PORT,
+      host: hostname,
+      txt: { info: "Server is ready"}
+    })
     // await open(`http://127.0.0.1:${env.PORT}`); 
   });
 }

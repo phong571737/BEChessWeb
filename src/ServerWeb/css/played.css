@@ -109,3 +109,7 @@
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), 
     var(--tw-ring-offset-shadow), var(--tw-ring-offset-shadow), var(--tw-shadow);
 }
+
+.group-item:hover{
+    border:2px solid var(--color-blue-400);
+}
