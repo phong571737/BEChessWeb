@@ -1,10 +1,12 @@
 import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
 import { PGNEdit } from "/ServerWeb/js/components/pgn.edit.js";
 import { GameController } from "/ServerWeb/js/game/game.controller.js";
+import { PGN_Modal } from "/ServerWeb/js/components/pgn.modal.js";
 
 export class UI {
     constructor(gameController) {
         this.gameController = gameController;
+
         this.initEditButton();
         this.initRestartButton();
         this.initRename();
@@ -129,15 +131,15 @@ export class UI {
     }
 
     /**This function is used to Restart Game */
-    initRestartButton(){
+    initRestartButton() {
         const restart_btn = document.querySelector(".btn.restart");
-        if(!restart_btn) return;
+        if (!restart_btn) return;
 
-        restart_btn.addEventListener("click", async () =>{
-            if(!confirm("Bạn có chắc chắc muốn restart lại ván cờ không")) return;
+        restart_btn.addEventListener("click", async () => {
+            if (!confirm("Bạn có chắc chắc muốn restart lại ván cờ không")) return;
 
             const gameID = this.gameController.gameID;
-            try{
+            try {
                 //post restart game
                 await fetch(`/games/${gameID}/restart`, {
                     method: 'POST'
@@ -148,15 +150,15 @@ export class UI {
                 this.gameController.lastMove = null;
 
                 const board = GameSyncManager.getBoards(gameID);
-                if(board){
-                    board.forEach(boardUI =>{
+                if (board) {
+                    board.forEach(boardUI => {
                         boardUI.update();
                         boardUI.RemoveHighlightKing(); // remove highlight king if you're in checkmate
                         boardUI.RemoveHighlightMove();
                     });
                 }
                 this.update();
-            }catch(e){
+            } catch (e) {
                 console.error("Restart error: ", e);
             }
         });
@@ -174,16 +176,16 @@ export class UI {
             move_list.appendChild(PGNEdit.PGNView(pgn));
 
             //Save button
-            document.getElementById("save-btn").addEventListener("click", async() => {
+            document.getElementById("save-btn").addEventListener("click", async () => {
                 const newPGN = document.getElementById("pgn-editor").value;
                 try {
                     this.gameController.loadPGN(newPGN);
                     move_list.dataset.editting = "false";
 
                     //get lastMove from history
-                    const history = this.gameController.game.history({verbose: true});
+                    const history = this.gameController.game.history({ verbose: true });
                     const lastMove = history[history.length - 1];
-                    if(lastMove){
+                    if (lastMove) {
                         this.gameController.lastMove = {
                             from: lastMove.from,
                             to: lastMove.to
@@ -196,7 +198,7 @@ export class UI {
                     //post updated data to server
                     await fetch(`/games/${gameID}/pgn`, {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             pgn: this.gameController.pgn(),
                             fen: this.gameController.fen(),
@@ -234,16 +236,16 @@ export class UI {
     }
 
     /**This function is used to rename */
-    initRename(){
+    initRename() {
         const bname = document.getElementById("black-name");
         const wname = document.getElementById("white-name");
         const header = this.gameController.getHeaders();
         console.log("header: ", header);
         /**Add event when rename */
-        document.addEventListener("click", (e) =>{
-            if(e.target.closest("#top-icon")){
+        document.addEventListener("click", (e) => {
+            if (e.target.closest("#top-icon")) {
                 const newNameBlack = prompt("Nhập tên mới bên đen");
-                if(newNameBlack && newNameBlack.trim() !== "" ){
+                if (newNameBlack && newNameBlack.trim() !== "") {
                     bname.textContent = newNameBlack;
 
                     this.gameController.setHeader('Black', newNameBlack);
@@ -251,9 +253,9 @@ export class UI {
                     console.log(this.gameController.pgn());
                 }
             }
-            if(e.target.closest("#bot-icon")){
+            if (e.target.closest("#bot-icon")) {
                 const newNameWhite = prompt("Nhập tên bên trắng");
-                if(newNameWhite && newNameWhite.trim() !== "" ){
+                if (newNameWhite && newNameWhite.trim() !== "") {
                     wname.textContent = newNameWhite;
 
                     this.gameController.setHeader('White', newNameWhite);

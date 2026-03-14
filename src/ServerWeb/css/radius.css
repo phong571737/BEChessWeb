@@ -3,7 +3,11 @@
 }
 
 .rounded-xl{
-    border-radius: calc(var(--spacing) + 4px);
+    border-radius: calc(var(--spacing) * 3);
+}
+
+.rounded-2xl{
+    border-radius: calc(var(--spacing) * 4);
 }
 
 .rounded-lg{
@@ -19,10 +23,26 @@
 }
 
 /* border color */
+.border-gray-300{
+    border-color: var(--color-gray-300);
+}
+
+.border-gray-200{
+    border-color: var(--color-gray-200);
+}
+
 .border-green-300{
     border-color: var(--color-green-300);
 }
 
 .border-gray-600{
     border-color: var(--color-gray-600);
+}
+
+.border-b {
+    border-bottom-width: 1px;
+}
+
+.border-2{
+    border-width: 2px ;
 }

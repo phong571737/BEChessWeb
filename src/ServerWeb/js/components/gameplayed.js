@@ -1,3 +1,5 @@
+import { PGN_Modal } from "/ServerWeb/js/components/pgn.modal.js";
+
 export const GamePlayed = {
     el(tag, className, text, id, title){
         const e = document.createElement(tag);
@@ -116,16 +118,14 @@ export const GamePlayed = {
         const search = this.el("div", "flex-1 relative");
         
         //icon search
-        const search_icon = this.el("div", "w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400");
-        const icon = this.el("i", "fa-solid fa-magnifying-glass");
-        search_icon.appendChild(icon);
+        const search_icon = this.el("i", "fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 leading-none");
 
         //input search
         const input_search = document.createElement("input");
         input_search.id = "search-input";
         input_search.type = "text";
         input_search.placeholder = "Search...";
-        input_search.className = "bg-white border border-gray-300 w-full text-sm text-gray-900 py-2.5 rounded-lg pl-9";
+        input_search.className = "leading-normal bg-white border border-gray-300 w-full text-sm text-gray-900 py-2.5 rounded-lg pl-9";
 
         //selection
         const select_color = this.el("div", "flex border border-gray-300 bg-white rounded-lg overflow-hidden");
@@ -147,11 +147,9 @@ export const GamePlayed = {
 
         //option 
         const sorting_option = this.el("div", "relative");
-        const icon_selection = this.el("div", "absolute w-4 h-4 left-3 top-1/2 -translate-y-1/2 text-gray-400");
-        const icon_slider = this.el("i", "fa-solid fa-sliders");
-        icon_selection.appendChild(icon_slider);
+        const icon_selection = this.el("i", "fa-solid fa-sliders absolute left-3 top-1/2 -translate-y-1/2 text-gray-400");
 
-        const select_option = this.el("select", "bg-white border border-gray-300 border-none rounded-lg py-2.5 text-sm text-gray-900 pl-9 pr-8 cursor-pointer appearance-none");
+        const select_option = this.el("select", "leading-normal bg-white border border-gray-300 border-none rounded-lg py-2.5 text-sm text-gray-900 pl-9 pr-8 cursor-pointer appearance-none");
         select_option.id = "select-option";
 
         const newest = document.createElement("option");
@@ -185,8 +183,11 @@ export const GamePlayed = {
 
     ItemGame(){
         const list_item = this.el("div");
-        const item = this.el("div", 
-            "group-item flex bg-white gap-4 px-4 py-3.5 border border-gray-200 rounded-xl items-center cursor-pointer"
+        const item = this.el(
+            "div", 
+            "pgn-item group-item flex bg-white gap-4 px-4 py-3.5 border border-gray-200 rounded-xl items-center cursor-pointer",
+            "",
+            "pgn-item"
         );
         const number = this.el("span", "text-gray-400 text-sm text-center", "#1");
         const chip = this.el("span", 
@@ -194,11 +195,44 @@ export const GamePlayed = {
             "Win"
         )
         const win_color = this.el("div");
-        const circuit = this.el("div", "rounded-full w-5 h-5 bg-gray-800 border-gray-600","", "", "Black win");
+        const circuit = this.el("div", "rounded-full w-5 h-5 border-2 bg-gray-800 border-gray-600","", "", "Black win");
         win_color.appendChild(circuit);
 
-        item.append(number, chip, win_color);
+        // Player
+        const player_container = this.el("div", "flex-1");
+        const player = this.el("div", "flex items-center gap-1.5");
+        const player_white = this.el("span", "text-gray-900 text-sm font-medium", "Player 1");
+        const versus = this.el("span", "text-xs text-gray-600 mx-1", "vs");
+        const player_black = this.el("span", "text-gray-900 text-sm font-medium", "Player 2");
+        player.append(player_white, versus, player_black);
+        player_container.append(player);
 
+        // Time and move
+        const time_and_move = this.el("div", "flex items-center flex-col items-end gap-1");
+        // Time
+        const time_match = this.el("div", "flex items-center gap-1 text-gray-400 text-xs leading-none");
+        const time_icon = this.el("i", "fa-regular fa-clock self-center");
+        const time = this.el("span", "", "3+0", "time-match");
+        time_match.append(time_icon, time); 
+
+        // Move
+        const move_match = this.el("div", "flex items-center text-gray-400 text-xs gap-1 leading-none");
+        const move_icon = this.el("span", "", "#");
+        const moves = this.el("span", "", "1", "total-moves");
+        const moves_title = this.el("span", "", "moves");
+        move_match.append(move_icon, moves, moves_title);
+
+        time_and_move.append(time_match, move_match);
+
+        // The date the game was played
+        const date = this.el("div", "items-center text-gray-500 text-xs", "March 13, 2026", "game-creation-date");
+
+        // Remove pgn
+        const remove = this.el("div", "");
+        const remove_icon = this.el("i", "fa-solid fa-trash-can", "", "remove-pgn");
+        remove.appendChild(remove_icon);
+
+        item.append(number, chip, win_color, player_container, time_and_move, date, remove);
         list_item.append(item);
         return list_item;
     },
@@ -217,7 +251,7 @@ export const GamePlayed = {
             progressbar,
             searchbar,
             chipselection,
-            itemgame
+            itemgame,
         );
         return played_view;
     }
