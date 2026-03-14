@@ -41,10 +41,6 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.text-gray-600{
-    color: var(--color-gray-600);
-}
-
 .perf-header{
     display: flex;
     font-family: sans-serif;
@@ -66,10 +62,6 @@
 }
 
 /* White */
-.bg-green-500{
-    background-color: var(--color-green-500);
-}
-
 .flex{
     display: flex;
 }
@@ -83,10 +75,6 @@
 }
 
 /* Black */
-.bg-red-500{
-    background-color: var(--color-red-500);
-}
-
 .round-r-full{
     border-radius: 0 3.40282e38px 3.40282e38px 0;
 }
@@ -100,10 +88,6 @@
     width: 25%;
 }
 
-.bg-gray-400{
-    background-color: var(--color-gray-400);
-}
-
 .shadow-sm{
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, #0000001a), 0 1px 2px -1px var(--tw-shadow-color, #0000001a);
     box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), 
@@ -112,4 +96,52 @@
 
 .group-item:hover{
     border:2px solid var(--color-blue-400);
+}
+
+#remove-pgn:hover{
+    color: var(--neon-orange);
+}
+
+.close-modal:hover{
+    color: var(--color-gray-600);
+    cursor: pointer;
+}
+
+.border-bot-player{
+    border: 1px solid var(--color-gray-200);
+}
+
+.space-y-2 > :not(:last-child){
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(calc(var(--spacing) * 2) * var(--tw-space-y-reverse));
+    margin-block-end: calc(calc(var(--spacing) * 2) * calc(1 - var(--tw-space-y-reverse)));
+}
+
+.space-y-3 > :not(:last-child){
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(calc(var(--spacing) * 3) * var(--tw-space-y-reverse));
+    margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--tw-space-y-reverse)));
+}
+
+.space-y-5 > :not(:last-child){
+    --tw-space-y-reverse: 0;
+    margin-block-start: calc(calc(var(--spacing) * 5) * var(--tw-space-y-reverse));
+    margin-block-end: calc(calc(var(--spacing) * 5) * calc(1 - var(--tw-space-y-reverse)));
+}
+
+.grid-cols-2{
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.copy-btn:hover{
+    background-color: var(--color-gray-200);
+
+}
+
+.summary-pgn:hover{
+    color: var(--color-gray-700);
+}
+
+.content-pgn{
+    white-space: pre;
 }

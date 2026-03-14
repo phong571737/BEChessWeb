@@ -1,3 +1,4 @@
+import { PGNModalController } from "/ServerWeb/js/controller/pgn.modal.controller.js";
 import { GamePlayed } from "/ServerWeb/js/components/gameplayed.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js"
 
@@ -15,5 +16,8 @@ export const GamePage = {
             main_wrapper.append(view);
             ViewManager.setView(viewID, view);
         }
+        ViewManager.show(viewID);
+
+        PGNModalController.bind(view);
     }
 } 
