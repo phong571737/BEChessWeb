@@ -1,6 +1,6 @@
 import { Chess } from "/lib/chess.js/dist/esm/chess.js";
 
-export class GameController{
+export class GameModel{
     constructor(gameID){
         this.game = new Chess();
         this.lastMove = null;
@@ -183,6 +183,13 @@ export class GameController{
         this.setHeader("Site", window.location.host);
         this.setHeader("Date", date);
         this.setHeader("Result", result);
+        this.setHeader("White", this.WhiteName);
+        this.setHeader("Black", this.BlackName);
+    }
+
+    setInitialHeader(){
+        this.setHeader("Site", window.location.host);
+        this.setHeader("Date", this.getFullDate());
         this.setHeader("White", this.WhiteName);
         this.setHeader("Black", this.BlackName);
     }

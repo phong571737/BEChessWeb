@@ -20,8 +20,15 @@ gameRouter.post("/", async(req, res)=>{
                 error: "gameID required"
             });
         }
-        console.log("Create Game", gameID);
-        createGame(gameID);
+        const chess = createGame(gameID);
+        await saveGame(gameID, {
+            gameID,
+            fen: chess.fen(),
+            pgn: "",
+            // Date: ,
+            lastMove: null
+        });
+
         getIO().emit("create_game", {gameID});
 
         res.json({

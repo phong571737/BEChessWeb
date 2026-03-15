@@ -1,5 +1,3 @@
-import { PGN_Modal } from "/ServerWeb/js/components/pgn.modal.js";
-
 export const GamePlayed = {
     el(tag, className, text, id, title){
         const e = document.createElement(tag);

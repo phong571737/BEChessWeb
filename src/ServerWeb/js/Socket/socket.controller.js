@@ -1,4 +1,4 @@
-import { GameCard } from "/ServerWeb/js/components/gamecard.js";
+import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 
 export const SocketController = {
     socket: null,
@@ -11,7 +11,7 @@ export const SocketController = {
             console.log("Create game from server:", data);
 
             if(data && data.gameID){
-                GameCard.addGame(data.gameID);
+                GameCardController.add(data.gameID);
             }
         });
 

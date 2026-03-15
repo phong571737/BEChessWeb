@@ -21,7 +21,8 @@ export const BoardPage = {
             : BoardInitController.resume(gameID); // else, display
 
         const gc = GameSyncManager.getController(gameID);
-        new PGNEditController(gc).init();
+        const viewID = document.getElementById(`view-game-${gameID}`);
+        new PGNEditController(gc, viewID).init();
         new GameActionController(gc).init();
     },
 

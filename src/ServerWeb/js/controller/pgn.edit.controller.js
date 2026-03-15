@@ -6,15 +6,16 @@ import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 
 export class PGNEditController {
     // Initialize PGN editor controller with game controller
-    constructor(gameController) {
+    constructor(gameController, container) {
         this.gameController = gameController;
+        this.container = container
         this._editing = false;
         this._abort = null;
     }
 
     // Init edit button listener
     init() {
-        document.querySelector(".btn.edit")?.addEventListener('click', () => {
+        this.container.querySelector(".btn.edit")?.addEventListener('click', () => {
             this._toggle();
         })
     }
@@ -28,12 +29,13 @@ export class PGNEditController {
         this._editing = false;
         this._abort?.abort(); // clean up listeners
         this._abort = null;
-        this.updateMoveList();
+        const moveList = this.container.querySelector("#move-list");
+        if (moveList) this.updateMoveList();
     }
 
     // Enter PGN editing mode
     _enter() {
-        const move_list = document.getElementById("move-list");
+        const move_list = this.container.querySelector("#move-list");
         if (!move_list) return;
 
         this._editing = true;
@@ -45,17 +47,17 @@ export class PGNEditController {
         const { signal } = this._abort;
 
         // save button 
-        document.getElementById("save-btn")
+        this.container.querySelector("#save-btn")
             ?.addEventListener("click", () => this._save(), { signal, once: true });
 
         // exit button
-        document.getElementById("cancel-btn")
+        this.container.querySelector("#cancel-btn")
         ?.addEventListener("click", () => this._exit(), { signal, once: true });
     }
 
     // Save game after edit pgn
     async _save() {
-        const newPGN = document.getElementById("pgn-editor").value;
+        const newPGN = this.container.querySelector("#pgn-editor")?.value;
         try {
             this.gameController.loadPGN(newPGN);
             this.synclastMove();
@@ -107,7 +109,7 @@ export class PGNEditController {
     // This function is used to update pgn for pgn table
     updateMoveList() {
         const history = this.gameController.game.history({ verbose: true });
-        const movelist = document.getElementById("move-list");
+        const movelist = this.container.querySelector("#move-list");
         if (!movelist) return;
 
         movelist.innerHTML = "";
