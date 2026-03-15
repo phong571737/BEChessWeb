@@ -1,6 +1,6 @@
-import { BoardUI } from "/ServerWeb/js/board/board.ui.js";
-import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
-import { GameController } from "/ServerWeb/js/game/game.controller.js";
+import { BoardUI } from "/ServerWeb/js/views/board.ui.js";
+import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { GameController } from "/ServerWeb/js/controller/game.controller.js";
 import { RouterPath } from "/ServerWeb/js/routers/router.path.js";
 
 export const GameCard = {

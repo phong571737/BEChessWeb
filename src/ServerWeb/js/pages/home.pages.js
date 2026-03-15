@@ -1,4 +1,4 @@
-import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
+import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
 import { GameCard } from "/ServerWeb/js/components/gamecard.js";
 

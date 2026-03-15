@@ -1,6 +1,4 @@
-import { GameSyncManager } from "/ServerWeb/js/game/game.syncmanager.js";
-import { GameController } from "/ServerWeb/js/game/game.controller.js";
-import { UI } from "/ServerWeb/js/UI/ui.controller.js";
+import { BoardUIController } from "/ServerWeb/js/controller/board.ui.controller.js";
 
 export class BoardUI {
     constructor(elementID, gameController){
@@ -11,7 +9,7 @@ export class BoardUI {
         this.gameController = gameController;
         this.gameID = gameController.gameID;
         this.board = null;
-        this.ui = new UI(gameController);
+        this.ui = new BoardUIController(gameController);
     }
 
     init() {
