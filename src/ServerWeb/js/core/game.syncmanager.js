@@ -1,5 +1,5 @@
-import { UI } from "/ServerWeb/js/UI/ui.controller.js";
-import { GameController } from "/ServerWeb/js/game/game.controller.js";
+// import { UI } from "/ServerWeb/js/UI/ui.controller.js";
+import { GameController } from "/ServerWeb/js/controller/game.controller.js";
 
 //the list of boards is displayed
 const boards = new Map(); // 1 gameid -> 1 board
