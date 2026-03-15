@@ -1,4 +1,4 @@
-import { PGN_Modal } from "/ServerWeb/js/components/pgn.modal.js"
+import { PGNModalView } from "/ServerWeb/js/views/pgn.modal.view.js";
 
 export const PGNModalController = {
     mount(){
@@ -8,7 +8,7 @@ export const PGNModalController = {
             document.querySelector("#game-modal")?.remove();
         };
     
-        const modal = PGN_Modal.MainModal(close);
+        const modal = PGNModalView.MainModal(close);
         modal.addEventListener("click", (e) => {
             if (e.target === modal) close();
         });

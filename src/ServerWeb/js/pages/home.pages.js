@@ -1,6 +1,6 @@
+import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
-import { GameCard } from "/ServerWeb/js/components/gamecard.js";
 
 export const HomePage = {
     async render(){
@@ -13,7 +13,7 @@ export const HomePage = {
                                 .then(r => r.json())
             if(games && games.length > 0){
                 games.forEach(game =>{
-                    GameCard.addGame(game._id, game.fen, game.lastMove, game.pgn);
+                    GameCardController.add(game._id, game.fen, game.lastMove, game.pgn);
                 });
             }
         }catch(e){

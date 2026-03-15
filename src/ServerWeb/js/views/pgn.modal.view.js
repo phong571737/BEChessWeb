@@ -1,4 +1,4 @@
-export const PGN_Modal = {
+export const PGNModalView = {
     el(tag, className, text, id, title){
         const e = document.createElement(tag);
         if(className) e.className = className;
