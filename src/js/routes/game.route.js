@@ -1,6 +1,6 @@
 import express from "express";
 import { createGame, resetGame } from "../game/game.manager.js";
-import { endGame, finishGame, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, getPGNCollections, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
 import { Chess } from "chess.js";
 import { checkInitialBoard } from "../services/board.service.js";
@@ -55,6 +55,22 @@ gameRouter.get("/current", async(req, res)=>{
         console.log(e);
     }
 });
+
+/**GET /games/history 
+ * This api is used to get game played
+*/
+gameRouter.get("/history", async (req, res) =>{
+    try {
+        const games = await getPGNCollections()
+            .find({})
+            .sort({createAt: -1}) // newest
+            .toArray();
+
+        res.json(games);
+    } catch(e) {
+        console.error(e);
+    }
+})
 
 /**GET games/:id
  * This api is used to get single game by id
@@ -160,10 +176,24 @@ gameRouter.post("/:id/endgame", async (req, res) =>{
         if(!pgn){
             return res.status(400).json({error: "PGN required"});
         }
+        const chess = new Chess();
+        chess.loadPgn(pgn);
+        const header = chess.getHeaders();
 
-        const result = await endGame(pgn);
+        const doc = {
+            gameID,
+            pgn, 
+            Result: header.Result || "*",
+            White: header.White || "White",
+            Black: header.Black || "Black",
+            Date: header.Date || "",
+            totalMoves: chess.history().length,
+            createAt: new Date()
+        }
 
-        res.json(result);
+        await endGame(doc);
+
+        res.json(doc);
     }catch (e){
         console.log("End game error: ", e);
     }

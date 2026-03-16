@@ -6,13 +6,15 @@ export class GameEndController {
     }
 
     async handleIfGameOver(boardUI) {
+        console.log("handleIfGameOver called, saved:", this.gameController.saved);
         if (!this.gameController.isGameOver() || this.gameController.saved) return;
 
         this.gameController.saved = true;
         this._setHeaders();
-        this._saveGame();
+        await this._saveGame();
 
-        boardUI.HighlightMove(from, to);
+        const {lastMove} = this.gameController;
+        if (lastMove) boardUI.HighlightMove(lastMove.from, lastMove.to);
         boardUI.HighlightKing();
         boardUI.ui.update();
     }
@@ -34,7 +36,11 @@ export class GameEndController {
                 },
                 body: JSON.stringify({ pgn })
             })
-            return await res.json();
+            const game = await res.json();
+
+            document.dispatchEvent(new  CustomEvent("game:ended", {
+                detail: game
+            }));
         } catch (e) {
             console.log("Save game error: ", e);
         }

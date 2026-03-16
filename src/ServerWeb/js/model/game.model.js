@@ -134,7 +134,6 @@ export class GameModel{
             captured.b[i] = initboard[i] - count.b[i];
         }
 
-        console.log("Captured: ", captured);
         return captured;
     }
 
@@ -158,7 +157,7 @@ export class GameModel{
     getResult(){
         //Whichever side gets their turn loses
         if(this.isCheckmate()){
-            return this.turn() === "w" ? "0-1": "1:0";
+            return this.turn() === "w" ? "0-1": "1-0";
         }
         //draw
         if(this.isDraw()){

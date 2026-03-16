@@ -1,6 +1,7 @@
+import { GamePlayedController } from "/ServerWeb/js/controller/game.played.controller.js";
 import { PGNModalController } from "/ServerWeb/js/controller/pgn.modal.controller.js";
-import { GamePlayed } from "/ServerWeb/js/components/gameplayed.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js"
+import { GamePlayedView } from "/ServerWeb/js/views/game.played.view.js";
 
 export const GamePage = {
     async render(){
@@ -11,13 +12,14 @@ export const GamePage = {
 
         let view = ViewManager.get(viewID);
         if(!view){
-            view = GamePlayed.MainPlayed();
+            view = GamePlayedView.MainPlayed();
             view.id = viewID;
             main_wrapper.append(view);
             ViewManager.setView(viewID, view);
         }
         ViewManager.show(viewID);
 
+        GamePlayedController.init(view);
         PGNModalController.bind(view);
     }
 } 

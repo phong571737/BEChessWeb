@@ -45,6 +45,11 @@
 .bg-gray-50{
     background-color: var(--color-gray-50);
 }
+
+.bg-gray-100{
+    background-color: var(--color-gray-100);
+}
+
 .bg-gray-400{
     background-color: var(--color-gray-400);
 }
@@ -71,6 +76,10 @@
 
 .bg-red-500{
     background-color: var(--color-red-500);
+}
+
+.bg-red-100{
+    background-color: var(--color-red-100);
 }
 
 .bg-transparent{

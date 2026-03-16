@@ -13,6 +13,8 @@ export class BoardMoveController {
         this.boardUI.HighlightKing();
         this.boardUI.ui.update();
 
-        await this.gameEnd.handleIfGameOver(this.boardUI);
+        if(this.boardUI.isPrimary){
+            await this.gameEnd.handleIfGameOver(this.boardUI);
+        }
     }
 }

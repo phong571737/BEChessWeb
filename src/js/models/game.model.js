@@ -50,11 +50,8 @@ export async function removeGame(gameID) {
 
 /**This function is used to save pgn into database
  * when the game ended */
-export async function endGame(pgn) {
-    return getPGNCollections().insertOne({
-        pgn: pgn,
-        createdAt: new Date(),
-    }); 
+export async function endGame(doc) {
+    return getPGNCollections().insertOne(doc); 
 }
 
 /**This function is used to modify PGN */

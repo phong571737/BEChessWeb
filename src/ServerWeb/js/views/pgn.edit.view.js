@@ -1,4 +1,4 @@
-export const PGNEdit = {
+export const PGNEditView = {
     PGNView(pgn){
         const wrapper = document.createElement("div");
         wrapper.className = "wrapper-pgn-edit";

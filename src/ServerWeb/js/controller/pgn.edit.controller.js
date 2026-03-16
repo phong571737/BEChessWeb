@@ -1,7 +1,7 @@
 /**This file is used to manage PGN edit mode, validates changes,
  * updates game states, and refresh board UI
  */
-import { PGNEdit } from "/ServerWeb/js/components/pgn.edit.js";
+import { PGNEditView } from "/ServerWeb/js/views/pgn.edit.view.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 
 export class PGNEditController {
@@ -40,7 +40,7 @@ export class PGNEditController {
 
         this._editing = true;
         move_list.innerHTML = "";
-        move_list.appendChild(PGNEdit.PGNView(this.gameController.pgn()));
+        move_list.appendChild(PGNEditView.PGNView(this.gameController.pgn()));
 
         // Abort controller to clean up old listeners
         this._abort = new AbortController();
