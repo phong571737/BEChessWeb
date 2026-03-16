@@ -1,6 +1,6 @@
 /**This file is used to create 
  * or reuse view */
-import { GameView } from "/ServerWeb/js/components/gameView.js";
+import { GameView } from "/ServerWeb/js/views/game.view.js";
 import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
 
 export const BoardViewController = {

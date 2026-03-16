@@ -7,6 +7,7 @@ export class BoardUI {
         this.gameController = gameController;
         this.gameID = gameController.gameID;
         this.board = null;
+        this.isPrimary = false; // flag handle end game
         this.ui = new BoardUIController(gameController);
         this.moveController = new BoardMoveController(gameController, this);
     }

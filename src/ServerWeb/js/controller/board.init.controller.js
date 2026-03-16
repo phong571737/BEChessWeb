@@ -12,6 +12,7 @@ export const BoardInitController = {
 
         /**create board instance */
         const boardUI = new BoardUI(`Board_${gameID}`, controller);
+        boardUI.isPrimary = true;
         boardUI.init();
         GameSyncManager.addBoard(gameID, boardUI);
 

@@ -31,6 +31,7 @@
     --text-choose: #afaca9;
     --border-pgn-color: #C9D6DF;
     --color-gray-50: oklch(98.5% .002 247.839);
+    --color-gray-100: oklch(96.7% .003 264.542);
     --color-gray-200: oklch(92.8% .006 264.531);
     --color-gray-300: oklch(87.2% .01 258.338);
     --color-gray-400: oklch(70.7% .022 261.325);
@@ -42,7 +43,9 @@
     --color-green-100: oklch(96.2% .044 156.743);
     --color-green-300: oklch(87.1% .15 154.449);
     --color-green-600: oklch(62.7% .194 149.214);
+    --color-red-100: oklch(93.6% .032 17.717);
     --color-red-500: oklch(63.7% .237 25.331);
+    --color-red-300: oklch(80.8% .114 19.571);
     --color-blue-400: oklch(70.7% .165 254.624);
     --color-blue-600: oklch(54.6% 0.245 262.881);
     --font-weight-medium: 500;

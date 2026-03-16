@@ -1,4 +1,4 @@
-export const GamePlayed = {
+export const GamePlayedView = {
     el(tag, className, text, id, title){
         const e = document.createElement(tag);
         if(className) e.className = className;
@@ -173,14 +173,31 @@ export const GamePlayed = {
         const win_btn = this.el("button", "px-4 py-1.5 bg-white rounded-lg text-sm border font-medium text-gray-600", "Wins");
         const loss_btn = this.el("button", "px-4 py-1.5 bg-white rounded-lg text-sm border font-medium text-gray-600", "Losses");
         const draw_btn = this.el("button", "px-4 py-1.5 bg-white rounded-lg text-sm border font-medium text-gray-600", "Draws");
-        const total_game = this.el("span", "ml-auto px-4 py-1.5 text-sm font-medium text-gray-600", "0 game");
+        const total_game = this.el("span", "ml-auto px-4 py-1.5 text-sm font-medium text-gray-600", "0 game", "total-games");
         
         main_chip.append(all_btn, win_btn, loss_btn, draw_btn, total_game);
         return main_chip;
     },
 
-    ItemGame(){
-        const list_item = this.el("div");
+    ItemGame(data = {}){
+        const {
+            White = "Player 1",
+            Black = "Player 2",
+            Result = "*",
+            Date = "",
+            totalMoves = 0,
+            gameId = ""
+        } = data;
+
+        // Set chip color following to result 
+        const chipClass = Result === "1-0" ? "border-green-300 bg-green-100"
+                        : Result == "0-1" ? "border-red-300 bg-red-100"
+                        : "border-gray-300 bg-gray-100";
+        const chipText = Result == "1-0" ? "White win"
+                        : Result == "0-1" ? "Black win"
+                        : Result == "1/2-1/2" ? "Draw"
+                        : "*";
+
         const item = this.el(
             "div", 
             "pgn-item group-item flex bg-white gap-4 px-4 py-3.5 border border-gray-200 rounded-xl items-center cursor-pointer",
@@ -189,8 +206,8 @@ export const GamePlayed = {
         );
         const number = this.el("span", "text-gray-400 text-sm text-center", "#1");
         const chip = this.el("span", 
-            "rounded-full text-center text-xs font-medium border border-green-300 bg-green-100 px-3 py-1", 
-            "Win"
+            `rounded-full text-center text-xs font-medium border ${chipClass} px-3 py-1`, 
+            chipText
         )
         const win_color = this.el("div");
         const circuit = this.el("div", "rounded-full w-5 h-5 border-2 bg-gray-800 border-gray-600","", "", "Black win");
@@ -199,9 +216,9 @@ export const GamePlayed = {
         // Player
         const player_container = this.el("div", "flex-1");
         const player = this.el("div", "flex items-center gap-1.5");
-        const player_white = this.el("span", "text-gray-900 text-sm font-medium", "Player 1");
+        const player_white = this.el("span", "text-gray-900 text-sm font-medium", White);
         const versus = this.el("span", "text-xs text-gray-600 mx-1", "vs");
-        const player_black = this.el("span", "text-gray-900 text-sm font-medium", "Player 2");
+        const player_black = this.el("span", "text-gray-900 text-sm font-medium", Black);
         player.append(player_white, versus, player_black);
         player_container.append(player);
 
@@ -215,15 +232,16 @@ export const GamePlayed = {
 
         // Move
         const move_match = this.el("div", "flex items-center text-gray-400 text-xs gap-1 leading-none");
-        const move_icon = this.el("span", "", "#");
-        const moves = this.el("span", "", "1", "total-moves");
-        const moves_title = this.el("span", "", "moves");
-        move_match.append(move_icon, moves, moves_title);
+        move_match.append(
+            this.el("span", "", "#"),
+            this.el("span", "", String(totalMoves)),
+            this.el("span", "", "moves")
+        );
 
         time_and_move.append(time_match, move_match);
 
         // The date the game was played
-        const date = this.el("div", "items-center text-gray-500 text-xs", "March 13, 2026", "game-creation-date");
+        const date = this.el("div", "items-center text-gray-500 text-xs", Date, "game-creation-date");
 
         // Remove pgn
         const remove = this.el("div", "");
@@ -231,25 +249,23 @@ export const GamePlayed = {
         remove.appendChild(remove_icon);
 
         item.append(number, chip, win_color, player_container, time_and_move, date, remove);
-        list_item.append(item);
-        return list_item;
+        return item;
     },
 
     MainPlayed(){
-        const played_view = this.el("div", "main-played");
+        const played_view = this.el("div", "main-played py-end-8 px-6");
         const title = this.HeaderView();
         const progressbar = this.ProgressBar();
         const cardbar = this.CardBar();
         const searchbar = this.SearchBar();
         const chipselection = this.ChipSelection();
-        const itemgame = this.ItemGame();
         played_view.append(
             title,
             cardbar,
             progressbar,
             searchbar,
             chipselection,
-            itemgame,
+            this.el("div", "game-list space-y-2"),
         );
         return played_view;
     }

@@ -21,6 +21,7 @@ export const GameCardController = {
 
         // BoardUI + moveController
         const boardUI = new BoardUI(`MiniBoard_${GameID}`, model);
+        boardUI.isPrimary = false;
         boardUI.init();
 
         GameSyncManager.addBoard(GameID, boardUI);
