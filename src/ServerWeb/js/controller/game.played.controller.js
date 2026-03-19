@@ -24,6 +24,7 @@ export const GamePlayedController = {
         // update total games
         const total = list.querySelectorAll(".pgn-item").length;
         this._updateTotalGame(view, total);
+        this._reIndexlist(list);
     },
 
     // This function is used to load game from database
@@ -33,7 +34,6 @@ export const GamePlayedController = {
             if(!res.ok) return;
 
             const games = await res.json();
-            console.log("Games from server:", games);
 
             const list = view.querySelector(".game-list");
             if (!list) return;
@@ -41,8 +41,8 @@ export const GamePlayedController = {
             list.innerHTML = "";
             if (!games.length) return;
 
-            games.forEach(game => {
-                list.appendChild(GamePlayedView.ItemGame(game));
+            games.forEach((game, index) => {
+                list.appendChild(GamePlayedView.ItemGame(game, index + 1));
             });
 
             // Update a number of games
@@ -57,5 +57,13 @@ export const GamePlayedController = {
         const el = view.querySelector("#total-games");
         if (el) el.textContent = `${total} game${total !== 1 ? "s": ""}`;
         if (header) header.textContent = `${total} game${total !== 1 ? "s": ""} played`;
+    },
+
+    // This function is used to re index when a game is added
+    _reIndexlist(list){
+        list.querySelectorAll(".pgn-item").forEach((item, index) =>{
+            const item_number = item.querySelector(".item-number");
+            if(item_number) item_number.textContent(`#${index + 1}`);
+        })
     }
 }

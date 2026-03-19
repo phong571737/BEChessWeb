@@ -60,6 +60,7 @@ export class PGNEditController {
         const newPGN = this.container.querySelector("#pgn-editor")?.value;
         try {
             this.gameController.loadPGN(newPGN);
+            this.gameController.seq = this.gameController.game.history().length;
             this.synclastMove();
             await this._postPGN();
             this._refreshBoards();
@@ -95,13 +96,17 @@ export class PGNEditController {
 
     async _postPGN() {
         const { gameID, lastMove } = this.gameController;
+        const history  = this.gameController.game.history();
+        const newSeq = history.length;
+
         await fetch(`/games/${gameID}/pgn`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
                 pgn: this.gameController.pgn(),
                 fen: this.gameController.fen(),
-                lastMove
+                lastMove,
+                lastSeq: newSeq, //send new Seq to server  
             })
         });
     }

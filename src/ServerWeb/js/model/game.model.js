@@ -19,10 +19,8 @@ export class GameModel{
             }else if(gameID.fen){
                 this.loadFen(gameID.fen);
             }
-            console.log("Restore controller: ", this.gameID);
         }else{
             this.gameID = gameID;
-            console.log("Create controller for:", this.gameID);
         }
     }
 

@@ -214,3 +214,7 @@ button{
     margin-left: 10px;
 }
 
+.btn-select-promotion:hover{
+    background-color: var(--color-gray-100);
+}
+

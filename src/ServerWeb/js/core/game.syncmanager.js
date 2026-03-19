@@ -1,5 +1,5 @@
+// import { PromotionUI } from "/ServerWeb/js/views/promotion.ui.js";
 import { BoardMoveController } from "/ServerWeb/js/controller/board.move.controller.js";
-import { GameModel } from "/ServerWeb/js/model/game.model.js";
 
 //the list of boards is displayed
 const boards = new Map(); // 1 gameid -> 1 board
@@ -11,15 +11,15 @@ export const GameSyncManager = {
         return gamemodel.get(gameID) || null;
     },
 
-    setController(gameID, controller){
+    setController(gameID, controller) {
         gamemodel.set(gameID, controller)
     },
 
-    getBoards(gameID){
+    getBoards(gameID) {
         return boards.get(gameID);
     },
 
-    getAllBoards(){
+    getAllBoards() {
         return boards;
     },
 
@@ -49,13 +49,13 @@ export const GameSyncManager = {
         if (!gameBoards) return;
 
         for (const boardUI of gameBoards) {
-            if(boardUI === sourceBoardUI) continue;
+            if (boardUI === sourceBoardUI) continue;
             await boardUI.BoardMoveController.onMove(moved.from, moved.to);
         }
     },
 
     removeBoard(gameID) {
-        if(!boards.has(gameID)) return;
+        if (!boards.has(gameID)) return;
 
         boards.delete(gameID);
         gamemodel.delete(gameID);
@@ -66,15 +66,17 @@ export const GameSyncManager = {
         document.addEventListener("socket:move", async (e) => {
             const data = e.detail;
             const gameID = data.gameID;
+            const lastMove = data.lastMove;
             console.log("Receive data from server: ", data);
 
             const model = gamemodel.get(gameID);
             if (!model) return;
 
+            const uci = data.lastMove.uci || "";
             const move = {
                 from: data.lastMove.from,
                 to: data.lastMove.to,
-                promotion: 'q'
+                promotion: uci.length === 5 ? uci[4] : "q"
             };
 
             const moved = model.makeMove(move);
@@ -89,4 +91,24 @@ export const GameSyncManager = {
             }
         });
     },
+
+    _isPromotion(model, lastMove) {
+        if (lastMove.uci && lastMove.uci.length === 5) return false;
+        
+        const toRank = lastMove.to[1];
+        const fromRank = lastMove.from[1];
+
+        return (fromRank === "7" && toRank === "8") ||
+            (fromRank === "2" && toRank === "1");
+    },
+
+    // Get element of square that promotion
+    _getSquareEl(gameID, square) {
+        const gameBoards = boards.get(gameID);
+        if (!gameBoards?.length) return [];
+
+        return gameBoards
+         .map(b => document.querySelector(`#${b.elementID} .square-${square}`))
+         .filter(Boolean);
+    }
 }

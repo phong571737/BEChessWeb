@@ -1,5 +1,5 @@
 import express from "express";
-import { createGame, resetGame } from "../game/game.manager.js";
+import { createGame, resetGame, gameSeq, games, restorefromDB } from "../game/game.manager.js";
 import { endGame, finishGame, getPGNCollections, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
 import { Chess } from "chess.js";
@@ -103,8 +103,14 @@ gameRouter.post("/:id/pgn", async(req, res) => {
         const lastSeq = chess.history().length;
 
         await saveGame(gameID, {pgn, fen, lastMove, gameID, lastSeq});
+
+        console.log("Before delete - gameSeq:", gameSeq.get(gameID));
+        // Restore to update state after edit
+        await restorefromDB(gameID); 
+        console.log("After delete - gameSeq:", gameSeq.get(gameID));
         res.json({ok: true});
     }catch (e) {
+        console.error("POST /pgn error: ", e);
         res.status(500).json({ error: e.message });
     }
 });

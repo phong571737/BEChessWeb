@@ -1,9 +1,9 @@
 import { Chess } from "chess.js";
 import { loadGame } from "../models/game.model.js";
-import expressListEndpoints from "express-list-endpoints";
+import { getIO, pendingPromotions } from "../sockets/index.js";
 
-const games = new Map();
-const gameSeq = new Map();
+export const games = new Map();
+export const gameSeq = new Map();
 
 export async function restorefromDB(gameID) {
   const data = await loadGame(gameID);
@@ -18,7 +18,6 @@ export async function restorefromDB(gameID) {
 
   games.set(gameID, game);
   gameSeq.set(gameID, data.lastSeq ?? 0);
-  console.log(`Restored game ${gameID} from DB`);
   return game;
 }
 
@@ -58,13 +57,14 @@ export async function makeMove(gameID, uci, seq) {
 
   const from = uci.slice(0, 2); // start
   const to = uci.slice(2, 4); // end
+  const promotion = uci.length === 5 ? uci[4] : "q";
 
   let move;
   try{
     move = game.move({
       from,
       to,
-      promotion: "q"
+      promotion: promotion
     })
   }catch(e){
     return {
@@ -97,7 +97,6 @@ export function createGame(gameID) {
 
 export function getCurrentState(gameID) {
   const game = games.get(gameID);
-  console.log("All games:", [...games.keys()])
   if (!game) return null;
 
   return {
@@ -138,4 +137,25 @@ export function destroyBoard(gameID){
 
   const game = games.get(gameID);
   game.destroy();
+}
+
+/**This function wait for client choose piece*/
+export function askPromotion(gameID, to){
+  return new Promise((resolve) => {
+    const io = getIO();
+    console.log("Emitting promotion_required for:", gameID);
+    // require webserver
+    io.to(gameID).emit("promotion_required", {gameID, to});
+    
+    // Wait for webserver
+    pendingPromotions.set(gameID, resolve);
+
+    // 30s default queen
+    // setTimeout(() => {
+    //   if (pendingPromotions.has(gameID)){
+    //     pendingPromotions.delete(gameID);
+    //     resolve("q")
+    //   }
+    // }, 30000);
+  });
 }
