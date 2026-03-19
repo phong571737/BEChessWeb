@@ -192,6 +192,10 @@ input, button, select{
     inset: 0;
 }
 
+.z-50{
+    z-index: 50;
+}
+
 .relative{
     position: relative;
 }

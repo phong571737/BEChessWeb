@@ -2,6 +2,7 @@ import { Server, Socket } from "socket.io";
 import { getCurrentState, makeMove } from "../game/game.manager.js";
 
 let io;
+export const pendingPromotions = new Map();
 
 export function initSocket(server){
     io = new Server(server, {
@@ -22,7 +23,7 @@ export function initSocket(server){
 
             const gameID = data.gameID;
             const currentstate = getCurrentState(gameID);
-            console.log("F5 request for:", gameID, "Result: ", currentstate);
+            
             if(currentstate){
                 socket.emit("restore_game", {
                     gameID: currentstate.gameID,
@@ -38,7 +39,6 @@ export function initSocket(server){
         socket.on("esp_move", (data)=>{
             try{
                 const moveResult = makeMove(data.gameID, data.uci);
-                // lastMoveGlobal = moveResult.lastMove;
 
                 io.emit("esp_move", {
                     gameID: moveResult.gameID,
@@ -51,6 +51,20 @@ export function initSocket(server){
             }
         });
         console.log("Web connected", socket.id);
+
+        socket.on("promotion_response", ({gameID, promotion}) =>{
+            console.log("Received promotion:", gameID, promotion);
+            const resolver = pendingPromotions.get(gameID);
+            if (resolver) {
+                resolver(promotion);
+                pendingPromotions.delete(gameID);
+            }
+        });
+
+        socket.on("join", ({gameID}) =>{
+            socket.join(gameID);
+            console.log(`${socket.id} joined room: ${gameID}`);
+        })
     })
 }
 

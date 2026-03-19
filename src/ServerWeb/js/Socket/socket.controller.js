@@ -1,3 +1,5 @@
+import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { PromotionUI } from "/ServerWeb/js/views/promotion.ui.js";
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 
 export const SocketController = {
@@ -8,7 +10,6 @@ export const SocketController = {
 
         //Create New Game
         this.socket.on("create_game", (data)=>{
-            console.log("Create game from server:", data);
 
             if(data && data.gameID){
                 GameCardController.add(data.gameID);
@@ -31,10 +32,10 @@ export const SocketController = {
         //F5=> request the current state
         this.socket.on("connect", ()=>{
             const path = window.location.pathname;
-            console.log("Path: ", path);
-            if(path.startsWith("/Board_")){
-                const gameID = path.split("/")[1];
-                console.log("Requesting restore for:", gameID);
+            if(path.startsWith("/board/")){
+                const gameID = path.split("/")[2];
+    
+                this.socket.emit("join", { gameID }); //join room
                 this.socket.emit("request_current_game", {gameID: gameID});
             }
         });
@@ -42,5 +43,17 @@ export const SocketController = {
         this.socket.on("connect_error", (err)=>{
             console.error("Connection Error: ", err);
         })
+
+        this.socket.on("promotion_required", async ({gameID, to}) => {
+            console.log("Promotion required received:", gameID);
+            // Display UI select piece
+            const color = GameSyncManager.getController(gameID)?.turn();
+            const squareEl = GameSyncManager._getSquareEl(gameID, to);
+
+            const promotion = await PromotionUI.show(color, squareEl);
+            console.log("Sending promotion:", promotion);
+
+            this.socket.emit("promotion_response", {gameID, promotion});
+        });
     },
 };

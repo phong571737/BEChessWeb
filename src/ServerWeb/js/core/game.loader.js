@@ -11,7 +11,6 @@ export const GameLoader = {
         if (GameSyncManager.getController(gameID)) return;
         try {
             const game = await fetch(`/games/${gameID}`).then(r => r.json())
-            console.log("Game from server: ", game);
             GameSyncManager.setController(gameID, new GameModel(game));
         } catch (e) {
             console.error("Failed to restore game ", e);

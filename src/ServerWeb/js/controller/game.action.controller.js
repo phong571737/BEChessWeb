@@ -58,7 +58,7 @@ export class GameActionController {
             if (board) {
                 board.forEach(boardUI => {
                     boardUI.update();
-                    boardUI.RemoveHighlightKing(); // remove highlight king if you're in checkmate
+                    boardUI.RemoveHighlightKing();
                     boardUI.RemoveHighlightMove();
                 });
             }

@@ -12,9 +12,7 @@ export const RouterPath = {
     },
 
     handle(){
-        console.log("Current path:", window.location.pathname);
         const router = RouterURL(window.location.pathname);
-        console.log("Router result:", router);
 
         switch(router.name){
             case "home":
@@ -22,12 +20,10 @@ export const RouterPath = {
                 break;
 
             case "board":
-                console.log("Navigation to board",router.params.gameID);
                 BoardPage.render(router.params.gameID);
                 break;
 
             case "played":
-                console.log("Navigation to game played");
                 GamePage.render();
                 break;
 

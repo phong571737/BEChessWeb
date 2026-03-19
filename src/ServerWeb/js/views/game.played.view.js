@@ -179,7 +179,7 @@ export const GamePlayedView = {
         return main_chip;
     },
 
-    ItemGame(data = {}){
+    ItemGame(data = {}, index = 1){
         const {
             White = "Player 1",
             Black = "Player 2",
@@ -204,7 +204,7 @@ export const GamePlayedView = {
             "",
             "pgn-item"
         );
-        const number = this.el("span", "text-gray-400 text-sm text-center", "#1");
+        const number = this.el("span", "item-number text-gray-400 text-sm text-center", `#${index}`);
         const chip = this.el("span", 
             `rounded-full text-center text-xs font-medium border ${chipClass} px-3 py-1`, 
             chipText

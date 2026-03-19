@@ -12,6 +12,7 @@ import expressListEndpoints from "express-list-endpoints";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
+import { tunnel } from "cloudflared";
 import { info } from "node:console";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
@@ -57,6 +58,7 @@ async function StartServer() {
       host: hostname,
       txt: { info: "Server is ready"}
     })
+
     // await open(`http://127.0.0.1:${env.PORT}`); 
   });
 }
