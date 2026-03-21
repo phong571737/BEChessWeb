@@ -14,6 +14,14 @@
     padding: calc(var(--spacing) * 5);
 }
 
+.p-6{
+    padding: calc(var(--spacing) * 6);
+}
+
+.p-8{
+    padding: calc(var(--spacing) * 8);
+}
+
 /* padding inline */
 .px-3{
     padding-inline: calc(var(--spacing) * 3);
@@ -36,8 +44,16 @@
     padding-block: calc(var(--spacing) * 1.5);
 }
 
+.py-2{
+    padding-block: calc(var(--spacing) * 2);
+}
+
 .py-2\.5{
     padding-block: calc(var(--spacing) * 2.5);
+}
+
+.py-3{
+    padding-block: calc(var(--spacing) * 3);
 }
 
 .py-3\.5{
@@ -143,6 +159,10 @@
     margin-inline: calc(var(--spacing) * 1);
 }
 
+.max-w-xl{
+    max-width: var(--container-xl);
+}
+
 .max-w-2xl{
     max-width: var(--container-2xl);
 }
@@ -153,6 +173,10 @@
 
 .max-h-40{
     max-height: calc(var(--spacing) * 40);
+}
+
+.h-screen {
+    height: 100vh;
 }
 
 .button-inherits{
@@ -169,5 +193,21 @@
 
 .justify-center{
     justify-content: center;
+}
+
+.top-3 {
+    top: calc(var(--spacing) * 3);
+}
+
+.right-3 {
+    right: calc(var(--spacing) * 3);
+}
+
+.top-4 {
+    top: calc(var(--spacing) * 4);
+}
+
+.right-4 {
+    right: calc(var(--spacing) * 4);
 }
 

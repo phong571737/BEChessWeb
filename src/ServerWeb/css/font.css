@@ -21,6 +21,10 @@
     color: var(--color-gray-400);
 }
 
+.text-white{
+    color: var(--white);
+}
+
 .text-gray-600{
     color: var(--color-gray-600);
 }
@@ -34,7 +38,11 @@
 }
 
 .text-white{
-    color: white;
+    color: var(--white);
+}
+
+.text-black {
+    color: black;
 }
 
 .text-center{
@@ -82,6 +90,14 @@
     background-color: var(--color-red-100);
 }
 
+.bg-zinc-800 {
+    background-color: var(--color-zinc-800);
+}
+
+.bg-white\/30{
+    background-color: rgba(255, 255, 255, 0.3);
+}
+
 .bg-transparent{
     background-color: transparent;
 }
@@ -122,7 +138,7 @@
 }
 
 /* blur */
-.backdrop_blur_sm{
+.backdrop-blur-sm{
     --tw-backdrop-blur: blur(var(--blur-sm));
     backdrop-filter: var(--tw-backdrop-blur);
 }

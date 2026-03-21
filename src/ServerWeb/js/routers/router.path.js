@@ -6,12 +6,17 @@ import { GamePage } from "/ServerWeb/js/pages/played.page.js";
 
 
 export const RouterPath = {
+    currentController: null,
+
     navigationTo(url) {
         history.pushState(null, null, url);
         this.handle();
     },
 
     handle(){
+        this.currentController?.destroy();
+        this.currentController = null;
+
         const router = RouterURL(window.location.pathname);
 
         switch(router.name){
@@ -20,7 +25,9 @@ export const RouterPath = {
                 break;
 
             case "board":
-                BoardPage.render(router.params.gameID);
+                BoardPage.render(router.params.gameID).then(controller => {
+                    this.currentController = controller;
+                });
                 break;
 
             case "played":

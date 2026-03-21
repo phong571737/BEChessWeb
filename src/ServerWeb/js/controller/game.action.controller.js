@@ -2,33 +2,49 @@
  * restart, rename
  */
 
+import { ModalView } from "/ServerWeb/js/views/modal.view.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 
 export class GameActionController {
     constructor(gameController) {
         this.gameController = gameController;
+        this.abortController = null;
     }
 
     init() {
-        this._initRestart();
-        this._initRename();
+        // Destroy old listener
+        this.abortController?.abort();
+        this.abortController = new AbortController();
+        const { signal } = this.abortController;
+
+
+        this._initRestart(signal);
+        this._initRename(signal);
+        this._initSurrender(signal);
     }
 
     // Restart a game
-    _initRestart() {
+    _initRestart(signal) {
         const restart_btn = document.querySelector(".btn.restart");
         restart_btn?.addEventListener("click", () => {
             this._handleRestart();
-        })
+        }, {signal})
     }
 
     // Rename for black and white player
-    _initRename() {
+    _initRename(signal) {
         document.getElementById("top-icon")
-            ?.addEventListener("click", () => this._rename("Black", "black-name"));
+            ?.addEventListener("click", () => this._rename("Black", "black-name"), {signal});
 
         document.getElementById("bot-icon")
-            ?.addEventListener("click", () => this._rename("White", "white-name"));
+            ?.addEventListener("click", () => this._rename("White", "white-name"), {signal});
+    }
+
+    _initSurrender(signal) {
+        const surrender = document.querySelector(".btn.surrender");
+        surrender?.addEventListener("click", () => {
+            this._handleSurrender();
+        }, {signal})
     }
 
     _rename(color, elementID) {
@@ -43,17 +59,17 @@ export class GameActionController {
     async _handleRestart() {
         if (!confirm("Bạn có chắc chắc muốn restart lại ván cờ không")) return;
 
-        const {gameID} = this.gameController;
+        const { gameID } = this.gameController;
         try {
             //post restart game
             await fetch(`/games/${gameID}/restart`, {
                 method: 'POST'
             });
-    
+
             //Reset board client
             this.gameController.game.reset();
             this.gameController.lastMove = null;
-    
+
             const board = GameSyncManager.getBoards(gameID);
             if (board) {
                 board.forEach(boardUI => {
@@ -62,8 +78,60 @@ export class GameActionController {
                     boardUI.RemoveHighlightMove();
                 });
             }
-        } catch(e) {
+        } catch (e) {
             console.error("Restart error: ", e);
         }
+    }
+
+    // Handle surrender event
+    _handleSurrender() {
+        if (document.querySelector(".resign-dialog[open]")) return;
+        
+        const modal = ModalView.showResignModal();
+        const close = () => {
+            modal.modal_container.close();
+            modal.modal_container.remove();
+        };
+
+        modal.closeBtn.addEventListener("click", () => {
+            close();
+        });
+
+        const resign = async (resignSide) => {
+            const { gameID } = this.gameController;
+            try {
+                await fetch(`/games/${gameID}/resign`, {
+                    method: 'POST',
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ resignSide }),
+                })
+                close();
+
+                // Reset server 
+                await fetch(`/games/${this.gameController.gameID}/reset`, {
+                    method: "POST"
+                });
+
+                // Reset board
+                this.gameController.game.reset();
+                this.gameController.lastMove = null;
+
+                const boards = GameSyncManager.getBoards(gameID);
+                boards?.forEach(boardUI => {
+                    boardUI.update();
+                    boardUI.RemoveHighlightKing();
+                    boardUI.RemoveHighlightMove();
+                });
+            } catch (e) {
+                console.error("Resign error:", e);
+            }
+        };
+
+        modal.btn_white.addEventListener("click", () => resign("white"));
+        modal.btn_black.addEventListener("click", () => resign("black"));
+    }
+
+    destroy() {
+        this.abortController?.abort();
     }
 }

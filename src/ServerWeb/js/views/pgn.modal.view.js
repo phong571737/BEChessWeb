@@ -127,7 +127,7 @@ export const PGNModalView = {
     MainModal(onclose){
         console.log("modal called");
         const game_modal = this.el("div", "flex hidden fixed inset-0 justify-center p-4", "", "game-modal");
-        const bg_blur = this.el("div", "absolute inset-0 bg backdrop_blur_sm");
+        const bg_blur = this.el("div", "absolute inset-0 bg backdrop-blur-sm");
         const modal_bg = this.el("div", "relative border border-gray-200 bg-white overflow-y max-w-2xl max-h-90vh rounded-2xl w-full");
 
         const top_modal = this.TopModal(onclose);
