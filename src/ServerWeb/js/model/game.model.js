@@ -190,4 +190,12 @@ export class GameModel{
         this.setHeader("White", this.WhiteName);
         this.setHeader("Black", this.BlackName);
     }
+
+    // Reset board 
+    reset() {
+        this.game.reset();
+        this.lastMove = null;
+        this.saved = false;
+        this.setInitialHeader();
+    }
 }

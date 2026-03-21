@@ -39,7 +39,7 @@ export const PromotionUI = {
                 squareEl.style.zIndex = "50";
                 squareEl.style.overflow = "visible";
     
-                const container = this.el("div", "absolute z-50 bg-white border border-gray-200");
+                const container = this.el("div", "absolute z-50 backdrop-blur-sm bg-white/30 border border-gray-200");
 
                 container.style.left = "0";
                 if( color === "w") {

@@ -5,6 +5,7 @@ import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { GameModel } from "/ServerWeb/js/model/game.model.js";
 import { RouterPath } from "/ServerWeb/js/routers/router.path.js";
 import { GameCardView } from "/ServerWeb/js/views/game.card.view.js";
+import { SocketController } from "/ServerWeb/js/socket/socket.controller.js";
 
 export const GameCardController = {
     /**create game */
@@ -25,6 +26,9 @@ export const GameCardController = {
         boardUI.init();
 
         GameSyncManager.addBoard(GameID, boardUI);
+
+        // Join room
+        SocketController.socket?.emit("join", {gameID: GameID});
 
         requestAnimationFrame(async ()=>{
             if(lastMove){

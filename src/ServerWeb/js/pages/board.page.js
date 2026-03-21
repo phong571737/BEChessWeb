@@ -23,7 +23,9 @@ export const BoardPage = {
         const gc = GameSyncManager.getController(gameID);
         const viewID = document.getElementById(`view-game-${gameID}`);
         new PGNEditController(gc, viewID).init();
-        new GameActionController(gc).init();
+        const actionController = new GameActionController(gc);
+        actionController.init();
+        return actionController;
     },
 
 }

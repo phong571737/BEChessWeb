@@ -145,3 +145,19 @@
 .content-pgn{
     white-space: pre;
 }
+
+#modal-cancel:hover {
+    background-color: var(--color-gray-50);
+}
+
+#modal-confirm:hover {
+    background-color: var(--color-red-600);
+}
+
+.btn-white:hover {
+    background-color: var(--color-gray-200);
+}
+
+.btn-black:hover {
+    background-color: var(--color-zinc-700);
+}

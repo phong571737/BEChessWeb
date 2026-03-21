@@ -67,8 +67,7 @@ export const GameSyncManager = {
             const data = e.detail;
             const gameID = data.gameID;
             const lastMove = data.lastMove;
-            console.log("Receive data from server: ", data);
-
+            
             const model = gamemodel.get(gameID);
             if (!model) return;
 

@@ -63,6 +63,6 @@ export class BoardUI {
 
     RemoveHighlightKing() {
         $(`#${this.elementID} [class*="square-"]`).removeClass('check');
-        console.log("Remove check the king");
+        // console.log("Remove check the king");
     }
 }
