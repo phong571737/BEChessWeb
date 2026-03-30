@@ -3,6 +3,7 @@
  */
 import { BoardUI } from "/ServerWeb/js/views/board.ui.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
 
 export const BoardInitController = {
     // This function is used to create a new board for a game
@@ -12,6 +13,7 @@ export const BoardInitController = {
 
         /**create board instance */
         const boardUI = new BoardUI(`Board_${gameID}`, controller);
+        controller.boardUI = boardUI;
         boardUI.isPrimary = true;
         boardUI.init();
         GameSyncManager.addBoard(gameID, boardUI);
@@ -44,5 +46,5 @@ export const BoardInitController = {
             boardUI.HighlightMove(controller.lastMove.from, controller.lastMove.to);
         }
         boardUI.HighlightKing();
-    }
+    },
 }

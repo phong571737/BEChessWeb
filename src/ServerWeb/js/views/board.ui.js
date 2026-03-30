@@ -63,6 +63,21 @@ export class BoardUI {
 
     RemoveHighlightKing() {
         $(`#${this.elementID} [class*="square-"]`).removeClass('check');
-        // console.log("Remove check the king");
+    }
+
+    // Highlight when init wrong
+    HighlightInitErrors(wrongSq, missingSq) {
+        wrongSq.forEach(sq => {
+            $(`#${this.elementID} .square-${sq}`).addClass('highlightwrong');
+        });
+
+        missingSq.forEach(sq => {
+            $(`#${this.elementID} .square-${sq}`).addClass('highlightmissing');
+        });
+    }
+
+    ClearHighlightInitErrors() {
+        $(`#${this.elementID} [class*="square-"]`).removeClass('highlightwrong');
+        $(`#${this.elementID} [class*="square-"]`).removeClass('highlightmissing');
     }
 }

@@ -208,6 +208,7 @@ export const GamePlayedView = {
         );
 
         item.dataset.id = _id;
+        item.dataset.game = JSON.stringify(data);
         const number = this.el("span", "item-number text-gray-400 text-sm text-center", `#${index}`);
         const chip = this.el("span",
             `rounded-full text-center text-xs font-medium border ${chipClass} px-3 py-1`,
