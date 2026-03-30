@@ -187,6 +187,15 @@ button{
     z-index: 1;
 }
 
+[class^="square-"].highlightwrong{
+    background-color: var(--color-red-400) !important;
+}
+
+[class^="square-"].highlightmissing{
+    background-color: var(--color-yellow-300) !important;
+}
+
+
 /* float the piece on the square */
 .piece-417db{
     position: relative;

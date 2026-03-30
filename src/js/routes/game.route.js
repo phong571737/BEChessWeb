@@ -7,6 +7,7 @@ import { checkInitialBoard } from "../services/board.service.js";
 import { ObjectId } from "mongodb";
 
 export const gameRouter = express.Router();
+const initState = {}; // state of physics board
 
 /**
  * POST /games
@@ -286,13 +287,55 @@ gameRouter.post("/:id/reset", async (req, res) => {
 });
 
 /**
- * POST games/:id/initcheck
- * This api is used to check board initial or not
+ * POST games/:id/physicsboard
+ * This api is used to send the state init of physicboard
  */
-gameRouter.post("/:id/initcheck", async (req, res) => {
+
+gameRouter.post("/:id/physicsboard", async (req, res) => {
     try {
         const gameID = req.params.id;
         const board = req.body.board;
+        if (!board) {
+            return res.status(400).json({
+                error: "Missing board"
+            });
+        }
+
+        initState[gameID] = board;
+
+        const result = checkInitialBoard(board);
+
+        res.json({
+            gameID,
+            status: result.status,
+        });
+
+    } catch (e) {
+        console.log("Physical board update error", e);
+        res.status(500).json({
+            error: "Server error"
+        });
+    }
+});
+
+/**
+ * GET games/:id/initcheck
+ * This api is used to get state of physic board
+ */
+gameRouter.get("/:id/initcheck", async (req, res) => {
+    try {
+        const gameID = req.params.id;
+        const board = initState[gameID];
+
+        if (!board) {
+            return res.json({
+                gameID,
+                status: "waiting",
+                wrongSquares: [],
+                missingSquares: []
+            })
+        }
+
         const result = checkInitialBoard(board);
 
         res.json({

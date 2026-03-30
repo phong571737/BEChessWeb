@@ -161,3 +161,11 @@
 .btn-black:hover {
     background-color: var(--color-zinc-700);
 }
+
+.whitespace-pre-wrap {
+    white-space: pre-wrap;
+}
+
+.break-words {
+    overflow-wrap: break-word;
+}
