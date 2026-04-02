@@ -57,30 +57,45 @@ export class GameActionController {
 
     // The function handle restart game
     async _handleRestart() {
-        if (!confirm("Bạn có chắc chắc muốn restart lại ván cờ không")) return;
+        if (document.querySelector(".restart-dialog[open]")) return;
+        const modal = ModalView.showRestartModal();
 
-        const { gameID } = this.gameController;
-        try {
-            //post restart game
-            await fetch(`/games/${gameID}/restart`, {
-                method: 'POST'
-            });
+        // close modal
+        const close = () => {
+            modal.modal_container.close();
+            modal.modal_container.remove();
+        };
 
-            //Reset board client
-            this.gameController.game.reset();
-            this.gameController.lastMove = null;
-
-            const board = GameSyncManager.getBoards(gameID);
-            if (board) {
-                board.forEach(boardUI => {
-                    boardUI.update();
-                    boardUI.RemoveHighlightKing();
-                    boardUI.RemoveHighlightMove();
+        modal.abort.addEventListener('click', () => {
+            close();
+        });
+        modal.confirm.addEventListener('click', async () => {
+            close();
+            
+            const { gameID } = this.gameController;
+            try {
+                //post restart game
+                await fetch(`/games/${gameID}/restart`, {
+                    method: 'POST'
                 });
+    
+                //Reset board client
+                this.gameController.game.reset();
+                this.gameController.lastMove = null;
+    
+                const board = GameSyncManager.getBoards(gameID);
+                if (board) {
+                    board.forEach(boardUI => {
+                        boardUI.update();
+                        boardUI.ui.update();
+                        boardUI.RemoveHighlightKing();
+                        boardUI.RemoveHighlightMove();
+                    });
+                }
+            } catch (e) {
+                console.error("Restart error: ", e);
             }
-        } catch (e) {
-            console.error("Restart error: ", e);
-        }
+        })
     }
 
     // Handle surrender event
