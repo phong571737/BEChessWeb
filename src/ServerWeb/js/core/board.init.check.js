@@ -43,7 +43,7 @@ export const InitCheck = {
                 return;
             }
 
-            // console.log("Init chess");
+            console.log("Init chess");
             const res = await fetch(`/games/${gameID}/initcheck`);
 
             const { status, wrongSquares, missingSquares } = await res.json();

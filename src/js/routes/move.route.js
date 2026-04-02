@@ -31,7 +31,8 @@ moveRouter.post("/", async(req, res) =>{
         let fullUCI = uci;
         if (isPromotion) {
             //Ask webserver select piece
-            const promotion = await askPromotion(gameID, to);
+            // const promotion = await askPromotion(gameID, to);
+            const promotion = 'q';
             fullUCI = uci + promotion; //e7e8q or e7e8r
         }
 
