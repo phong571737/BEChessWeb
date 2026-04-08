@@ -11,25 +11,34 @@ export const GameView = {
         return btn;
     },
 
+    el(tag, className, text, id, title) {
+        const e = document.createElement(tag);
+        if (className) e.className = className;
+        if (text) e.textContent = text;
+        if (id) e.id = id;
+        if (title) e.title = title;
+        return e;
+    },
+
     PGNTable(){
         const fragment = document.createDocumentFragment();
 
-        /**PGN container */
-        const pgn_table = document.createElement('div');
-        pgn_table.className = 'pgn-table';
-        pgn_table.id = 'pgn-table';
+        // PGN container 
+        const pgn_table = this.el("div", "pgn-table", "", "pgn-table");
 
-        /**the first user */
-        const top_player = document.createElement('div');
-        top_player.className = 'user-link online user top-player';
-        top_player.id = 'top-player';
-        const icon_top_user = document.createElement('i');
-        icon_top_user.className = 'fa-solid fa-circle';
-        icon_top_user.id = "top-icon";
-        const black_name = document.createElement('span');
-        black_name.className = 'black-name pad-name';
-        black_name.id = 'black-name';
-        black_name.textContent = 'Black Player';
+        // Notify state of board
+        const notify = this.el(
+            "div", 
+            "notify-state flex items-center border-pgn p-2.5 font-bold justify-center"
+        );
+
+        const notify_text = this.el("span", "notify-text", "Ready");
+        notify.append(notify_text);
+
+        // the first user
+        const top_player = this.el("div", "user-link online user top-player", "", "top-player");
+        const icon_top_user = this.el("i", "fa-solid fa-circle", "", "top-icon");
+        const black_name = this.el("span", "black-name ml-2.5", "Black Player", "black-name");
 
         top_player.append(
             icon_top_user,
@@ -37,35 +46,22 @@ export const GameView = {
         );
 
         //black captured
-        const black_cap = document.createElement('div');
-        black_cap.id = 'black-captured';
-        black_cap.className = 'black-captured';
+        const black_cap = this.el("div", "black-captured", "", "black-captured");
+        const black_piece = this.el("div", "black-piece", "", "black-piece");
+        const black_diff = this.el("div", "black-diff", "", "black-diff");
 
-        const black_piece = document.createElement('div');
-        black_piece.id = 'black-piece';
-        black_piece.className = 'black-piece';
-        const black_diff = document.createElement('div');
-        black_diff.id = 'black-diff';
-        black_diff.className = 'black-diff';
+        black_cap.append( black_piece, black_diff);
 
-        black_cap.append(
-            black_piece,
-            black_diff
-        );
-
-        /**Move list */
-        const moves = document.createElement('div');
-        moves.className = 'moves flex-nav';
-        moves.id = 'moves';
-
-        const nav_btn = document.createElement('div');
-        nav_btn.className = 'nav-btn';
+        // Move list
+        const moves = this.el("div", "moves flex-nav", "", "moves");
+        const nav_btn = this.el("div", "nav-btn");
 
         const backward_fast_btn = this.createButton("backward-fast", "fa-solid fa-backward-fast", null);
         const backward_btn = this.createButton("backward", "fa-solid fa-backward-step", null);
         const forward_btn = this.createButton("forward", "fa-solid fa-forward-step", null);
         const forward_fast_btn = this.createButton("forward-fast", "fa-solid fa-forward-fast", null);
         const edit_btn = this.createButton("edit", "fa-solid fa-pen-to-square", "Chỉnh sửa");
+
         nav_btn.append(
             backward_fast_btn,
             backward_btn,
@@ -73,64 +69,41 @@ export const GameView = {
             forward_fast_btn,
             edit_btn
         );
+
         const move_list = document.createElement('div');
         move_list.className = 'move-list';
         move_list.id = 'move-list';
         moves.appendChild(nav_btn);
         moves.appendChild(move_list);
 
-        /**back and surrender button */
-        const controls = document.createElement('div');
-        controls.className = 'controls flex-nav';
-
-        const control_icons = document.createElement('div');
-        control_icons.className = 'control-icon';
+        // restart and surrender button
+        const controls = this.el("div", "controls flex-nav");
+        const control_icons = this.el("div", "control-icon");
 
         const back_btn = this.createButton("restart", "fa-solid fa-rotate-left", "Restart");
         const surrender_btn = this.createButton("surrender", "fa-regular fa-font-awesome", "Đầu hàng");
-        control_icons.append(
-            back_btn,
-            surrender_btn
-        );
+
+        control_icons.append( back_btn, surrender_btn);
         controls.appendChild(control_icons);
 
-        /**the second user */
-        const bottom_player = document.createElement('div');
-        bottom_player.className = 'user-link online user bot-player';
+        // the second user
+        const bottom_player = this.el("div", "user-link online user bot-player");
         // bottom_player.id = 'bot-player';
 
-        const icon_bottom_user = document.createElement('i');
-        icon_bottom_user.className = 'fa-solid fa-circle';
-        icon_bottom_user.id = 'bot-icon';
-        const white_name = document.createElement('span');
-        white_name.className = 'white-name pad-name';
-        white_name.id = 'white-name';
-        white_name.textContent = 'White Player';
-
-        bottom_player.append(
-            icon_bottom_user,
-            white_name
-        );
+        const icon_bottom_user = this.el("i", "fa-solid fa-circle", "", "bot-icon");
+        const white_name = this.el("span", "white-name ml-2.5", "White Player", "white-name");
+        bottom_player.append( icon_bottom_user, white_name );
 
         //white captured
-        const white_cap = document.createElement('div');
-        white_cap.id = 'white-captured';
-        white_cap.className = 'white-captured';
+        const white_cap = this.el("div", "white-captured", "", "white-captured");
+        const white_piece = this.el("div", "white-piece", "", "white-piece");
+        const white_diff = this.el("div", "white-diff", "", "white-diff");
 
-        const white_piece = document.createElement('div');
-        white_piece.id = 'white-piece';
-        white_piece.className = 'white-piece';
-        const white_diff = document.createElement('div');
-        white_diff.id = 'white-diff';
-        white_diff.className = 'white-diff';
-
-        white_cap.append(
-            white_piece,
-            white_diff
-        );
+        white_cap.append( white_piece, white_diff);
 
         fragment.append(
             pgn_table,
+            notify,
             top_player,
             black_cap,
             moves,
@@ -143,16 +116,10 @@ export const GameView = {
     },
 
     MainContainer(GameID){
-        const wrapper = document.createElement('div');
-        wrapper.className = 'container-wrapper';
-        wrapper.id = `view-game-${GameID}`;
-
-        const main_wrapper = document.createElement('div');
-        main_wrapper.className = 'main-board';
-
-        const boardid = document.createElement('div');
-        boardid.id = `Board_${GameID}`;
-        boardid.className = 'myBoard';
+        const wrapper = this.el("div", "container-wrapper", "", `view-game-${GameID}`);
+        
+        const main_wrapper = this.el("div", "main-board");
+        const boardid = this.el("div", "myBoard", "", `Board_${GameID}`);
         main_wrapper.appendChild(boardid);
 
         const pgn_table = this.PGNTable();

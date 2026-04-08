@@ -122,6 +122,7 @@ gameRouter.post("/:id/pgn", async (req, res) => {
         console.log("Before delete - gameSeq:", gameSeq.get(gameID));
         // Restore to update state after edit
         await restorefromDB(gameID);
+        gameSeq.set(gameID, lastSeq);
         console.log("After delete - gameSeq:", gameSeq.get(gameID));
         res.json({ ok: true });
     } catch (e) {

@@ -158,6 +158,10 @@ input, button, select{
     margin-top: calc(var(--spacing) * 2);
 }
 
+.ml-2\.5 {
+    margin-left: calc(var(--spacing) * 2.5);
+}
+
 /* Width and height */
 .w-2{
     width: calc(var(--spacing) * 2);

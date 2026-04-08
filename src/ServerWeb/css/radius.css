@@ -51,6 +51,10 @@
     border-width: 2px ;
 }
 
+.border-pgn {
+    border: 1px solid var(--border-pgn-color);
+}
+
 /* Shadow box */
 .shadow-xl{
     box-shadow: var(--shadow-xl);

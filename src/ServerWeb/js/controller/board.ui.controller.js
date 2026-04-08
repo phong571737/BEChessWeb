@@ -109,6 +109,16 @@ export class BoardUIController {
         this.renderCaptured(blackCaptured, netW, 'w');
         this.renderCaptured(whiteCaptured, netB, 'b');
 
+        // add p-2 when has piece
+        const blackContainer = document.getElementById("black-captured");
+        const whiteContainer = document.getElementById("white-captured");
+
+        const hasBlack = Object.values(netW).some(v => v > 0);
+        const hasWhite = Object.values(netB).some(v => v > 0);
+
+        if (blackContainer) blackCaptured.classList.toggle("p-2", hasBlack);
+        if (whiteContainer) whiteCaptured.classList.toggle("p-2", hasWhite);
+
         //White
         if (diff > 0 && whitediff) {
             whitediff.textContent = `+${diff}`;
