@@ -2,7 +2,6 @@ import { Server, Socket } from "socket.io";
 import { getCurrentState, makeMove } from "../game/game.manager.js";
 
 let io;
-export const pendingPromotions = new Map();
 
 export function initSocket(server){
     io = new Server(server, {
@@ -48,16 +47,6 @@ export function initSocket(server){
                 console.log("Save data to RAM:", moveResult.lastMove);
             }catch(err){
                 console.error("Move failed: ", err.message);
-            }
-        });
-        console.log("Web connected", socket.id);
-
-        socket.on("promotion_response", ({gameID, promotion}) =>{
-            console.log("Received promotion:", gameID, promotion);
-            const resolver = pendingPromotions.get(gameID);
-            if (resolver) {
-                resolver(promotion);
-                pendingPromotions.delete(gameID);
             }
         });
 

@@ -9,6 +9,7 @@ export class BoardMoveController {
 
     async onMove(from, to){
         this.boardUI.update();
+
         this.boardUI.HighlightMove(from, to);
         this.boardUI.HighlightKing();
         this.boardUI.ui.update();

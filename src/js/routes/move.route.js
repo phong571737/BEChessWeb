@@ -31,13 +31,11 @@ moveRouter.post("/", async(req, res) =>{
         }
 
         const state = await makeMove(gameID, candidates, seq);
-
         if(state.status != "ok") return res.json(state);
-
         await saveGame(gameID, state); //reload
 
-        /**send to web */
-        getIO().emit("esp_move", state);
+        // send to web
+        getIO().to(gameID).emit("esp_move", state);
         res.json(state);
     }catch (err){
         console.error("System error", err);

@@ -1,4 +1,3 @@
-// import { PromotionUI } from "/ServerWeb/js/views/promotion.ui.js";
 import { BoardMoveController } from "/ServerWeb/js/controller/board.move.controller.js";
 
 //the list of boards is displayed
@@ -50,7 +49,7 @@ export const GameSyncManager = {
 
         for (const boardUI of gameBoards) {
             if (boardUI === sourceBoardUI) continue;
-            await boardUI.BoardMoveController.onMove(moved.from, moved.to);
+            await boardUI.moveController.onMove(moved.from, moved.to);
         }
     },
 
@@ -65,66 +64,51 @@ export const GameSyncManager = {
         /**Listen the move event */
         document.addEventListener("socket:move", async (e) => {
             const data = e.detail;
+
             const gameID = data.gameID;
-            const lastMove = data.lastMove;
-            
             const model = gamemodel.get(gameID);
             if (!model) return;
 
             const gameBoards = boards.get(gameID);
             if (!gameBoards) return;
 
-            // ROLLBACK: back to right branch
-            if (data.isCorrection && data.correctionPGN) {
-                console.warn(`Branching deviation detection! Resynchronizing the board game: ${gameID}`);
-                // overwrite history state into logic model
-                if (typeof model.loadPGN === "function") {
-                    model.loadPGN(data.correctionPGN);
-                }
-
-                // piece update to right position
-                const correctFen = model.fen();
-                for (const boardUI of gameBoards) {
-                    if (typeof boardUI.update === "function") {
-                        boardUI.update(correctFen);
-                    }
-                }
+            if (data.pgn && typeof model.loadPGN === "function") {
+                model.loadPGN(data.pgn);
             }
 
-            const uci = data.lastMove.uci || "";
-            const move = {
-                from: data.lastMove.from,
-                to: data.lastMove.to,
-                promotion: uci.length === 5 ? uci[4] : "q"
-            };
+            if (data.lastMove) {
+                model.lastMove = data.lastMove;
+            }
 
-            const moved = model.makeMove(move);
-            if (!moved) return;
+            // ROLLBACK: back to right branch
+            if (data.isCorrection && data.correctionPGN) {
+                model.loadPGN(data.correctionPGN);
+            }
+
+            this._saveStatetoLocal(gameID, model);
+
+            const from = data.lastMove?.from;
+            const to = data.lastMove?.to
 
             for (const boardUI of gameBoards) {
-                const move_Ctrl = new BoardMoveController(model, boardUI);
-                await move_Ctrl.onMove(moved.from, moved.to);
+                if (boardUI.moveController?.onMove) {
+                    await boardUI.moveController.onMove(from, to);
+                } else if (typeof boardUI.update === "function") {
+                    boardUI.update();
+                }
             }
         });
     },
 
-    _isPromotion(model, lastMove) {
-        if (lastMove.uci && lastMove.uci.length === 5) return false;
-        
-        const toRank = lastMove.to[1];
-        const fromRank = lastMove.from[1];
+    _saveStatetoLocal(gameID, model) {
+        const statetoSave = {
+            gameID: gameID,
+            fen: typeof model.fen === "function" ? model.fen() : model.fen,
+            pgn: typeof model.pgn === "function" ? model.pgn() : model.pgn,
+            lastMove: model.lastMove || null,
+            timestamp: Date.now()
+        }
 
-        return (fromRank === "7" && toRank === "8") ||
-            (fromRank === "2" && toRank === "1");
+        localStorage.setItem(`game_state_${gameID}`, JSON.stringify(statetoSave));
     },
-
-    // Get element of square that promotion
-    _getSquareEl(gameID, square) {
-        const gameBoards = boards.get(gameID);
-        if (!gameBoards?.length) return [];
-
-        return gameBoards
-         .map(b => document.querySelector(`#${b.elementID} .square-${square}`))
-         .filter(Boolean);
-    }
 }

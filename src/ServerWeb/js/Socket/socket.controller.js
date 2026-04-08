@@ -1,5 +1,4 @@
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
-import { PromotionUI } from "/ServerWeb/js/views/promotion.ui.js";
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 
 export const SocketController = {
@@ -43,16 +42,5 @@ export const SocketController = {
         this.socket.on("connect_error", (err) => {
             console.error("Connection Error: ", err);
         })
-
-        this.socket.on("promotion_required", async ({ gameID, to }) => {
-            const boards = GameSyncManager.getBoards(gameID) ?? [];
-            // Display UI select piece
-            const color = GameSyncManager.getController(gameID)?.turn();
-            const squareEl = GameSyncManager._getSquareEl(gameID, to);
-
-            const promotion = await PromotionUI.show(color, squareEl);
-
-            this.socket.emit("promotion_response", { gameID, promotion });
-        });
     },
 };

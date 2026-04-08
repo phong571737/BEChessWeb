@@ -31,5 +31,4 @@ export const BoardPage = {
         actionController.init();
         return actionController;
     },
-
 }
