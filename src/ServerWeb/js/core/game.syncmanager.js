@@ -71,6 +71,26 @@ export const GameSyncManager = {
             const model = gamemodel.get(gameID);
             if (!model) return;
 
+            const gameBoards = boards.get(gameID);
+            if (!gameBoards) return;
+
+            // ROLLBACK: back to right branch
+            if (data.isCorrection && data.correctionPGN) {
+                console.warn(`Branching deviation detection! Resynchronizing the board game: ${gameID}`);
+                // overwrite history state into logic model
+                if (typeof model.loadPGN === "function") {
+                    model.loadPGN(data.correctionPGN);
+                }
+
+                // piece update to right position
+                const correctFen = model.fen();
+                for (const boardUI of gameBoards) {
+                    if (typeof boardUI.update === "function") {
+                        boardUI.update(correctFen);
+                    }
+                }
+            }
+
             const uci = data.lastMove.uci || "";
             const move = {
                 from: data.lastMove.from,
@@ -80,9 +100,6 @@ export const GameSyncManager = {
 
             const moved = model.makeMove(move);
             if (!moved) return;
-
-            const gameBoards = boards.get(gameID);
-            if (!gameBoards) return;
 
             for (const boardUI of gameBoards) {
                 const move_Ctrl = new BoardMoveController(model, boardUI);
