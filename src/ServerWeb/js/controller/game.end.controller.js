@@ -8,7 +8,6 @@ export class GameEndController {
     }
 
     async handleIfGameOver(boardUI) {
-        console.log("handleIfGameOver called, saved:", this.gameController.saved);
         if (!this.gameController.isGameOver() || this.gameController.saved) return;
 
         this.gameController.saved = true;

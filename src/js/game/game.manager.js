@@ -1,6 +1,7 @@
 import { Chess } from "chess.js";
 import { loadGame } from "../models/game.model.js";
-import { getIO, pendingPromotions } from "../sockets/index.js";
+import { getIO } from "../sockets/index.js";
+import { cloneFromFen, findValidMove } from "../services/game.service.js";
 
 export const games = new Map();
 export const gameSeq = new Map();
@@ -24,127 +25,49 @@ export async function restorefromDB(gameID) {
 
 /**This function is used to create make move */
 export async function makeMove(gameID, candidates, seq) {
-  if (!games.has(gameID)) {
-    const restored = await restorefromDB(gameID);
-    if (!restored) 
-      return { status: "not_found" };
-    games.set(gameID, restored);
+  if (!candidates?.length || seq === undefined) {
+    return { status: "invalid_request" }
   }
 
-  let mainGame = games.get(gameID);
+  if (!games.has(gameID)) {
+    const restored = await restorefromDB(gameID);
+    if (!restored) return { status: "not_found" };
+    // games.set(gameID, restored);
+  }
+
+  const mainGame = games.get(gameID);
   const lastSeq = gameSeq.get(gameID) ?? 0;
   const expectedSeq = lastSeq + 1;
 
-  if (!candidates || candidates.length === 0 || seq === undefined) {
-    return { status: "invalid_request" }
-  }
   //duplicated
-  if (seq < expectedSeq) return { status: "duplicate", fen: mainGame.fen(), lastSeq};
+  if (seq < expectedSeq) return { status: "duplicate", fen: mainGame.fen(), lastSeq };
   //Out of order
   if (seq > expectedSeq) return { status: "out_of_order", expectedSeq, lastSeq };
 
-  let isCorrection = false;
-  let correctionPGN = "";
-
+  // Resolve branches if ambiguity
   if (activeBranches.has(gameID)) {
     console.log(`Resolving branches for game ${gameID}`);
-    const branches = activeBranches.get(gameID);
-    let survivingBranches = [];
-
-    const currentMoveUci = candidates[candidates.length - 1];
-    const from = currentMoveUci.slice(0, 2);
-    const to = currentMoveUci.slice(2, 4);
-    const promotion = currentMoveUci.length === 5 ? currentMoveUci[4] : undefined;
-
-    // Test this move in all of branch is saving
-    for (let branch of branches) {
-      try {
-        // Create duplicate
-        const tempClone = new Chess();
-        tempClone.loadPgn(branch.game.pgn());
-
-        const moveResult = tempClone.move({from, to, promotion});
-        if (moveResult) {
-          survivingBranches.push(branch);
-        }
-      } catch (e) {
-
-      }
-    }
-
-    if (survivingBranches.length === 1) {
-      // Main branch
-      const trueBranch = survivingBranches[0];
-
-      if (trueBranch.id != branches[0].id) {
-        isCorrection = true;
-        correctionPGN = trueBranch.game.pgn();
-      }
-
-      // update main into standard branch
-      mainGame.loadPgn(trueBranch.game.pgn());
-      activeBranches.delete(gameID); // remove the wrong branch 
-    }
-    else if (survivingBranches.length > 1) {
-      // new move ligellal at least 2 branch
-      activeBranches.set(gameID, survivingBranches);
-      // get the first branch to make maingame
-      mainGame.loadPgn(survivingBranches[0].game.pgn());
-    }
-    else {
-      return {
-        status: "illegal",
-        lastSeq
-      }
-    }
+    const result = resolveBranches(gameID, mainGame, candidates);
+    if (result.status != "ok") return { ...result, lastSeq};
   }
 
   // find all moves illegal for current candidate
-  let validMoves = [];
-  const reversedCandidates = [...candidates].reverse();
+  let validMoves = findValidMove(mainGame, candidates);
+  if (validMoves.length === 0) return { status: "illegal", lastSeq};
 
-  for (let uci of reversedCandidates) {
-    const from = uci.slice(0, 2); // start
-    const to = uci.slice(2, 4); // end
-    const piece = mainGame?.get(from);
-
-    const isPromotion = piece?.type === "p" && (
-      (piece.color === "w" && to[1] === "8") ||
-      (piece.color === "b" && to[1] === "1")
-    );
-    const promotionChar = uci.length === 5 ? uci[4] : (isPromotion ? "q" : undefined);
-  
-    try {
-      const move = mainGame.move({ from, to, promotion: promotionChar});
-      if (move) {
-        validMoves.push({from, to, uci: from + to + (promotionChar || "")});
-        mainGame.undo();
-      }
-    } catch (e) {
-      console.log(`[Engine] Candidate ${uci} is illegal, trying next...`);
-      continue;
-    }
-  }
-
-  if (validMoves.length === 0)  return { status: "illegal", lastSeq,};
   if (validMoves.length > 1) {
-    let newBranches = [];
+    // create branches when moves valid
+    const branches = validMoves.map((mv, i) => {
+      const clone = cloneFromFen(mainGame.fen());
+      clone.move({from: mv.from, to: mv.to, promotion: mv.promotion});
+      return { id: `branch_${i}`, move: mv, fen: clone.fen(), pgn: clone.pgn()};
+    });
 
-    for (let i = 0 ;i < validMoves.length; i++ ) {
-      const clone = new Chess();
-      clone.loadPgn(mainGame.pgn());
-      clone.move({from: validMoves[i].from, to: validMoves[i].to, promotion: validMoves[i].uci[4]});
-
-      newBranches.push({
-        id: `branch_${i}`,
-        move: validMoves[i],
-        game: clone
-      });
-    }
-    activeBranches.set(gameID, newBranches);
-    mainGame.loadPgn(newBranches[0].game.pgn());
-  }else {
-    mainGame.move({from: validMoves[0].from, to: validMoves[0].to, promotion: validMoves[0].uci[4]});
+    activeBranches.set(gameID, branches);
+    mainGame.loadPgn(branches[0].pgn);
+  } else {
+    const mv = validMoves[0];
+    mainGame.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
   }
 
   gameSeq.set(gameID, seq);
@@ -155,10 +78,50 @@ export async function makeMove(gameID, candidates, seq) {
     fen: mainGame.fen(),
     pgn: mainGame.pgn(),
     lastSeq: seq,
-    lastMove: validMoves[0],
-    isCorrection: isCorrection,
-    correctionPGN: correctionPGN
+    lastMove: {
+     from: validMoves[0].from,
+     to: validMoves[0].to,
+     promotion: validMoves[0].promotion ?? null,
+     uci: validMoves[0].uci
+    } 
   }
+}
+
+// This function is resolve ambiguous branches with the lastest move
+export function resolveBranches(gameID, mainGame, candidates) {
+  const branches = activeBranches.get(gameID);
+  const lastUCI = candidates[candidates.length - 1];
+  const from = lastUCI.slice(0, 2);
+  const to = lastUCI.slice(2, 4);
+  const promotion = lastUCI.length === 5 ? lastUCI[4] : undefined;
+
+  const surviving = branches.filter(branch => {
+    try {
+      const temp = cloneFromFen(branch.fen);
+      return !!temp.move({from, to, promotion});
+    } catch {
+      return false;
+    }
+  })
+
+  if (surviving.length === 0) return {status: "illegal"};
+  const isCorrection = surviving.length === 1 && surviving[0].id != branches[0].id;
+  
+  if (surviving.length === 1) {
+      // update main into standard branch
+      mainGame.loadPgn(surviving[0].pgn);
+      activeBranches.delete(gameID); // remove the wrong branch 
+    }
+    else {
+      activeBranches.set(gameID, surviving);
+      mainGame.loadPgn(surviving[0].pgn); // get the first branch to make maingame
+    }
+
+    return {
+      status: "ok",
+      isCorrection,
+      correctionPGN: isCorrection ? surviving[0].pgn : "",
+    }
 }
 
 /**This function is used to create game  */

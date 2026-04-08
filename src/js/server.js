@@ -67,36 +67,36 @@ async function StartServer() {
   await connectDB();
   initSocket(server);
 
-  const localIP = getLocalIp();
-  console.log("local ip: ", localIP);
+  // const localIP = getLocalIp();
+  // console.log("local ip: ", localIP);
 
-  // MQTT
-  const MqttOptions = {
-    port: env.MQTT_PORT,
-    username: env.MQTT_USER,
-    password: env.MQTT_PASSWORD
-  };
+  // // MQTT
+  // const MqttOptions = {
+  //   port: env.MQTT_PORT,
+  //   username: env.MQTT_USER,
+  //   password: env.MQTT_PASSWORD
+  // };
 
-  const brokerURL = env.URL_HIVEMQTT;
-  const mqttClient = mqtt.connect(brokerURL, MqttOptions);
+  // const brokerURL = env.URL_HIVEMQTT;
+  // const mqttClient = mqtt.connect(brokerURL, MqttOptions);
 
-  mqttClient.on('connect', () => {
-    console.log("Connect to broker successfully!");
-    const topic = env.MQTT_TOPIC_GET_IP;
+  // mqttClient.on('connect', () => {
+  //   console.log("Connect to broker successfully!");
+  //   const topic = env.MQTT_TOPIC_GET_IP;
 
-    // publish ip to broker
-    mqttClient.publish(topic, localIP, {retain: true, qos: 1}, (err) => {
-      if (err) {
-        console.error("Error when send ip to broker: ", err);
-      } else {
-        console.log(`Send ip ${localIP} to topic`);
-      }
-    })
-  })
+  //   // publish ip to broker
+  //   mqttClient.publish(topic, localIP, {retain: true, qos: 1}, (err) => {
+  //     if (err) {
+  //       console.error("Error when send ip to broker: ", err);
+  //     } else {
+  //       console.log(`Send ip ${localIP} to topic`);
+  //     }
+  //   })
+  // })
 
-  mqttClient.on('error', (err) => {
-    console.error("[MQTT] error connect:", err);
-  });
+  // mqttClient.on('error', (err) => {
+  //   console.error("[MQTT] error connect:", err);
+  // });
 
   // Server listen
   server.listen(env.PORT, "0.0.0.0", async () => {
