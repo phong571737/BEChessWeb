@@ -4,6 +4,7 @@
 
 import { ModalView } from "/ServerWeb/js/views/modal.view.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { GameLoader } from "/ServerWeb/js/core/game.loader.js";
 
 export class GameActionController {
     constructor(gameController) {
@@ -78,7 +79,8 @@ export class GameActionController {
                 await fetch(`/games/${gameID}/restart`, {
                     method: 'POST'
                 });
-    
+                localStorage.removeItem(`game_state_${gameID}`);
+                
                 //Reset board client
                 this.gameController.game.reset();
                 this.gameController.lastMove = null;
@@ -127,6 +129,7 @@ export class GameActionController {
                     method: "POST"
                 });
 
+                localStorage.removeItem(`game_state_${gameID}`);
                 // Reset board
                 this.gameController.game.reset();
                 this.gameController.lastMove = null;
