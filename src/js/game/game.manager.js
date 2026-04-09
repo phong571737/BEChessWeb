@@ -48,27 +48,63 @@ export async function makeMove(gameID, candidates, seq) {
   if (activeBranches.has(gameID)) {
     console.log(`Resolving branches for game ${gameID}`);
     const result = resolveBranches(gameID, mainGame, candidates);
-    if (result.status != "ok") return { ...result, lastSeq};
+    if (result.status != "ok") return { ...result, lastSeq };
+
+    //branch move cosumed successfully
+    gameSeq.set(gameID, seq);
+
+    return {
+      status: "ok",
+      gameID,
+      fen: mainGame.fen(),
+      pgn: mainGame.pgn(),
+      lastSeq: seq,
+      isCorrection: result.isCorrection,
+      correctionPGN: result.correctionPGN,
+      lastMove: result.lastMove
+    }
   }
 
   // find all moves illegal for current candidate
   let validMoves = findValidMove(mainGame, candidates);
-  if (validMoves.length === 0) return { status: "illegal", lastSeq};
+  if (validMoves.length === 0) return { status: "illegal", lastSeq };
 
   if (validMoves.length > 1) {
     // create branches when moves valid
     const branches = validMoves.map((mv, i) => {
-      const clone = cloneFromFen(mainGame.fen());
-      clone.move({from: mv.from, to: mv.to, promotion: mv.promotion});
-      return { id: `branch_${i}`, move: mv, fen: clone.fen(), pgn: clone.pgn()};
+      const clone = new Chess();
+      clone.loadPgn(mainGame.pgn());
+
+      clone.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
+      return { id: `branch_${i}`, move: mv, fen: clone.fen(), pgn: clone.pgn(), lastApplied: mv };
     });
 
     activeBranches.set(gameID, branches);
     mainGame.loadPgn(branches[0].pgn);
-  } else {
-    const mv = validMoves[0];
-    mainGame.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
-  }
+    gameSeq.set(gameID, seq);
+
+    return {
+      status: "ok",
+      gameID,
+      fen: mainGame.fen(),
+      pgn: mainGame.pgn(),
+      lastSeq: seq,
+      ambiguity: true,
+      branches: branches.length,
+      lastMove: branches[0].lastApplied
+    };
+  } 
+  // else {
+  //   const mv = validMoves[0];
+  //   mainGame.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
+  // }
+
+  const mv = validMoves[0];
+  mainGame.move({
+    from: mv.from,
+    to: mv.to,
+    promotion: mv.promotion
+  });
 
   gameSeq.set(gameID, seq);
 
@@ -79,49 +115,80 @@ export async function makeMove(gameID, candidates, seq) {
     pgn: mainGame.pgn(),
     lastSeq: seq,
     lastMove: {
-     from: validMoves[0].from,
-     to: validMoves[0].to,
-     promotion: validMoves[0].promotion ?? null,
-     uci: validMoves[0].uci
-    } 
+      from: validMoves[0].from,
+      to: validMoves[0].to,
+      promotion: validMoves[0].promotion ?? null,
+      uci: validMoves[0].uci
+    }
   }
 }
 
 // This function is resolve ambiguous branches with the lastest move
 export function resolveBranches(gameID, mainGame, candidates) {
   const branches = activeBranches.get(gameID);
-  const lastUCI = candidates[candidates.length - 1];
-  const from = lastUCI.slice(0, 2);
-  const to = lastUCI.slice(2, 4);
-  const promotion = lastUCI.length === 5 ? lastUCI[4] : undefined;
+  const surviving = []; // array to save candidates validation
+  // const lastUCI = candidates[candidates.length - 1];
 
-  const surviving = branches.filter(branch => {
-    try {
-      const temp = cloneFromFen(branch.fen);
-      return !!temp.move({from, to, promotion});
-    } catch {
-      return false;
+  // Loop through all of branches
+  for (const branch of branches) {
+    let survived = false;
+
+    // Loop through all of candidates
+    for (const uci of candidates) {
+      const from = uci.slice(0, 2);
+      const to = uci.slice(2, 4);
+      const promotion = uci.length === 5 ? uci[4] : undefined;
+
+      try {
+        const temp = new Chess();
+        temp.loadPgn(branch.pgn);
+
+        const result = temp.move({ from, to, promotion });
+
+        if (result) {
+          surviving.push({
+            ...branch,
+            pgn: temp.pgn(),
+            fen: temp.fen(),
+            lastApplied: {
+              from,
+              to,
+              promotion,
+              uci: from + to + (promotion ?? "")
+            }
+          });
+          survived = true;
+          break;
+        }
+      } catch { }
     }
-  })
 
-  if (surviving.length === 0) return {status: "illegal"};
+    // branch illegal => remove
+    if (!survived) {
+      console.log(`Branch ${branch.id} eliminated`);
+    }
+  }
+
+  if (surviving.length === 0) return { status: "illegal" };
   const isCorrection = surviving.length === 1 && surviving[0].id != branches[0].id;
-  
-  if (surviving.length === 1) {
-      // update main into standard branch
-      mainGame.loadPgn(surviving[0].pgn);
-      activeBranches.delete(gameID); // remove the wrong branch 
-    }
-    else {
-      activeBranches.set(gameID, surviving);
-      mainGame.loadPgn(surviving[0].pgn); // get the first branch to make maingame
-    }
 
-    return {
-      status: "ok",
-      isCorrection,
-      correctionPGN: isCorrection ? surviving[0].pgn : "",
-    }
+  mainGame.loadPgn(surviving[0].pgn);
+
+  if (surviving.length === 1) {
+    activeBranches.delete(gameID); // remove the wrong branch 
+    console.log(`Resolved to ${surviving[0].id}`);
+  }
+  else {
+    activeBranches.set(gameID, surviving);
+    console.log(`${surviving.length} branches remain`);
+  }
+
+  return {
+    status: "ok",
+    isCorrection,
+    correctionPGN: isCorrection ? surviving[0].pgn : "",
+    lastMove: surviving[0].lastApplied,
+  };
 }
 
 /**This function is used to create game  */
