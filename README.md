@@ -1,4 +1,4 @@
-# TTLab Chess Web
+# ♟️♟️♟️ TTLab Chess Web
 
 A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.
 
