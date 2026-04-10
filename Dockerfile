@@ -15,4 +15,4 @@ COPY . .
 EXPOSE 8080
 
 # Start the application
-ENTRYPOINT ["pnpm", "start"]
+ENTRYPOINT ["node", "./src/js/server.js"]

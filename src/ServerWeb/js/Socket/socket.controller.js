@@ -1,5 +1,5 @@
-import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
-import { GameCardController } from "/app/src/ServerWeb/js/controller/game.card.controller.js";
+import { GameSyncManager } from "../core/game.syncmanager.js";
+import { GameCardController } from "../controller/game.card.controller.js";
 
 export const SocketController = {
     socket: null,

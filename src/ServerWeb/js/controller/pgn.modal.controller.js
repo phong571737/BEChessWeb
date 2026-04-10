@@ -1,4 +1,4 @@
-import { PGNModalView } from "/app/src/ServerWeb/js/views/pgn.modal.view.js";
+import { PGNModalView } from "../views/pgn.modal.view.js";
 
 export const PGNModalController = {
     /**
