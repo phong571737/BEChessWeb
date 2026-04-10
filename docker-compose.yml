@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:7.0
+    container_name: ttlab-chess-db
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: ttlab-chess
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - ttlab-network
+
+  app:
+    build: .
+    container_name: ttlab-chess-app
+    ports:
+      - "3000:3000"
+    environment:
+      MONGO_URI: mongodb://mongodb:27017/ttlab-chess
+      PORT: 3000
+      SERVER_NAME: TTLabChess
+      AUTHOR: Your Name
+      URL_HIVEMQTT: mqtt://broker.hivemq.com
+      MQTT_USER: ${MQTT_USER}
+      MQTT_PASSWORD: ${MQTT_PASSWORD}
+      MQTT_PORT: 8884
+      MQTT_TOPIC_GET_IP: ttlab/chess/ip
+    depends_on:
+      - mongodb
+    networks:
+      - ttlab-network
+    restart: unless-stopped
+
+volumes:
+  mongodb_data:
+
+networks:
+  ttlab-network:
+    driver: bridge
