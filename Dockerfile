@@ -12,7 +12,7 @@ RUN npm install -g pnpm && pnpm install --frozen-lockfile
 COPY . .
 
 # Expose port
-EXPOSE 3000
+EXPOSE 80
 
 # Start the application
 CMD ["pnpm", "start"]
