@@ -1,5 +1,7 @@
 {
+  "name": "chessserver",
   "type": "module",
+  "bin": "src/js/server.js",
   "dependencies": {
     "body-parser": "^2.2.0",
     "chess.js": "^1.4.0",
@@ -14,5 +16,15 @@
     "open": "^11.0.0",
     "redis": "^5.11.0",
     "socket.io": "^4.8.1"
+  },
+  "scripts": {
+    "dev": "nodemon src/js/server.js",
+    "start": "node src/js/server.js",
+    "build": "pkg . --targets node18-win-x64"
+  }, 
+  "pkg": {
+    "assets": [
+      "src/**/*"
+    ]
   }
 }

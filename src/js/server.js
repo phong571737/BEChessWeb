@@ -7,7 +7,6 @@ import { env } from "./config/environment.js";
 import path from "path";
 import { fileURLToPath } from "url";
 // import open from "open";
-import expressListEndpoints from "express-list-endpoints";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
