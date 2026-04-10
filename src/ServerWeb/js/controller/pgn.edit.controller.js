@@ -1,8 +1,8 @@
 /**This file is used to manage PGN edit mode, validates changes,
  * updates game states, and refresh board UI
  */
-import { PGNEditView } from "/ServerWeb/js/views/pgn.edit.view.js";
-import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { PGNEditView } from "/app/src/ServerWeb/js/views/pgn.edit.view.js";
+import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
 
 export class PGNEditController {
     // Initialize PGN editor controller with game controller

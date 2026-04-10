@@ -1,11 +1,11 @@
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
-import { BoardViewController } from "/ServerWeb/js/controller/board.view.controller.js";
-import { BoardInitController } from "/ServerWeb/js/controller/board.init.controller.js";
-import { GameLoader } from "/ServerWeb/js/core/game.loader.js";
-import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
-import { PGNEditController } from "/ServerWeb/js/controller/pgn.edit.controller.js";
-import { GameActionController } from "/ServerWeb/js/controller/game.action.controller.js";
-import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
+import { ViewManager } from "/app/src/ServerWeb/js/core/viewManager.js";
+import { BoardViewController } from "/app/src/ServerWeb/js/controller/board.view.controller.js";
+import { BoardInitController } from "/app/src/ServerWeb/js/controller/board.init.controller.js";
+import { GameLoader } from "/app/src/ServerWeb/js/core/game.loader.js";
+import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
+import { PGNEditController } from "/app/src/ServerWeb/js/controller/pgn.edit.controller.js";
+import { GameActionController } from "/app/src/ServerWeb/js/controller/game.action.controller.js";
+import { InitCheck } from "/app/src/ServerWeb/js/core/board.init.check.js";
 
 export const BoardPage = {
     async render(gameID) {

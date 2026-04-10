@@ -1,7 +1,7 @@
 /**This file is used to control 
  * add item when a game end */
 
-import { GamePlayedView } from "/ServerWeb/js/views/game.played.view.js";
+import { GamePlayedView } from "/app/src/ServerWeb/js/views/game.played.view.js";
 
 export const GamePlayedController = {
     init(view) {

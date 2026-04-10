@@ -2,8 +2,8 @@
  * creating a game controller 
  * and registering it in GameSynManager
 */
-import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
-import { GameModel } from "/ServerWeb/js/model/game.model.js";
+import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
+import { GameModel } from "/app/src/ServerWeb/js/model/game.model.js";
 
 export const GameLoader = {
     // Reload game state
