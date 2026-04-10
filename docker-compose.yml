@@ -1,6 +1,7 @@
 services:
-  app:
+  ttlab-chess-app:
     build: .
+    container_name: ttlab-chess-app
     ports:
       - "${PORT:-8080}:${PORT:-8080}"
     env_file:
