@@ -1,7 +1,5 @@
-version: '3.8'
-
 services:
-  mongodb:
+  ttlab-chess-db:
     image: mongo:7.0
     container_name: ttlab-chess-db
     ports:
@@ -13,26 +11,26 @@ services:
     networks:
       - ttlab-network
 
-  app:
+  ttlab-chess-app:
     build: .
     container_name: ttlab-chess-app
     ports:
-      - "${PORT}:${PORT}"
+      - "${PORT}:80"
     environment:
-      MONGO_URI: ${MONGO_URI}
-      PORT: ${PORT}
+      MONGO_URI: mongodb://ttlab-chess-db:27017/ttlab-chess
+      PORT: 80
       SERVER_NAME: ${SERVER_NAME}
       AUTHOR: ${AUTHOR}
-      VERCEL_WEB: ${VERCEL_WEB}
       URL_HIVEMQTT: ${URL_HIVEMQTT}
       MQTT_USER: ${MQTT_USER}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
       MQTT_PORT: ${MQTT_PORT}
       MQTT_TOPIC_GET_IP: ${MQTT_TOPIC_GET_IP}
     depends_on:
-      - mongodb
+      - ttlab-chess-db
     networks:
       - ttlab-network
+      - gni_internal
     restart: unless-stopped
 
 volumes:
@@ -41,3 +39,5 @@ volumes:
 networks:
   ttlab-network:
     driver: bridge
+  gni_internal:
+    external: true
