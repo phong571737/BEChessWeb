@@ -17,17 +17,18 @@ services:
     build: .
     container_name: ttlab-chess-app
     ports:
-      - "3000:3000"
+      - "${PORT}:${PORT}"
     environment:
-      MONGO_URI: mongodb://mongodb:27017/ttlab-chess
-      PORT: 3000
-      SERVER_NAME: TTLabChess
-      AUTHOR: Your Name
-      URL_HIVEMQTT: mqtt://broker.hivemq.com
+      MONGO_URI: ${MONGO_URI}
+      PORT: ${PORT}
+      SERVER_NAME: ${SERVER_NAME}
+      AUTHOR: ${AUTHOR}
+      VERCEL_WEB: ${VERCEL_WEB}
+      URL_HIVEMQTT: ${URL_HIVEMQTT}
       MQTT_USER: ${MQTT_USER}
       MQTT_PASSWORD: ${MQTT_PASSWORD}
-      MQTT_PORT: 8884
-      MQTT_TOPIC_GET_IP: ttlab/chess/ip
+      MQTT_PORT: ${MQTT_PORT}
+      MQTT_TOPIC_GET_IP: ${MQTT_TOPIC_GET_IP}
     depends_on:
       - mongodb
     networks:
