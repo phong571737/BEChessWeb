@@ -1,5 +1,5 @@
-import { BoardMoveController } from "/ServerWeb/js/controller/board.move.controller.js";
-import { BoardUIController } from "/ServerWeb/js/controller/board.ui.controller.js";
+import { BoardMoveController } from "/app/src/ServerWeb/js/controller/board.move.controller.js";
+import { BoardUIController } from "/app/src/ServerWeb/js/controller/board.ui.controller.js";
 
 export class BoardUI {
     constructor(elementID, gameController){

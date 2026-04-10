@@ -1,4 +1,4 @@
-import { BoardMoveController } from "/ServerWeb/js/controller/board.move.controller.js";
+import { BoardMoveController } from "/app/src/ServerWeb/js/controller/board.move.controller.js";
 
 //the list of boards is displayed
 const boards = new Map(); // 1 gameid -> 1 board

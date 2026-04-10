@@ -1,7 +1,7 @@
 /**This file is used to create 
  * or reuse view */
-import { GameView } from "/ServerWeb/js/views/game.view.js";
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
+import { GameView } from "/app/src/ServerWeb/js/views/game.view.js";
+import { ViewManager } from "/app/src/ServerWeb/js/core/viewManager.js";
 
 export const BoardViewController = {
     getOrCreate(gameID, container) {
