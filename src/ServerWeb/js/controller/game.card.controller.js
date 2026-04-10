@@ -1,11 +1,11 @@
 /**This file is used to controller
  * create a board to dashboard */
-import { BoardUI } from "/app/src/ServerWeb/js/views/board.ui.js";
-import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
-import { GameModel } from "/app/src/ServerWeb/js/model/game.model.js";
-import { RouterPath } from "/app/src/ServerWeb/js/routers/router.path.js";
-import { GameCardView } from "/app/src/ServerWeb/js/views/game.card.view.js";
-import { SocketController } from "/app/src/ServerWeb/js/socket/socket.controller.js";
+import { BoardUI } from "../views/board.ui.js";
+import { GameSyncManager } from "../core/game.syncmanager.js";
+import { GameModel } from "../model/game.model.js";
+import { RouterPath } from "../routers/router.path.js";
+import { GameCardView } from "../views/game.card.view.js";
+import { SocketController } from "../socket/socket.controller.js";
 
 export const GameCardController = {
     /**create game */

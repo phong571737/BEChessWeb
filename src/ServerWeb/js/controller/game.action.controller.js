@@ -2,9 +2,9 @@
  * restart, rename
  */
 
-import { ModalView } from "/app/src/ServerWeb/js/views/modal.view.js";
-import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
-import { GameLoader } from "/app/src/ServerWeb/js/core/game.loader.js";
+import { ModalView } from "../views/modal.view.js";
+import { GameSyncManager } from "../core/game.syncmanager.js";
+import { GameLoader } from "../core/game.loader.js";
 
 export class GameActionController {
     constructor(gameController) {

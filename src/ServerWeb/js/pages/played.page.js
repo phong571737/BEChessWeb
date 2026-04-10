@@ -1,7 +1,7 @@
-import { GamePlayedController } from "/app/src/ServerWeb/js/controller/game.played.controller.js";
-import { PGNModalController } from "/app/src/ServerWeb/js/controller/pgn.modal.controller.js";
-import { ViewManager } from "/app/src/ServerWeb/js/core/viewManager.js"
-import { GamePlayedView } from "/app/src/ServerWeb/js/views/game.played.view.js";
+import { GamePlayedController } from "../controller/game.played.controller.js";
+import { PGNModalController } from "../controller/pgn.modal.controller.js";
+import { ViewManager } from "../core/viewManager.js"
+import { GamePlayedView } from "../views/game.played.view.js";
 
 export const GamePage = {
     async render(){

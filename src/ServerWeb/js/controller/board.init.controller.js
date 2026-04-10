@@ -1,9 +1,9 @@
 /**This file is used to lifecycle manager:
  * Board UI lifecycle: create, store, sync
  */
-import { BoardUI } from "/app/src/ServerWeb/js/views/board.ui.js";
-import { GameSyncManager } from "/app/src/ServerWeb/js/core/game.syncmanager.js";
-import { InitCheck } from "/app/src/ServerWeb/js/core/board.init.check.js";
+import { BoardUI } from "../views/board.ui.js";
+import { GameSyncManager } from "../core/game.syncmanager.js";
+import { InitCheck } from "../core/board.init.check.js";
 
 export const BoardInitController = {
     // This function is used to create a new board for a game
