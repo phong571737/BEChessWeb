@@ -58,8 +58,16 @@ async function StartServer() {
   app.use("/games", gameRouter); // get games/current and games
 
   const html_path = path.join(__dirname, '../ServerWeb/html/index.html');
-  app.use(express.static(path.join(__dirname, '..'))); // src
+  app.use(express.static(path.join(__dirname, '..'))); // src - serves static files
 
+  // API routes
+  app.use("/moves", moveRouter);
+  app.use("/games", gameRouter);
+
+  // Serve static files (CSS, JS, images)
+  app.use(express.static(path.join(__dirname, '../ServerWeb')));
+
+  // Catch-all: serve HTML for SPA routing (MUST be last)
   app.use((req, res) => {
     res.sendFile(html_path);
   });
