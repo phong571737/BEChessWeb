@@ -64,29 +64,39 @@ Create a `.env` file in the root directory with your configuration:
 ```bash
 # .env file
 # Server information
-AUTHOR=PhongHuynh
+AUTHOR=Your Name
 PORT=8080
-SERVER_NAME=ttlabchessserver
+SERVER_NAME=your-server-name
 
-# Configurations for MQTT Broker
-URL_HIVEMQTT=mqtts://830d558f20e04e7cab3b58cd663e0baa.s1.eu.hivemq.cloud
-MQTT_USER=Chess-mqtt
-MQTT_PASSWORD=Chess@123456789
+# Database (use MongoDB Atlas)
+MONGO_URI=mongodb+srv://username:password@your-cluster.mongodb.net/?appName=your-app
+
+# MQTT Broker Configuration
+URL_HIVEMQTT=mqtts://your-broker-url.hivemq.cloud
+MQTT_USER=your-mqtt-username
+MQTT_PASSWORD=your-mqtt-password
 MQTT_PORT=8883
-MQTT_TOPIC_GET_IP=chess/server/get_ip
+MQTT_TOPIC_GET_IP=your/mqtt/topic
 ```
 
 **Configuration Details:**
-- `MONGO_URI` - MongoDB Atlas connection string (or local MongoDB)
+- `MONGO_URI` - MongoDB Atlas connection string (create free account at [mongodb.com](https://www.mongodb.com/cloud/atlas))
 - `PORT` - Application port (default: 8080)
 - `SERVER_NAME` - Identifier for your server instance
 - `AUTHOR` - Server author/maintainer name
-- `VERCEL_WEB` - Frontend deployment URL (optional)
-- `URL_HIVEMQTT` - MQTT broker URL (HiveMQ Cloud)
+- `URL_HIVEMQTT` - MQTT broker URL (get free account at [hivemq.cloud](https://www.hivemq.cloud))
 - `MQTT_USER` - MQTT authentication username
-- `MQTT_PASSWORD` - MQTT authentication password
+- `MQTT_PASSWORD` - MQTT authentication password (use strong password)
 - `MQTT_PORT` - MQTT broker port (8883 for secure)
-- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery
+- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery (customize as needed)
+
+**⚠️ Security Note:** Never commit `.env` file to version control. Add it to `.gitignore`:
+
+```
+.env
+.env.local
+.env.*.local
+```
 
 ### Step 3: Build and Deploy with Docker Compose
 
