@@ -10,6 +10,201 @@ TTLab Chess Web is a full-stack chess platform that combines:
 - **Real-time Communication**: WebSocket support via Socket.io for live moves
 - **Database**: MongoDB for game persistence
 - **Messaging**: MQTT integration for IoT communication
+- **Deployment**: Docker & Docker Compose for containerized deployment
+
+## System Requirements
+
+### Windows
+
+- **Docker Desktop** (v4.0+) - [Download](https://www.docker.com/products/docker-desktop)
+  - Includes Docker Engine and Docker Compose
+  - Requires Windows 10/11 Pro, Enterprise, or Education edition
+  - Enable WSL 2 (Windows Subsystem for Linux 2)
+
+### macOS
+
+- **Docker Desktop** (v4.0+) - [Download](https://www.docker.com/products/docker-desktop)
+  - Includes Docker Engine and Docker Compose
+  - Requires macOS 11 (Big Sur) or newer
+  - Native Apple Silicon (M1/M2) or Intel support
+
+### Linux
+
+Install Docker and Docker Compose:
+
+```bash
+# Ubuntu/Debian
+sudo apt-get update
+sudo apt-get install docker.io docker-compose
+
+# Fedora
+sudo dnf install docker docker-compose
+
+# Start Docker daemon
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# Optional: Add user to docker group (avoid sudo)
+sudo usermod -aG docker $USER
+```
+
+## Quick Start with Docker
+
+### Step 1: Clone the Repository
+
+```bash
+git clone https://github.com/yourusername/TTLab_BEChessWeb.git
+cd TTLab_BEChessWeb
+```
+
+### Step 2: Create Environment File
+
+Create a `.env` file in the root directory with your configuration:
+
+```bash
+# .env file
+# Server information
+AUTHOR=PhongHuynh
+PORT=8080
+SERVER_NAME=ttlabchessserver
+
+# Configurations for MQTT Broker
+URL_HIVEMQTT=mqtts://830d558f20e04e7cab3b58cd663e0baa.s1.eu.hivemq.cloud
+MQTT_USER=Chess-mqtt
+MQTT_PASSWORD=Chess@123456789
+MQTT_PORT=8883
+MQTT_TOPIC_GET_IP=chess/server/get_ip
+```
+
+**Configuration Details:**
+- `MONGO_URI` - MongoDB Atlas connection string (or local MongoDB)
+- `PORT` - Application port (default: 8080)
+- `SERVER_NAME` - Identifier for your server instance
+- `AUTHOR` - Server author/maintainer name
+- `VERCEL_WEB` - Frontend deployment URL (optional)
+- `URL_HIVEMQTT` - MQTT broker URL (HiveMQ Cloud)
+- `MQTT_USER` - MQTT authentication username
+- `MQTT_PASSWORD` - MQTT authentication password
+- `MQTT_PORT` - MQTT broker port (8883 for secure)
+- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery
+
+### Step 3: Build and Deploy with Docker Compose
+
+```bash
+# Navigate to project root
+cd TTLab_BEChessWeb
+
+# Build Docker image
+docker compose build
+
+# Start all services
+docker compose up -d
+
+# Verify services are running
+docker compose ps
+```
+
+### Step 4: Verify Deployment
+
+```bash
+# Check application logs
+docker compose logs -f app
+
+# Check MongoDB connection
+docker compose logs mongodb
+
+# Test the application
+curl http://localhost:8080
+
+# View all running containers
+docker compose ps
+```
+
+## Docker Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│         Docker Compose Network              │
+│         (ttlab-network)                     │
+│                                             │
+│  ┌──────────────────┐  ┌────────────────┐  │
+│  │    MongoDB       │  │   Chess App    │  │
+│  │    Container     │  │   Container    │  │
+│  │  (Port 27017)    │  │  (Port 8080)   │  │
+│  │                  │  │                │  │
+│  │  mongo:7.0       │  │  Node.js +     │  │
+│  │                  │  │  Express +     │  │
+│  │  Volume:         │  │  Socket.io     │  │
+│  │  mongodb_data    │  │                │  │
+│  └──────────────────┘  └────────────────┘  │
+│         ▲                       ▲           │
+│         └───────────────────────┘           │
+│     Internal Docker DNS:                    │
+│     mongodb://mongodb:27017                 │
+└─────────────────────────────────────────────┘
+```
+
+## Common Docker Commands
+
+### View Logs
+
+```bash
+# View all service logs
+docker compose logs
+
+# View specific service logs (follow mode)
+docker compose logs -f app
+
+# View last 50 lines
+docker compose logs --tail=50
+```
+
+### Manage Services
+
+```bash
+# Start services
+docker compose up -d
+
+# Stop services
+docker compose stop
+
+# Restart services
+docker compose restart
+
+# Stop and remove containers
+docker compose down
+
+# Stop and remove containers + volumes
+docker compose down -v
+
+# View running containers
+docker compose ps
+
+# Execute command in running container
+docker compose exec app npm list
+```
+
+### Troubleshooting
+
+```bash
+# View service status
+docker compose ps
+
+# Check application health
+docker compose exec app curl http://localhost:8080
+
+# View Docker images
+docker images
+
+# Remove unused images
+docker image prune
+
+# View Docker networks
+docker network ls
+
+# Inspect service details
+docker compose exec app env
+```
 
 ## Project Structure
 
@@ -45,54 +240,13 @@ src/
     ├── css/                    # Stylesheets
     ├── js/                     # Client-side JavaScript
     └── img/                    # Images
+
+Docker Files:
+├── Dockerfile                   # Container image definition
+├── docker-compose.yml          # Multi-container orchestration
+├── .env                        # Environment variables (add to .gitignore)
+└── README.md                   # This file
 ```
-
-## Prerequisites
-
-- **Node.js** (v18+)
-- **MongoDB** (running locally or remote URI)
-- **npm** or **pnpm** package manager
-- Environment variables configured in `.env`
-
-## Installation
-
-1. Clone the repository
-2. Install dependencies:
-```bash
-pnpm install
-```
-
-3. Create a `.env` file in the root directory with the following variables:
-```
-MONGO_URI=mongodb://localhost:27017/ttlab-chess
-PORT=3000
-SERVER_NAME=TTLabChess
-AUTHOR=Your Name
-URL_HIVEMQTT=mqtt://broker.hivemq.com
-MQTT_USER=your_username
-MQTT_PASSWORD=your_password
-MQTT_PORT=8884
-MQTT_TOPIC_GET_IP=ttlab/chess/ip
-```
-
-## Running the Application
-
-Start the server with live reloading:
-```bash
-npm run dev
-```
-
-The server will start on the configured PORT (default: 3000).
-
-## Key Dependencies
-
-- **chess.js** (v1.4.0) - Chess engine for move validation and game logic
-- **express** (v5.1.0) - Web framework
-- **socket.io** (v4.8.1) - Real-time WebSocket communication
-- **mongodb** (v7.0.0) - Database driver
-- **mqtt** (v5.15.1) - MQTT client for IoT integration
-- **cors** (v2.8.6) - Cross-origin resource sharing
-- **dotenv** (v17.2.3) - Environment variable management
 
 ## API Endpoints
 
@@ -108,26 +262,80 @@ The server will start on the configured PORT (default: 3000).
 
 ## WebSocket Events
 
-The application uses Socket.io for real-time updates:
+Real-time communication via Socket.io:
 - `esp_move` - Broadcast when a move is made
 - `game_update` - Broadcast when game state changes
 
-## Features
+## Key Dependencies
 
-- ✅ Real-time multiplayer chess
-- ✅ Move validation and legality checking
-- ✅ Game persistence with MongoDB
-- ✅ Interactive chessboard UI
-- ✅ Live game notifications via WebSocket
-- ✅ PGN support for game replay
-- ✅ MQTT integration for IoT devices
-- ✅ RESTful API for game management
+- **chess.js** (v1.4.0) - Chess engine for move validation
+- **express** (v5.1.0) - Web framework
+- **socket.io** (v4.8.1) - Real-time WebSocket communication
+- **mongodb** (v7.0.0) - Database driver
+- **mqtt** (v5.15.1) - MQTT client for IoT integration
+- **cors** (v2.8.6) - Cross-origin resource sharing
+- **dotenv** (v17.2.3) - Environment variable management
 
-## Development
+## Deployment Tips
 
-- **Live Reloading**: Uses nodemon for automatic restart on file changes
-- **Code Quality**: ESLint and Prettier configurations available
-- **Testing**: Test structure ready in library files
+### Production Considerations
+
+1. **Use MongoDB Atlas** (Cloud database) instead of local MongoDB
+2. **Set strong MQTT passwords** with special characters
+3. **Enable HTTPS/TLS** for MQTT connections (mqtts://)
+4. **Use environment-specific `.env` files**
+5. **Monitor container logs** regularly
+6. **Set resource limits** in docker-compose.yml
+
+### Scaling
+
+For production deployment with multiple instances:
+
+```bash
+# Scale app service to 3 replicas
+docker compose up -d --scale app=3
+
+# Use a reverse proxy (Nginx) for load balancing
+```
+
+## Troubleshooting
+
+### Container won't start
+
+```bash
+# Check logs
+docker compose logs app
+
+# Verify .env file exists and has required variables
+cat .env
+
+# Rebuild image
+docker compose build --no-cache
+docker compose up -d
+```
+
+### MongoDB connection error
+
+```bash
+# Verify MongoDB is running
+docker compose ps
+
+# Check MongoDB logs
+docker compose logs mongodb
+
+# Test connection
+docker compose exec app mongosh mongodb://mongodb:27017
+```
+
+### Port already in use
+
+```bash
+# Change PORT in .env file
+PORT=8081
+
+# Restart services
+docker compose restart
+```
 
 ## License
 
@@ -137,8 +345,27 @@ See individual library licenses:
 
 ## Contributing
 
-To contribute to this project, please follow the existing code structure and ensure all dependencies are properly configured.
+To contribute to this project:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Build and test with Docker
+5. Submit a pull request
 
 ## Support
 
-For issues or questions, please refer to the project documentation or contact the development team.
+For issues or questions:
+- Check Docker logs: `docker compose logs`
+- Review `.env` configuration
+- Verify MongoDB/MQTT connectivity
+- Check firewall and port availability
+
+## Security Notes
+
+- Never commit `.env` file to version control
+- Use strong passwords for MQTT and MongoDB
+- Keep Docker images updated: `docker compose pull`
+- Regularly backup `mongodb_data` volume
+- Use environment variables for sensitive data only
+
+---
