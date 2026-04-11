@@ -1,8 +1,8 @@
-import { RouterURL } from "/ServerWeb/js/routers/router.url.js";
-import { HomePage } from "/ServerWeb/js/pages/home.pages.js";
-import { BoardPage } from "/ServerWeb/js/pages/board.page.js";
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
-import { GamePage } from "/ServerWeb/js/pages/played.page.js";
+import { RouterURL } from "../routers/router.url.js";
+import { HomePage } from "../pages/home.pages.js";
+import { BoardPage } from "../pages/board.page.js";
+import { ViewManager } from "../core/viewManager.js";
+import { GamePage } from "../pages/played.page.js";
 
 
 export const RouterPath = {

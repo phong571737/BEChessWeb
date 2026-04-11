@@ -1,4 +1,4 @@
-import { GameEndController } from "/ServerWeb/js/controller/game.end.controller.js";
+import { GameEndController } from "../controller/game.end.controller.js";
 
 export class BoardMoveController {
     constructor(gameController, boardUI){

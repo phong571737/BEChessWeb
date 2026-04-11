@@ -1,6 +1,6 @@
 /**This file is used to handle end game (Checkmate)  */
 
-import { GameEndView } from "/ServerWeb/js/views/game.end.view.js";
+import { GameEndView } from "../views/game.end.view.js";
 
 export class GameEndController {
     constructor(gameController) {
