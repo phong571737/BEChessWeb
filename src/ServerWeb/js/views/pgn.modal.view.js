@@ -109,6 +109,9 @@ export const PGNModalView = {
 
         // PGN area
         const fullpgnText = game.pgn || game.PGN;
+        console.log("game:", game);
+        console.log("pgn:", game.pgn);
+        console.log("PGN:", game.PGN);
         const movesOnlyPGN = fullpgnText.replace(/\[[^\]]+\]\s*/g, '').trim();
         const pgn_area = this.el("div", "bg-gray-50 border border-gray-200 text-gray-800 font-mono rounded-xl text-sm max-h-40 overflow-y-auto p-4 text-gray-800");
         pgn_area.textContent = movesOnlyPGN;

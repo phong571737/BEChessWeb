@@ -68,7 +68,7 @@ export class BoardUIController {
         type.forEach(t => {
             for (let i = 0; i < pieces[t]; i++) {
                 const img = document.createElement("img");
-                img.src = `/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/${color}${t}.png`;
+                img.src = `/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/${color}${t.toUpperCase()}.png`;
                 img.width = 30;
                 container.appendChild(img);
             }

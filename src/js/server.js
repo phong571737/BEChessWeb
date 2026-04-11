@@ -10,7 +10,6 @@ import { fileURLToPath } from "url";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
-import { tunnel } from "cloudflared";
 import { info } from "node:console";
 import os from "os";
 import mqtt from "mqtt";

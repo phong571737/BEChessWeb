@@ -133,6 +133,7 @@ docker compose ps
 ## Docker Architecture
 
 ```
+<<<<<<< HEAD
 ┌─────────────────────────────────────────────┐
 │         Docker Compose Network              │
 │         (ttlab-network)                     │
@@ -152,6 +153,26 @@ docker compose ps
 │     Internal Docker DNS:                    │
 │     mongodb://mongodb:27017                 │
 └─────────────────────────────────────────────┘
+=======
+┌─────────────────────────────────────────────────────┐
+│         Docker Compose Network                      │
+│         (ttlab-network)                             │
+│                                                     │
+│  ┌────────────────────────────────────────────┐   │
+│  │   Chess App Container                      │   │
+│  │  (Port 8080)                               │   │
+│  │                                            │   │
+│  │  Node.js v18                               │   │
+│  │  Express + Socket.io                       │   │
+│  │  MQTT client                               │   │
+│  │                                            │   │
+│  │  Connects to:                              │   │
+│  │  - MongoDB Atlas (Cloud)                   │   │
+│  │  - HiveMQ Cloud (MQTT)                     │   │
+│  └────────────────────────────────────────────┘   │
+│                                                     │
+└─────────────────────────────────────────────────────┘
+>>>>>>> 0ef15fbfd68034529014f6a80dc7e135057497a4
 ```
 
 ## Common Docker Commands
