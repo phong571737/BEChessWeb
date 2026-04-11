@@ -1,5 +1,4 @@
 {
-  "name": "chessserver",
   "type": "module",
   "bin": "src/js/server.js",
   "dependencies": {
