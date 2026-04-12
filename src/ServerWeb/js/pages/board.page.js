@@ -22,9 +22,9 @@ export const BoardPage = {
             : BoardInitController.resume(gameID); // else, display
 
         const gc = GameSyncManager.getController(gameID);
-        if (gc.game.history().length === 0) {
-            InitCheck.startPollingInitCheck(gc, gameID);
-        }
+        // if (gc.game.history().length === 0) {
+        //     InitCheck.startPollingInitCheck(gc, gameID);
+        // }
         const viewID = document.getElementById(`view-game-${gameID}`);
         new PGNEditController(gc, viewID).init();
         const actionController = new GameActionController(gc);

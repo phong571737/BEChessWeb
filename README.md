@@ -277,6 +277,7 @@ Docker Files:
 ├── docker-compose.yml          # Multi-container orchestration
 ├── .env                        # Environment variables (add to .gitignore)
 └── README.md                   # This file
+
 ```
 
 ## API Endpoints

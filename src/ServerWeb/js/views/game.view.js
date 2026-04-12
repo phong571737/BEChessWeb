@@ -1,9 +1,9 @@
 export const GameView = {
-    createButton(classbtn, iconbtn, titlebtn){
+    createButton(classbtn, iconbtn, titlebtn) {
         const btn = document.createElement('button');
         btn.className = `btn ${classbtn}`;
         btn.title = titlebtn;
-        
+
         const icon_btn = document.createElement('i');
         icon_btn.className = iconbtn;
 
@@ -20,7 +20,7 @@ export const GameView = {
         return e;
     },
 
-    PGNTable(){
+    PGNTable() {
         const fragment = document.createDocumentFragment();
 
         // PGN container 
@@ -28,11 +28,11 @@ export const GameView = {
 
         // Notify state of board
         const notify = this.el(
-            "div", 
+            "div",
             "notify-state flex items-center border-pgn p-2.5 font-bold justify-center"
         );
 
-        const notify_text = this.el("span", "notify-text", "Ready");
+        const notify_text = this.el("span", "notify-text", "Wait for board connection");
         notify.append(notify_text);
 
         // the first user
@@ -50,7 +50,7 @@ export const GameView = {
         const black_piece = this.el("div", "black-piece", "", "black-piece");
         const black_diff = this.el("div", "black-diff", "", "black-diff");
 
-        black_cap.append( black_piece, black_diff);
+        black_cap.append(black_piece, black_diff);
 
         // Move list
         const moves = this.el("div", "moves flex-nav", "", "moves");
@@ -83,7 +83,7 @@ export const GameView = {
         const back_btn = this.createButton("restart", "fa-solid fa-rotate-left", "Restart");
         const surrender_btn = this.createButton("surrender", "fa-regular fa-font-awesome", "Đầu hàng");
 
-        control_icons.append( back_btn, surrender_btn);
+        control_icons.append(back_btn, surrender_btn);
         controls.appendChild(control_icons);
 
         // the second user
@@ -92,14 +92,14 @@ export const GameView = {
 
         const icon_bottom_user = this.el("i", "fa-solid fa-circle", "", "bot-icon");
         const white_name = this.el("span", "white-name ml-2.5", "White Player", "white-name");
-        bottom_player.append( icon_bottom_user, white_name );
+        bottom_player.append(icon_bottom_user, white_name);
 
         //white captured
         const white_cap = this.el("div", "white-captured", "", "white-captured");
         const white_piece = this.el("div", "white-piece", "", "white-piece");
         const white_diff = this.el("div", "white-diff", "", "white-diff");
 
-        white_cap.append( white_piece, white_diff);
+        white_cap.append(white_piece, white_diff);
 
         fragment.append(
             pgn_table,
@@ -115,16 +115,34 @@ export const GameView = {
         return fragment;
     },
 
-    MainContainer(GameID){
+    setNotify(text, type = 'default', gameID = null) {
+        const scope = gameID
+            ? document.getElementById(`view-game-${gameID}`)
+            : document;
+
+        if (!scope) return;
+
+        const notify = scope.querySelector('.notify-state');
+        const notify_text = scope.querySelector('.notify-text');
+
+        if (!notify || !notify_text) return;
+
+        // reset class
+        notify.classList.remove('notify-ready', 'notify-waiting', 'notify-checkinit');
+        notify.classList.add(`notify-${type}`);
+        notify_text.textContent = text;
+    },
+
+    MainContainer(GameID) {
         const wrapper = this.el("div", "container-wrapper", "", `view-game-${GameID}`);
-        
+
         const main_wrapper = this.el("div", "main-board");
         const boardid = this.el("div", "myBoard", "", `Board_${GameID}`);
         main_wrapper.appendChild(boardid);
 
         const pgn_table = this.PGNTable();
         wrapper.append(
-            main_wrapper, 
+            main_wrapper,
             pgn_table
         );
 

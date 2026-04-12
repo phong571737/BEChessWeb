@@ -13,7 +13,7 @@ export const HomePage = {
                                 .then(r => r.json())
             if(games && games.length > 0){
                 games.forEach(game =>{
-                    GameCardController.add(game._id, game.fen, game.lastMove, game.pgn);
+                    GameCardController.add(game.gameID, game.fen, game.lastMove, game.pgn);
                 });
             }
         }catch(e){

@@ -1,10 +1,12 @@
 import express from "express";
-import { createGame, resetGame, gameSeq, games, restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getPGNCollections, loadAllGame, loadGame, removeGame, saveGame } from "../models/game.model.js";
+import {gameSeq, restorefromDB } from "../game/game.manager.js";
+import { endGame, finishGame, getPGNCollections, loadGame, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { Chess } from "chess.js";
-import { checkInitialBoard } from "../services/board.service.js";
+import { checkInitialBoard, convertHalltoBoard } from "../services/board.service.js";
 import { ObjectId } from "mongodb";
+import { GameActionController } from "../controllers/game.action.controller.js";
+import { GameController } from "../controllers/game.controller.js";
 
 export const gameRouter = express.Router();
 const initState = {}; // state of physics board
@@ -13,81 +15,28 @@ const initState = {}; // state of physics board
  * POST /games
  *This api is used to create game
  */
-gameRouter.post("/", async (req, res) => {
-    try {
-        const { gameID } = req.body;
-
-        if (!gameID) {
-            return res.status(400).json({
-                error: "gameID required"
-            });
-        }
-        const chess = createGame(gameID);
-        await saveGame(gameID, {
-            gameID,
-            fen: chess.fen(),
-            pgn: "",
-            // Date: ,
-            lastMove: null
-        });
-
-        getIO().emit("create_game", { gameID });
-
-        res.json({
-            status: "Game created", gameID
-        });
-    } catch (e) {
-        console.log(e);
-    }
-});
+gameRouter.post("/", GameController.create);
 
 /**
  * POST /games/current
  * This api used to get current game(F5)
  */
-gameRouter.get("/current", async (req, res) => {
-    try {
-        const game = await loadAllGame();
-        if (!game) {
-            return res.json(null);
-        }
-        // console.log("Current game: ", game);
-        res.json(game);
-    } catch (e) {
-        console.log(e);
-    }
-});
+gameRouter.get("/current", GameController.getCurrent);
 
-/**GET /games/history 
+/**
+ * GET /games/history 
  * This api is used to get game played
 */
-gameRouter.get("/history", async (req, res) => {
-    try {
-        const games = await getPGNCollections()
-            .find({})
-            .sort({ createAt: -1 }) // newest
-            .toArray();
+gameRouter.get("/history", GameController.getHistory);
 
-        res.json(games);
-    } catch (e) {
-        console.error(e);
-    }
-})
-
-/**DELETE /games/history/:id 
+/**
+ * DELETE /games/history/:id 
  * This api is used to delete game played
 */
-gameRouter.delete("/history/:id", async (req, res) => {
-    try {
-        await getPGNCollections()
-            .deleteOne({ _id: new ObjectId(req.params.id) });
-        res.json({ success: true });
-    } catch (e) {
-        console.error(e);
-    }
-})
+gameRouter.delete("/history/:id", GameController.deleteHistory);
 
-/**GET games/:id
+/**
+ * GET games/:id
  * This api is used to get single game by id
  */
 gameRouter.get("/:id", async (req, res) => {
@@ -104,7 +53,8 @@ gameRouter.get("/:id", async (req, res) => {
     }
 });
 
-/**POST games/:id/pgn
+/**
+ * POST games/:id/pgn
  * This api is used to post edit pgn to server
  */
 gameRouter.post("/:id/pgn", async (req, res) => {
@@ -131,108 +81,32 @@ gameRouter.post("/:id/pgn", async (req, res) => {
     }
 });
 
-/**POST games/:id/restart
+/**
+ * POST games/:id/restart
  * This api is used to post restart game
  */
-gameRouter.post("/:id/restart", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-        console.log("Restart game:", gameID);
+gameRouter.post("/:id/restart", GameActionController.restart);
 
-        //Reset game
-        resetGame(gameID);
-
-        await saveGame(gameID, {
-            gameID,
-            fen: new Chess().fen(),
-            pgn: "",
-            lastMove: null,
-            lastSeq: 0
-        });
-
-        getIO().emit("game_restart", { gameID });
-        res.json({ ok: true });
-    } catch (e) {
-        console.log("Restart error: ", e);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-/**POST games/:id/destroy
+/**
+ * POST games/:id/destroy
  * This api is used to post destroy game
  */
-gameRouter.post("/:id/destroy", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-        console.log("Destroy request: ", gameID);
-        const result = await removeGame(gameID);
-        res.json({
-            result
-        });
-    } catch (e) {
-        console.log("Remove game", e);
-        res.status(500).json({ error: e.message });
-    }
-});
+gameRouter.post("/:id/destroy", GameActionController.destroy);
 
-/**POST games/:id/resign
+/**
+ * POST games/:id/resign
  * This api is used to post Resign game
  */
-gameRouter.post("/:id/resign", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-        const { resignSide } = req.body;
+gameRouter.post("/:id/resign", GameActionController.resign);
 
-        // Validate 
-        if (!resignSide || !["white", "black"].includes(resignSide)) {
-            return res.status(400).json({ error: "resignSide error" });
-        }
+/**
+ * POST games/:id/reset
+ * This api is used to post reset board when the game end 
+ */
+gameRouter.post("/:id/reset", GameActionController.reset);
 
-        const game = await loadGame(gameID);
-
-        if (!game) return res.status(404).json({ error: "Game not found" });
-        const winner = resignSide === "white" ? "black" : "white";
-        const chess = new Chess();
-        const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
-        if (pgn) chess.loadPgn(pgn);
-
-        // Save to game played
-        const doc = {
-            gameID,
-            pgn: game.pgn || "",
-            Result: resignSide === "white" ? "0-1" : "1-0",
-            White: game.White || "White",
-            Black: game.Black || "Black",
-            Date: new Date().toISOString().split("T")[0],
-            totalMoves: game.lastSeq,
-            endReason: "resigned",
-            loser: resignSide,
-            winner,
-            createAt: new Date(),
-        }
-
-        await endGame(doc);
-        resetGame(gameID);
-        await saveGame(gameID, {
-            fen: new Chess().fen(),
-            pgn: "",
-            lastMove: null,
-            lastSeq: 0
-        })
-
-        return res.status(200).json({
-            message: "Resign success",
-            loser: resignSide,
-            winner: winner,
-        });
-
-    } catch (e) {
-        console.log("Resign game", e);
-        res.status(500).json({ error: e.message });
-    }
-});
-
-/**POST games/:id/endgame
+/**
+ * POST games/:id/endgame
  * This api is used to post endgame 
  */
 gameRouter.post("/:id/endgame", async (req, res) => {
@@ -266,45 +140,28 @@ gameRouter.post("/:id/endgame", async (req, res) => {
     }
 });
 
-/**POST games/:id/reset
- * This api is used to post reset board when the game end 
- */
-gameRouter.post("/:id/reset", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-
-        // Reset server 
-        resetGame(gameID);
-        await saveGame(req.params.id, {
-            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
-            pgn: "",
-            lastMove: null,
-            lastSeq: 0,
-        });
-        res.json({ success: true });
-    } catch (e) {
-        res.status(500).json({ error: e.message });
-    }
-});
-
 /**
- * POST games/:id/physicsboard
+ * POST games/:id/initcheck
  * This api is used to send the state init of physicboard
+ * Esp32 send
  */
 
-gameRouter.post("/:id/physicsboard", async (req, res) => {
+gameRouter.post("/:id/initcheck", async (req, res) => {
     try {
         const gameID = req.params.id;
-        const board = req.body.board;
-        if (!board) {
+        const {board} = req.body;
+        if (!board || !Array.isArray(board)) {
             return res.status(400).json({
-                error: "Missing board"
+                status: "invalid",
+                error: "Invalid board"
             });
         }
 
-        initState[gameID] = board;
+        const board2D = convertHalltoBoard(board);
+        const result = checkInitialBoard(board2D);
 
-        const result = checkInitialBoard(board);
+        initState[gameID] = { result}; // save to get reuse
+        getIO().to(gameID).emit("initcheck", {gameID, ...result});
 
         res.json({
             gameID,
@@ -313,9 +170,7 @@ gameRouter.post("/:id/physicsboard", async (req, res) => {
 
     } catch (e) {
         console.log("Physical board update error", e);
-        res.status(500).json({
-            error: "Server error"
-        });
+        res.status(500).json({ status: "invalid", error: "Server error" });
     }
 });
 
@@ -326,9 +181,13 @@ gameRouter.post("/:id/physicsboard", async (req, res) => {
 gameRouter.get("/:id/initcheck", async (req, res) => {
     try {
         const gameID = req.params.id;
-        const board = initState[gameID];
+        const result = initState[gameID];
 
-        if (!board) {
+        console.log("GET initcheck - gameID:", gameID);
+        console.log("initState keys:", Object.keys(initState)); // ← xem key nào đang có
+        console.log("result:", result);
+
+        if (!result) {
             return res.json({
                 gameID,
                 status: "waiting",
@@ -337,7 +196,7 @@ gameRouter.get("/:id/initcheck", async (req, res) => {
             })
         }
 
-        const result = checkInitialBoard(board);
+        // const result = checkInitialBoard(board);
 
         res.json({
             gameID,

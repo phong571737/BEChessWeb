@@ -13,7 +13,6 @@ export class BoardUI {
     }
 
     init() {
-        console.log(" Initiating Board at ID:", this.elementID);
         this.board = Chessboard(this.elementID, {
             position: this.gameController.fen(), //Get current fen
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',

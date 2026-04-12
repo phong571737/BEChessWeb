@@ -1,18 +1,26 @@
 const initialBoard = [
-    ['r', 'n', 'b', 'q', 'k', 'b', 'n', 'r'],//black
-    ['p', 'p', 'p', 'p', 'p', 'p', 'p', 'p'],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    [' ', ' ', ' ', ' ', ' ', ' ', ' ', ' '],
-    ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'], // white
-    ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
+    [1, 1, 1, 1, 1, 1, 1, 1], // row 0 - black
+    [1, 1, 1, 1, 1, 1, 1, 1], // row 1
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0, 0],
+    [1, 1, 1, 1, 1, 1, 1, 1], // row 6 - white
+    [1, 1, 1, 1, 1, 1, 1, 1], // row 7
 ];
 
 function toSquare(row, col){
     const file = String.fromCharCode(97 + col); // a, b, c, ..., h
     const rank = 8 - row; // scan reverse row 1 -> 8
     return file + rank;
+}
+
+export function convertHalltoBoard(hallArr) {
+    return [...hallArr].reverse().map(rowBits =>
+        Array.from({length: 8}, (_, c) =>
+            (rowBits >> (c)) & 1
+        )
+    );
 }
 
 export function checkInitialBoard(board){
@@ -25,17 +33,12 @@ export function checkInitialBoard(board){
             const actualBoard = board[r][c];
 
             //Missing pieces when the board was initialized
-            if(expectBoard !== ' ' && actualBoard === ' '){
+            if(expectBoard === 1 && actualBoard === 0){
                 missingSquares.push(toSquare(r, c));
             }
 
-            //expect != actual
-            if(expectBoard !== ' ' && actualBoard !== ' ' && expectBoard !== actualBoard){
-                wrongSquares.push(toSquare(r, c));
-            }
-            
-            //the rows that difference with row 1, 2, 7, 8
-            if(expectBoard === ' ' && actualBoard !== ' '){
+            //wrongsquare
+            if(expectBoard === 0 && actualBoard === 1){
                 wrongSquares.push(toSquare(r, c));
             }
         }

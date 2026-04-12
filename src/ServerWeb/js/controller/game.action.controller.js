@@ -137,6 +137,7 @@ export class GameActionController {
                 const boards = GameSyncManager.getBoards(gameID);
                 boards?.forEach(boardUI => {
                     boardUI.update();
+                    boardUI.ui.update();
                     boardUI.RemoveHighlightKing();
                     boardUI.RemoveHighlightMove();
                 });

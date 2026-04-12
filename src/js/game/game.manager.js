@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
 import { loadGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
-import { cloneFromFen, findValidMove } from "../services/game.service.js";
+import { ChessService } from "../services/chess.service.js";
 
 export const games = new Map();
 export const gameSeq = new Map();
@@ -64,9 +64,9 @@ export async function makeMove(gameID, candidates, seq) {
       lastMove: result.lastMove
     }
   }
-
+  
   // find all moves illegal for current candidate
-  let validMoves = findValidMove(mainGame, candidates);
+  let validMoves = ChessService.findValidMove(mainGame, candidates);
   if (validMoves.length === 0) return { status: "illegal", lastSeq };
 
   if (validMoves.length > 1) {

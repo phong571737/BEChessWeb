@@ -16,7 +16,6 @@ export const GameLoader = {
                 const gameData = JSON.parse(localCache);
                 if (gameData.gameID && (gameData.pgn || gameData.fen)) {
                     GameSyncManager.setController(gameID, new GameModel(gameData));
-                    console.log("Loaded from localStorage:", gameID);
                     return;
                 }
             } catch (e) {

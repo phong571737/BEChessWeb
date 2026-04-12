@@ -249,11 +249,13 @@ export const GamePlayedView = {
         const date = this.el("div", "items-center text-gray-500 text-xs", Date, "game-creation-date");
 
         // Remove pgn
-        const remove = this.el("div", "");
-        const remove_icon = this.el("i", "remove-pgn fa-solid fa-trash-can", "", "remove-pgn");
-        remove.appendChild(remove_icon);
+        // const remove = this.el("div", "");
+        // const remove_icon = this.el("i", "remove-pgn fa-solid fa-trash-can", "", "remove-pgn");
+        // remove.appendChild(remove_icon);
 
-        item.append(number, chip, win_color, player_container, time_and_move, date, remove);
+        item.append(number, chip, win_color, player_container, time_and_move, date, 
+            // remove
+        );
         return item;
     },
 

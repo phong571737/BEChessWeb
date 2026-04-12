@@ -66,3 +66,11 @@ export async function finishGame(id, data) {
     );
     return game;
 }
+
+
+export async function LoadGameFromDB() {
+  const games = getGameCollections();
+  const data = await games.findOne({_id: "current_game"});
+
+  return data;
+}

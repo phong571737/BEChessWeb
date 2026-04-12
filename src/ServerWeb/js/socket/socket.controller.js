@@ -1,5 +1,7 @@
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
+import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
+import { GameView } from "/ServerWeb/js/views/game.view.js";
 
 export const SocketController = {
     socket: null,
@@ -8,10 +10,16 @@ export const SocketController = {
         this.socket = io();
 
         //Create New Game
-        this.socket.on("create_game", (data) => {
+        this.socket.on("board_connected", (data) => {
+            if (!data || !data.gameID) return;
+            const { gameID } = data;
 
-            if (data && data.gameID) {
-                GameCardController.add(data.gameID);
+            GameCardController.add(data.gameID);
+
+            const controller = GameSyncManager.getController(gameID);
+            if (controller) {
+                GameView.setNotify("Board connected", "waiting", gameID); //notify state 
+                InitCheck.startWaitingForBoard(controller, gameID);
             }
         });
 
@@ -43,4 +51,11 @@ export const SocketController = {
             console.error("Connection Error: ", err);
         })
     },
+
+    // join room when into board page
+    joinRoom(gameID) {
+        if (this.socket) {
+            this.socket.emit("join", { gameID });
+        }
+    }
 };
