@@ -1,7 +1,7 @@
 import { MongoClient, ServerApiVersion } from "mongodb";
 import {env} from "../config/environment.js";
-// const MONGO_URI = env.MONGO_URI;
-const MONGO_URI = env.MONGO_LOCAL;
+const MONGO_URI = env.MONGO_URI;
+// const MONGO_URI = env.MONGO_LOCAL;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 export const client = new MongoClient(MONGO_URI, {
