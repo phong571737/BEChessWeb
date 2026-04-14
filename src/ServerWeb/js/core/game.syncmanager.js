@@ -101,14 +101,21 @@ export const GameSyncManager = {
     },
 
     _saveStatetoLocal(gameID, model) {
+        const key = `game_state_${gameID}`;
+        const oldState = JSON.parse(localStorage.getItem(key) || "{}");
+
         const statetoSave = {
-            gameID: gameID,
+            ...oldState, // save old data
+            _gameID: gameID,
             fen: typeof model.fen === "function" ? model.fen() : model.fen,
             pgn: typeof model.pgn === "function" ? model.pgn() : model.pgn,
             lastMove: model.lastMove || null,
+
+            WhiteName: model.WhiteName ?? oldState.WhiteName ?? "White",
+            BlackName: model.BlackName ?? oldState.BlackName ?? "Black",
             timestamp: Date.now()
         }
 
-        localStorage.setItem(`game_state_${gameID}`, JSON.stringify(statetoSave));
+        localStorage.setItem(key, JSON.stringify(statetoSave));
     },
 }

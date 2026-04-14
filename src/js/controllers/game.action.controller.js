@@ -45,6 +45,22 @@ export const GameActionController = {
         }
     },
 
+    async rename(req, res) {
+        try {
+            const gameID = req.params.id;
+            const {color, name} = req.body;
+
+            await GameActionService.rename(gameID, color, name);
+
+            res.json({
+                ok: true
+            });
+        } catch (e) {
+            console.log("Rename failed", e);
+            res.status(500).json ({error: e.message});
+        }
+    },
+
     // reset action
     async reset(req, res) {
         try {

@@ -17,14 +17,19 @@ export const BoardPage = {
 
         ViewManager.hideAll();
 
-        const { isNew } = BoardViewController.getOrCreate(gameID, container); 
+        const { isNew } = BoardViewController.getOrCreate(gameID, container);
         isNew ? BoardInitController.create(gameID, container)//if not exists, create a new board 
             : BoardInitController.resume(gameID); // else, display
 
         const gc = GameSyncManager.getController(gameID);
-        // if (gc.game.history().length === 0) {
-        //     InitCheck.startPollingInitCheck(gc, gameID);
-        // }
+
+        // reload name
+        const whiteEl = document.getElementById("white-name");
+        const blackEl = document.getElementById("black-name");
+
+        if (whiteEl) whiteEl.textContent = gc.WhiteName;
+        if (blackEl) blackEl.textContent = gc.BlackName;
+
         const viewID = document.getElementById(`view-game-${gameID}`);
         new PGNEditController(gc, viewID).init();
         const actionController = new GameActionController(gc);

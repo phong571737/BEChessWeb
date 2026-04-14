@@ -13,6 +13,13 @@ export function initSocket(server){
     });
 
     io.on("connection", (socket) =>{
+        // join room
+        socket.on("join", ({gameID}) =>{
+            socket.join(gameID);
+            console.log(`${socket.id} joined room: ${gameID}`);
+        });
+
+        // Save data to currentGameState
         socket.on('request_current_game', (data)=>{
             if(!data || !data.gameID){
                 console.log("The uploaded data is missing the gameID");
@@ -32,13 +39,14 @@ export function initSocket(server){
                 console.log("No valid games found.");
             }
         });
-
-        // Save data to currentGameState 
+ 
         socket.on("esp_move", (data)=>{
             try{
+                if (!data?.gameID || !data?.uci) return;
+
                 const moveResult = makeMove(data.gameID, data.uci);
 
-                io.emit("esp_move", {
+                io.to(data.gameID).emit("esp_move", {
                     gameID: moveResult.gameID,
                     lastMove: moveResult.lastMove,
                     fen: moveResult.fen
@@ -49,9 +57,29 @@ export function initSocket(server){
             }
         });
 
-        socket.on("join", ({gameID}) =>{
-            socket.join(gameID);
-            console.log(`${socket.id} joined room: ${gameID}`);
+        socket.on("resign", ({gameID, resignSide}) => {
+            const game = getCurrentState(gameID);
+
+            // anti double click
+            if(game?.status === "ended") return;
+
+            game.status = "ended";
+            game.winner = resignSide === "white" ? "black" : "white";
+
+            // notify to all client update board
+            io.to(gameID).emit("update_all_game", {
+                gameID,
+                // resignSide
+            });
+        });
+
+        // Receiv restart from client and emit update board
+        socket.on("restart", ({gameID}) => {
+            if (!gameID) return;
+            
+            io.to(gameID).emit("update_all_game", {
+                gameID
+            });
         })
     })
 }

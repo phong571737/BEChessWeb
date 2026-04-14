@@ -15,7 +15,14 @@ export const GameLoader = {
             try {
                 const gameData = JSON.parse(localCache);
                 if (gameData.gameID && (gameData.pgn || gameData.fen)) {
-                    GameSyncManager.setController(gameID, new GameModel(gameData));
+                    const model = new GameModel(gameData);
+                    GameSyncManager.setController(gameID, model);
+                    const white = document.getElementById("white-name");
+                    const black = document.getElementById("black-name");
+                    if (white && black) {
+                        white.textContent = model.WhiteName;
+                        black.textContent = model.BlackName;
+                    }
                     return;
                 }
             } catch (e) {

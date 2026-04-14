@@ -214,8 +214,16 @@ export const GamePlayedView = {
             `rounded-full text-center text-xs font-medium border ${chipClass} px-3 py-1`,
             chipText
         )
+
+        // circuit
+        const circuit_class = Result === "1-0" ? "bg-white border-gray-600" 
+                            : Result === "0-1" ? "bg-gray-800 border-gray-600"
+                            : "";
+        const title_circuit = Result === "1-0" ? "White win" 
+                            : Result === "0-1" ? "Black win"
+                            : "Draw";
         const win_color = this.el("div");
-        const circuit = this.el("div", "rounded-full w-5 h-5 border-2 bg-gray-800 border-gray-600", "", "", "Black win");
+        const circuit = this.el("div", `rounded-full w-5 h-5 border-2 ${circuit_class}`, "", "", title_circuit);
         win_color.appendChild(circuit);
 
         // Player
@@ -264,14 +272,14 @@ export const GamePlayedView = {
         const title = this.HeaderView();
         const progressbar = this.ProgressBar();
         const cardbar = this.CardBar();
-        const searchbar = this.SearchBar();
-        const chipselection = this.ChipSelection();
+        // const searchbar = this.SearchBar();
+        // const chipselection = this.ChipSelection();
         played_view.append(
             title,
             cardbar,
             progressbar,
-            searchbar,
-            chipselection,
+            // searchbar,
+            // chipselection,
             this.el("div", "game-list space-y-2"),
         );
         return played_view;

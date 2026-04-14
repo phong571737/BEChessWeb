@@ -12,5 +12,5 @@ export const env = {
     MQTT_PASSWORD: process.env.MQTT_PASSWORD,
     MQTT_PORT: process.env.MQTT_PORT,
     MQTT_TOPIC_GET_IP: process.env.MQTT_TOPIC_GET_IP,
-    // MONGO_LOCAL: process.env.MONGO_LOCAL, 
+    MONGO_LOCAL: process.env.MONGO_LOCAL, 
 }

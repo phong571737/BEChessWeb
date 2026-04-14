@@ -11,8 +11,8 @@ export class GameModel{
         if(typeof gameID === 'object' && gameID.gameID){
             this.gameID = gameID.gameID || gameID._id;
             this.lastMove = gameID.lastMove || null;
-            this.WhiteName = gameID.White || "White";
-            this.BlackName = gameID.Black || "Black";
+            this.WhiteName = gameID.WhiteName || "White";
+            this.BlackName = gameID.BlackName || "Black";
 
             if(gameID.pgn){
                 this.loadPGN(gameID.pgn);

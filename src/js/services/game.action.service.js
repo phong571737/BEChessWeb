@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
 import { resetGame } from "../game/game.manager.js";
-import { saveGame } from "../models/game.model.js";
+import { loadGame, renamePlayer, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 
 export const GameActionService = {
@@ -20,6 +20,7 @@ export const GameActionService = {
         getIO().emit("game_restart", { gameID });
     },
 
+    // reset game 
     async reset(gameID) {
         // Reset server 
         resetGame(gameID);
@@ -29,6 +30,19 @@ export const GameActionService = {
             lastMove: null,
             lastSeq: 0,
         });
+    },
+
+    async rename(gameID, color, name) {
+        if (!name.trim() || !["Black", "White"].includes(color)) {
+            return;
+        }
+
+        const game = await loadGame(gameID);
+        if (!game) return;
+
+        await renamePlayer(gameID, color, name);
+        // Broad cast to all the game that using name gameid
+        getIO().to(gameID).emit("game:renamed", {color, name});
     },
 
     async destroy(gameID) {

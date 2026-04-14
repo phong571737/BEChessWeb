@@ -106,6 +106,12 @@ gameRouter.post("/:id/resign", GameActionController.resign);
 gameRouter.post("/:id/reset", GameActionController.reset);
 
 /**
+ * POST games/:id/rename
+ * This api is used to post rename player
+ */
+gameRouter.post("/:id/rename", GameActionController.rename);
+
+/**
  * POST games/:id/endgame
  * This api is used to post endgame 
  */
@@ -183,9 +189,9 @@ gameRouter.get("/:id/initcheck", async (req, res) => {
         const gameID = req.params.id;
         const result = initState[gameID];
 
-        console.log("GET initcheck - gameID:", gameID);
-        console.log("initState keys:", Object.keys(initState)); // ← xem key nào đang có
-        console.log("result:", result);
+        // console.log("GET initcheck - gameID:", gameID);
+        // console.log("initState keys:", Object.keys(initState)); // ← xem key nào đang có
+        // console.log("result:", result);
 
         if (!result) {
             return res.json({

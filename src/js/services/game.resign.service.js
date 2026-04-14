@@ -16,14 +16,19 @@ export const GameResignService = {
         const chess = new Chess();
         const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
         if (pgn) chess.loadPgn(pgn);
+        chess.setHeader("White", game.WhiteName || "White");
+        chess.setHeader("Black", game.BlackName || "Black");
+        chess.setHeader("Result", resignSide === "white" ? "0-1" : "1-0");
+        chess.setHeader("Date", new Date().toISOString().split("T")[0]);
+        const finalPGN = chess.pgn();
 
         // Save to game played
         const doc = {
             gameID,
-            pgn: game.pgn || "",
+            pgn: finalPGN,
             Result: resignSide === "white" ? "0-1" : "1-0",
-            White: game.White || "White",
-            Black: game.Black || "Black",
+            White: game.WhiteName || "White",
+            Black: game.BlackName || "Black",
             Date: new Date().toISOString().split("T")[0],
             totalMoves: game.lastSeq,
             endReason: "resigned",

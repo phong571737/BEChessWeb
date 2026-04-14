@@ -40,7 +40,16 @@ export class PGNEditController {
 
         this._editing = true;
         move_list.innerHTML = "";
-        move_list.appendChild(PGNEditView.PGNView(this.gameController.pgn()));
+        this.gameController.setHeader("White", this.gameController.WhiteName);
+        this.gameController.setHeader("Black", this.gameController.BlackName);
+        this.gameController.setHeader(
+            "Date",
+            new Date().toLocaleDateString("en-CA")
+        );
+
+        const fullPGN = this.gameController.pgn();
+
+        move_list.appendChild(PGNEditView.PGNView(fullPGN));
 
         // Abort controller to clean up old listeners
         this._abort = new AbortController();
@@ -52,7 +61,7 @@ export class PGNEditController {
 
         // exit button
         this.container.querySelector("#cancel-btn")
-        ?.addEventListener("click", () => this._exit(), { signal, once: true });
+            ?.addEventListener("click", () => this._exit(), { signal, once: true });
     }
 
     // Save game after edit pgn
@@ -60,6 +69,14 @@ export class PGNEditController {
         const newPGN = this.container.querySelector("#pgn-editor")?.value;
         try {
             this.gameController.loadPGN(newPGN);
+            this.gameController.setHeader("White", this.gameController.WhiteName);
+            this.gameController.setHeader("Black", this.gameController.BlackName);
+            this.gameController.setHeader(
+                "Date",
+                new Date().toLocaleDateString("en-CA")
+            );
+
+            const fullPGN = this.gameController.pgn();
             this.gameController.seq = this.gameController.game.history().length;
             this.synclastMove();
             await this._postPGN();
@@ -71,7 +88,7 @@ export class PGNEditController {
     }
 
     // refresh board after edit pgn
-    _refreshBoards(){
+    _refreshBoards() {
         const { gameID, lastMove } = this.gameController;
         GameSyncManager.getBoards(gameID)?.forEach(b => {
             b.update();
@@ -96,7 +113,7 @@ export class PGNEditController {
 
     async _postPGN() {
         const { gameID, lastMove } = this.gameController;
-        const history  = this.gameController.game.history();
+        const history = this.gameController.game.history();
         const newSeq = history.length;
 
         await fetch(`/games/${gameID}/pgn`, {

@@ -2,12 +2,13 @@ import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
 import { GameView } from "/ServerWeb/js/views/game.view.js";
+import { initSocket } from "./socket.instance.js";
 
 export const SocketController = {
     socket: null,
 
     async init() {
-        this.socket = io();
+        this.socket = initSocket();
 
         //Create New Game
         this.socket.on("board_connected", (data) => {
@@ -30,6 +31,7 @@ export const SocketController = {
             );
         });
 
+        // Listen move event
         this.socket.on("esp_move", (data) => {
             document.dispatchEvent(
                 new CustomEvent("socket:move", { detail: data })
@@ -46,6 +48,33 @@ export const SocketController = {
                 this.socket.emit("request_current_game", { gameID: gameID });
             }
         });
+
+        this.socket.on("update_all_game", (data) => {
+            if (!data || !data.gameID) return;
+            const { gameID } = data;
+
+            localStorage.removeItem(`game_state_${gameID}`);
+
+            // Reset board
+            const controller = GameSyncManager.getController(gameID);
+            if (controller) {
+                controller.game.reset();
+                controller.lastMove = null;
+            }
+
+            const boards = GameSyncManager.getBoards(gameID);
+            boards?.forEach(boardUI => {
+                boardUI.update();
+                boardUI.ui.update();
+                boardUI.RemoveHighlightKing();
+                boardUI.RemoveHighlightMove();
+            });
+        })
+
+        this.socket.on("game:renamed", ({color, name}) => {
+            const id = color === "Black" ? "black-name" : "white-name";
+            document.getElementById(id).textContent = name;
+        })
 
         this.socket.on("connect_error", (err) => {
             console.error("Connection Error: ", err);
