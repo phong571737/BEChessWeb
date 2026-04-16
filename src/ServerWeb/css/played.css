@@ -3,13 +3,13 @@
 }
 
 .border{
-
     border-width: 1px;
 }
 
 .main-played{
-    grid-column: 1/-1;
-    margin: 0 50px;
+    grid-area: main;
+    /* grid-column: 1/-1;
+    margin: 0 50px; */
 }
 
 .title-played{
@@ -168,4 +168,25 @@
 
 .break-words {
     overflow-wrap: break-word;
+}
+
+
+/* Mobile */
+@media (max-width: 768px) {
+    /* #main-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-areas: "main";
+    } */
+
+    .main-played {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        margin: 0;
+    }
+
+    .game-list {
+        display: flex;
+        flex-direction: column;
+    }
 }

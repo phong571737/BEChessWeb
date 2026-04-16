@@ -14,6 +14,7 @@ export class BoardUI {
 
     init() {
         this.board = Chessboard(this.elementID, {
+            responsive: true,
             position: this.gameController.fen(), //Get current fen
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
         });

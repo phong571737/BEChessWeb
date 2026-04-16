@@ -58,4 +58,76 @@
     text-underline-offset: 1.45rem;
 }
 
+.nav-wrapper {
+    width: 100%;
+}
+
+.top-nav {
+    display: none;
+}
+
+.icon-menu {
+    display: inline;
+}
+
+.icon-close {
+    display: none;
+}
+
+/* using for mobile */
+@media (max-width: 768px) {
+    .top-nav {
+        display: flex;
+    }
+    .nav-left {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 60px;
+        left: 0;
+        width: 50%;
+        background: white;
+        background-color: rgba(255, 255, 255, 0.2);
+        backdrop-filter: blur(10px);
+        float: left;
+        align-items: flex-start;
+        justify-content: flex-start;
+        z-index: 999;
+        height: 100%;
+    }
+
+    .nav-left.active {
+        display: flex;
+    }
+
+    .top-nav.active .icon-menu {
+        display: none;
+    }
+
+    .top-nav.active .icon-close {
+        display: inline;
+    }
+
+    .nav-header {
+        padding: 1rem 0;
+    }
+
+    .nav-header.top-nav {
+        width: 250px;
+    }
+
+    .title-name {
+        font-size: 12.5px;
+    }
+
+    .logo-ttlab {
+        width: 15px;
+        height: 15px;
+    }
+
+    .setting-icon {
+        font-size: 15px;
+    }
+}
+
 /*----------------------------- END HEADER ------------------*/

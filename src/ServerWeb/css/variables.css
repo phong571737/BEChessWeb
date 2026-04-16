@@ -74,6 +74,10 @@
     --container-xl: 36rem;
     --container-2xl: 42rem;
 }
+/* 
+* {
+  outline: 1px solid red;
+} */
 
 * {
     margin: 0;
@@ -108,7 +112,7 @@ input, button, select{
 @property --tw-ring-offset-shadow {
     syntax: "*"; 
     inherits: false; 
-    initial-value: 0 0 #0000
+    initial-value: 0 0 #0000;
 }
 
 @property --tw-translate-x{

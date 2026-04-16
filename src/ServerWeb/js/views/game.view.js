@@ -134,7 +134,7 @@ export const GameView = {
     },
 
     MainContainer(GameID) {
-        const wrapper = this.el("div", "container-wrapper", "", `view-game-${GameID}`);
+        const wrapper = this.el("div", "container-wrapper overflow-hidden", "", `view-game-${GameID}`);
 
         const main_wrapper = this.el("div", "main-board");
         const boardid = this.el("div", "myBoard", "", `Board_${GameID}`);

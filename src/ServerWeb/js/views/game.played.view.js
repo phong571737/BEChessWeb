@@ -268,7 +268,7 @@ export const GamePlayedView = {
     },
 
     MainPlayed() {
-        const played_view = this.el("div", "main-played py-end-8 px-6");
+        const played_view = this.el("div", "main-played overflow-hidden py-end-8 px-6");
         const title = this.HeaderView();
         const progressbar = this.ProgressBar();
         const cardbar = this.CardBar();

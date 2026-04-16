@@ -1,5 +1,6 @@
 /*--------------------- MAIN BOARD ------------------------*/
 .container-wrapper{
+    /* grid-area: main; */
     display: grid;
     grid-template-columns: 1fr minmax(0, 595px) 400px 1fr;
     grid-template-areas: 
@@ -18,14 +19,19 @@
     grid-column: 3;
 }
 
-.container-wrapper::before{
-    content: '';
-    grid-row: 1 / -1;
-    grid-column: 2 / 3;
-    pointer-events: none;
-    z-index: 0;
-    box-shadow: 0 8px 24px 0 rgba(0, 0, 0, 0.35);
-    border-radius: 15px;
+@media (max-width: 768px) {
+    .container-wrapper {
+        grid-template-columns: 1fr;
+        grid-template-areas: 
+        "top-player"
+        "board"
+        "bottom-player"
+        "notify-state"
+        "cap-top"
+        "moves"
+        "control"
+        "cap-bot";
+    }
 }
 
 .main-board{
@@ -39,7 +45,7 @@
 
 .myBoard{
     width: 100%;
-    max-width: 595px;
+    max-width: 600px;
     /* width: 595px; */
     /* width: 38.73vw; */
     aspect-ratio: 1/1;
@@ -67,6 +73,7 @@
 @media (min-width: 800px), (orientation: landscape) {
     .pgn-table{
         grid-area: 3/3/10/4;
+        /* grid-area: moves; */
     }
 }
 
@@ -86,6 +93,9 @@
 
 .top-player{
     grid-area: top-player;
+    border-radius: 15px 15px 0 0; 
+    border: 2px solid var(--color-gray-900);
+    border-bottom: none;
 }
 
 .controls{
@@ -94,6 +104,9 @@
 
 .bot-player{
     grid-area: bottom-player;
+    border-radius: 0 0 15px 15px; 
+    border: 2px solid var(--color-gray-900);
+    border-top: none;
 }
 
 .btn{

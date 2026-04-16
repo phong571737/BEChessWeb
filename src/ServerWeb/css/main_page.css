@@ -9,7 +9,7 @@
     grid-template-columns: repeat(4, 1fr);
     grid-template-areas: 
     ". app app .";
-    grid-column: 3;
+    grid-area: main;
 }
 
 .dashboard-game-list{
@@ -84,5 +84,19 @@
     cursor: pointer;
 }
 
+
+
+/* Media mobile */
+@media (max-width: 768px) {
+    .dashboard-game {
+        grid-template-columns: 1fr;
+        grid-template-areas: "app";
+        margin: 0 1rem;
+    }
+
+    .dashboard-game-list {
+        grid-area: app;
+    }
+}
 
 
