@@ -2,14 +2,17 @@ import { BoardMoveController } from "/ServerWeb/js/controller/board.move.control
 import { BoardUIController } from "/ServerWeb/js/controller/board.ui.controller.js";
 
 export class BoardUI {
-    constructor(elementID, gameController){
+    constructor(elementID, gameController) {
         this.elementID = elementID;
         this.gameController = gameController;
         this.gameID = gameController.gameID;
         this.board = null;
         this.isPrimary = false; // flag handle end game
+        this.lastFrom = null;
+        this.lastTo = null;
         this.ui = new BoardUIController(gameController);
         this.moveController = new BoardMoveController(gameController, this);
+        this.windowResizeHandle = null;
     }
 
     init() {
@@ -18,14 +21,29 @@ export class BoardUI {
             position: this.gameController.fen(), //Get current fen
             pieceTheme: '/lib/chessboardjs-1.0.0/img/chesspieces/wikipedia/{piece}.png',
         });
+        this.initResizeObserver();
         this.ui.update();
     }
 
-    destroyBoard(){
-        if(this.board) this.board.destroy();
+    initResizeObserver() {
+        let ResizeTimer;
+        this.windowResizeHandle = () => {
+            clearTimeout(ResizeTimer);
+            ResizeTimer = setTimeout(() => {
+                this.board.resize();
+                this.HighlightMove(this.lastFrom, this.lastTo);
+                this.HighlightKing();
+            }, 20);
+        };
+
+        window.addEventListener('resize', this.windowResizeHandle);
     }
 
-    update(){
+    destroyBoard() {
+        if (this.board) this.board.destroy();
+    }
+
+    update() {
         this.board.position(this.gameController.fen());
     }
 
@@ -35,6 +53,8 @@ export class BoardUI {
 
     /**add highlight when the piece is moved */
     HighlightMove(source, target) {
+        this.lastFrom = source;
+        this.lastTo = target;
         this.RemoveHighlightMove();
 
         $(`#${this.elementID} .square-${source}`).addClass('last-move');
@@ -49,15 +69,15 @@ export class BoardUI {
     HighlightKing() {
         this.RemoveHighlightKing();
 
-        if(!this.gameController.inCheck()) return; // not check
+        if (!this.gameController.inCheck()) return; // not check
 
         const kingsquare = this.gameController.FindKing(this.gameController.turn());
-        if(kingsquare){
+        if (kingsquare) {
             this.HighlightSquare(kingsquare);
         }
     }
 
-    HighlightSquare(square){
+    HighlightSquare(square) {
         $(`#${this.elementID} .square-${square}`).addClass('check');
         console.log(`Check king ${square}`);
     }

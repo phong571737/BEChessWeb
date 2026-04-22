@@ -1,3 +1,4 @@
+import { SocketController } from "../socket/socket.controller.js";
 import { BoardMoveController } from "/ServerWeb/js/controller/board.move.controller.js";
 
 //the list of boards is displayed
@@ -118,4 +119,24 @@ export const GameSyncManager = {
 
         localStorage.setItem(key, JSON.stringify(statetoSave));
     },
+
+    // request eval
+    requestEval(gameID, model) {
+        const socket = SocketController.socket;
+        if (!socket) return
+
+        if (socket.connected) {
+            socket.emit("request_eval", {
+                gameID,
+                fen: model.fen()
+            });
+        } else {
+            socket.once("connect", () => {
+                socket.emit("request_eval", {
+                    gameID,
+                    fen: model.fen()
+                });
+            })
+        }
+    }
 }

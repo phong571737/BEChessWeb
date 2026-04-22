@@ -1,6 +1,6 @@
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
+import { ViewManager } from "../core/view.manager.js";
 
 export const HomePage = {
     async render(){

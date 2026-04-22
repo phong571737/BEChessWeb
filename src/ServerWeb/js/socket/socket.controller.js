@@ -1,8 +1,10 @@
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { GameCardController } from "/ServerWeb/js/controller/game.card.controller.js";
-import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
-import { GameView } from "/ServerWeb/js/views/game.view.js";
 import { initSocket } from "./socket.instance.js";
+import { ViewManager } from "../core/view.manager.js";
+import { BoardEvent } from "./socket.board.js";
+import { EvalEvent } from "./socket.eval.js";
+import { GameEvent } from "./socket.game.js";
 
 export const SocketController = {
     socket: null,
@@ -10,34 +12,15 @@ export const SocketController = {
     async init() {
         this.socket = initSocket();
 
-        //Create New Game
-        this.socket.on("board_connected", (data) => {
-            if (!data || !data.gameID) return;
-            const { gameID } = data;
+        BoardEvent(this.socket);
+        EvalEvent(this.socket);
+        GameEvent(this.socket);
 
-            GameCardController.add(data.gameID);
+        this.registerConnection();
+        this.registerErrors();
+    },
 
-            const controller = GameSyncManager.getController(gameID);
-            if (controller) {
-                GameView.setNotify("Board connected", "waiting", gameID); //notify state 
-                InitCheck.startWaitingForBoard(controller, gameID);
-            }
-        });
-
-        // Listen to restore data from server
-        this.socket.on("restore_game", (data) => {
-            document.dispatchEvent(
-                new CustomEvent("socket:restore", { detail: data })
-            );
-        });
-
-        // Listen move event
-        this.socket.on("esp_move", (data) => {
-            document.dispatchEvent(
-                new CustomEvent("socket:move", { detail: data })
-            );
-        });
-
+    registerConnection() {
         //F5=> request the current state
         this.socket.on("connect", () => {
             const path = window.location.pathname;
@@ -48,34 +31,9 @@ export const SocketController = {
                 this.socket.emit("request_current_game", { gameID: gameID });
             }
         });
+    },
 
-        this.socket.on("update_all_game", (data) => {
-            if (!data || !data.gameID) return;
-            const { gameID } = data;
-
-            localStorage.removeItem(`game_state_${gameID}`);
-
-            // Reset board
-            const controller = GameSyncManager.getController(gameID);
-            if (controller) {
-                controller.game.reset();
-                controller.lastMove = null;
-            }
-
-            const boards = GameSyncManager.getBoards(gameID);
-            boards?.forEach(boardUI => {
-                boardUI.update();
-                boardUI.ui.update();
-                boardUI.RemoveHighlightKing();
-                boardUI.RemoveHighlightMove();
-            });
-        })
-
-        this.socket.on("game:renamed", ({color, name}) => {
-            const id = color === "Black" ? "black-name" : "white-name";
-            document.getElementById(id).textContent = name;
-        })
-
+    registerErrors() {
         this.socket.on("connect_error", (err) => {
             console.error("Connection Error: ", err);
         })

@@ -1,7 +1,8 @@
 import express from "express";
-import {games, makeMove, restorefromDB} from "../game/game.manager.js";
+import {makeMove} from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import {getIO} from "../sockets/index.js";
+import { stockfishService } from "../services/stockfish.instance.js";
 
 export const moveRouter = express.Router();
 
@@ -32,6 +33,15 @@ moveRouter.post("/", async(req, res) =>{
 
         const state = await makeMove(gameID, candidates, seq);
         if(state.status != "ok") return res.json(state);
+        
+        const fen = state.fen;
+        // send best move to frontend
+        const bestmove = await stockfishService.evaluate(fen, (cp) => {
+            getIO().to(gameID).emit("eval_bestmove", {gameID, cp});
+        });
+
+        console.log("Best move:", bestmove);
+
         await saveGame(gameID, state); //reload
 
         // send to web

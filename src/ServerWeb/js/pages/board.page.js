@@ -1,4 +1,4 @@
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js";
+import { ViewManager } from "../core/view.manager.js";
 import { BoardViewController } from "/ServerWeb/js/controller/board.view.controller.js";
 import { BoardInitController } from "/ServerWeb/js/controller/board.init.controller.js";
 import { GameLoader } from "/ServerWeb/js/core/game.loader.js";
@@ -22,18 +22,27 @@ export const BoardPage = {
             : BoardInitController.resume(gameID); // else, display
 
         const gc = GameSyncManager.getController(gameID);
+        // send fen to server to get engine
+        GameSyncManager.requestEval(gameID, gc);
+        this.updateName(gc);
 
+        if (!gc._uiBound) {
+            const viewID = document.getElementById(`view-game-${gameID}`);
+
+            new PGNEditController(gc, viewID).init();
+            const actionController = new GameActionController(gc);
+            actionController.init();
+
+            gc._uiBound = true;
+        }
+    },
+
+    updateName(gc) {
         // reload name
         const whiteEl = document.getElementById("white-name");
         const blackEl = document.getElementById("black-name");
 
         if (whiteEl) whiteEl.textContent = gc.WhiteName;
         if (blackEl) blackEl.textContent = gc.BlackName;
-
-        const viewID = document.getElementById(`view-game-${gameID}`);
-        new PGNEditController(gc, viewID).init();
-        const actionController = new GameActionController(gc);
-        actionController.init();
-        return actionController;
-    },
+    }
 }

@@ -1,6 +1,5 @@
 {
   "type": "module",
-  "bin": "src/js/server.js",
   "dependencies": {
     "body-parser": "^2.2.0",
     "chess.js": "^1.4.0",
@@ -20,5 +19,20 @@
   "scripts": {
     "dev": "nodemon src/js/server.js",
     "start": "node src/js/server.js"
-  }
+  },
+  "name": "bechessweb",
+  "version": "1.0.0",
+  "description": "A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.",
+  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/phong571737/BEChessWeb.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/phong571737/BEChessWeb/issues"
+  },
+  "homepage": "https://github.com/phong571737/BEChessWeb#readme"
 }

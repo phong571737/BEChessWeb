@@ -1,6 +1,6 @@
 import { GamePlayedController } from "/ServerWeb/js/controller/game.played.controller.js";
 import { PGNModalController } from "/ServerWeb/js/controller/pgn.modal.controller.js";
-import { ViewManager } from "/ServerWeb/js/core/viewManager.js"
+import { ViewManager } from "../core/view.manager.js"
 import { GamePlayedView } from "/ServerWeb/js/views/game.played.view.js";
 
 export const GamePage = {

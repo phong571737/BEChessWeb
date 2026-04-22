@@ -203,9 +203,13 @@ export function createGame(gameID) {
 }
 
 /**This function is used to get current game state */
-export function getCurrentState(gameID) {
-  const game = games.get(gameID);
-  if (!game) return null;
+export async function getCurrentState(gameID) {
+  let game = games.get(gameID);
+  // create a game if game is not exists
+  if (!game) {
+    game = await restorefromDB(gameID);
+    if (!game) return null;
+  }
 
   return {
     gameID,

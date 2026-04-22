@@ -6,6 +6,7 @@
 import { ModalView } from "/ServerWeb/js/views/modal.view.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { getSocket } from "../socket/socket.instance.js";
+import { ViewManager } from "../core/view.manager.js";
 
 export class GameActionController {
     constructor(gameController) {
@@ -110,6 +111,8 @@ export class GameActionController {
                     method: 'POST'
                 });
 
+                ViewManager.updateEvalBar(0, gameID); // reset eval
+
                 // notify to server
                 getSocket().emit("restart", {
                     gameID
@@ -143,6 +146,8 @@ export class GameActionController {
                     body: JSON.stringify({ resignSide }),
                 })
                 close();
+
+                ViewManager.updateEvalBar(0, gameID); // reset eval
 
                 // emit to client to update web 
                 getSocket().emit("resign", {

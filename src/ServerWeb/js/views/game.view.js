@@ -1,3 +1,6 @@
+/**This file is used to create view for board 
+ * include in : pgn table, evaluation bar, board */
+
 export const GameView = {
     createButton(classbtn, iconbtn, titlebtn) {
         const btn = document.createElement('button');
@@ -102,7 +105,7 @@ export const GameView = {
         white_cap.append(white_piece, white_diff);
 
         fragment.append(
-            pgn_table,
+            // pgn_table,
             notify,
             top_player,
             black_cap,
@@ -133,17 +136,33 @@ export const GameView = {
         notify_text.textContent = text;
     },
 
+    // create evaluate bar
+    EvaluateBar(gameID) {
+        const mainbar = this.el("div", "main-eval-bar flex border flex-col w-4 relative");
+        const val_black = this.el("div", "eval-black bg-gray-400 absolute");
+        const val_white = this.el("div", "eval-white bg-white absolute");
+
+        // default
+        val_black.style.height = "50%";
+        val_white.style.height = "50%";
+
+        mainbar.append(val_black, val_white);
+        return mainbar;
+    },
+
     MainContainer(GameID) {
         const wrapper = this.el("div", "container-wrapper overflow-hidden", "", `view-game-${GameID}`);
 
         const main_wrapper = this.el("div", "main-board");
         const boardid = this.el("div", "myBoard", "", `Board_${GameID}`);
+        const evalbar = this.EvaluateBar(GameID);
         main_wrapper.appendChild(boardid);
 
         const pgn_table = this.PGNTable();
         wrapper.append(
             main_wrapper,
-            pgn_table
+            pgn_table,
+            evalbar
         );
 
         return wrapper;

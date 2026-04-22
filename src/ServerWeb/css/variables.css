@@ -74,8 +74,8 @@
     --container-xl: 36rem;
     --container-2xl: 42rem;
 }
-/* 
-* {
+
+/* * {
   outline: 1px solid red;
 } */
 
@@ -94,7 +94,6 @@ body{
 
 input, button, select{
     font: inherit;
-    /* line-height: inherit; */
 }
 
 @property --tw-inset-shadow {
@@ -199,6 +198,10 @@ input, button, select{
 
 .h-12{
     height: calc(var(--spacing) * 12);
+}
+
+.h-96{
+    height: calc(var(--spacing) * 96);
 }
 
 .grid{

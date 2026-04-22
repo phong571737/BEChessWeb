@@ -2,18 +2,23 @@
  * creating a game controller 
  * and registering it in GameSynManager
 */
-import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
+import { SocketController } from "../socket/socket.controller.js";
+import { ViewManager } from "./view.manager.js";
+import { GameSyncManager } from "../core/game.syncmanager.js";
 import { GameModel } from "/ServerWeb/js/model/game.model.js";
 
 export const GameLoader = {
     // Reload game state
     async load(gameID) {
-        if (GameSyncManager.getController(gameID)) return;
+        if (GameSyncManager.getController(gameID)) {
+            return;
+        }
         const localCache = localStorage.getItem(`game_state_${gameID}`); // get data from localStorage
          
         if (localCache) {
             try {
                 const gameData = JSON.parse(localCache);
+                
                 if (gameData.gameID && (gameData.pgn || gameData.fen)) {
                     const model = new GameModel(gameData);
                     GameSyncManager.setController(gameID, model);
@@ -38,7 +43,8 @@ export const GameLoader = {
     async fetchfromServer(gameID) {
         try {
             const game = await fetch(`/games/${gameID}`).then(r => r.json())
-            GameSyncManager.setController(gameID, new GameModel(game));
+            const model = new GameModel(game);
+            GameSyncManager.setController(gameID, model);
 
             this.savetoLocal(gameID, game);
         } catch (e) {

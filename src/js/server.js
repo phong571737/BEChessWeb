@@ -1,18 +1,19 @@
 import { createServer } from "http";
 import express from "express";
 import cors from "cors";
-import { initSocket } from "./sockets/index.js";
+import { getIO, initSocket } from "./sockets/index.js";
 import { moveRouter } from "./routes/move.route.js";
 import { env } from "./config/environment.js";
 import path from "path";
 import { fileURLToPath } from "url";
-// import open from "open";
 import { gameRouter } from "./routes/game.route.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
 import { info } from "node:console";
 import os from "os";
 import mqtt from "mqtt";
+import { stockfishService } from "./services/stockfish.instance.js";
+import { evalRouter } from "./routes/eval.route.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -52,8 +53,10 @@ async function StartServer() {
     methods: ['GET', 'POST'],
     credentials: true
   }));
+
   app.use("/moves", moveRouter); //moves
   app.use("/games", gameRouter); // get games/current and games
+  app.use("/", evalRouter);
 
   const html_path = path.join(__dirname, '../ServerWeb/html/index.html');
   app.use(express.static(path.join(__dirname, '..'))); // src
@@ -64,6 +67,7 @@ async function StartServer() {
 
   await connectDB();
   initSocket(server);
+  stockfishService.init();
 
   // const localIP = getLocalIp();
   // console.log("local ip: ", localIP);
@@ -99,8 +103,6 @@ async function StartServer() {
   // Server listen
   server.listen(env.PORT, "0.0.0.0", async () => {
     console.log("Server is running on: ", env.PORT);
-
-    // await open(`http://127.0.0.1:${env.PORT}`); 
   });
 }
 

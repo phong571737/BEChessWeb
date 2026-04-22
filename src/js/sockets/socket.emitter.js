@@ -1,4 +1,4 @@
-import { getIO } from ".";
+import { getIO } from "./index.js";
 
 // Notify to browser when board create sucessfully
 export function emitBoardConnected(gameID) {
