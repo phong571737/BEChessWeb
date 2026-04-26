@@ -3,6 +3,7 @@ import { HomePage } from "/ServerWeb/js/pages/home.pages.js";
 import { BoardPage } from "/ServerWeb/js/pages/board.page.js";
 import { ViewManager } from "../core/view.manager.js";
 import { GamePage } from "/ServerWeb/js/pages/played.page.js";
+import { LogPage } from "../pages/log.page.js";
 
 
 export const RouterPath = {
@@ -33,6 +34,10 @@ export const RouterPath = {
             case "played":
                 GamePage.render();
                 break;
+            
+            case "logviewer":
+                LogPage.render();
+                break;
 
             default:
                 break;
@@ -47,7 +52,7 @@ export const RouterPath = {
             const link = e.target.closest("a");
             if (link && link.href && link.origin === window.location.origin) {
                 e.preventDefault(); // stop reload
-                this.navigationTo(link.pathname);
+                this.navigationTo(link.pathname + link.search);
             }
         });
 

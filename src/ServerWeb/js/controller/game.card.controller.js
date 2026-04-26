@@ -6,6 +6,7 @@ import { GameModel } from "/ServerWeb/js/model/game.model.js";
 import { RouterPath } from "/ServerWeb/js/routers/router.path.js";
 import { GameCardView } from "/ServerWeb/js/views/game.card.view.js";
 import { SocketController } from "/ServerWeb/js/socket/socket.controller.js";
+import { IDUtils } from "../utils/id.utils.js";
 
 export const GameCardController = {
     /**create game */
@@ -43,7 +44,7 @@ export const GameCardController = {
 
     // open game
     openGame(gameID){
-        RouterPath.navigationTo(`/board/${gameID}`);
+        RouterPath.navigationTo(`/board?id=${IDUtils.encode(gameID)}`);
     },
 
     _getOrCreateModel(GameID, { fen, pgn, lastMove }){

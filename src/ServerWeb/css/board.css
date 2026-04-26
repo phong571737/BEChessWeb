@@ -2,7 +2,7 @@
 .container-wrapper {
     display: grid;
     grid-area: main;
-    grid-template-columns: 1fr minmax(20px, 1.315vw) minmax(250px, calc(100vh - 180px)) minmax(0, 26.3vw) 1fr;
+    grid-template-columns: 1fr minmax(40px, 1.5vw) minmax(250px, calc(100vh - 180px)) minmax(0, 26.3vw) 1fr;
     grid-template-areas:
         ". . top-player . ."
         ". eval board . ."
@@ -42,15 +42,14 @@
     justify-content: center;
     justify-self: center;
     width: 100%;
-    /* align-items: stretch; */
-    aspect-ratio: 1 / 1;
+    align-items: stretch;
 }
 
 .myBoard {
     width: 100% !important;
     /* height: 100% !important; */
     transition: width 0.1s ease, height 0.1s ease;
-
+    flex: 1;
 }
 
 .pgn-table {
@@ -72,14 +71,6 @@
     background: var(--text-choose);
 }
 
-@media (min-width: 800px),
-(orientation: landscape) {
-    .pgn-table {
-        grid-area: 3/3/10/4;
-        /* grid-area: moves; */
-    }
-}
-
 .black-captured {
     display: flex;
     align-items: center;
@@ -99,7 +90,7 @@
     border-radius: 15px 15px 0 0;
     border: 2px solid var(--color-gray-900);
     border-bottom: none;
-    box-sizing: content-box;
+    box-sizing: border-box;
 }
 
 .controls {
@@ -112,7 +103,7 @@
     border-radius: 0 0 15px 15px;
     border: 2px solid var(--color-gray-900);
     border-top: none;
-    box-sizing: content-box;
+    box-sizing: border-box;
 }
 
 .btn {
@@ -295,5 +286,13 @@ button {
         display: flex;
         line-height: 1.7;
         flex-flow: row wrap;
+    }
+}
+
+@media (min-width: 800px),
+(orientation: landscape) {
+    .pgn-table {
+        grid-area: 3/3/10/4;
+        /* grid-area: moves; */
     }
 }

@@ -6,6 +6,7 @@ import { SocketController } from "../socket/socket.controller.js";
 import { ViewManager } from "./view.manager.js";
 import { GameSyncManager } from "../core/game.syncmanager.js";
 import { GameModel } from "/ServerWeb/js/model/game.model.js";
+import { GameStore } from "../utils/game.store.js";
 
 export const GameLoader = {
     // Reload game state
@@ -14,20 +15,22 @@ export const GameLoader = {
             return;
         }
         const localCache = localStorage.getItem(`game_state_${gameID}`); // get data from localStorage
-         
+
         if (localCache) {
             try {
                 const gameData = JSON.parse(localCache);
-                
+
                 if (gameData.gameID && (gameData.pgn || gameData.fen)) {
                     const model = new GameModel(gameData);
                     GameSyncManager.setController(gameID, model);
-                    const white = document.getElementById("white-name");
-                    const black = document.getElementById("black-name");
-                    if (white && black) {
-                        white.textContent = model.WhiteName;
-                        black.textContent = model.BlackName;
-                    }
+
+                    GameStore.set(gameID, {
+                        fen: model.fen(),
+                        pgn: model.pgn(),
+                        WhiteName: model.WhiteName,
+                        BlackName: model.BlackName,
+                    });
+
                     return;
                 }
             } catch (e) {
@@ -45,6 +48,13 @@ export const GameLoader = {
             const game = await fetch(`/games/${gameID}`).then(r => r.json())
             const model = new GameModel(game);
             GameSyncManager.setController(gameID, model);
+
+            GameStore.set(gameID, {
+                fen: model.fen(),
+                pgn: model.pgn(),
+                WhiteName: model.WhiteName,
+                BlackName: model.BlackName,
+            });
 
             this.savetoLocal(gameID, game);
         } catch (e) {

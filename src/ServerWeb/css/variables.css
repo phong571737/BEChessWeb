@@ -131,6 +131,18 @@ input, button, select{
     margin-bottom: calc(var(--spacing) * 1);
 }
 
+.bottom-0 {
+    bottom: 0;
+}
+
+.left-0 {
+    left: 0;
+}
+
+.right-0 {
+    right: 0;
+}
+
 .mb-2{
     margin-bottom: calc(var(--spacing) * 2);
 }
@@ -174,6 +186,18 @@ input, button, select{
 
 .w-4{
     width: calc(var(--spacing) * 4);
+}
+
+.w-5{
+    width: calc(var(--spacing) * 5);
+}
+
+.w-6{
+    width: calc(var(--spacing) * 6);
+}
+
+.w-7{
+    width: calc(var(--spacing) * 7);
 }
 
 .w-12 {

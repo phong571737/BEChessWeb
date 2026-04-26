@@ -33,10 +33,27 @@ export class BoardUI {
                 this.board.resize();
                 this.HighlightMove(this.lastFrom, this.lastTo);
                 this.HighlightKing();
+                this.syncPlayerWidth();
             }, 20);
         };
 
+        this.syncPlayerWidth();
         window.addEventListener('resize', this.windowResizeHandle);
+    }
+
+    syncPlayerWidth() {
+        const viewEl = document.getElementById(`view-game-${this.elementID.replace('Board_', '')}`);
+        if (!viewEl || viewEl.style.display === "none") return;
+
+        const boardEl = viewEl.querySelector(`#${this.elementID} .board-b72b1`);
+        const botPlayer = viewEl.querySelector('.bot-player');
+        const topPlayer = viewEl.querySelector('.top-player');
+
+        if (!boardEl || !botPlayer || !topPlayer) return;
+
+        console.log("Width: ", boardEl.getBoundingClientRect().width);
+        botPlayer.style.width = boardEl.getBoundingClientRect().width + 'px';
+        topPlayer.style.width = boardEl.getBoundingClientRect().width + 'px';
     }
 
     destroyBoard() {
@@ -45,6 +62,12 @@ export class BoardUI {
 
     update() {
         this.board.position(this.gameController.fen());
+    }
+
+    clearAllHighlight() {
+        this.update();
+        this.RemoveHighlightKing();
+        this.RemoveHighlightMove();
     }
 
     onSnapEnd() {

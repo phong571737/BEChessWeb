@@ -8,7 +8,13 @@ export const GameStore = {
             ...this.state[gameID],
             ...patch,
         };
-        eventBus.emit("game:update", gameID);
+        if (patch.cp !== undefined) {
+            eventBus.emit("eval:update", gameID);
+        }
+
+        if (patch.fen) {
+            eventBus.emit("game:update", gameID);
+        }
     },
 
     get(gameID) {

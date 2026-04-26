@@ -38,16 +38,6 @@ export const GameView = {
         const notify_text = this.el("span", "notify-text", "Wait for board connection");
         notify.append(notify_text);
 
-        // the first user
-        const top_player = this.el("div", "user-link online user top-player", "", "top-player");
-        const icon_top_user = this.el("i", "fa-solid fa-circle", "", "top-icon");
-        const black_name = this.el("span", "black-name ml-2.5", "Black Player", "black-name");
-
-        top_player.append(
-            icon_top_user,
-            black_name
-        );
-
         //black captured
         const black_cap = this.el("div", "black-captured", "", "black-captured");
         const black_piece = this.el("div", "black-piece", "", "black-piece");
@@ -59,11 +49,11 @@ export const GameView = {
         const moves = this.el("div", "moves flex-nav", "", "moves");
         const nav_btn = this.el("div", "nav-btn");
 
-        const backward_fast_btn = this.createButton("backward-fast", "fa-solid fa-backward-fast", null);
-        const backward_btn = this.createButton("backward", "fa-solid fa-backward-step", null);
-        const forward_btn = this.createButton("forward", "fa-solid fa-forward-step", null);
-        const forward_fast_btn = this.createButton("forward-fast", "fa-solid fa-forward-fast", null);
-        const edit_btn = this.createButton("edit", "fa-solid fa-pen-to-square", "Chỉnh sửa");
+        const backward_fast_btn = this.createButton("backward-fast", "fa-solid fa-angles-left", "backward");
+        const backward_btn = this.createButton("backward", "fa-solid fa-chevron-left", "back");
+        const forward_btn = this.createButton("forward", "fa-solid fa-chevron-right", "next");
+        const forward_fast_btn = this.createButton("forward-fast", "fa-solid fa-angles-right", "forward");
+        const edit_btn = this.createButton("edit", "fa-solid fa-pen-to-square", "Edit");
 
         nav_btn.append(
             backward_fast_btn,
@@ -89,14 +79,6 @@ export const GameView = {
         control_icons.append(back_btn, surrender_btn);
         controls.appendChild(control_icons);
 
-        // the second user
-        const bottom_player = this.el("div", "user-link online user bot-player");
-        // bottom_player.id = 'bot-player';
-
-        const icon_bottom_user = this.el("i", "fa-solid fa-circle", "", "bot-icon");
-        const white_name = this.el("span", "white-name ml-2.5", "White Player", "white-name");
-        bottom_player.append(icon_bottom_user, white_name);
-
         //white captured
         const white_cap = this.el("div", "white-captured", "", "white-captured");
         const white_piece = this.el("div", "white-piece", "", "white-piece");
@@ -104,16 +86,8 @@ export const GameView = {
 
         white_cap.append(white_piece, white_diff);
 
-        fragment.append(
+        fragment.append( notify, black_cap, moves, controls, white_cap);
             // pgn_table,
-            notify,
-            top_player,
-            black_cap,
-            moves,
-            controls,
-            bottom_player,
-            white_cap
-        );
 
         return fragment;
     },
@@ -138,13 +112,15 @@ export const GameView = {
 
     // create evaluate bar
     EvaluateBar(gameID) {
-        const mainbar = this.el("div", "main-eval-bar flex border flex-col w-4 relative");
+        const mainbar = this.el("div", "main-eval-bar h-full flex border flex-col w-7 relative");
         const val_black = this.el("div", "eval-black bg-gray-400 absolute");
         const val_white = this.el("div", "eval-white bg-white absolute");
 
-        // default
-        val_black.style.height = "50%";
-        val_white.style.height = "50%";
+        const text_black = this.el("div", "number-black-eval flex font-mono text-xs mt-1 justify-center absolute left-0 right-0", "+1.0");
+        val_black.append(text_black);
+
+        const text_white = this.el("div", "number-white-eval flex font-mono text-xs mb-1 bottom-0 justify-center absolute left-0 right-0", "+1.0");
+        val_white.append(text_white);
 
         mainbar.append(val_black, val_white);
         return mainbar;
@@ -155,12 +131,33 @@ export const GameView = {
 
         const main_wrapper = this.el("div", "main-board");
         const boardid = this.el("div", "myBoard", "", `Board_${GameID}`);
+
+        // the first user
+        const top_player = this.el("div", "user-link online user top-player");
+        const icon_top_user = this.el("i", "top-icon fa-solid fa-circle", "");
+        const black_name = this.el("span", "black-name ml-2.5", "Black Player", "black-name");
+
+        top_player.append(
+            icon_top_user,
+            black_name
+        );
+
+        // the second user
+        const bottom_player = this.el("div", "user-link online user bot-player");
+        // bottom_player.id = 'bot-player';
+
+        const icon_bottom_user = this.el("i", "bot-icon fa-solid fa-circle", "");
+        const white_name = this.el("span", "white-name ml-2.5", "White Player", "white-name");
+        bottom_player.append(icon_bottom_user, white_name);
+
         const evalbar = this.EvaluateBar(GameID);
-        main_wrapper.appendChild(boardid);
+        main_wrapper.append(boardid);
 
         const pgn_table = this.PGNTable();
         wrapper.append(
             main_wrapper,
+            top_player,
+            bottom_player,
             pgn_table,
             evalbar
         );

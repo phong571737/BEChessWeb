@@ -12,16 +12,22 @@ export const BoardPage = {
         //fetch game from db
         await GameLoader.load(gameID);
 
+        const gc = GameSyncManager.getController(gameID);
+        if (!gc) return;
+
         const container = document.getElementById("main-wrapper");
         if (!container) return;
 
         ViewManager.hideAll();
 
+        // Mout view
         const { isNew } = BoardViewController.getOrCreate(gameID, container);
-        isNew ? BoardInitController.create(gameID, container)//if not exists, create a new board 
-            : BoardInitController.resume(gameID); // else, display
+        if (isNew) {
+            BoardInitController.create(gameID, container)//if not exists, create a new board 
+        } else {
+            BoardInitController.resume(gameID); // else, display
+        }
 
-        const gc = GameSyncManager.getController(gameID);
         // send fen to server to get engine
         GameSyncManager.requestEval(gameID, gc);
         this.updateName(gc);

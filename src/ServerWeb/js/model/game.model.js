@@ -7,6 +7,8 @@ export class GameModel{
         this.WhiteName = "White Player";
         this.BlackName = "Black Player";
         this.saved = false;
+        this._history = []; // save all moves
+        this.cursor = -1; // current index
 
         if(typeof gameID === 'object' && gameID.gameID){
             this.gameID = gameID.gameID || gameID._id;
@@ -24,61 +26,55 @@ export class GameModel{
         }
     }
 
-    setHeader(key, value){
-        this.game.setHeader(key, value);
-    }
-
-    getHeaders(){
-        return this.game.getHeaders();
-    }
-
-    loadFen(fen) {
-        this.game.load(fen);
-    }
-
     loadPGN(pgn) {
         this.game.loadPgn(pgn);
+        this._history = this.game.history({verbose: true});
+        this.cursor = this._history.length - 1;
     }
 
-    turn() {
-        return this.game.turn();
+    setHeader(key, value){ this.game.setHeader(key, value);}
+    getHeaders(){ return this.game.getHeaders();}
+    loadFen(fen) { this.game.load(fen);}
+    turn() { return this.game.turn();}
+    move(from, to) { return this.game.move({ from, to, promotion: 'q' });}
+    undo() { return this.game.undo();}
+    fen() { return this.game.fen();}
+    pgn() { return this.game.pgn();}
+    inCheck() { return this.game.inCheck();}
+    isDraw() { return this.game.isDraw();}
+    board(){ return this.game.board();}
+    isCheckmate(){ return this.game.isCheckmate();}
+    isGameOver() { return this.game.isGameOver();}
+
+    // navigation
+    goToStart() {
+        this.cursor = -1;
+        this.rebuildToCursor();
     }
 
-    move(from, to) {
-        console.log("Before move FEN:", this.game.fen());
-        return this.game.move({ from, to, promotion: 'q' });
+    goToBack() {
+        if (this.cursor < 0) return;
+        this.cursor--;
+        this.rebuildToCursor();
     }
 
-    undo() {
-        return this.game.undo();
+    goToNext() {
+        if (this.cursor > this._history.length - 1) return;
+        this.cursor++;
+        this.rebuildToCursor();
+    }   
+
+    goToEnd() {
+        this.cursor = this._history.length - 1;
+        this.rebuildToCursor(); 
     }
 
-    fen() {
-        return this.game.fen();
-    }
-
-    pgn() {
-        return this.game.pgn();
-    }
-
-    inCheck() {
-        return this.game.inCheck();
-    }
-
-    isDraw() {
-        return this.game.isDraw();
-    }
-
-    board(){
-        return this.game.board();
-    }
-
-    isCheckmate(){
-        return this.game.isCheckmate();
-    }
-
-    isGameOver() {
-        return this.game.isGameOver();
+    rebuildToCursor() {
+        this.game.reset();
+        for(let i = 0; i <= this.cursor; i++) {
+            const {from, to, promotion} = this._history[i];
+            this.game.move({from, to, promotion});
+        }
     }
 
     FindKing(color) {

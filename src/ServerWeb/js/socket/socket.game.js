@@ -29,10 +29,8 @@ export function GameEvent(socket) {
 
         const boards = GameSyncManager.getBoards(gameID);
         boards?.forEach(boardUI => {
-            boardUI.update();
+            boardUI.clearAllHighlight();
             boardUI.ui.update();
-            boardUI.RemoveHighlightKing();
-            boardUI.RemoveHighlightMove();
         });
     })
 }

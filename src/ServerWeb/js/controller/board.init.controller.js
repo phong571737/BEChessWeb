@@ -44,12 +44,13 @@ export const BoardInitController = {
 
         requestAnimationFrame(() => {
             this._setup(boardUI, controller);
+            boardUI.syncPlayerWidth();
         });
     },
 
     // This function is used to update UI
     _setup(boardUI, controller) {
-        boardUI.board.resize();
+        boardUI.board.resize(); 
         boardUI.ui.update();
 
         if (controller.lastMove) {
