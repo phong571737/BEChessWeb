@@ -105,7 +105,7 @@ export const GameView = {
         if (!notify || !notify_text) return;
 
         // reset class
-        notify.classList.remove('notify-ready', 'notify-waiting', 'notify-checkinit');
+        notify.classList.remove('notify-ready', 'notify-waiting', 'notify-checkinit', 'notify-disconnect');
         notify.classList.add(`notify-${type}`);
         notify_text.textContent = text;
     },

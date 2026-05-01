@@ -3,6 +3,8 @@
  * between physicboard and ui when init 
  * */
 
+import { GameState } from "./game.state.js";
+import { updateNotify } from "./notify.manager.js";
 import { GameView } from "/ServerWeb/js/views/game.view.js";
 
 export const InitCheck = {
@@ -51,13 +53,15 @@ export const InitCheck = {
 
         if (status == "invalid") {
             this._highlightInitErrors(boardUI, wrongSquares, missingSquares);
-            GameView.setNotify("Board incorrect - please fix pieces", "checkinit");
+            GameState.set(gameID, {gameStatus: "checkinit"});
+            updateNotify(gameID);
         }
 
         if (status == "ok") {
             this.stopPolling(gameID);
             controller.onInitReady?.();
-            GameView.setNotify("Ready - you can move", "ready");
+            GameState.set(gameID, {gameStatus: "ready"});
+            updateNotify(gameID);
         }
     },
 

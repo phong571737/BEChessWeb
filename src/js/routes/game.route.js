@@ -7,9 +7,9 @@ import { checkInitialBoard, convertHalltoBoard } from "../services/board.service
 import { ObjectId } from "mongodb";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
+import { emitGameState, gameState } from "../game/game.state.js";
 
 export const gameRouter = express.Router();
-const initState = {}; // state of physics board
 
 /**
  * POST /games
@@ -151,11 +151,11 @@ gameRouter.post("/:id/endgame", async (req, res) => {
  * This api is used to send the state init of physicboard
  * Esp32 send
  */
-
 gameRouter.post("/:id/initcheck", async (req, res) => {
     try {
         const gameID = req.params.id;
         const {board} = req.body;
+
         if (!board || !Array.isArray(board)) {
             return res.status(400).json({
                 status: "invalid",
@@ -166,8 +166,23 @@ gameRouter.post("/:id/initcheck", async (req, res) => {
         const board2D = convertHalltoBoard(board);
         const result = checkInitialBoard(board2D);
 
-        initState[gameID] = { result}; // save to get reuse
-        getIO().to(gameID).emit("initcheck", {gameID, ...result});
+        // getIO().to(gameID).emit("initcheck", {gameID, ...result});
+
+        if (result.status === "ok") {
+            gameState.set(gameID, {
+                gameStatus: "ready",
+                wrongSquares: [],
+                missingSquares: [],
+            });
+        } else {
+            gameState.set(gameID, {
+                gameStatus: "checkinit",
+                wrongSquares: result.wrongSquares || [],
+                missingSquares: result.missingSquares || [],
+            });
+        }
+
+        emitGameState(gameID);
 
         res.json({
             gameID,
@@ -187,13 +202,9 @@ gameRouter.post("/:id/initcheck", async (req, res) => {
 gameRouter.get("/:id/initcheck", async (req, res) => {
     try {
         const gameID = req.params.id;
-        const result = initState[gameID];
+        const state = gameState.get(gameID);
 
-        // console.log("GET initcheck - gameID:", gameID);
-        // console.log("initState keys:", Object.keys(initState)); // ← xem key nào đang có
-        // console.log("result:", result);
-
-        if (!result) {
+        if (!state) {
             return res.json({
                 gameID,
                 status: "waiting",
@@ -202,11 +213,11 @@ gameRouter.get("/:id/initcheck", async (req, res) => {
             })
         }
 
-        // const result = checkInitialBoard(board);
-
         res.json({
             gameID,
-            ...result
+            status: state.gameStatus,
+            wrongSquares: state.wrongSquares || [],
+            missingSquares: state.missingSquares || [],
         });
     } catch (e) {
         console.log("Init check error", e);

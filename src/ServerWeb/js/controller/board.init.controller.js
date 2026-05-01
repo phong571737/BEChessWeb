@@ -5,6 +5,7 @@ import { BoardUI } from "/ServerWeb/js/views/board.ui.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { InitCheck } from "/ServerWeb/js/core/board.init.check.js";
 import { SocketController } from "/ServerWeb/js/socket/socket.controller.js";
+import { updateNotify } from "../core/notify.manager.js";
 
 export const BoardInitController = {
     // This function is used to create a new board for a game
@@ -21,7 +22,7 @@ export const BoardInitController = {
 
         // join room and start to wait initcheck
         SocketController.joinRoom(gameID);
-        // InitCheck.startWaitingForBoard(controller, gameID);
+        updateNotify(gameID);
 
         // callback when game init success
         InitCheck.onInitReady = () => {

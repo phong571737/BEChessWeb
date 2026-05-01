@@ -50,8 +50,7 @@ export class BoardUI {
         const topPlayer = viewEl.querySelector('.top-player');
 
         if (!boardEl || !botPlayer || !topPlayer) return;
-
-        console.log("Width: ", boardEl.getBoundingClientRect().width);
+        
         botPlayer.style.width = boardEl.getBoundingClientRect().width + 'px';
         topPlayer.style.width = boardEl.getBoundingClientRect().width + 'px';
     }

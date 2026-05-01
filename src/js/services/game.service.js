@@ -13,7 +13,6 @@ export const GameService = {
       lastMove: null
     });
 
-    getIO().to(gameID).emit("board_connected", { gameID });
     return chess;
   },
 }

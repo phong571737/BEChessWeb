@@ -27,7 +27,7 @@ export const SocketController = {
             if (path.startsWith("/board/")) {
                 const gameID = path.split("/")[2];
 
-                this.socket.emit("join", { gameID }); //join room
+                // this.socket.emit("join", { gameID }); //join room
                 this.socket.emit("request_current_game", { gameID: gameID });
             }
         });
