@@ -46,25 +46,43 @@ boardRouter.post("/heartbeat", (req, res) => {
     if (!boardID) return res.status(400).json({ error: "Missing boardID" });
 
     const existing = registry.get(boardID);
-    const serverAssigned = existing?.gameID ?? null;
-    const resolvedGameID = serverAssigned ?? currentGameID;
+
+    // Trust the board's own gameID (from NVS) as the source of truth for the
+    // game it is currently playing. The server registry is ephemeral and resets
+    // on restart, so overriding the board's stored game mid-session caused
+    // moves to be routed to the wrong game.
+    //
+    // A new gameID is delivered ONLY when game creation explicitly queued one
+    // via pendingGameID. It is consumed once and then cleared.
+    const pendingGameID = existing?.pendingGameID ?? null;
+    const resolvedGameID = currentGameID ?? existing?.gameID ?? null;
 
     const now = Date.now();
-    registry.set(boardID, { gameID: resolvedGameID, lastSeen: now, ip });
+    registry.set(boardID, {
+        gameID:        resolvedGameID,
+        pendingGameID: null,           // clear after reading
+        lastSeen:      now,
+        ip,
+    });
     getIO().emit("board_heartbeat", { boardID, gameID: resolvedGameID, online: true, lastSeen: now });
 
     const resp = { ok: true };
 
-    if (serverAssigned && serverAssigned !== currentGameID) {
-        resp.gameID = serverAssigned;
+    // Deliver a pending gameID assignment (set by game creation) exactly once.
+    if (pendingGameID && pendingGameID !== currentGameID) {
+        resp.gameID = pendingGameID;
+        // Update registry immediately so subsequent heartbeats reflect the new game.
+        registry.get(boardID).gameID = pendingGameID;
+        console.log(`[BOARD] delivering new gameID=${pendingGameID} to ${boardID} (was ${currentGameID})`);
     }
 
-    if (resolvedGameID) {
-        const cmd = pendingCommands.get(resolvedGameID);
+    const activeGameID = resp.gameID ?? resolvedGameID;
+    if (activeGameID) {
+        const cmd = pendingCommands.get(activeGameID);
         if (cmd) {
             resp.command = cmd;
-            pendingCommands.delete(resolvedGameID);
-            console.log(`[BOARD] delivering command="${cmd}" to ${boardID} for game=${resolvedGameID}`);
+            pendingCommands.delete(activeGameID);
+            console.log(`[BOARD] delivering command="${cmd}" to ${boardID} for game=${activeGameID}`);
         }
     }
 

@@ -28,11 +28,13 @@ export const GameController = {
       const status = boardID ? "waiting_scan" : "active";
       await GameService.create(gameID, { WhiteName, BlackName, status });
 
-      // Link the physical board to this game so the next heartbeat notifies ESP32
+      // Link the physical board to this game so the next heartbeat notifies ESP32.
+      // Use pendingGameID instead of overwriting gameID directly — this ensures
+      // the new game is delivered exactly once without interrupting an ongoing game.
       if (boardID) {
         const board = getBoardRegistry().get(boardID);
         if (board) {
-          board.gameID = gameID;
+          board.pendingGameID = gameID;
           getIO().emit("board_heartbeat", { boardID, gameID, online: true, lastSeen: board.lastSeen });
         }
         // Queue START command — delivered on the board's next heartbeat (fast poll: ~5 s)
