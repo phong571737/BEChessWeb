@@ -19,6 +19,9 @@ ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 ARG API_URL=http://server:8080
 ENV API_URL=$API_URL
 
+# Enable standalone output for Docker self-hosting
+ENV DOCKER=1
+
 RUN npm run build
 
 # ── Stage 3: minimal runtime image ───────────────────────────────────────────

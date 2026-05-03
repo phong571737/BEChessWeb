@@ -5,8 +5,11 @@ import type { NextConfig } from "next";
 // Locally it falls back to localhost:8080.
 const API_URL = process.env.API_URL || "http://localhost:8080";
 
+const isDocker = process.env.DOCKER === "1";
+
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // standalone mode: needed for Docker self-hosted, skip on Vercel
+  ...(isDocker && { output: "standalone" }),
   async rewrites() {
     return [
       { source: "/games/:path*",  destination: `${API_URL}/games/:path*` },

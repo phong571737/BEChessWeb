@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, Suspense, useEffect, useRef, type CSSProperties } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { decodeGameID } from "@/lib/id-utils";
 import { useGame, type BoardAlert } from "@/hooks/use-game";
@@ -195,7 +195,6 @@ interface GameEndedViewProps {
 
 function GameEndedView({ result, whiteName, blackName, fen }: GameEndedViewProps) {
   const { t } = useT();
-  const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement>(null);
   const [boardWidth, setBoardWidth] = useState(0);
 
@@ -321,7 +320,7 @@ function BoardOfflineBanner() {
 // ── In-game alert toast ───────────────────────────────────────────────────────
 function AlertToast({ alert, onDismiss }: { alert: BoardAlert; onDismiss: () => void }) {
   const { t } = useT();
-  const labelKey = `board.alert.${alert.code.toLowerCase()}` as any;
+  const labelKey = `board.alert.${alert.code.toLowerCase()}` as Parameters<typeof t>[0];
 
   const color: Record<string, string> = {
     PIECE_LOST:       "border-red-700 bg-red-600 text-white",
