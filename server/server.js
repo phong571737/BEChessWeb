@@ -1,11 +1,12 @@
 import { createServer } from "http";
 import { setServers as dnsSetServers } from "node:dns/promises";
 import express from "express";
+import cors from "cors";
 import os from "os";
 
 dnsSetServers(["1.1.1.1", "8.8.8.8"]);
 import { connectDB } from "./config/database.js";
-import { env } from "./config/environment.js";
+import { env, ALLOWED_ORIGINS } from "./config/environment.js";
 import { initSocket } from "./sockets/index.js";
 import { stockfishService } from "./services/stockfish.instance.js";
 import { gameRouter } from "./routes/game.route.js";
@@ -33,6 +34,10 @@ async function startServer() {
   const app    = express();
   const server = createServer(app);
 
+  app.use(cors({
+    origin: ALLOWED_ORIGINS.length > 0 ? ALLOWED_ORIGINS : "*",
+    credentials: true,
+  }));
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
