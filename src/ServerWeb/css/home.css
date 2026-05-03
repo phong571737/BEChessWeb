@@ -74,6 +74,9 @@
     display: none;
 }
 
+.align-center {
+    align-items: center;
+}
 /* using for mobile */
 @media (max-width: 768px) {
     .top-nav {

@@ -16,8 +16,8 @@
     display: flex;
     grid-area: app;
     height: 600px;
-    background: var(--board-lobby-color);
     overflow-x: hidden;
+    background-color: var(--color-gray-300);
     overflow-y: auto;
     scrollbar-gutter: stable;
     flex-flow: column;
@@ -71,7 +71,6 @@
 
 .board-wrapper{
     width: 100%;
-    aspect-ratio: 1/1;
     flex: 1;
 }
 
@@ -83,7 +82,16 @@
     cursor: pointer;
 }
 
+.game-card-container {
+    width: 100%;
+    display: flex;
+    box-sizing: border-box;
+    padding: 5px;
+}
 
+.container-card-board:hover {
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+}
 
 /* Media mobile */
 @media (max-width: 768px) {

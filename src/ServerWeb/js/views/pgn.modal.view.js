@@ -57,7 +57,6 @@ export const PGNModalView = {
         const time_title = this.el("div", "flex items-center gap-1.5 mb-1");
         const icon_time = this.el("i", "fa-regular fa-clock text-gray-600 text-xs");
         const t_time = this.el("div", "text-gray-600 text-xs", "Time Control");
-
         time_title.append(icon_time, t_time);
         
         const time_number = this.el("span", "text-gray-900 font-medium text-sm", "-", "times-match");

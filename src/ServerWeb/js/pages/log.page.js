@@ -1,3 +1,4 @@
+import { LogController } from "../controller/log.controller.js";
 import { ViewManager } from "../core/view.manager.js";
 import { LogView } from "../views/log.view.js";
 
@@ -15,5 +16,7 @@ export const LogPage = {
             ViewManager.setView(viewID, view);
         }
         ViewManager.show(viewID);
+
+        LogController.init(view);
     }
 }

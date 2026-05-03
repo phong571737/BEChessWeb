@@ -6,13 +6,11 @@
     grid-template-areas:
         ". . top-player . ."
         ". eval board . ."
-        /* ". eval board . ." */
         ". eval board notify-state ."
         ". eval board cap-top ."
         ". eval board moves ."
         ". eval board control ."
         ". eval board cap-bot ."
-        /* ". eval board . ." */
         ". eval board . ."
         ". . bottom-player . .";
     column-gap: 15px;
@@ -249,6 +247,10 @@ button {
 
 .notify-disconnect {
     color: var(--color-red-400);
+}
+
+.main-log {
+    grid-area: main;
 }
 
 @media (max-width: 768px) {

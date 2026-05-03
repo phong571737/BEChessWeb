@@ -20,12 +20,12 @@
     color: var(--color-red-500);
 }
 
-.text-gray-400{
-    color: var(--color-gray-400);
-}
-
 .text-white{
     color: var(--white);
+}
+
+.text-gray-400{
+    color: var(--color-gray-400);
 }
 
 .text-gray-600{

@@ -6,7 +6,7 @@ export const LogController = {
         try {
             const games = await getLogCollections()
                 .find({})
-                .sort({ createAt: -1 }) // newest
+                .sort({ startedAt: -1 }) // newest
                 .toArray();
 
             res.json(games);

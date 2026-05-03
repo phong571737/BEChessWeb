@@ -3,6 +3,7 @@ import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { updateNotify } from "../../ServerWeb/js/core/notify.manager.js";
 import { emitGameState, gameState } from "../game/game.state.js";
+import { handleBoardOnline } from "../models/log.model.js";
 
 let mqttClient = null;
 
@@ -19,6 +20,7 @@ function handleMessage(topic, message) {
             if (payload.status === 'online') {
                 console.log(`[MQTT] Board ${gameID} online`);
                 gameState.set(gameID, {boardStatus: "online"});
+                handleBoardOnline(gameID);
             } else if (payload.status === 'offline') { // board disconnected(power outage)
                 console.log(`[MQTT] Board ${gameID} offline`);
                 gameState.set(gameID, {boardStatus: "offline"});

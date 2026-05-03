@@ -73,6 +73,7 @@
     --radius: 0.625rem;
     --container-xl: 36rem;
     --container-2xl: 42rem;
+    --container-4xl: 56rem;
 }
 
 /* * {
@@ -204,8 +205,12 @@ input, button, select{
     width: calc(var(--spacing) * 12);
 }
 
-.w-5{
-    width: calc(var(--spacing) * 5);
+.w-20 {
+    width: calc(var(--spacing) * 20);
+}
+
+.w-32 {
+    width: calc(var(--spacing) * 32);
 }
 
 .h-2{
@@ -248,6 +253,15 @@ input, button, select{
     flex-direction: column;
 }
 
+.grid-cols-\[50px_80px_1fr_1fr_150px\] {
+    grid-template-columns: 50px 80px 1fr 1fr 150px;
+}
+
+.truncate {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
 .hidden {
     display: none;
 }

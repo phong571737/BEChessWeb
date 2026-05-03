@@ -11,9 +11,9 @@ import { GameStore } from "../utils/game.store.js";
 export const GameLoader = {
     // Reload game state
     async load(gameID) {
-        if (GameSyncManager.getController(gameID)) {
-            return;
-        }
+        // if (GameSyncManager.getController(gameID)) {
+        //     return;
+        // }
         const localCache = localStorage.getItem(`game_state_${gameID}`); // get data from localStorage
 
         if (localCache) {

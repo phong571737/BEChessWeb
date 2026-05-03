@@ -2,22 +2,30 @@ import { Chess } from "chess.js";
 import { resetGame } from "../game/game.manager.js";
 import { loadGame, renamePlayer, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
+import { createNewGame, endLog } from "../models/log.model.js";
 
 export const GameActionService = {
     // restart game when the restart button is pressed
     async restart(gameID) {
+
+        // close the old game
+        await endLog(gameID, "restart");
+
+        // create a new sesion
+        const sessionId = await createNewGame(gameID);
         //Reset game
         resetGame(gameID);
 
         await saveGame(gameID, {
             gameID,
+            sessionId,
             fen: new Chess().fen(),
             pgn: "",
             lastMove: null,
             lastSeq: 0
         });
 
-        getIO().emit("game_restart", { gameID });
+        getIO().emit("game_restart", { gameID, sessionId});
     },
 
     // reset game 

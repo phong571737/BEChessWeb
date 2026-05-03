@@ -43,8 +43,8 @@
     border-color: var(--color-gray-600);
 }
 
-.border-b {
-    border-bottom-width: 1px;
+.border-b-0\.5 {
+    border-bottom-width: 0.5px;
 }
 
 .border-2{

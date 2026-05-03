@@ -10,16 +10,16 @@ import { IDUtils } from "../utils/id.utils.js";
 
 export const GameCardController = {
     /**create game */
-    add(GameID, fen=null, lastMove = null, pgn=null){
+    add(GameID, fen=null, lastMove = null, pgn=null, WhiteName = "White", BlackName = "Black"){
         if(document.getElementById(`MiniBoard_${GameID}`)) return;
 
         // View
         GameCardView.hideEmptyState();
-        const card = GameCardView.createCard(GameID);
-        document.querySelector('.game-playing').appendChild(card);
+        const card_board = GameCardView.createCard(GameID, WhiteName, BlackName);
+        document.querySelector('.game-playing').appendChild(card_board);
 
         /**create board instance */
-        const model = this._getOrCreateModel(GameID,{ fen, pgn, lastMove});
+        const model = this._getOrCreateModel(GameID,{ fen, pgn, lastMove, WhiteName, BlackName});
 
         // BoardUI + moveController
         const boardUI = new BoardUI(`MiniBoard_${GameID}`, model);
@@ -37,7 +37,8 @@ export const GameCardController = {
             }
         })
 
-        card.addEventListener('click', ()=>{
+        card_board.addEventListener('click', (e)=>{
+            if (e.target.closest(".round-remove")) return; // avoid clicking on areas other than the board
             this.openGame(GameID);
         })
     },
@@ -47,10 +48,10 @@ export const GameCardController = {
         RouterPath.navigationTo(`/board?id=${IDUtils.encode(gameID)}`);
     },
 
-    _getOrCreateModel(GameID, { fen, pgn, lastMove }){
+    _getOrCreateModel(GameID, { fen, pgn, lastMove, WhiteName, BlackName }){
         let model = GameSyncManager.getController(GameID);
         if(!model){
-            model = new GameModel({ gameID: GameID, fen, pgn, lastMove });
+            model = new GameModel({ gameID: GameID, fen, pgn, lastMove, WhiteName, BlackName });
             if(!pgn){
                 model.setInitialHeader();
             }

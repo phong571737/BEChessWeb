@@ -1,7 +1,7 @@
 import { ViewManager } from "../core/view.manager.js";
 import { BoardViewController } from "/ServerWeb/js/controller/board.view.controller.js";
 import { BoardInitController } from "/ServerWeb/js/controller/board.init.controller.js";
-import { GameLoader } from "/ServerWeb/js/core/game.loader.js";
+import { GameLoader } from "../core/game.loader.js";
 import { GameSyncManager } from "/ServerWeb/js/core/game.syncmanager.js";
 import { PGNEditController } from "/ServerWeb/js/controller/pgn.edit.controller.js";
 import { GameActionController } from "/ServerWeb/js/controller/game.action.controller.js";
@@ -30,7 +30,7 @@ export const BoardPage = {
 
         // send fen to server to get engine
         GameSyncManager.requestEval(gameID, gc);
-        this.updateName(gc);
+        this.updateName(gc, gameID);
 
         if (!gc._uiBound) {
             const viewID = document.getElementById(`view-game-${gameID}`);
@@ -43,10 +43,13 @@ export const BoardPage = {
         }
     },
 
-    updateName(gc) {
+    updateName(gc, gameID) {
+        const root = document.getElementById(`view-game-${gameID}`);
+        if (!root) return;
+
         // reload name
-        const whiteEl = document.getElementById("white-name");
-        const blackEl = document.getElementById("black-name");
+        const whiteEl = root.querySelector(".white-name");
+        const blackEl = root.querySelector(".black-name");
 
         if (whiteEl) whiteEl.textContent = gc.WhiteName;
         if (blackEl) blackEl.textContent = gc.BlackName;

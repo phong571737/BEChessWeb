@@ -135,7 +135,7 @@ export const GameView = {
         // the first user
         const top_player = this.el("div", "user-link online user top-player");
         const icon_top_user = this.el("i", "top-icon fa-solid fa-circle", "");
-        const black_name = this.el("span", "black-name ml-2.5", "Black Player", "black-name");
+        const black_name = this.el("span", "black-name ml-2.5", "Black", "black-name");
 
         top_player.append(
             icon_top_user,
@@ -147,7 +147,7 @@ export const GameView = {
         // bottom_player.id = 'bot-player';
 
         const icon_bottom_user = this.el("i", "bot-icon fa-solid fa-circle", "");
-        const white_name = this.el("span", "white-name ml-2.5", "White Player", "white-name");
+        const white_name = this.el("span", "white-name ml-2.5", "White", "white-name");
         bottom_player.append(icon_bottom_user, white_name);
 
         const evalbar = this.EvaluateBar(GameID);

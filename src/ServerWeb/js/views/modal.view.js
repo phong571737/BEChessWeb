@@ -52,6 +52,7 @@ export const ModalView = {
         };
     },
 
+    // create a restart modal
     RestartModal({onConfirm, onCancel} = {}) {
         const modal_container = this.el("dialog", 
             "restart-dialog inset-0 fixed h-screen flex p-4 bg-transparent border-none w-full items-center justify-center");
@@ -85,6 +86,73 @@ export const ModalView = {
             confirm, 
             abort
         }
+    },
+
+    // Move line by line 
+    LogRow(mv) {
+        const row = this.el(
+            "div",
+            "grid grid-cols-[50px_80px_1fr_1fr_150px] p-2 border-gray-200 shadow-sm py-3"
+        );
+
+        row.append(
+            this.el("div", "", mv.seq || ""),
+            this.el("div", "truncate", mv.uci || ""),
+            this.el("div", "truncate", (mv.lift || []).join(", ")),
+            this.el("div", "truncate", (mv.place || []).join(", ")),
+            this.el("div", "", new Date(mv.createdAt).toLocaleTimeString())
+        );
+
+        return row;
+    },
+
+    LogContent(game){
+        const main = this.el("div", "flex gap-5");
+        const main_wrapper = this.el("div", "flex-1");
+        // top content
+        const top = this.el("div", "grid grid-cols-[50px_80px_1fr_1fr_150px] py-2 font-mono text-gray-400 bg-gray-100 p-2 border border-gray-200 shadow-sm");
+        const seq = this.el("div", "", "Seq");
+        const uci = this.el("div", "", "UCI");
+        const lift = this.el("div", "", "LIFT");
+        const place = this.el("div", "", "PLACE");
+        const date = this.el("div", "", "DATE")
+        top.append(seq, uci, lift, place, date);
+
+        const content = this.el("div", "content-log");
+
+        // loop moves 
+        (game.moves || []).forEach((mv) => {
+            const row = this.LogRow(mv);
+            content.appendChild(row);
+        });
+
+        main_wrapper.append(top, content);
+        main.append(main_wrapper);
+        return main;
+    },
+
+    // Log modal
+    LogModal(data, onclose){
+        console.log("log modal called");
+        const log_modal = this.el("div", "log-modal-container flex hidden fixed inset-0 items-center justify-center p-4");
+        const bg_blur = this.el("div", "absolute inset-0 bg backdrop-blur-sm");
+        const modal_bg = this.el("div", "modal-log-content relative border border-gray-200 bg-white overflow-y-auto max-w-4xl max-h-90vh rounded-2xl w-full");
+
+        // top modal
+        const top_modal = this.el("div", "flex justify-between p-5 items-start");
+        const close_btn = this.el("button", "bg-transparent close-modal text-gray-200 text-2xl", "", "close-modal" );
+        const close_icon = this.el("i", "fa-regular fa-circle-xmark ");
+        close_btn.append(close_icon);
+        close_btn.addEventListener("click", onclose);
+        top_modal.append(close_btn);
+
+        // modal content
+        const content = this.LogContent(data);
+
+        modal_bg.append(top_modal, content);
+        log_modal.append(bg_blur, modal_bg);
+
+        return log_modal;
     },
 
     showRestartModal(options = {}) {

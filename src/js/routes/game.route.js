@@ -8,6 +8,7 @@ import { ObjectId } from "mongodb";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { emitGameState, gameState } from "../game/game.state.js";
+import { LogController } from "../controllers/log.controller.js";
 
 export const gameRouter = express.Router();
 
@@ -28,6 +29,11 @@ gameRouter.get("/current", GameController.getCurrent);
  * This api is used to get game played
 */
 gameRouter.get("/history", GameController.getHistory);
+
+/**GET  games/log
+ * This api is used to get all log is saved
+ */
+gameRouter.get("/log", LogController.getLog);
 
 /**
  * DELETE /games/history/:id 

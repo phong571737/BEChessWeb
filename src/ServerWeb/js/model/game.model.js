@@ -4,8 +4,8 @@ export class GameModel{
     constructor(gameID){
         this.game = new Chess();
         this.lastMove = null;
-        this.WhiteName = "White Player";
-        this.BlackName = "Black Player";
+        this.WhiteName = "White";
+        this.BlackName = "Black";
         this.saved = false;
         this._history = []; // save all moves
         this.cursor = -1; // current index

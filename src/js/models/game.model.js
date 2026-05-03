@@ -2,10 +2,8 @@ import { getDB } from "../config/database.js";
 
 const games = () => getDB().collection("games");
 const pgnGames = () => getDB().collection("pgn_games");
-const moveGames = () => getDB().collection("moves");
 
 // Get data from database
-export function getMoveCollections(){ return moveGames();}
 export function getGameCollections(){ return games();}
 export function getPGNCollections(){return pgnGames();}
 

@@ -20,11 +20,12 @@ export const MoveService = {
             return{ error: true, message: "Missing move data"};
         }
 
-        await saveLog(gameID, seq, uci, lift, place);
+        const save_log = await saveLog(gameID, seq, uci, lift, place);
+        console.log("savelog result", save_log);
 
         // handle move game
         const state = await makeMove(gameID, candidates, seq);
-        if(state.status != "ok") state;
+        if(state.status != "ok") return state;
         
         const fen = state.fen;
         // send best move to frontend
