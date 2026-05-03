@@ -2,17 +2,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json pnpm-lock.yaml* ./
+COPY server/package*.json ./
+RUN npm ci --omit=dev
 
-# Install pnpm and dependencies
-RUN npm install -g pnpm && pnpm install --frozen-lockfile
+COPY server/ ./
 
-# Copy application code
-COPY . .
-
-# Expose port
 EXPOSE 8080
-
-# Start the application
-ENTRYPOINT ["node", "./src/js/server.js"]
+CMD ["node", "server.js"]

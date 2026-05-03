@@ -1,2 +1,8 @@
-# .dockerignore
-node_modules
+**/node_modules
+**/.next
+**/.git
+**/pnpm-lock.yaml
+src/
+client/.env.local
+server/.env
+*.md

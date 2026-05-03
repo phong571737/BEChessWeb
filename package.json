@@ -1,38 +1,17 @@
 {
-  "type": "module",
-  "dependencies": {
-    "body-parser": "^2.2.0",
-    "chess.js": "^1.4.0",
-    "cloudflared": "^0.7.1",
-    "cors": "^2.8.6",
-    "dotenv": "^17.2.3",
-    "express": "^5.1.0",
-    "express-list-endpoints": "^7.1.1",
-    "mongodb": "^7.0.0",
-    "mqtt": "^5.15.1",
-    "nodemon": "^3.1.10",
-    "open": "^11.0.0",
-    "redis": "^5.11.0",
-    "socket.io": "^4.8.1",
-    "stockfish": "^18.0.7"
-  },
-  "scripts": {
-    "dev": "nodemon src/js/server.js",
-    "start": "node src/js/server.js"
-  },
   "name": "bechessweb",
   "version": "1.0.0",
-  "description": "A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.",
-  "main": "index.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/phong571737/BEChessWeb.git"
+  "private": true,
+  "scripts": {
+    "setup": "npm install --prefix server && npm install --prefix client",
+    "dev": "concurrently -n \"server,client\" -c \"cyan,magenta\" \"npm run dev --prefix server\" \"npm run dev --prefix client\"",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "start": "npm run start --prefix server",
+    "seed": "npm run seed --prefix server",
+    "seed:clean": "npm run seed --prefix server -- --clean"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "bugs": {
-    "url": "https://github.com/phong571737/BEChessWeb/issues"
-  },
-  "homepage": "https://github.com/phong571737/BEChessWeb#readme"
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
 }

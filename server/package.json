@@ -1,0 +1,26 @@
+{
+  "name": "bechessweb-server",
+  "version": "1.0.0",
+  "description": "Express backend for BEChessWeb",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "dev":   "nodemon server.js",
+    "start": "node server.js",
+    "seed":  "node seed.js",
+    "seed:bulk": "node seed.js --bulk"
+  },
+  "dependencies": {
+    "chess.js":  "^1.4.0",
+    "cors":      "^2.8.6",
+    "dotenv":    "^17.2.3",
+    "express":   "^5.1.0",
+    "mongodb":   "^7.0.0",
+    "socket.io": "^4.8.1",
+    "stockfish": "^18.0.7"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
+  },
+  "license": "ISC"
+}
