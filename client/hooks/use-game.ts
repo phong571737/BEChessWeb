@@ -186,6 +186,35 @@ export function useGame(gameID: string) {
       });
   }, [gameID, cachedBoard?.fen, cachedBoard?.pgn]);
 
+  // ── REST polling fallback (5 s) ───────────────────────────────
+  // Keeps the board in sync when esp_move Socket.IO events are missed
+  // (e.g. socket not in room, WebSocket disconnect, CORS issues).
+  useEffect(() => {
+    if (!gameID || !isLoaded) return;
+
+    let lastSeenFen: string | null = null;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`/games/${gameID}`, { cache: "no-store" });
+        if (!res.ok) return;
+        const game = await res.json();
+        if (!game.fen || game.fen === lastSeenFen) return;
+        lastSeenFen = game.fen;
+        try { if (game.pgn) chessRef.current.loadPgn(game.pgn); } catch {}
+        patchBoard(gameID, {
+          fen:      game.fen,
+          pgn:      game.pgn      || "",
+          lastMove: game.lastMove || null,
+          ...(game.status === "finished" && { status: "ended", result: game.result }),
+        });
+      } catch {}
+    };
+
+    const id = setInterval(poll, 5_000);
+    return () => clearInterval(id);
+  }, [gameID, isLoaded, patchBoard]);
+
   // ── Game socket listeners (after load) ────────────────────────
   useEffect(() => {
     if (!socket || !gameID || !isLoaded) return;
