@@ -324,6 +324,7 @@ function AlertToast({ alert, onDismiss }: { alert: BoardAlert; onDismiss: () => 
 
   const color: Record<string, string> = {
     PIECE_LOST:       "border-red-700 bg-red-600 text-white",
+    SERVER_ILLEGAL:   "border-orange-600 bg-orange-500 text-white",
     WRONG_TURN:       "border-orange-600 bg-orange-500 text-white",
     ILLEGAL_DEST:     "border-orange-600 bg-orange-500 text-white",
     FALLBACK_TIMEOUT: "border-yellow-600 bg-yellow-500 text-white",

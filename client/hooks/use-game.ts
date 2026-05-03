@@ -104,11 +104,25 @@ export function useGame(gameID: string) {
 
     const onAlert = (data: any) => {
       if (data.gameID !== gameID) return;
-      const alert: BoardAlert = { code: data.code, detail: data.detail ?? "" };
+      const code: string = data.code ?? "";
+
+      // RESTORE_OK dismisses any active PIECE_LOST alert and does not show its own.
+      if (code === "RESTORE_OK") {
+        if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+        setActiveAlert(null);
+        return;
+      }
+
+      const alert: BoardAlert = { code, detail: data.detail ?? "" };
       if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
       setActiveAlert(alert);
-      // Auto-dismiss after 6 s
-      alertTimerRef.current = setTimeout(() => setActiveAlert(null), 6_000);
+
+      // PIECE_LOST stays persistent — game is paused waiting for the player to
+      // physically restore the missing piece.  It is dismissed by RESTORE_OK above.
+      // All other alerts auto-dismiss after 6 s.
+      if (code !== "PIECE_LOST") {
+        alertTimerRef.current = setTimeout(() => setActiveAlert(null), 6_000);
+      }
     };
 
     socket.on("board_scan_ok",      onScanOk);

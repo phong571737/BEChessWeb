@@ -63,8 +63,18 @@ export async function makeMove(gameID, candidates, seq) {
 
   //duplicated
   if (seq < expectedSeq) return { status: "duplicate", fen: mainGame.fen(), lastSeq };
-  //Out of order
-  if (seq > expectedSeq) return { status: "out_of_order", expectedSeq, lastSeq };
+  // Out of order — if the gap is exactly 1 it almost certainly means the ESP32
+  // counted a move that the server rejected (illegal move returned 422).
+  // Auto-resync by bumping our counter so the next move aligns correctly.
+  if (seq > expectedSeq) {
+    const gap = seq - expectedSeq;
+    if (gap === 1) {
+      console.log(`[GAME] seq resync game=${gameID}: server at ${lastSeq}, ESP32 sent ${seq} — bumping to ${seq - 1}`);
+      gameSeq.set(gameID, seq - 1);
+    } else {
+      return { status: "out_of_order", expectedSeq, lastSeq };
+    }
+  }
 
   // Resolve branches if ambiguity
   if (activeBranches.has(gameID)) {

@@ -33,6 +33,13 @@ moveRouter.post("/", async(req, res) =>{
         }
 
         const state = await makeMove(gameID, candidates, seq);
+        // Return 422 for moves the chess engine rejects so the ESP32 (which checks
+        // only HTTP status) knows the move was not accepted and must not advance its
+        // seq counter.  Informational responses (duplicate / out_of_order) keep 200
+        // so the firmware can silently discard them without triggering error state.
+        if (state.status === "illegal" || state.status === "not_found" || state.status === "invalid_request") {
+            return res.status(422).json(state);
+        }
         if (state.status !== "ok") return res.json(state);
 
         // Stamp the exact server-side time so clients can derive thinking-time
