@@ -196,7 +196,9 @@ export function useGame(gameID: string) {
 
     const poll = async () => {
       try {
-        const res = await fetch(`/games/${gameID}`, { cache: "no-store" });
+        // ?_t= busts Vercel CDN edge cache (Cache-Control: public, stale-while-revalidate
+        // on the upstream response causes the CDN to serve stale for up to 6 s otherwise).
+        const res = await fetch(`/games/${gameID}?_t=${Date.now()}`, { cache: "no-store" });
         if (!res.ok) return;
         const game = await res.json();
         if (!game.fen || game.fen === lastSeenFen) return;
@@ -211,7 +213,7 @@ export function useGame(gameID: string) {
       } catch {}
     };
 
-    const id = setInterval(poll, 5_000);
+    const id = setInterval(poll, 2_000);
     return () => clearInterval(id);
   }, [gameID, isLoaded, patchBoard]);
 

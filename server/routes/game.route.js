@@ -7,7 +7,7 @@ import { checkInitialBoard, convertHalltoBoard } from "../services/board.service
 import { ObjectId } from "mongodb";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
-import { getCached, invalidateCached, setCached, withCacheHeaders } from "../utils/response.cache.js";
+import { invalidateCached, withCacheHeaders } from "../utils/response.cache.js";
 import { setGamePendingCommand } from "../routes/board.route.js";
 
 export const gameRouter = express.Router();
@@ -44,18 +44,15 @@ gameRouter.delete("/history/:id", GameController.deleteHistory);
 gameRouter.get("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const cacheKey = `games:item:${id}`;
-        const cached = getCached(cacheKey);
-        if (cached) {
-            withCacheHeaders(res, 2);
-            return res.json(cached);
-        }
+        // No in-memory cache here: moves arrive via the physical board to whichever
+        // server instance handles them (local or cloud). Caching on Render would
+        // serve stale FENs when moves were written to MongoDB by the local server.
+        // MongoDB single-document reads are fast enough without a cache layer.
         const game = await loadGame(id);
         if (!game) {
             return res.status(404).json({ error: "Game not found" });
         }
-        setCached(cacheKey, game, 2_000);
-        withCacheHeaders(res, 2);
+        withCacheHeaders(res, 0);  // no-store: bypass Vercel CDN edge cache
         res.json(game);
     } catch (e) {
         console.error("[GET /games/:id]", e);
