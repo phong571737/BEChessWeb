@@ -1,21 +1,23 @@
 import { Chess } from "chess.js";
 import { endGame, loadGame, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
+import { createNewGame, endLog } from "../models/log.model.js";
 
 export const GameResignService = {
     async handle(gameID, resignSide) {
         // close the old game
+        
         await endLog(gameID, "resign");
 
         // create a new sesion
         const sessionId = await createNewGame(gameID);
         // Validate 
         if (!resignSide || !["white", "black"].includes(resignSide)) {
-            return res.status(400).json({ error: "resignSide error" });
+            return new Error("resignSide Error");
         }
 
         const game = await loadGame(gameID);
-        if (!game) return res.status(404).json({ error: "Game not found" });
+        if (!game) throw new Error("Game not found");
 
         const winner = resignSide === "white" ? "black" : "white";
         const chess = new Chess();
