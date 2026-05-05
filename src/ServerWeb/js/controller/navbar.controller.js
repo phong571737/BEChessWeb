@@ -5,9 +5,17 @@ export const NavbarController = {
 
         if (!toggle || !menu) return;
 
-        toggle.addEventListener(("click"), () => {
+        toggle.addEventListener("click", () => {
             menu.classList.toggle("active");
             toggle.classList.toggle("active");
-        })
+        });
+
+        // close menu
+        menu.addEventListener("click", (e) => {
+            if (e.target.closest("a")) {
+                menu.classList.remove("active");
+                toggle.classList.remove("active");
+            }
+        });
     }
 }

@@ -87,9 +87,12 @@
     border: 0 solid;
 }
 
+html, body {
+    height: 100%;
+}
+
 body{
     background: var(--bg-color);
-    min-height: 100vh;
     font-family: "Noto", sans-serif;
 }
 

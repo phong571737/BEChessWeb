@@ -144,7 +144,6 @@ export const GameView = {
 
         // the second user
         const bottom_player = this.el("div", "user-link online user bot-player");
-        // bottom_player.id = 'bot-player';
 
         const icon_bottom_user = this.el("i", "bot-icon fa-solid fa-circle", "");
         const white_name = this.el("span", "white-name ml-2.5", "White", "white-name");

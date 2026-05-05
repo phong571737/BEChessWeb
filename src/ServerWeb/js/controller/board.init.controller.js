@@ -52,7 +52,7 @@ export const BoardInitController = {
     // This function is used to update UI
     _setup(boardUI, controller) {
         boardUI.board.resize(); 
-        boardUI.ui.update();
+        // boardUI.ui.update();
 
         if (controller.lastMove) {
             boardUI.HighlightMove(controller.lastMove.from, controller.lastMove.to);

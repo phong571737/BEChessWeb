@@ -1,5 +1,5 @@
 /* ------------------------------ HEADER -------------------------*/
-.title-web{
+.title-web {
     display: flex;
     align-items: center;
     padding: 0 1rem;
@@ -8,42 +8,37 @@
     font-weight: 700;
 }
 
-.title-name{
-    font-size: 25px;
+.title-name {
     color: var(--text-title-color);
 }
 
-.setting-icon{
+.setting-icon {
     padding-left: 10px;
 }
 
-.setting-icon i{
+.setting-icon i {
     color: var(--text-title-color);
-    font-size: 20px;
 }
 
-.setting-icon i:hover{
+.setting-icon i:hover {
     color: var(--neon-orange);
 }
 
-.nav-header{
+.nav-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     width: 100%;
-    padding: 1rem 1% 1rem 5%;
-    margin-bottom: 2rem;
     border-bottom: 1px solid #f1f1f2;
     background: white;
 }
 
-.nav-left{
-    display: flex;
+.nav-left {
     list-style: none;
     gap: 1.5rem;
 }
 
-.nav-left a{
+.nav-left a {
     position: relative;
     font-size: 1.05rem;
     font-weight: 510;
@@ -51,7 +46,7 @@
     color: var(--text-nav-color);
 }
 
-.nav-left a:hover{
+.nav-left a:hover {
     color: var(--text-nav-hover);
     text-decoration: underline;
     text-decoration-thickness: 3px;
@@ -62,26 +57,22 @@
     width: 100%;
 }
 
-.top-nav {
-    display: none;
-}
-
-.icon-menu {
-    display: inline;
-}
-
-.icon-close {
-    display: none;
-}
-
 .align-center {
     align-items: center;
 }
+
+.version {
+    margin-top: 30px;
+    margin-left: 30px;
+    color: var(--color-gray-400);
+}
+
 /* using for mobile */
-@media (max-width: 768px) {
+@media ((min-width: 320px) and (max-width: 767px)) {
     .top-nav {
         display: flex;
     }
+
     .nav-left {
         display: none;
         flex-direction: column;
@@ -90,7 +81,7 @@
         left: 0;
         width: 50%;
         background: white;
-        background-color: rgba(255, 255, 255, 0.2);
+        background-color: white;
         backdrop-filter: blur(10px);
         float: left;
         align-items: flex-start;
@@ -101,6 +92,10 @@
 
     .nav-left.active {
         display: flex;
+    }
+
+    .top-nav {
+        padding: 0 1rem;
     }
 
     .top-nav.active .icon-menu {
@@ -128,8 +123,42 @@
         height: 15px;
     }
 
-    .setting-icon {
+    .setting-icon i {
         font-size: 15px;
+    }
+
+    .icon-menu {
+        display: inline;
+    }
+
+    .icon-close {
+        display: none;
+    }
+}
+
+@media (min-width: 768px) {
+
+    .top-nav,
+    .icon-menu,
+    .icon-close {
+        display: none;
+    }
+
+    .title-name {
+        font-size: 25px;
+    }
+
+    .setting-icon i {
+        font-size: 20px;
+    }
+
+    .nav-header {
+        padding: 1rem 1% 1rem 5%;
+        margin-bottom: 2rem;
+    }
+
+    .nav-left {
+        display: flex;
     }
 }
 

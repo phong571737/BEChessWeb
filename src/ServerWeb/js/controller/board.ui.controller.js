@@ -13,7 +13,7 @@ export class BoardUIController {
         this._updateMaterial();
     }
 
-    _updateStatus(){
+    _updateStatus() {
         const status = this.gameController.inCheck()
             ? 'Checkmate'
             : this.gameController.isDraw()
@@ -28,36 +28,66 @@ export class BoardUIController {
     _updateMoveList() {
         const history = this.gameController.game.history({ verbose: true });
         const movelist = document.getElementById("move-list");
-
         if (!movelist) return;
 
-        movelist.innerHTML = "";
+        // if history != dom , rebuild
+        const currentPlyCount = movelist.querySelectorAll(".pgn-move").length;
+        if (currentPlyCount != history.length - 1) {
+            movelist.innerHTML = "";
+            for (let i = 0; i < history.length; i += 2) {
+                //move number
+                const num = document.createElement("span");
+                num.className = 'move-index';
+                num.textContent = (i / 2) + 1;
+                movelist.appendChild(num);
 
-        for (let i = 0; i < history.length; i += 2) {
-            //move number
-            const num = document.createElement("span");
-            num.className = 'move-index';
-            num.textContent = (i / 2) + 1;
-            movelist.appendChild(num);
+                // white move
+                if (history[i]) {
+                    const w = document.createElement("span");
+                    w.className = 'pgn-move white-move';
+                    w.textContent = history[i].san;
+                    w.dataset.ply = i;
+                    movelist.appendChild(w);
+                }
 
-            // white move
-            if (history[i]) {
+                //black move
+                if (history[i + 1]) {
+                    const b = document.createElement("span");
+                    b.className = 'pgn-move black-move'
+                    b.textContent = history[i + 1].san;
+                    b.dataset.ply = i + 1;
+                    movelist.appendChild(b);
+                }
+            }
+        } else {
+            const historylen = history.length - 1;
+            const lastMove = history[historylen];
+            if (!lastMove) return
+
+            // white
+            if (historylen % 2 === 0) {
+                //move number
+                const num = document.createElement("span");
+                num.className = 'move-index';
+                num.textContent = (historylen / 2) + 1;
+                movelist.appendChild(num);
+
+                // white move
                 const w = document.createElement("span");
                 w.className = 'pgn-move white-move';
-                w.textContent = history[i].san;
-                w.dataset.ply = i;
+                w.textContent = lastMove.san;
+                w.dataset.ply = historylen;
                 movelist.appendChild(w);
             }
-
-            //black move
-            if (history[i + 1]) {
+            else { // black
                 const b = document.createElement("span");
                 b.className = 'pgn-move black-move'
-                b.textContent = history[i + 1].san;
-                b.dataset.ply = i + 1;
+                b.textContent = lastMove.san;
+                b.dataset.ply = historylen;
                 movelist.appendChild(b);
             }
         }
+
         movelist.scrollTop = movelist.scrollHeight;
     }
 

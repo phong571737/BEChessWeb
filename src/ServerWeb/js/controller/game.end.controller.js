@@ -94,7 +94,7 @@ export class GameEndController {
         // Reset game
         this.gameController.reset();
         boardUI.board.start();
-        boardUI.RemoveHighlightMove();
+        // boardUI.RemoveHighlightMove();
         boardUI.RemoveHighlightKing();
         boardUI.ui.update();
     }

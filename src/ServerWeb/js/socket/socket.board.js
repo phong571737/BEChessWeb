@@ -6,31 +6,7 @@ import { GameState } from "../core/game.state.js";
 import { updateNotify } from "../core/notify.manager.js";
 
 export function BoardEvent(socket) {
-    //Create New Game
-    // socket.on("board_connected", ({ gameID }) => {
-    //     if (!gameID) return;
-
-    //     GameCardController.add(gameID);
-    //     GameState.set(gameID, {
-    //         boardStatus: "online",
-    //         gameStatus: "waiting",
-    //     });
-    //     updateNotify(gameID);
-
-    //     const controller = GameSyncManager.getController(gameID);
-    //     if (!controller) return;
-
-    //     InitCheck.startWaitingForBoard(controller, gameID);
-    // });
-
-    // socket.on("board_disconnected", ({gameID}) => {
-    //     GameState.set(gameID, {boardStatus: "offline"});
-    //     updateNotify(gameID);
-    //     InitCheck.stopPolling(gameID);
-    //     // GameView.setNotify("Board disconnected", "disconnect", gameID);
-    // })
-
-    socket.on("game_state", (state) => {
+    socket.on("game_state", async (state) => {
         const { gameID } = state;
         if (!gameID) return;
 
@@ -46,18 +22,21 @@ export function BoardEvent(socket) {
 
         boardUI.ClearHighlightInitErrors();
 
+        if (state.gameStatus === "restart") {
+            console.log("Restart game");
+            boardUI.clearAllHighlight();
+            //post restart game
+            // await fetch(`/games/${gameID}/restart`, {
+            //     method: 'POST'
+            // });
+        }
+
         if (state.boardStatus === "online" && state.gameStatus === "checkinit") {
             boardUI.HighlightInitErrors(
                 state.wrongSquares || [],
                 state.missingSquares || []
             );
         }
-
-        // if (state.boardStatus === "online" && state.gameStatus === "checkinit") {
-        //     InitCheck.startWaitingForBoard(controller, gameID);
-        // } else if (state.boardStatus === "offline") {
-        //     InitCheck.stopPolling(gameID);
-        // }
     });
 
     // notify rename for all web client

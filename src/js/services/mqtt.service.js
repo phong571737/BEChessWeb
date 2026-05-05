@@ -24,6 +24,13 @@ function handleMessage(topic, message) {
             } else if (payload.status === 'offline') { // board disconnected(power outage)
                 console.log(`[MQTT] Board ${gameID} offline`);
                 gameState.set(gameID, {boardStatus: "offline"});
+            } else if (payload.status === "restart") {
+                console.log(`[MQTT] Board ${gameID} restart`);
+                gameState.set(gameID, {boardStatus: "online", gameStatus: "restart"});
+
+                setTimeout(() => {
+                    gameState.set(gameID, {boardStatus: "online", gameStatus: "checkinit"});
+                }, 100);
             }
 
             emitGameState(gameID);

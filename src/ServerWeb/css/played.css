@@ -172,7 +172,7 @@
 
 
 /* Mobile */
-@media (max-width: 768px) {
+@media (min-width: 768px) {
     /* #main-wrapper {
         grid-template-columns: 1fr;
         grid-template-areas: "main";

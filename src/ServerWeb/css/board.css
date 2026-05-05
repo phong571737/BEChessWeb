@@ -2,25 +2,12 @@
 .container-wrapper {
     display: grid;
     grid-area: main;
-    grid-template-columns: 1fr minmax(40px, 1.5vw) minmax(250px, calc(100vh - 180px)) minmax(0, 26.3vw) 1fr;
-    grid-template-areas:
-        ". . top-player . ."
-        ". eval board . ."
-        ". eval board notify-state ."
-        ". eval board cap-top ."
-        ". eval board moves ."
-        ". eval board control ."
-        ". eval board cap-bot ."
-        ". eval board . ."
-        ". . bottom-player . .";
-    column-gap: 15px;
-    grid-template-rows: 1fr;
+    /* grid-template-rows: 1fr; */
 }
 
 .main-eval-bar {
     grid-area: eval;
     overflow: hidden;
-    /* height: 100%; */
     align-self: stretch;
 }
 
@@ -70,38 +57,24 @@
 }
 
 .black-captured {
-    display: flex;
-    align-items: center;
     grid-area: cap-top;
-    border: 1px solid var(--border-pgn-color);
 }
 
 .white-captured {
-    display: flex;
-    align-items: center;
     grid-area: cap-bot;
-    border: 1px solid var(--border-pgn-color);
 }
 
 .top-player {
     grid-area: top-player;
-    border-radius: 15px 15px 0 0;
-    border: 2px solid var(--color-gray-900);
-    border-bottom: none;
-    box-sizing: border-box;
+}
+
+.bot-player {
+    grid-area: bottom-player;
 }
 
 .controls {
     grid-area: control;
     background: transparent;
-}
-
-.bot-player {
-    grid-area: bottom-player;
-    border-radius: 0 0 15px 15px;
-    border: 2px solid var(--color-gray-900);
-    border-top: none;
-    box-sizing: border-box;
 }
 
 .btn {
@@ -253,18 +226,106 @@ button {
     grid-area: main;
 }
 
-@media (max-width: 768px) {
+/* Responsive for all screen */
+@media ((min-width: 320px) and (max-width: 767px)) {
     .container-wrapper {
-        grid-template-columns: 1fr;
+        /* grid-template-columns: 30px 1fr 1fr; */
         grid-template-areas:
-            "top-player"
-            "board"
-            "bottom-player"
-            "notify-state"
-            "cap-top"
-            "moves"
-            "control"
-            "cap-bot";
+            ". cap-top top-player"
+            "eval board board"
+            ". cap-bot bottom-player"
+            "notify-state notify-state notify-state"
+            "moves moves moves"
+            "control control control";
+        width: 100%;
+    }
+
+    .bot-player,.top-player {
+        display: flex;
+        justify-content: end;
+        padding: .5rem;
+        align-items: center;
+    }
+
+    .top-player i {
+        display: none;
+    }
+
+    .bot-player i {
+        display: none;
+    }
+
+    .black-captured {
+        display: flex;
+        align-items: center;
+    }
+
+    .white-captured {
+        display: flex;
+        align-items: center;
+    }
+
+    .main-eval-bar {
+        margin-left: .2rem;
+    }
+
+    .black-piece img {
+        width: 20px;
+    }
+
+    .white-piece img {
+        width: 20px;
+    }
+}
+
+@media (min-width: 768px) {
+    .container-wrapper {
+        grid-template-columns: 1fr minmax(40px, 1.5vw) minmax(250px, calc(100dvh - 180px)) minmax(0, 26.3vw) 1fr;
+        grid-template-areas:
+            ". . top-player . ."
+            ". eval board . ."
+            ". eval board notify-state ."
+            ". eval board cap-top ."
+            ". eval board moves ."
+            ". eval board control ."
+            ". eval board cap-bot ."
+            ". eval board . ."
+            ". . bottom-player . .";
+        column-gap: 15px;
+        grid-template-rows: 1fr;
+    }
+
+    .top-player {
+        border-radius: 15px 15px 0 0;
+        border: 2px solid var(--color-gray-900);
+        border-bottom: none;
+        box-sizing: border-box;
+    }
+
+    .bot-player {
+        border-radius: 0 0 15px 15px;
+        border: 2px solid var(--color-gray-900);
+        border-top: none;
+        box-sizing: border-box;
+    }
+
+    .black-captured {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--border-pgn-color);
+    }
+
+    .white-captured {
+        display: flex;
+        align-items: center;
+        border: 1px solid var(--border-pgn-color);
+    }
+}
+
+@media (min-width: 800px),
+(orientation: landscape) {
+    .pgn-table {
+        grid-area: 3/3/10/4;
     }
 }
 
@@ -288,17 +349,9 @@ button {
         height: 0 !important;
     }
 
-    .moves .move-list{  
+    .moves .move-list {
         display: flex;
         line-height: 1.7;
         flex-flow: row wrap;
-    }
-}
-
-@media (min-width: 800px),
-(orientation: landscape) {
-    .pgn-table {
-        grid-area: 3/3/10/4;
-        /* grid-area: moves; */
     }
 }

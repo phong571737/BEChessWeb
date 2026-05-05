@@ -69,22 +69,23 @@ export class BoardUI {
         this.RemoveHighlightMove();
     }
 
-    onSnapEnd() {
-        this.update();
-    }
-
     /**add highlight when the piece is moved */
     HighlightMove(source, target) {
+        this.RemoveHighlightMove();
         this.lastFrom = source;
         this.lastTo = target;
-        this.RemoveHighlightMove();
 
         $(`#${this.elementID} .square-${source}`).addClass('last-move');
         $(`#${this.elementID} .square-${target}`).addClass('last-move');
     }
 
     RemoveHighlightMove() {
-        $(`#${this.elementID} [class*="square-"]`).removeClass('last-move');
+        if (this.lastFrom) {
+            const el = document.querySelector(`#${this.elementID} .square-${this.lastFrom}`);
+            $(`#${this.elementID} .square-${this.lastFrom}`).removeClass('last-move');
+        } if (this.lastTo) {
+            $(`#${this.elementID} .square-${this.lastTo}`).removeClass('last-move');
+        }
     }
 
     /**add highlight when the king is checked */

@@ -30,8 +30,6 @@ export const GameLoader = {
                         WhiteName: model.WhiteName,
                         BlackName: model.BlackName,
                     });
-
-                    return;
                 }
             } catch (e) {
                 console.error("Failed to parse local game state", e);

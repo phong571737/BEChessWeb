@@ -29,7 +29,7 @@ export const GameSyncManager = {
         }
 
         boards.get(gameID).push(boardUI);
-        boardUI.update();
+        // boardUI.update();
     },
 
     /**Notify when has move */
