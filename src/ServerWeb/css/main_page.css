@@ -1,5 +1,6 @@
 #main-wrapper {
     display: grid;
+    flex: 1;
 }
 
 .dashboard-game {
@@ -13,7 +14,8 @@
 .dashboard-game-list {
     display: flex;
     grid-area: app;
-    height: 80vh;
+    /* height: 80vh; */
+    max-height: 100%;
     overflow-x: hidden;
     background-color: var(--color-gray-300);
     overflow-y: auto;
@@ -21,6 +23,7 @@
     flex-flow: column;
     border-radius: 10px;
     box-shadow: 0 0 20px 0 #e6e8ec;
+    margin: 2rem 0;
 }
 
 .dashboard-game-list::after {
@@ -97,6 +100,8 @@
     #main-wrapper {
         grid-template-areas: "main";
         grid-template-columns: 1fr;
+        flex: 1;
+        overflow-y: auto;
     }
 
     .game-playing {

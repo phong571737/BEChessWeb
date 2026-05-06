@@ -2,7 +2,6 @@
  * This file is used to check state 
  * between physicboard and ui when init 
  * */
-
 import { GameState } from "./game.state.js";
 import { updateNotify } from "./notify.manager.js";
 import { GameView } from "/ServerWeb/js/views/game.view.js";

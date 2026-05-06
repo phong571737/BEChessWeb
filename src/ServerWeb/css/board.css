@@ -2,7 +2,6 @@
 .container-wrapper {
     display: grid;
     grid-area: main;
-    /* grid-template-rows: 1fr; */
 }
 
 .main-eval-bar {
@@ -240,6 +239,12 @@ button {
         width: 100%;
     }
 
+    #move-list {
+        /* flex: 1; */
+        min-height: 0;
+        flex: 0 0 6rem;
+    }
+
     .bot-player,.top-player {
         display: flex;
         justify-content: end;
@@ -293,6 +298,7 @@ button {
             ". . bottom-player . .";
         column-gap: 15px;
         grid-template-rows: 1fr;
+        padding-top: 2rem;
     }
 
     .top-player {

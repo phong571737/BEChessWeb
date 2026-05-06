@@ -94,6 +94,8 @@ html, body {
 body{
     background: var(--bg-color);
     font-family: "Noto", sans-serif;
+    display: flex;
+    flex-direction: column;
 }
 
 input, button, select{
@@ -151,10 +153,6 @@ input, button, select{
     margin-bottom: calc(var(--spacing) * 2);
 }
 
-.mb-3{
-    margin-bottom: calc(var(--spacing) * 3);
-}
-
 .mb-4{
     margin-bottom: calc(var(--spacing) * 4);
 }
@@ -165,10 +163,6 @@ input, button, select{
 
 .mb-6{
     margin-bottom: calc(var(--spacing) * 6);
-}
-
-.mb-8{
-    margin-bottom: calc(var(--spacing) * 8);
 }
 
 .mt-1{

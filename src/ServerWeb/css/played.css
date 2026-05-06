@@ -1,148 +1,136 @@
-.bg-white{
+.bg-white {
     background-color: white;
 }
 
-.border{
+.border {
     border-width: 1px;
 }
 
-.main-played{
+.main-played {
     grid-area: main;
-    /* grid-column: 1/-1;
-    margin: 0 50px; */
 }
 
-.title-played{
+.main-played > * {
+    min-width: 0;
+}
+
+.title-played {
     display: flex;
     justify-content: flex-start;
     align-items: center;
 }
 
-.title{
-    font-size: 25px;
-    font-weight: 750;
+.title {
     color: var(--color-gray-900);
-    font-family:sans-serif;
+    font-family: sans-serif;
 }
 
-.history-title{
-    margin: 0 10px;
-}
-
-.played-number{
-    margin-top: 5px;
-}
-
-.performance-card{
+.performance-card {
     background-color: white;
-    padding: 25px;
-    margin-top: 20px;
-    border-radius: 14px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
 }
 
-.perf-header{
+.perf-header {
     display: flex;
     font-family: sans-serif;
     justify-content: space-between;
     font-size: var(--text-sm);
 }
 
-.perf-title{
+.perf-title {
     font-weight: 500;
 }
 
-.progress-bar{
+.progress-bar {
     display: flex;
-    height: 12px;
 }
 
-.rounded-full{
+.rounded-full {
     border-radius: 3.40282e38px;
 }
 
 /* White */
-.flex{
+.flex {
     display: flex;
 }
 
-.white-win{
+.white-win {
     width: 50%;
 }
 
-.round-l-full{
+.round-l-full {
     border-radius: 3.40282e38px 0 0 3.40282e38px;
 }
 
 /* Black */
-.round-r-full{
+.round-r-full {
     border-radius: 0 3.40282e38px 3.40282e38px 0;
 }
 
-.black-win{
+.black-win {
     width: 25%;
 }
 
 /* Draw */
-.bar-draw{
+.bar-draw {
     width: 25%;
 }
 
-.shadow-sm{
+.shadow-sm {
     --tw-shadow: 0 1px 3px 0 var(--tw-shadow-color, #0000001a), 0 1px 2px -1px var(--tw-shadow-color, #0000001a);
-    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow), 
-    var(--tw-ring-offset-shadow), var(--tw-ring-offset-shadow), var(--tw-shadow);
+    box-shadow: var(--tw-inset-shadow), var(--tw-inset-ring-shadow),
+        var(--tw-ring-offset-shadow), var(--tw-ring-offset-shadow), var(--tw-shadow);
 }
 
-.group-item:hover{
-    border:2px solid var(--color-blue-400);
+.group-item:hover {
+    border: 2px solid var(--color-blue-400);
 }
 
-#remove-pgn:hover{
+#remove-pgn:hover {
     color: var(--neon-orange);
 }
 
-.close-modal:hover{
+.close-modal:hover {
     color: var(--color-gray-600);
     cursor: pointer;
 }
 
-.border-bot-player{
+.border-bot-player {
     border: 1px solid var(--color-gray-200);
 }
 
-.space-y-2 > :not(:last-child){
+.space-y-2> :not(:last-child) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(calc(var(--spacing) * 2) * var(--tw-space-y-reverse));
     margin-block-end: calc(calc(var(--spacing) * 2) * calc(1 - var(--tw-space-y-reverse)));
 }
 
-.space-y-3 > :not(:last-child){
+.space-y-3> :not(:last-child) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(calc(var(--spacing) * 3) * var(--tw-space-y-reverse));
     margin-block-end: calc(calc(var(--spacing) * 3) * calc(1 - var(--tw-space-y-reverse)));
 }
 
-.space-y-5 > :not(:last-child){
+.space-y-5> :not(:last-child) {
     --tw-space-y-reverse: 0;
     margin-block-start: calc(calc(var(--spacing) * 5) * var(--tw-space-y-reverse));
     margin-block-end: calc(calc(var(--spacing) * 5) * calc(1 - var(--tw-space-y-reverse)));
 }
 
-.grid-cols-2{
+.grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.copy-btn:hover{
+.copy-btn:hover {
     background-color: var(--color-gray-200);
 
 }
 
-.summary-pgn:hover{
+.summary-pgn:hover {
     color: var(--color-gray-700);
 }
 
-.content-pgn{
+.content-pgn {
     white-space: pre;
 }
 
@@ -170,23 +158,172 @@
     overflow-wrap: break-word;
 }
 
+@media (min-width: 320px) {
+    .title-played {
+        margin-bottom: calc(var(--spacing) * 4);
+    }
 
-/* Mobile */
-@media (min-width: 768px) {
-    /* #main-wrapper {
-        grid-template-columns: 1fr;
-        grid-template-areas: "main";
-    } */
+    .history-title {
+        margin: 0 5px;
+    }
+
+    .title {
+        font-size: 15px;
+        font-weight: 520;
+    }
+
+    .played-number {
+        margin-top: 2px;
+        font-size: 13px;
+    }
+
+    .history-icon {
+        width: 25px;
+        height: 25px;
+    }
 
     .main-played {
         display: flex;
         flex-direction: column;
         overflow-y: auto;
-        margin: 0;
+        margin: .5rem 0;
+        padding-block-end: calc(var(--spacing) * 4);
+        padding-inline: calc(var(--spacing) * 3);
     }
 
+    /* card */
+    .card-wrapper {
+        gap: calc(var(--spacing) * 2);
+        margin-bottom: calc(var(--spacing) * 4);
+    }
+
+    .card {
+        padding: calc(var(--spacing) * 2);
+    }
+
+    /* Performance breakdown */
+    .performance-card {
+        padding: 20px;
+        border-radius: 14px;
+        margin-bottom: calc(var(--spacing) * 4);
+    }
+
+    .perf-header {
+        margin-bottom: calc(var(--spacing) * 2);
+    }
+
+    .progress-bar {
+        height: 10px;
+        margin-bottom: calc(var(--spacing) * 2);
+        gap: calc(var(--spacing)* .2);
+    }
+
+    /* Item game played */
+    .game-list {
+        display: flex;
+        grid-template-columns: 1fr;
+        flex-direction: column;
+        overflow-x: auto;
+    }
+
+    .pgn-item {
+        gap: calc(var(--spacing) * 2);
+        padding-inline: calc(var(--spacing) * 2);
+        padding-block: calc(var(--spacing) * 2);
+    }
+
+    .item-number {
+        font-size: var(--text-xs);
+        line-height: var(--text-xs--line-height);
+    }
+
+    .circuit-win {
+        display: none;
+    }
+}
+
+
+/* Mobile */
+@media (min-width: 768px) {
+    .title-played {
+        margin-bottom: calc(var(--spacing) * 8);
+    }
+
+    .history-title {
+        margin: 0 10px;
+    }
+
+    .title {
+        font-size: 25px;
+        font-weight: 750;
+    }
+
+    .played-number {
+        margin-top: 5px;
+        font-size: 18px;
+    }
+
+    .history-icon {
+        width: 50px;
+        height: 50px;
+    }
+
+    .main-played {
+        display: flex;
+        flex-direction: column;
+        overflow-y: auto;
+        margin: 1rem 0;
+        padding-block-end: calc(var(--spacing) * 8);
+        padding-inline: calc(var(--spacing) * 6);
+    }
+
+    /* card */
+    .card-wrapper {
+        gap: calc(var(--spacing) * 4);
+        margin-bottom: calc(var(--spacing) * 8);
+    }
+
+    .card {
+        padding: calc(var(--spacing) * 4);
+    }
+
+    /* Performance breakdown */
+    .performance-card {
+        padding: 25px;
+        margin-top: 20px;
+        border-radius: 14px;
+        margin-bottom: calc(var(--spacing) * 8);
+    }
+
+    .perf-header {
+        margin-bottom: calc(var(--spacing) * 3);
+    }
+
+    .progress-bar {
+        height: 12px;
+        margin-bottom: calc(var(--spacing) * 3);
+        gap: calc(var(--spacing)* .5);
+    }
+
+    /* Item game played */
     .game-list {
         display: flex;
         flex-direction: column;
+        overflow: visible;
+    }
+
+    .pgn-item {
+        gap: calc(var(--spacing) * 4);
+        padding-inline: calc(var(--spacing) * 4);
+        padding-block: calc(var(--spacing) * 3.5);
+    }
+
+    .item-number {
+        font-size: var(--text-sm);
+        line-height: var(--text-sm--line-height);
+    }
+
+    .circuit-win {
+        display: flex;
     }
 }

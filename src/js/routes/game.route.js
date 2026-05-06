@@ -9,6 +9,7 @@ import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { LogController } from "../controllers/log.controller.js";
+import { WAITING_STATUS } from "../constant.js";
 
 export const gameRouter = express.Router();
 
@@ -213,7 +214,7 @@ gameRouter.get("/:id/initcheck", async (req, res) => {
         if (!state) {
             return res.json({
                 gameID,
-                status: "waiting",
+                status: WAITING_STATUS,
                 wrongSquares: [],
                 missingSquares: []
             })

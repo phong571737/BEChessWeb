@@ -9,12 +9,11 @@ export const GamePlayedView = {
     },
 
     HeaderView() {
-        const title_played = this.el("div", "title-played mb-8");
+        const title_played = this.el("div", "title-played");
 
         const img = document.createElement("img");
         img.src = "/ServerWeb/img/chess.png";
-        img.height = 50;
-        img.width = 50;
+        img.className = "history-icon";
 
         const htr_title = this.el("div", "history-title");
         const title = this.el("div", "title", "Game History");
@@ -28,14 +27,14 @@ export const GamePlayedView = {
 
     /**This function is used to procsess progress bar  */
     ProgressBar() {
-        const performance_card = this.el("div", "performance-card mb-8");
+        const performance_card = this.el("div", "performance-card");
         performance_card.style.display = "none";
-        const perf_header = this.el("div", "perf-header mb-3 text-gray-600");
+        const perf_header = this.el("div", "perf-header text-gray-600");
         const perf_title = this.el("span", "perf-title", "Performance breakdown");
         const total_game = this.el("span", "total-games");
 
         //progress bar
-        const progress_bar = this.el("div", "progress-bar rounded-full gap-05 mb-3", "", "progress-bar");
+        const progress_bar = this.el("div", "progress-bar rounded-full", "", "progress-bar");
         const white = this.el("div", "white-win bg-green-500", "", "white-win");
         const draw = this.el("div", "bar-draw bg-gray-400", "", "bar-draw");
         const black = this.el("div", "black-win bg-red-500", "", "black-win");
@@ -67,9 +66,9 @@ export const GamePlayedView = {
 
     /**This function is used to create card bar(statistical table) */
     CardBar() {
-        const cardbar = this.el("div", "grid grid-cols-3 gap-4 mb-8");
+        const cardbar = this.el("div", "card-wrapper grid grid-cols-3");
         //White card
-        const whitecard = this.el("div", "bg-white border round-xl shadow-sm p-4");
+        const whitecard = this.el("div", "card bg-white border round-xl shadow-sm");
         const whitetitle = this.el("div", "flex items-center gap-2 mb-2");
         const whiteicon = document.createElement("div");
         const w_icon = document.createElement("i");
@@ -82,7 +81,7 @@ export const GamePlayedView = {
         whitecard.append(whitetitle, w_number, w_won);
 
         //Black card
-        const blackcard = this.el("div", "bg-white border round-xl shadow-sm p-4");
+        const blackcard = this.el("div", "card bg-white border round-xl shadow-sm");
         const blacktitle = this.el("div", "flex items-center gap-2 mb-2");
         const blackicon = document.createElement("div");
         const b_icon = document.createElement("i");
@@ -95,7 +94,7 @@ export const GamePlayedView = {
         blackcard.append(blacktitle, b_number, b_won);
 
         //Draw card
-        const drawcard = this.el("div", "bg-white border round-xl shadow-sm p-4");
+        const drawcard = this.el("div", "card bg-white border round-xl shadow-sm");
         const drawtitle = this.el("div", "flex items-center gap-2 mb-2");
         const drawicon = document.createElement("div");
         const d_icon = document.createElement("i");
@@ -202,14 +201,14 @@ export const GamePlayedView = {
 
         const item = this.el(
             "div",
-            "pgn-item group-item flex bg-white gap-4 px-4 py-3.5 border border-gray-200 rounded-xl items-center cursor-pointer",
+            "pgn-item group-item flex bg-white border border-gray-200 rounded-xl items-center cursor-pointer",
             "",
             "pgn-item"
         );
 
         item.dataset.id = _id;
         item.dataset.game = JSON.stringify(data);
-        const number = this.el("span", "item-number text-gray-400 text-sm text-center", `#${index}`);
+        const number = this.el("span", "item-number text-gray-400 text-center", `#${index}`);
         const chip = this.el("span",
             `rounded-full text-center text-xs font-medium border ${chipClass} px-3 py-1`,
             chipText
@@ -223,7 +222,7 @@ export const GamePlayedView = {
                             : Result === "0-1" ? "Black win"
                             : "Draw";
         const win_color = this.el("div");
-        const circuit = this.el("div", `rounded-full w-5 h-5 border-2 ${circuit_class}`, "", "", title_circuit);
+        const circuit = this.el("div", `circuit-win rounded-full w-5 h-5 border-2 ${circuit_class}`, "", "", title_circuit);
         win_color.appendChild(circuit);
 
         // Player
@@ -254,7 +253,7 @@ export const GamePlayedView = {
         time_and_move.append(time_match, move_match);
 
         // The date the game was played
-        const date = this.el("div", "items-center text-gray-500 text-xs", Date, "game-creation-date");
+        const date = this.el("div", "flex items-center text-gray-500 text-xs", Date, "game-creation-date");
 
         // Remove pgn
         // const remove = this.el("div", "");
@@ -268,7 +267,7 @@ export const GamePlayedView = {
     },
 
     MainPlayed() {
-        const played_view = this.el("div", "main-played overflow-hidden py-end-8 px-6");
+        const played_view = this.el("div", "main-played overflow-hidden");
         const title = this.HeaderView();
         const progressbar = this.ProgressBar();
         const cardbar = this.CardBar();

@@ -2,6 +2,7 @@ import { Chess } from "chess.js";
 import { loadGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { ChessService } from "../services/chess.service.js";
+import { DUPLICATE, ILLEGAL_MOVE, NOTFOUND_STATUS, OUT_OF_SEQ, STATUS_OK } from "../constant.js";
 
 export const games = new Map();
 export const gameSeq = new Map();
@@ -31,7 +32,7 @@ export async function makeMove(gameID, candidates, seq) {
 
   if (!games.has(gameID)) {
     const restored = await restorefromDB(gameID);
-    if (!restored) return { status: "not_found" };
+    if (!restored) return { status: NOTFOUND_STATUS };
     // games.set(gameID, restored);
   }
 
@@ -40,11 +41,11 @@ export async function makeMove(gameID, candidates, seq) {
   const expectedSeq = lastSeq + 1;
 
   //duplicated
-  if (seq < expectedSeq) return { status: "duplicate", fen: mainGame.fen(), lastSeq };
+  if (seq < expectedSeq) return { status: DUPLICATE, fen: mainGame.fen(), lastSeq };
   //Out of order
-  if (seq > expectedSeq) return { status: "out_of_order", expectedSeq, lastSeq };
+  if (seq > expectedSeq) return { status: OUT_OF_SEQ, expectedSeq, lastSeq };
 
-  // Resolve branches if ambiguity
+  // Resolve branches if multimove 
   if (activeBranches.has(gameID)) {
     console.log(`Resolving branches for game ${gameID}`);
     const result = resolveBranches(gameID, mainGame, candidates);
@@ -64,10 +65,10 @@ export async function makeMove(gameID, candidates, seq) {
       lastMove: result.lastMove
     }
   }
-  
+
   // find all moves illegal for current candidate
   let validMoves = ChessService.findValidMove(mainGame, candidates);
-  if (validMoves.length === 0) return { status: "illegal", lastSeq };
+  if (validMoves.length === 0) return { status: ILLEGAL_MOVE, lastSeq };
 
   if (validMoves.length > 1) {
     // create branches when moves valid
@@ -84,7 +85,7 @@ export async function makeMove(gameID, candidates, seq) {
     gameSeq.set(gameID, seq);
 
     return {
-      status: "ok",
+      status: STATUS_OK,
       gameID,
       fen: mainGame.fen(),
       pgn: mainGame.pgn(),
@@ -93,11 +94,7 @@ export async function makeMove(gameID, candidates, seq) {
       branches: branches.length,
       lastMove: branches[0].lastApplied
     };
-  } 
-  // else {
-  //   const mv = validMoves[0];
-  //   mainGame.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
-  // }
+  }
 
   const mv = validMoves[0];
   mainGame.move({
@@ -127,7 +124,6 @@ export async function makeMove(gameID, candidates, seq) {
 export function resolveBranches(gameID, mainGame, candidates) {
   const branches = activeBranches.get(gameID);
   const surviving = []; // array to save candidates validation
-  // const lastUCI = candidates[candidates.length - 1];
 
   // Loop through all of branches
   for (const branch of branches) {
@@ -169,7 +165,7 @@ export function resolveBranches(gameID, mainGame, candidates) {
     }
   }
 
-  if (surviving.length === 0) return { status: "illegal" };
+  if (surviving.length === 0) return { status: ILLEGAL_MOVE };
   const isCorrection = surviving.length === 1 && surviving[0].id != branches[0].id;
 
   mainGame.loadPgn(surviving[0].pgn);
