@@ -46,7 +46,7 @@ async function StartServer() {
   await connectDB();
   initSocket(server);
   stockfishService.init();
-  // initMqtt();
+  initMqtt();
 
   // Server listen
   server.listen(env.PORT, "0.0.0.0", async () => {

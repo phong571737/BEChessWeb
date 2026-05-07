@@ -2,7 +2,9 @@ import { Chess } from "chess.js";
 import { loadGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { ChessService } from "../services/chess.service.js";
-import { DUPLICATE, ILLEGAL_MOVE, NOTFOUND_STATUS, OUT_OF_SEQ, STATUS_OK } from "../constant.js";
+import { DUPLICATE, ILLEGAL_MOVE, INVALID_STATUS, NOTFOUND_STATUS, OUT_OF_SEQ, STATUS_OK } from "../constant.js";
+import { buildResponse, executeMove, formatUCI, parseUCI } from "../utils/chess.utils.js";
+import { createBranches } from "../services/game.service.js";
 
 export const games = new Map();
 export const gameSeq = new Map();
@@ -27,17 +29,17 @@ export async function restorefromDB(gameID) {
 /**This function is used to create make move */
 export async function makeMove(gameID, candidates, seq) {
   if (!candidates?.length || seq === undefined) {
-    return { status: "invalid_request" }
+    return { status: INVALID_STATUS }
   }
 
   if (!games.has(gameID)) {
     const restored = await restorefromDB(gameID);
     if (!restored) return { status: NOTFOUND_STATUS };
-    // games.set(gameID, restored);
   }
 
   const mainGame = games.get(gameID);
   const lastSeq = gameSeq.get(gameID) ?? 0;
+
   const expectedSeq = lastSeq + 1;
 
   //duplicated
@@ -49,59 +51,45 @@ export async function makeMove(gameID, candidates, seq) {
   if (activeBranches.has(gameID)) {
     console.log(`Resolving branches for game ${gameID}`);
     const result = resolveBranches(gameID, mainGame, candidates);
-    if (result.status != "ok") return { ...result, lastSeq };
+    // resolve
+    if (result.resolved ) {
+      //branch move cosumed successfully
+      gameSeq.set(gameID, seq);
 
-    //branch move cosumed successfully
-    gameSeq.set(gameID, seq);
-
-    return {
-      status: "ok",
-      gameID,
-      fen: mainGame.fen(),
-      pgn: mainGame.pgn(),
-      lastSeq: seq,
-      isCorrection: result.isCorrection,
-      correctionPGN: result.correctionPGN,
-      lastMove: result.lastMove
+      return buildResponse(gameID, mainGame, seq, {
+        lastMove: result.lastMove
+      });
     }
+
+    return buildResponse(gameID, mainGame, seq, {
+      ambiguity: result.ambiguity,
+      branches: result.branches,
+      lastMove: result.lastMove
+    })
   }
 
-  // find all moves illegal for current candidate
+  // find all moves llegal for current candidate
   let validMoves = ChessService.findValidMove(mainGame, candidates);
   if (validMoves.length === 0) return { status: ILLEGAL_MOVE, lastSeq };
 
   if (validMoves.length > 1) {
     // create branches when moves valid
-    const branches = validMoves.map((mv, i) => {
-      const clone = new Chess();
-      clone.loadPgn(mainGame.pgn());
-
-      clone.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
-      return { id: `branch_${i}`, move: mv, fen: clone.fen(), pgn: clone.pgn(), lastApplied: mv };
-    });
+    const branches = createBranches(mainGame, validMoves);
 
     activeBranches.set(gameID, branches);
-    mainGame.loadPgn(branches[0].pgn);
+    printBranches(gameID);
+
     gameSeq.set(gameID, seq);
 
-    return {
-      status: STATUS_OK,
-      gameID,
-      fen: mainGame.fen(),
-      pgn: mainGame.pgn(),
-      lastSeq: seq,
+    return buildResponse(gameID, mainGame, seq, {
       ambiguity: true,
       branches: branches.length,
       lastMove: branches[0].lastApplied
-    };
+    })
   }
 
   const mv = validMoves[0];
-  mainGame.move({
-    from: mv.from,
-    to: mv.to,
-    promotion: mv.promotion
-  });
+  executeMove(mainGame, mv);
 
   gameSeq.set(gameID, seq);
 
@@ -122,68 +110,70 @@ export async function makeMove(gameID, candidates, seq) {
 
 // This function is resolve ambiguous branches with the lastest move
 export function resolveBranches(gameID, mainGame, candidates) {
-  const branches = activeBranches.get(gameID);
-  const surviving = []; // array to save candidates validation
+  const branches = activeBranches.get(gameID) || [];
+  const nextBranches = []; // loop all branch
 
   // Loop through all of branches
   for (const branch of branches) {
-    let survived = false;
+    let match = false; // flag to check wheather branch valid or not
 
     // Loop through all of candidates
     for (const uci of candidates) {
-      const from = uci.slice(0, 2);
-      const to = uci.slice(2, 4);
-      const promotion = uci.length === 5 ? uci[4] : undefined;
+      const move = parseUCI(uci)
 
       try {
         const temp = new Chess();
         temp.loadPgn(branch.pgn);
 
-        const result = temp.move({ from, to, promotion });
-
-        if (result) {
-          surviving.push({
+        // if branch match, continue
+        if (temp.move(move)) {
+          nextBranches.push({
             ...branch,
             pgn: temp.pgn(),
             fen: temp.fen(),
             lastApplied: {
-              from,
-              to,
-              promotion,
-              uci: from + to + (promotion ?? "")
-            }
+              ...move,
+              uci: formatUCI(move.from, move.to, move.promotion)
+            },
+            step: branch.step + 1
           });
-          survived = true;
-          break;
+          match = true;
+          // break;
         }
       } catch { }
     }
 
-    // branch illegal => remove
-    if (!survived) {
-      console.log(`Branch ${branch.id} eliminated`);
-    }
+    // branch illegal (hold, not remove)
+    // if (!match) {
+    //   nextBranches.push(branch);
+    // }
   }
 
-  if (surviving.length === 0) return { status: ILLEGAL_MOVE };
-  const isCorrection = surviving.length === 1 && surviving[0].id != branches[0].id;
+  // update branch 
+  activeBranches.set(gameID, nextBranches);
+  printBranches(gameID);
 
-  mainGame.loadPgn(surviving[0].pgn);
+  // Commit when just one branch valid
+  if (nextBranches.length === 1) {
+    const finalBranch = nextBranches[0];
 
-  if (surviving.length === 1) {
-    activeBranches.delete(gameID); // remove the wrong branch 
-    console.log(`Resolved to ${surviving[0].id}`);
+    mainGame.loadPgn(finalBranch.pgn);
+    activeBranches.delete(gameID);
+
+    return {
+      status: STATUS_OK,
+      resolved: true,
+      fen: mainGame.fen(),
+      pgn: mainGame.pgn(),
+      lastMove: finalBranch.lastApplied,
+    };
   }
-  else {
-    activeBranches.set(gameID, surviving);
-    console.log(`${surviving.length} branches remain`);
-  }
 
+  // ambigous
   return {
-    status: "ok",
-    isCorrection,
-    correctionPGN: isCorrection ? surviving[0].pgn : "",
-    lastMove: surviving[0].lastApplied,
+    ambiguity: true,
+    branches: nextBranches.length,
+    lastMove: nextBranches.find(b => b.lastApplied)?.lastApplied ?? null
   };
 }
 
@@ -245,4 +235,30 @@ export function destroyBoard(gameID) {
 
   const game = games.get(gameID);
   game.destroy();
+}
+
+
+
+// debug
+export function printBranches(gameID) {
+  const branches = activeBranches.get(gameID);
+
+  if (!branches) {
+    console.log(`[BRANCH] ${gameID}: no active branches`);
+    return;
+  }
+
+  console.log(`\n========== BRANCH DUMP (${gameID}) ==========`);
+
+  branches.forEach((b, i) => {
+    console.log(`\n[BRANCH ${i}]`);
+    console.log(`step:`, b.step);
+    console.log(`fen:`, b.fen);
+    console.log(`lastApplied:`, b.lastApplied);
+    console.log(`uci:`, b.lastApplied?.uci);
+    console.log(`pgn:\n${b.pgn}`);
+  });
+
+  console.log(`\nTotal branches: ${branches.length}`);
+  console.log(`===========================================\n`);
 }

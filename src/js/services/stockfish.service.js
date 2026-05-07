@@ -15,7 +15,7 @@ export class StockfishService {
         });
 
         this.engine.listener = (line) => {
-            console.log("[ENGINE]:", line);
+            // console.log("[ENGINE]:", line);
 
             // get score cp realtime
             if (line.includes("score cp")) {

@@ -1,10 +1,10 @@
 import { error } from "console";
-import { games, makeMove, restorefromDB } from "../game/game.manager.js";
+import { games, gameSeq, makeMove, restorefromDB } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { saveLog } from "../models/log.model.js";
 import { getIO } from "../sockets/index.js";
 import { stockfishService } from "./stockfish.instance.js";
-import { STATUS_OK } from "../constant.js";
+import { ILLEGAL_MOVE, STATUS_OK } from "../constant.js";
 
 export const MoveService = {
     async processMove({ uci, start, end, gameID, seq, lift, place }) {
@@ -15,7 +15,11 @@ export const MoveService = {
         if (uci && uci.endsWith("x") && !uci.startsWith("MULTI")) {
             candidates = await this.parseCaptureMove(uci, gameID);
             if (candidates.length === 0) {
-                return { error: true, message: `No valid captures from ${uci.replace("x", "")}` };
+                const lastSeq = gameSeq.get(gameID) ?? 0;
+                return { 
+                    status: ILLEGAL_MOVE,
+                    lastSeq,
+                };
             }
 
             console.log(`Capture ${uci} create candidates:`, candidates);

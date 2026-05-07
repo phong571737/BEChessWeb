@@ -6,3 +6,5 @@ export const STATUS_OK = "ok";
 export const NOTFOUND_STATUS = "not_found";
 export const INVALID_STATUS = "invalid_request";
 export const WAITING_STATUS = "waiting";
+
+export const SERVER_ERROR_STATUS = "server_error";

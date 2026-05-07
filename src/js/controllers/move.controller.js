@@ -1,3 +1,4 @@
+import { ILLEGAL_MOVE } from "../constant.js";
 import { MoveService } from "../services/move.service.js";
 
 export const MoveController = {
@@ -5,7 +6,10 @@ export const MoveController = {
         try {
             const result = await MoveService.processMove(req.body);
             if (result.error) {
-                return res.status(400).json(result);
+                return res.status(400).json({
+                    status: ILLEGAL_MOVE,
+                    message: result.message
+                });
             }
 
             res.json(result);

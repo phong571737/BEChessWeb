@@ -70,7 +70,7 @@ export const GameView = {
         moves.appendChild(move_list);
 
         // restart and surrender button
-        const controls = this.el("div", "controls flex-nav");
+        const controls = this.el("div", "controls flex-nav-control");
         const control_icons = this.el("div", "control-icon");
 
         const back_btn = this.createButton("restart", "fa-solid fa-rotate-left", "Restart");

@@ -281,6 +281,10 @@ button {
     .white-piece img {
         width: 20px;
     }
+
+    /* .flex-nav-control {
+        display: none;
+    } */
 }
 
 @media (min-width: 768px) {
@@ -325,6 +329,11 @@ button {
         display: flex;
         align-items: center;
         border: 1px solid var(--border-pgn-color);
+    }
+
+    .flex-nav-control {
+        display: flex;
+        flex-flow: column;
     }
 }
 
