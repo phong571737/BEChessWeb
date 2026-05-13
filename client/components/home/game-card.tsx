@@ -1,6 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { encodeGameID } from "@/lib/id-utils";
@@ -40,11 +41,12 @@ export function GameCard({ game }: Props) {
   }, [game.lastMove]);
 
   return (
-    <div
+    <Link
+      href={boardUrl}
       className="group flex flex-col bg-card rounded-lg border border-border overflow-hidden cursor-pointer transition-all duration-150 hover:border-border/80 hover:shadow-md hover:-translate-y-px"
       onMouseEnter={() => router.prefetch(boardUrl)}
       onFocus={() => router.prefetch(boardUrl)}
-      onClick={() => router.push(boardUrl)}
+      aria-label={`Open game ${game.WhiteName} vs ${game.BlackName}`}
     >
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
@@ -76,6 +78,6 @@ export function GameCard({ game }: Props) {
           <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
         </div>
       </div>
-    </div>
+    </Link>
   );
 }

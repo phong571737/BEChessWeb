@@ -18,10 +18,20 @@ export const GameResignService = {
         const chess = new Chess();
         const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
         if (pgn) chess.loadPgn(pgn);
+        const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
+        const now = new Date();
+        const dateTag = now.toISOString().slice(0, 10).replace(/-/g, ".");
+        chess.setHeader("Event", "TTLab Chess");
+        chess.setHeader("Site", process.env.PUBLIC_SITE || "TTLab Arena");
+        chess.setHeader("Round", String(game.gameID || gameID));
         chess.setHeader("White", game.WhiteName || "White");
         chess.setHeader("Black", game.BlackName || "Black");
-        chess.setHeader("Result", resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0");
-        chess.setHeader("Date", new Date().toISOString().split("T")[0]);
+        chess.setHeader("Result", resultTag);
+        chess.setHeader("Date", dateTag);
+        if (game.fen && game.fen !== new Chess().fen()) {
+          chess.setHeader("SetUp", "1");
+          chess.setHeader("FEN", game.fen);
+        }
         const finalPGN = chess.pgn();
         const endedAt = new Date();
         const startedAt = game.createdAt ? new Date(game.createdAt) : null;
@@ -30,14 +40,22 @@ export const GameResignService = {
         const result = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
 
         // Save to game played
+        const finalFen = chess.fen();
         const doc = {
             gameID,
             pgn: finalPGN,
             Result: result,
+            WhiteName: game.WhiteName || "White",
+            BlackName: game.BlackName || "Black",
             White: game.WhiteName || "White",
             Black: game.BlackName || "Black",
             Date: new Date().toISOString().split("T")[0],
-            totalMoves: game.lastSeq,
+            totalPlies: game.lastSeq ?? 0,
+            totalMoves: game.lastSeq ?? 0,
+            fenStart: "start",
+            fenEnd: finalFen,
+            fenHistory: Array.isArray(game.fenHistory) ? game.fenHistory : [],
+            source: "pgn",
             endReason: resignSide === "draw" ? "draw_agreed" : "resigned",
             loser: resignSide === "draw" ? null : resignSide,
             winner,

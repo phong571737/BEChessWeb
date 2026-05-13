@@ -97,7 +97,7 @@ export default function PlayedReviewPage() {
   }
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const shareText = `${game.White} vs ${game.Black} - ${game.Result}`;
+  const shareText = `${game.WhiteName} vs ${game.BlackName} - ${game.Result}`;
 
   const onCopyLink = async () => {
     try {

@@ -75,19 +75,20 @@ export function StartGameDialog({ board, onClose }: Props) {
 
   return (
     <Dialog open={!!board} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-[380px]">
-        <DialogHeader>
-          <DialogTitle>{t("sg.title")}</DialogTitle>
+      <DialogContent className="sm:max-w-[420px] px-5 sm:px-6 py-4 sm:py-5">
+        <DialogHeader className="space-y-1 pb-1">
+          <DialogTitle className="text-base sm:text-lg">{t("sg.title")}</DialogTitle>
+          <p className="text-xs text-muted-foreground">Fill both player names to start a new match.</p>
         </DialogHeader>
 
-        <div className="space-y-4 py-2">
+        <div className="space-y-5 py-2 px-0.5">
           {board && (
             <p className="text-xs text-muted-foreground">
               {t("sg.board")}: <span className="font-medium text-foreground">{board.boardID}</span>
             </p>
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="sg-white">
               {t("sg.whiteSide")} <span className="text-destructive">*</span>
             </Label>
@@ -102,7 +103,7 @@ export function StartGameDialog({ board, onClose }: Props) {
             />
           </div>
 
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <Label htmlFor="sg-black">
               {t("sg.blackSide")} <span className="text-destructive">*</span>
             </Label>
@@ -121,11 +122,11 @@ export function StartGameDialog({ board, onClose }: Props) {
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={loading}>
+        <DialogFooter className="gap-2 pt-2 sm:pt-3">
+          <Button className="w-full sm:w-auto" variant="outline" onClick={onClose} disabled={loading}>
             {t("sg.cancel")}
           </Button>
-          <Button onClick={handleStart} disabled={loading || !canStart}>
+          <Button className="w-full sm:w-auto" onClick={handleStart} disabled={loading || !canStart}>
             {loading ? t("sg.starting") : t("sg.start")}
           </Button>
         </DialogFooter>

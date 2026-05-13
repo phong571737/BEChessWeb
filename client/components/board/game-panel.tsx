@@ -11,10 +11,12 @@ import {
   WifiOff,
   Copy,
   Check,
+  List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PGNTable } from "./pgn-table";
 import { GameActions } from "./game-actions";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
 
@@ -62,7 +64,10 @@ interface Props {
   gameID:         string;
   whiteName:      string;
   blackName:      string;
+  fen:            string;
   pgn:            string;
+  /** Raw FEN list from server (fallback when PGN can't be built) */
+  fenHistory:     string[] | null;
   boardConnected: boolean;
   status:         string;
   /** Timestamp of the last move — drives the live thinking clock */
@@ -85,7 +90,9 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
   gameID,
   whiteName,
   blackName,
+  fen,
   pgn,
+  fenHistory: fenHistoryProp,
   boardConnected,
   status,
   lastMoveAt,
@@ -97,24 +104,33 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
   const { t } = useT();
   const [cursor, setCursor] = useState(-1);
   const [copied, setCopied] = useState(false);
+  const [notationMode, setNotationMode] = useState<"pgn" | "fen">("pgn");
 
-  // Build FEN history from PGN
+  // Build FEN history from PGN, falling back to raw fenHistory prop
   const fenHistory = useMemo(() => {
-    if (!pgn?.trim()) return [];
-    try {
-      const c   = new Chess();
-      const tmp = new Chess();
-      c.loadPgn(pgn);
-      const hist = c.history();
-      const fens: string[] = ["start"];
-      for (const m of hist) { tmp.move(m); fens.push(tmp.fen()); }
-      return fens;
-    } catch { return []; }
-  }, [pgn]);
+    if (pgn?.trim()) {
+      try {
+        const c   = new Chess();
+        const tmp = new Chess();
+        c.loadPgn(pgn);
+        const hist = c.history();
+        const fens: string[] = ["start"];
+        for (const m of hist) { tmp.move(m); fens.push(tmp.fen()); }
+        return fens;
+      } catch { /* fall through to fenHistoryProp */ }
+    }
+    if (fenHistoryProp && fenHistoryProp.length > 0) {
+      return ["start", ...fenHistoryProp];
+    }
+    return [];
+  }, [pgn, fenHistoryProp]);
 
   const totalMoves   = Math.max(0, fenHistory.length - 1);
   const activeCursor = cursor === -1 ? totalMoves : cursor;
-  const isWhiteTurn  = totalMoves % 2 === 0;
+  // Determine turn from current FEN (more reliable than deriving from PGN,
+  // since physical-board FENs may not form a valid chess game).
+  const currentFen   = cursor === -1 ? fen : (fenHistory[activeCursor] ?? fen);
+  const isWhiteTurn  = !/ b /.test(currentFen);
   const isPlaying    = status === "playing";
 
   const goTo = useCallback(
@@ -179,6 +195,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
           type="button"
           onClick={onCopyLink}
           title={t("board.copyLink")}
+          aria-label={t("board.copyLink")}
           className="h-6 w-6 rounded-sm hover:bg-accent flex items-center justify-center shrink-0 text-muted-foreground hover:text-foreground transition-colors"
         >
           {copied
@@ -235,14 +252,76 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         </div>
       </div>
 
-      {/* ── PGN move list ── */}
+      {/* ── FEN display ── */}
+      <div className="border-b border-border px-3 py-1.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">FEN</span>
+          <code className="flex-1 min-w-0 truncate text-[10px] font-mono text-muted-foreground/80">{fen || "-"}</code>
+          <button
+            type="button"
+            onClick={() => { navigator.clipboard.writeText(fen || ""); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+            className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+            title="Copy FEN"
+            aria-label="Copy FEN"
+          >
+            {copied ? <Check className="size-3 text-green-500" /> : <Copy className="size-3" />}
+          </button>
+        </div>
+      </div>
+
+      {/* ── PGN/FEN list ── */}
+      <div className="border-b border-border px-2 py-1">
+        <div className="inline-flex rounded-md border border-border overflow-hidden bg-muted/40">
+          <button
+            type="button"
+            onClick={() => setNotationMode("pgn")}
+            className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "pgn" ? "bg-accent text-foreground" : "text-muted-foreground")}
+          >
+            PGN
+          </button>
+          <button
+            type="button"
+            onClick={() => setNotationMode("fen")}
+            className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "fen" ? "bg-accent text-foreground" : "text-muted-foreground")}
+          >
+            FEN
+          </button>
+        </div>
+      </div>
+
       <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0">
-        <PGNTable
-          pgn={pgn}
-          cursor={cursor === -1 ? totalMoves : cursor}
-          moveTimesMap={moveTimesMap}
-          onGoTo={(idx) => goTo(idx)}
-        />
+        {notationMode === "pgn" ? (
+          <PGNTable
+            pgn={pgn}
+            cursor={cursor === -1 ? totalMoves : cursor}
+            moveTimesMap={moveTimesMap}
+            onGoTo={(idx) => goTo(idx)}
+          />
+        ) : (
+          <ScrollArea className="flex-1 min-h-0 h-full">
+            <div className="p-1.5 space-y-1">
+              {fenHistory.map((fenAt, idx) => {
+                const isActive = activeCursor === idx;
+                return (
+                  <button
+                    key={`fen-${idx}`}
+                    type="button"
+                    onClick={() => goTo(idx)}
+                    className={cn(
+                      "w-full text-left px-2 py-1 rounded-sm border transition-colors",
+                      isActive ? "bg-accent border-accent" : "border-border hover:bg-accent/50"
+                    )}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs text-muted-foreground font-mono shrink-0">{idx}</span>
+                      <span className="text-xs text-muted-foreground truncate flex-1 text-right">{fenAt}</span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </ScrollArea>
+        )}
       </div>
 
       {/* ── Navigation controls ── */}

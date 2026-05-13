@@ -369,11 +369,12 @@ function BoardContent() {
   const clearPhysicalBoardGameID = useGameStore((s) => s.clearPhysicalBoardGameID);
 
   const {
-    fen, pgn, cp, whiteName, blackName, lastMove,
+    fen, pgn, fenHistory, cp, whiteName, blackName, lastMove,
     boardConnected, boardOffline, activeAlert, dismissAlert,
     status, result, scanMissing, scanReason,
     isLoaded, notFound, restart, resign, rescan, rescanLoading,
     lastMoveAt, moveTimesMap,
+    scanActive, scanLatencyMs,
   } = useGame(gameID);
 
   const { t } = useT();
@@ -485,6 +486,19 @@ function BoardContent() {
       {/* Board offline banner — in-flow; takes height from the board area */}
       {boardOffline && <BoardOfflineBanner />}
 
+      {(scanActive || scanLatencyMs !== null) && (
+        <div className="flex items-center gap-2 px-4 py-2 text-xs border-b border-border/60 bg-muted/40">
+          {scanActive ? (
+            <>
+              <Loader2 className="size-3.5 animate-spin" />
+              <span>{t("board.scanning")}</span>
+            </>
+          ) : (
+            <span>{t("board.scanning")}: {scanLatencyMs}ms</span>
+          )}
+        </div>
+      )}
+
       {/* Alert toast — fixed position, does not affect flow */}
       {activeAlert && <AlertToast alert={activeAlert} onDismiss={dismissAlert} />}
 
@@ -551,7 +565,9 @@ function BoardContent() {
                 gameID={gameID}
                 whiteName={whiteName}
                 blackName={blackName}
+                fen={fen}
                 pgn={pgn}
+                fenHistory={fenHistory}
                 boardConnected={boardConnected}
                 status={status}
                 lastMoveAt={lastMoveAt}

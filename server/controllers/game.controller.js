@@ -75,10 +75,24 @@ export const GameController = {
         withCacheHeaders(res, 10);
         return res.json(cached);
       }
-      const games = await getPGNCollections()
+      const rows = await getPGNCollections()
         .find({})
-        .sort({ createAt: -1 })
+        .sort({ endedAt: -1, createAt: -1 })
         .toArray();
+
+      const games = rows.map((g) => {
+        const plies = Number(g.totalPlies ?? g.totalMoves ?? 0);
+        return {
+          ...g,
+          WhiteName: g.WhiteName ?? g.White ?? "White",
+          BlackName: g.BlackName ?? g.Black ?? "Black",
+          totalPlies: plies,
+          totalMoves: Math.ceil(plies / 2),
+          Date: g.Date ?? (g.createAt ? new Date(g.createAt).toISOString().slice(0, 10) : ""),
+          source: g.source ?? (Array.isArray(g.fenHistory) && g.fenHistory.length > 0 ? "fen" : "pgn"),
+        };
+      });
+
       setCached(HISTORY_CACHE_KEY, games, HISTORY_TTL_MS);
       withCacheHeaders(res, 10);
       res.json(games);

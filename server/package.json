@@ -8,7 +8,8 @@
     "dev":   "nodemon server.js",
     "start": "node server.js",
     "seed":  "node seed.js",
-    "seed:bulk": "node seed.js --bulk"
+    "seed:bulk": "node seed.js --bulk",
+    "migrate:history": "node migrate-history.js"
   },
   "dependencies": {
     "chess.js":  "^1.4.0",

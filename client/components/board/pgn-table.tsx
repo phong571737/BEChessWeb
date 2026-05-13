@@ -85,9 +85,11 @@ export function PGNTable({ pgn, cursor, moveTimesMap, onGoTo }: Props) {
 
   if (pairs.length === 0) {
     return (
-      <div className="flex-1 h-full flex items-center justify-center text-xs text-muted-foreground py-6">
-        {t("board.noMoves")}
-      </div>
+      <ScrollArea className="flex-1 min-h-0 h-full">
+        <div className="min-h-full flex items-center justify-center text-xs text-muted-foreground py-6">
+          {t("board.noMoves")}
+        </div>
+      </ScrollArea>
     );
   }
 

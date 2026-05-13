@@ -134,20 +134,42 @@ gameRouter.post("/:id/endgame", async (req, res) => {
         }
         const chess = new Chess();
         chess.loadPgn(pgn);
+        const gameBaseFen = game?.fen && typeof game.fen === "string" ? game.fen : new Chess().fen();
+        const now = new Date();
+        const dateTag = now.toISOString().slice(0, 10).replace(/-/g, ".");
+        chess.setHeader("Event", "TTLab Chess");
+        chess.setHeader("Site", process.env.PUBLIC_SITE || "TTLab Arena");
+        chess.setHeader("Round", String(gameID));
+        chess.setHeader("White", game?.WhiteName || chess.getHeaders().White || "White");
+        chess.setHeader("Black", game?.BlackName || chess.getHeaders().Black || "Black");
+        chess.setHeader("Date", dateTag);
+        if (gameBaseFen !== new Chess().fen()) {
+          chess.setHeader("SetUp", "1");
+          chess.setHeader("FEN", gameBaseFen);
+        }
         const header = chess.getHeaders();
+        const normalizedPgn = chess.pgn();
         const game = await loadGame(gameID);
         const endedAt = new Date();
         const startedAt = game?.createdAt ? new Date(game.createdAt) : null;
         const durationSec = startedAt ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;
 
+        const finalFen = chess.fen();
         const doc = {
             gameID,
-            pgn,
+            pgn: normalizedPgn,
             Result: header.Result || "*",
-            White: header.White || "White",
-            Black: header.Black || "Black",
+            WhiteName: header.White || game?.WhiteName || "White",
+            BlackName: header.Black || game?.BlackName || "Black",
+            White: header.White || game?.WhiteName || "White",
+            Black: header.Black || game?.BlackName || "Black",
             Date: header.Date || "",
+            totalPlies: chess.history().length,
             totalMoves: chess.history().length,
+            fenStart: "start",
+            fenEnd: finalFen,
+            fenHistory: Array.isArray(game?.fenHistory) ? game.fenHistory : [],
+            source: "pgn",
             createAt: startedAt ?? endedAt,
             endedAt,
             durationSec,

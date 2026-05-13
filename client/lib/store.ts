@@ -24,11 +24,13 @@ interface GameStoreState {
 const defaultBoard = (): BoardState => ({
   fen: "start",
   pgn: "",
+  fenHistory: null,
   cp: null,
   whiteName: "White",
   blackName: "Black",
   lastMove: null,
   boardConnected: false,
+  lastSeq: 0,
   status: "waiting",
   scanMissing: [],
   scanReason: null,

@@ -71,6 +71,7 @@ function AppSidebar({
           size="icon"
           className={cn("size-7 md:hidden shrink-0", !collapsed && "ml-auto")}
           onClick={onCloseMobile}
+          aria-label="Close sidebar"
         >
           <X className="size-3.5" />
         </Button>
@@ -191,6 +192,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 size="icon"
                 className="size-8 md:hidden"
                 onClick={() => setMobileOpen(true)}
+                aria-label="Open sidebar"
               >
                 <Menu className="size-4" />
               </Button>
@@ -201,6 +203,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                 size="icon"
                 className="size-8 hidden md:inline-flex"
                 onClick={() => setCollapsed((v) => !v)}
+                aria-label="Toggle sidebar"
               >
                 <ChevronRight className={cn(
                   "size-4 transition-transform duration-200",
@@ -245,6 +248,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                   size="icon"
                   className="size-8"
                   onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                  aria-label="Toggle theme"
                 >
                   <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                   <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

@@ -39,7 +39,7 @@ export function GameHistory() {
     .filter((g) => {
       const q = search.trim().toLowerCase();
       if (!q) return true;
-      return `${g.White} ${g.Black}`.toLowerCase().includes(q);
+      return `${g.WhiteName} ${g.BlackName}`.toLowerCase().includes(q);
     })
     .sort((a, b) => {
       let cmp = 0;
@@ -48,8 +48,8 @@ export function GameHistory() {
       } else if (sortBy === "moves") {
         cmp = a.totalMoves - b.totalMoves;
       } else if (sortBy === "players") {
-        const ap = `${a.White} vs ${a.Black}`.toLowerCase();
-        const bp = `${b.White} vs ${b.Black}`.toLowerCase();
+        const ap = `${a.WhiteName} vs ${a.BlackName}`.toLowerCase();
+        const bp = `${b.WhiteName} vs ${b.BlackName}`.toLowerCase();
         cmp = ap.localeCompare(bp);
       } else if (sortBy === "duration") {
         cmp = (a.durationSec ?? -1) - (b.durationSec ?? -1);
@@ -170,7 +170,7 @@ export function GameHistory() {
                 </div>
               ) : null}
               <div className="table-scroll max-h-[60vh] overflow-auto">
-                <table className="w-full min-w-[1120px] border-separate border-spacing-0">
+                <table className="w-full min-w-[860px] md:min-w-[980px] lg:min-w-[1120px] border-separate border-spacing-0">
                   <thead className="sticky top-0 z-20 bg-muted/50 backdrop-blur-sm">
                     <tr className="border-b border-border">
                       <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[72px]">
@@ -207,8 +207,7 @@ export function GameHistory() {
                     {filteredGames.map((game, i) => (
                       <tr
                         key={game._id}
-                        onClick={() => router.push(`/played/review/${game._id}`)}
-                        className="group cursor-pointer border-t border-border/60 hover:bg-accent/60 transition-colors"
+                        className="group border-t border-border/60 hover:bg-accent/60 transition-colors"
                       >
                         <td className="px-4 py-3 text-xs text-muted-foreground/60 font-mono">
                           {i + 1}
@@ -219,13 +218,20 @@ export function GameHistory() {
                           </Badge>
                         </td>
                         <td className="px-4 py-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/10 dark:border-white/10 shrink-0" />
-                            <span className="text-sm font-medium text-foreground truncate">{game.White}</span>
-                            <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider shrink-0">vs</span>
-                            <span className="text-sm font-medium text-foreground truncate">{game.Black}</span>
-                            <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
-                          </div>
+                          <button
+                            type="button"
+                            onClick={() => router.push(`/played/review/${game._id}`)}
+                            className="w-full text-left"
+                            aria-label={`Open history ${game.WhiteName} vs ${game.BlackName}`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0">
+                              <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/10 dark:border-white/10 shrink-0" />
+                              <span className="text-sm font-medium text-foreground truncate">{game.WhiteName}</span>
+                              <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider shrink-0">vs</span>
+                              <span className="text-sm font-medium text-foreground truncate">{game.BlackName}</span>
+                              <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
+                            </div>
+                          </button>
                         </td>
                         <td className="px-4 py-3 text-right">
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">

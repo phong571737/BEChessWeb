@@ -44,6 +44,11 @@ export function useBle() {
   // null = not yet checked (SSR), true/false = checked on client
   const [isSupported, setIsSupported] = useState<boolean | null>(null);
 
+  // Button state — tracked from [BTN] log messages
+  const [lastButtonPressTs, setLastButtonPressTs] = useState<number | null>(null);
+  const [buttonPressCount,  setButtonPressCount]  = useState(0);
+  const [buttonPressed,     setButtonPressed]     = useState(false);
+
   // GATT characteristic refs for the currently-active device
   const cmdCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
   const otaCharRef = useRef<BluetoothRemoteGATTCharacteristic | null>(null);
@@ -236,6 +241,15 @@ export function useBle() {
               : [...prev, { ssid: parts.ssid, rssi: parseInt(parts.rssi ?? "-100", 10) }]
           );
         }
+      } else if (val.startsWith("[BTN_DOWN]")) {
+        setButtonPressed(true);
+        setLastButtonPressTs(Date.now());
+        setButtonPressCount(c => c + 1);
+      } else if (val.startsWith("[BTN_UP]")) {
+        setButtonPressed(false);
+      } else if (val.startsWith("[BTN]")) {
+        setLastButtonPressTs(Date.now());
+        setButtonPressCount(c => c + 1);
       } else {
         addLog(`[LOG] ${val}`);
       }
@@ -402,5 +416,8 @@ export function useBle() {
     otaCharRef,
     addLog,
     isSupported,
+    lastButtonPressTs,
+    buttonPressCount,
+    buttonPressed,
   };
 }

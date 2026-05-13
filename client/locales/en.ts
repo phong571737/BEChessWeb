@@ -155,6 +155,14 @@ export const en = {
   "dev.gameDuplicate": "Duplicate RFID tag detected — check board tags",
   "dev.gameMissingAt": "Missing at:",
 
+  // ── Button status ───────────────────────────────────────────────
+  "dev.buttonStatus":  "Physical Button",
+  "dev.buttonPressed": "PRESSED",
+  "dev.buttonIdle":    "Idle",
+  "dev.buttonNoPress": "No button presses yet",
+  "dev.buttonCount":   "{n} press(es)",
+  "dev.buttonLast":    "Last",
+
   // ── Played / History ────────────────────────────────────────────
   "played.title": "Game History",
   "played.gamesPlayed": "{n} games played",

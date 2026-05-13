@@ -42,7 +42,7 @@ setInterval(() => {
  * Response: { ok, gameID?, command? }
  */
 boardRouter.post("/heartbeat", (req, res) => {
-    const { boardID, gameID: currentGameID = null, ip = null } = req.body;
+    const { boardID, gameID: currentGameID = null, ip = null, btn = 0 } = req.body;
     if (!boardID) return res.status(400).json({ error: "Missing boardID" });
 
     const existing = registry.get(boardID);
@@ -63,8 +63,9 @@ boardRouter.post("/heartbeat", (req, res) => {
         pendingGameID: null,           // clear after reading
         lastSeen:      now,
         ip,
+        btn:           btn === 1 || btn === "1",
     });
-    getIO().emit("board_heartbeat", { boardID, gameID: resolvedGameID, online: true, lastSeen: now });
+    getIO().emit("board_heartbeat", { boardID, gameID: resolvedGameID, online: true, lastSeen: now, ip, btn: btn === 1 || btn === "1" });
 
     const resp = { ok: true };
 
@@ -205,5 +206,6 @@ boardRouter.get("/", async (req, res) => {
         online: true,
         lastSeen: info.lastSeen,
         ip: info.ip ?? null,
+        btn: info.btn ?? false,
     })));
 });

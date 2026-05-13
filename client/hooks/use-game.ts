@@ -20,6 +20,22 @@ export function useGame(gameID: string) {
   const [rescanLoading, setRescanLoading] = useState(false);
   const [boardOffline, setBoardOffline] = useState(false);
   const [activeAlert, setActiveAlert] = useState<BoardAlert | null>(null);
+  const [scanActive, setScanActive] = useState(false);
+  const scanStartedAtRef = useRef<number>(0);
+  const [scanLatencyMs, setScanLatencyMs] = useState<number | null>(null);
+  const scanClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const evalDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastEvalFenRef = useRef<string>("");
+
+  const requestEvalDebounced = useCallback((fen: string) => {
+    if (!socket || !gameID || !fen) return;
+    if (fen === lastEvalFenRef.current) return;
+    if (evalDebounceRef.current) clearTimeout(evalDebounceRef.current);
+    evalDebounceRef.current = setTimeout(() => {
+      socket.emit("request_eval", { gameID, fen });
+      lastEvalFenRef.current = fen;
+    }, 350);
+  }, [socket, gameID]);
   const alertTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const cachedBoard = boards[gameID];
 
@@ -99,7 +115,16 @@ export function useGame(gameID: string) {
     const onBoardOffline = (data: any) => {
       if (data.gameID !== gameID) return;
       setBoardOffline(true);
+      setScanActive(false);
       patchBoard(gameID, { boardConnected: false });
+    };
+
+    const onHeartbeat = (data: any) => {
+      if (data.gameID !== gameID) return;
+      if (data.btn === true) {
+        scanStartedAtRef.current = Date.now();
+        setScanActive(true);
+      }
     };
 
     const onAlert = (data: any) => {
@@ -130,6 +155,7 @@ export function useGame(gameID: string) {
     socket.on("game_status_update", onGameStatusUpdate);
     socket.on("board_offline",      onBoardOffline);
     socket.on("board_alert",        onAlert);
+    socket.on("board_heartbeat",    onHeartbeat);
 
     return () => {
       socket.off("board_scan_ok",      onScanOk);
@@ -137,7 +163,9 @@ export function useGame(gameID: string) {
       socket.off("game_status_update", onGameStatusUpdate);
       socket.off("board_offline",      onBoardOffline);
       socket.off("board_alert",        onAlert);
+      socket.off("board_heartbeat",    onHeartbeat);
       if (alertTimerRef.current) clearTimeout(alertTimerRef.current);
+      if (scanClearTimerRef.current) clearTimeout(scanClearTimerRef.current);
     };
   }, [socket, gameID, patchBoard]);
 
@@ -222,6 +250,7 @@ export function useGame(gameID: string) {
           fen:      game.fen,
           pgn:      game.pgn      || "",
           lastMove: game.lastMove || null,
+          fenHistory: game.fenHistory || null,
           ...(game.status === "finished" && { status: "ended", result: game.result }),
         });
       } catch {}
@@ -235,12 +264,23 @@ export function useGame(gameID: string) {
   useEffect(() => {
     if (!socket || !gameID || !isLoaded) return;
 
-    socket.emit("request_eval", { gameID, fen: chessRef.current.fen() });
+    requestEvalDebounced(chessRef.current.fen());
 
     const onMove = (data: any) => {
       if (data.gameID !== gameID) return;
 
+      const currentSeq = boards[gameID]?.lastSeq ?? 0;
+      const incomingSeq = Number(data.lastSeq ?? 0);
+      if (incomingSeq > 0 && incomingSeq < currentSeq) return;
+
       const now  = data.movedAt ? Number(data.movedAt) : Date.now();
+      if (scanStartedAtRef.current > 0) {
+        setScanLatencyMs(Math.max(0, now - scanStartedAtRef.current));
+      }
+      setScanActive(false);
+      if (scanClearTimerRef.current) clearTimeout(scanClearTimerRef.current);
+      scanClearTimerRef.current = setTimeout(() => setScanLatencyMs(null), 1500);
+      scanStartedAtRef.current = 0;
       const idx  = sessionTs.current.length;
       const prevTs   = idx === 0 ? lastMoveAtRef.current : sessionTs.current[idx - 1];
       const duration = now - prevTs;
@@ -254,11 +294,13 @@ export function useGame(gameID: string) {
 
       try { if (data.pgn) chessRef.current.loadPgn(data.pgn); } catch {}
       patchBoard(gameID, {
-        fen:      data.fen      || chessRef.current.fen(),
-        pgn:      data.pgn      || chessRef.current.pgn(),
-        lastMove: data.lastMove || null,
+        fen:        data.fen        || chessRef.current.fen(),
+        pgn:        data.pgn        || chessRef.current.pgn(),
+        lastMove:   data.lastMove   || null,
+        fenHistory: data.fenHistory || null,
+        lastSeq: incomingSeq > 0 ? incomingSeq : currentSeq,
       });
-      socket.emit("request_eval", { gameID, fen: data.fen || chessRef.current.fen() });
+      requestEvalDebounced(data.fen || chessRef.current.fen());
     };
 
     const onEval = (data: any) => {
@@ -326,8 +368,9 @@ export function useGame(gameID: string) {
       socket.off("board_connected", onBoardConnected);
       socket.off("game:renamed",    onRenamed);
       socket.off("update_all_game", onUpdateAll);
+      if (evalDebounceRef.current) clearTimeout(evalDebounceRef.current);
     };
-  }, [socket, gameID, isLoaded]);
+  }, [socket, gameID, isLoaded, boards, requestEvalDebounced]);
 
   // ── PGN history ────────────────────────────────────────────────
   const board = boards[gameID];
@@ -380,6 +423,7 @@ export function useGame(gameID: string) {
   return {
     fen:            board?.fen            ?? "start",
     pgn:            board?.pgn            ?? "",
+    fenHistory:     board?.fenHistory      ?? null,
     cp:             board?.cp             ?? null,
     whiteName:      board?.whiteName      ?? "White",
     blackName:      board?.blackName      ?? "Black",
@@ -402,5 +446,7 @@ export function useGame(gameID: string) {
     chess:        chessRef.current,
     lastMoveAt,
     moveTimesMap,
+    scanActive,
+    scanLatencyMs,
   };
 }

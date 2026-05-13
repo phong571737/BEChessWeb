@@ -10,6 +10,7 @@ const isDocker = process.env.DOCKER === "1";
 const nextConfig: NextConfig = {
   // standalone mode: needed for Docker self-hosted, skip on Vercel
   ...(isDocker && { output: "standalone" }),
+  outputFileTracingRoot: require("path").join(__dirname, ".."),
   async rewrites() {
     return [
       { source: "/games/:path*",  destination: `${API_URL}/games/:path*` },

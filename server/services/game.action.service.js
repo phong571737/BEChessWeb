@@ -11,9 +11,11 @@ export const GameActionService = {
             gameID,
             fen: new Chess().fen(),
             pgn: "",
+            fenHistory: [],
             lastMove: null,
             lastSeq: 0,
             status: "waiting_scan",
+            result: null,
             scanMissing: [],
             scanReason: null,
         });

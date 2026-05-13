@@ -157,6 +157,14 @@ export const vi: Record<TranslationKeys, string> = {
   "dev.gameDuplicate": "Phát hiện thẻ RFID trùng — kiểm tra thẻ trên bàn",
   "dev.gameMissingAt": "Thiếu tại:",
 
+  // ── Button status ───────────────────────────────────────────────
+  "dev.buttonStatus":  "Nút bấm vật lý",
+  "dev.buttonPressed": "ĐANG NHẤN",
+  "dev.buttonIdle":    "Chờ",
+  "dev.buttonNoPress": "Chưa nhấn nút",
+  "dev.buttonCount":   "{n} lần",
+  "dev.buttonLast":    "Gần nhất",
+
   // ── Played / History ────────────────────────────────────────────
   "played.title": "Lịch sử ván cờ",
   "played.gamesPlayed": "{n} ván đã chơi",

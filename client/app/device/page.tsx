@@ -398,6 +398,7 @@ export default function DevicePage() {
     status, devices, activeDevice, logs,
     wifiNets, clearWifiNets,
     scan, connectDevice, disconnect, sendCmd, otaCharRef, addLog, isSupported,
+    lastButtonPressTs, buttonPressCount, buttonPressed,
   } = useBle();
 
   const { t } = useT();
@@ -554,6 +555,47 @@ export default function DevicePage() {
             <p className="text-xs text-muted-foreground">
               {t("dev.configuring")}: <span className="font-mono font-medium text-foreground">{activeDevice.name}</span>
             </p>
+
+            {/* ── Button status ───────────────────────────────────── */}
+            <div className="rounded-lg border border-border bg-card px-4 py-3 flex items-center gap-3">
+              <div className={cn(
+                "size-9 rounded-md flex items-center justify-center shrink-0",
+                buttonPressed ? "bg-green-500/10" : "bg-muted"
+              )}>
+                <span className={cn(
+                  "text-lg",
+                  buttonPressed ? "text-green-500" : "text-muted-foreground/40"
+                )}>
+                  {buttonPressed ? "◉" : "○"}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-semibold">
+                    {t("dev.buttonStatus")}
+                  </span>
+                  {buttonPressed ? (
+                    <Badge variant="default" className="text-[10px] h-5 px-1.5 bg-green-600 animate-pulse">
+                      {t("dev.buttonPressed")}
+                    </Badge>
+                  ) : (
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                      {t("dev.buttonIdle")}
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {buttonPressCount === 0
+                    ? t("dev.buttonNoPress")
+                    : t("dev.buttonCount", { n: buttonPressCount })
+                  }
+                  {lastButtonPressTs !== null && (
+                    <> &middot; {t("dev.buttonLast")}: <span className="font-mono text-foreground/70">{new Date(lastButtonPressTs).toLocaleTimeString("en-GB", { hour12: false })}</span></>
+                  )}
+                </p>
+              </div>
+            </div>
+
             <BleConfigForm
               onSend={sendCmd}
               wifiNets={wifiNets}
