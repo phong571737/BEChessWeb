@@ -15,6 +15,8 @@ type MoveVerbose = {
   promotion?: "q" | "r" | "b" | "n";
   san: string;
   flags: string;
+  from: string;
+  to: string;
 };
 
 export function MatchAnalysis({ game }: { game: HistoryGame }) {
@@ -29,8 +31,44 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
 
   const data = useMemo(() => {
     const chess = new Chess();
-    chess.loadPgn(game.pgn);
-    const moves = chess.history({ verbose: true }) as MoveVerbose[];
+    let moves: MoveVerbose[] = [];
+
+    try {
+      chess.loadPgn(game.pgn);
+      moves = chess.history({ verbose: true }) as MoveVerbose[];
+    } catch {
+      moves = [];
+    }
+
+    if (moves.length === 0 && Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
+      const temp = new Chess();
+      const recovered: MoveVerbose[] = [];
+
+      for (const nextFen of game.fenHistory) {
+        const prevFen = temp.fen();
+        const legal = temp.moves({ verbose: true }) as MoveVerbose[];
+        let found: MoveVerbose | null = null;
+
+        for (const mv of legal) {
+          temp.load(prevFen);
+          temp.move({ from: (mv as MoveVerbose & { from: string }).from, to: (mv as MoveVerbose & { to: string }).to, promotion: mv.promotion });
+          if (temp.fen() === nextFen) {
+            found = mv;
+            break;
+          }
+        }
+
+        if (!found) {
+          recovered.length = 0;
+          break;
+        }
+
+        recovered.push(found);
+        temp.load(nextFen);
+      }
+
+      moves = recovered;
+    }
 
     const counters = {
       whiteCaptures: 0,
