@@ -134,9 +134,13 @@ gameRouter.post("/:id/endgame", async (req, res) => {
         }
         const chess = new Chess();
         chess.loadPgn(pgn);
-        const gameBaseFen = game?.fen && typeof game.fen === "string" ? game.fen : new Chess().fen();
         const now = new Date();
         const dateTag = now.toISOString().slice(0, 10).replace(/-/g, ".");
+
+        // Load game from DB first to get stored data
+        const game = await loadGame(gameID);
+
+        const gameBaseFen = game?.fen && typeof game.fen === "string" ? game.fen : new Chess().fen();
         chess.setHeader("Event", "TTLab Chess");
         chess.setHeader("Site", process.env.PUBLIC_SITE || "TTLab Arena");
         chess.setHeader("Round", String(gameID));
@@ -149,7 +153,6 @@ gameRouter.post("/:id/endgame", async (req, res) => {
         }
         const header = chess.getHeaders();
         const normalizedPgn = chess.pgn();
-        const game = await loadGame(gameID);
         const endedAt = new Date();
         const startedAt = game?.createdAt ? new Date(game.createdAt) : null;
         const durationSec = startedAt ? Math.max(0, Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000)) : null;

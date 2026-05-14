@@ -11,11 +11,8 @@ WORKDIR /app/client
 COPY --from=deps /app/client/node_modules ./node_modules
 COPY client/ ./
 
-# NEXT_PUBLIC_* vars are inlined at build time — pass the public server URL
-ARG NEXT_PUBLIC_SOCKET_URL=http://localhost:8080
-ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
-
-# API_URL is used by Next.js rewrites (server-side only, not exposed to browser)
+# API_URL is used by server-side code (rewrites, SSR) — the browser derives its
+# own URL from window.location so NEXT_PUBLIC_* vars are not needed here.
 ARG API_URL=http://server:8080
 ENV API_URL=$API_URL
 

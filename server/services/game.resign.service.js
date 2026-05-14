@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
 import { endGameOnce, loadGame, saveGame } from "../models/game.model.js";
-import { resetGame } from "../game/game.manager.js";
+import { resetGame, games as memGames } from "../game/game.manager.js";
 import { getIO } from "../sockets/index.js";
 import { getBoardRegistry } from "../routes/board.route.js";
 
@@ -16,7 +16,13 @@ export const GameResignService = {
         
         const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
         const chess = new Chess();
-        const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
+
+        // Prefer in-memory PGN (real-time, from incremental builder) over DB PGN
+        const memGame = memGames.get(gameID);
+        const livePgn = memGame ? memGame.pgn() : null;
+        const pgn = (livePgn && livePgn.trim()) ? livePgn
+          : (typeof game.pgn === "string" && game.pgn.trim()) ? game.pgn
+          : "";
         if (pgn) chess.loadPgn(pgn);
         const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
         const now = new Date();

@@ -66,7 +66,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       const temp = new Chess();
       for (let i = 0; i < game.fenHistory.length; i++) {
         const nextFen = game.fenHistory[i];
-        let san = `?`;
+        let san = `fen#${nextFen}`;
         let lastMove: { from: string; to: string } | null = null;
 
         try {
@@ -117,11 +117,19 @@ export function PGNReviewContent({ game }: ReviewProps) {
     };
   }, []);
 
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const getAudioCtx = () => {
+    if (!audioCtxRef.current) {
+      const AC = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AC) return null;
+      audioCtxRef.current = new AC();
+    }
+    return audioCtxRef.current;
+  };
+
   const playNavSound = (forward: boolean) => {
-    if (typeof window === "undefined") return;
-    const AC = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!AC) return;
-    const ctx = new AC();
+    const ctx = getAudioCtx();
+    if (!ctx) return;
     const osc = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.type = "triangle";
@@ -135,9 +143,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
     gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.06);
     osc.start(now);
     osc.stop(now + 0.07);
-    osc.onended = () => {
-      ctx.close().catch(() => {});
-    };
+    osc.onended = () => {};
   };
 
   const goTo = useCallback((idx: number, withSound = true) => {

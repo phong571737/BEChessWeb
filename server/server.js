@@ -51,6 +51,9 @@ async function startServer() {
   // ── FEN history store — reconstruct PGN from FEN sequence ─────────────
   const fenHistoryStore = new Map(); // gameID → [fen, ...]
 
+  // Persistent Chess instances for incremental PGN building (avoids O(n²) rebuilds)
+  const pgnBuilders = new Map(); // gameID → { chess: Chess, fenCount: number }
+
   /**
    * Try to find the chess move (from→to) that connects prevFen → nextFen.
    * Returns null if no single legal move bridges the gap.
@@ -73,6 +76,8 @@ async function startServer() {
 
   /**
    * Rebuild PGN string from a list of FEN positions.
+   * Handles gaps by force-loading FENs that don't match a single legal move,
+   * so a dropped frame doesn't ruin the entire PGN.
    */
   function buildPGNFromFens(fens) {
     if (fens.length < 2) return "";
@@ -81,12 +86,37 @@ async function startServer() {
       c.load(fens[0]);
       for (let i = 1; i < fens.length; i++) {
         const move = findMoveBetweenFens(c.fen(), fens[i]);
-        if (!move) break;
-        c.move({ from: move.from, to: move.to, promotion: move.promotion });
+        if (move) {
+          c.move({ from: move.from, to: move.to, promotion: move.promotion });
+        } else {
+          // Gap detected (dropped FEN). Force-load to resync — PGN will
+          // be incomplete but subsequent moves are still captured.
+          try { c.load(fens[i]); } catch { break; }
+        }
       }
       return c.pgn();
     } catch {
       return "";
+    }
+  }
+
+  /** Resync (or create) the incremental PGN builder from the full FEN list */
+  function syncPgnBuilder(gameID, history) {
+    if (history.length < 1) { pgnBuilders.delete(gameID); return null; }
+    try {
+      const c = new Chess();
+      c.load(history[0]);
+      for (let i = 1; i < history.length; i++) {
+        const m = findMoveBetweenFens(c.fen(), history[i]);
+        if (m) c.move({ from: m.from, to: m.to, promotion: m.promotion });
+        else try { c.load(history[i]); } catch { break; }
+      }
+      const entry = { chess: c, fenCount: history.length };
+      pgnBuilders.set(gameID, entry);
+      return entry;
+    } catch {
+      pgnBuilders.delete(gameID);
+      return null;
     }
   }
 
@@ -129,9 +159,30 @@ async function startServer() {
       } catch {}
     }
 
+    // Build PGN — try incremental first, fall back to full rebuild
+    function buildPgn() {
+      // Try incremental builder
+      const builder = pgnBuilders.get(gameID);
+      if (builder && builder.fenCount === history.length - 1) {
+        const move = findMoveBetweenFens(builder.chess.fen(), fen);
+        if (move) {
+          builder.chess.move({ from: move.from, to: move.to, promotion: move.promotion });
+          builder.fenCount = history.length;
+          return builder.chess.pgn();
+        }
+      }
+      // Fallback: rebuild from full history
+      const pgn = buildPGNFromFens(history);
+      syncPgnBuilder(gameID, history);
+      return pgn;
+    }
+
     // Dedupe: skip if same as last FEN
     if (history.length > 0 && history[history.length - 1] === fen) {
-      const pgn = buildPGNFromFens(history);
+      const builder = pgnBuilders.get(gameID);
+      const pgn = builder && builder.fenCount === history.length
+        ? builder.chess.pgn()
+        : buildPGNFromFens(history);
       try { if (games.has(gameID)) games.get(gameID).loadPgn(pgn); } catch {}
       const lastMove = history.length >= 2
         ? findMoveBetweenFens(history[history.length - 2], history[history.length - 1])
@@ -148,9 +199,7 @@ async function startServer() {
     }
 
     history.push(fen);
-
-    // Build PGN (best-effort — may be empty if FEN sequence is invalid)
-    const pgn = buildPGNFromFens(history);
+    const pgn = buildPgn();
     const lastMove = history.length >= 2
       ? findMoveBetweenFens(history[history.length - 2], history[history.length - 1])
       : null;

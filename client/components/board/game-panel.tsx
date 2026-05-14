@@ -106,6 +106,13 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
   const [copied, setCopied] = useState(false);
   const [notationMode, setNotationMode] = useState<"pgn" | "fen">("pgn");
 
+  // Auto-switch to FEN mode when PGN is empty but fenHistory exists
+  useEffect(() => {
+    if (!pgn?.trim() && fenHistoryProp?.length) {
+      setNotationMode("fen");
+    }
+  }, [pgn, fenHistoryProp]);
+
   // Build FEN history from PGN, falling back to raw fenHistory prop
   const fenHistory = useMemo(() => {
     if (pgn?.trim()) {
@@ -271,6 +278,11 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
       {/* ── PGN/FEN list ── */}
       <div className="border-b border-border px-2 py-1">
+        {!pgn?.trim() && !!fenHistoryProp?.length && (
+          <div className="text-[10px] text-amber-600 dark:text-amber-400 mb-1 leading-tight">
+            PGN unavailable, using FEN timeline
+          </div>
+        )}
         <div className="inline-flex rounded-md border border-border overflow-hidden bg-muted/40">
           <button
             type="button"

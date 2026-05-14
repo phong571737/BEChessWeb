@@ -213,6 +213,7 @@ export function useGame(gameID: string) {
           whiteName:   game.WhiteName || "White",
           blackName:   game.BlackName || "Black",
           lastMove:    game.lastMove  || null,
+          fenHistory:  game.fenHistory || null,
           status:      boardStatus,
           result:      game.result    ?? undefined,
           scanMissing: game.scanMissing ?? [],
