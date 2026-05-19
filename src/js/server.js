@@ -14,6 +14,7 @@ import os from "os";
 import { stockfishService } from "./services/stockfish.instance.js";
 import { evalRouter } from "./routes/eval.route.js";
 import { initMqtt } from "./services/mqtt.service.js";
+import { boardRouter } from "./routes/board.route.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -34,6 +35,7 @@ async function StartServer() {
 
   app.use("/moves", moveRouter); //moves
   app.use("/games", gameRouter); // get games/current and games
+  app.use("/boards", boardRouter); // create a new board
   app.use("/", evalRouter);
 
   const html_path = path.join(__dirname, '../ServerWeb/html/index.html');

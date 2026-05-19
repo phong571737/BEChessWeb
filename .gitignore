@@ -1,7 +1,14 @@
 .env
 .env.local
 .env.*.local
+
+# node module
 node_modules/
+frontend/node_modules
+
+# next js
+frontend/.next
+
 mongodb_data/
 .DS_Store
 dist/

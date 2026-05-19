@@ -29,23 +29,6 @@ export function initGameSocket(io) {
                 console.log("No valid games found.");
             }
         });
- 
-        socket.on("esp_move", (data)=>{
-            try{
-                if (!data?.gameID || !data?.uci) return;
-
-                const moveResult = makeMove(data.gameID, data.uci);
-
-                io.to(data.gameID).emit("esp_move", {
-                    gameID: moveResult.gameID,
-                    lastMove: moveResult.lastMove,
-                    fen: moveResult.fen
-                });
-                console.log("Save data to RAM:", moveResult.lastMove);
-            }catch(err){
-                console.error("Move failed: ", err.message);
-            }
-        });
 
         socket.on("resign", ({gameID, resignSide}) => {
             const game = getCurrentState(gameID);

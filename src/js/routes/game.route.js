@@ -1,5 +1,5 @@
 import express from "express";
-import {gameSeq, restorefromDB } from "../game/game.manager.js";
+import { restorefromDB } from "../game/game.manager.js";
 import { endGame, finishGame, getPGNCollections, loadGame, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { Chess } from "chess.js";
@@ -12,12 +12,6 @@ import { LogController } from "../controllers/log.controller.js";
 import { WAITING_STATUS } from "../constant.js";
 
 export const gameRouter = express.Router();
-
-/**
- * POST /games
- *This api is used to create game
- */
-gameRouter.post("/", GameController.create);
 
 /**
  * POST /games/current

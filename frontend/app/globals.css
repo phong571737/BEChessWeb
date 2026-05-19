@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+    :root {
+        --background: 0 0% 100%;
+        --foreground: 240 10% 3.9%;
+        --card:                  0 0% 100%;
+        --card-foreground:       240 10% 3.9%;
+        --popover:               0 0% 100%;
+        --popover-foreground:    240 10% 3.9%;
+        --primary:               240 5.9% 10%;
+        --primary-foreground:    0 0% 98%;
+        --secondary:             240 4.8% 95.9%;
+        --secondary-foreground:  240 5.9% 10%;
+        --muted: 240 4.8% 95.9%;
+        --muted-foreground: 240 3.8% 46.1%;
+        --accent:                240 4.8% 95.9%;
+        --accent-foreground:     240 5.9% 10%;
+        --destructive:           0 84.2% 60.2%;
+        --destructive-foreground:0 0% 98%;
+        --border:                240 5.9% 90%;
+        --input:                 240 5.9% 90%;
+        --ring:                  240 5.9% 10%;
+        --radius:                0.375rem;
+
+        /* Sidebar */
+        --sidebar: 240 4.8% 98%;
+        --sidebar-border: 240 5.9% 91%;
+
+        /* Board colors */
+        --board-light:  #e8e8e8;
+        --board-dark:   #7b6040;
+        --board-move:   rgba(236, 243, 116, 0.75);
+
+        /* Semantic status colors (light) */
+        --state-info:     217 91% 60%;
+        --state-success:  142 71% 45%;
+        --state-warning:  43 96% 56%;
+        --state-accent:   262 83% 58%;
+        --state-neutral:  240 4% 46%;
+        --state-white:    217 91% 46%;
+        --state-black:    0 72% 51%;
+        --state-draw:     240 4% 46%;
+
+        /* Header height */
+        --header-h: 56px;
+
+        /* Typography scale */
+        --fs-xs: 0.8125rem;     /* 13px */
+        --fs-sm: 0.875rem;      /* 14px */
+        --fs-base: 0.9375rem;   /* 15px */
+        --fs-lg: 1.0625rem;     /* 17px */
+        --fs-xl: 1.1875rem;     /* 19px */
+    }
+
+    .dark {
+        --background:               240 10% 3.9%;
+        --foreground:               0 0% 98%;
+        --card:                     240 8% 5.5%;
+        --card-foreground:          0 0% 98%;
+        --popover:                  240 8% 5.5%;
+        --popover-foreground:       0 0% 98%;
+        --primary:                  0 0% 98%;
+        --primary-foreground:       240 5.9% 10%;
+        --secondary:                240 3.7% 15.9%;
+        --secondary-foreground:     0 0% 98%;
+        --muted:                    240 3.7% 13%;
+        --muted-foreground:         240 5% 60%;
+        --accent:                240 3.7% 13%;
+        --accent-foreground:     0 0% 98%;
+        --destructive:           0 62.8% 30.6%;
+        --destructive-foreground:0 0% 98%;
+        --border:                240 3.7% 13%;
+        --input:                 240 3.7% 13%;
+        --ring:                  240 4.9% 83.9%;
+
+        /* Sidebar */
+        --sidebar:                  240 8% 4.5%;
+        --sidebar-border:           240 3.7% 11%;
+
+        --board-light: #c8c8c8;
+        --board-dark:  #5a4430;
+
+        /* Semantic status colors (dark) */
+        --state-info:     213 94% 68%;
+        --state-success:  142 69% 58%;
+        --state-warning:  48 96% 64%;
+        --state-accent:   269 95% 75%;
+        --state-neutral:  240 5% 65%;
+        --state-white:    213 94% 68%;
+        --state-black:    0 84% 70%;
+        --state-draw:     240 5% 65%;
+    }
+}
+
+@layer base {
+    * {
+        @apply border-border;
+    }
+
+    body {
+        @apply bg-background text-foreground font-sans antialiased;
+        font-size: var(--fs-base);
+        line-height: 1.55;
+        letter-spacing: 0.005em;
+    }
+}
+
+@layer utilities {
+    .text-sm {
+        font-size: var(--fs-sm);
+        line-height: 1.35rem;
+    }
+}

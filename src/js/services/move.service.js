@@ -1,47 +1,55 @@
 import { error } from "console";
-import { games, gameSeq, makeMove, restorefromDB } from "../game/game.manager.js";
+import { makeMove, restorefromDB } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { saveLog } from "../models/log.model.js";
 import { getIO } from "../sockets/index.js";
 import { stockfishService } from "./stockfish.instance.js";
-import { ILLEGAL_MOVE, STATUS_OK } from "../constant.js";
+import { MOVE_STATUS, MOVE_TYPE } from "../constant.js";
+import { games, gameSeq } from "../game/game.repository.js";
 
 export const MoveService = {
-    async processMove({ uci, start, end, gameID, seq, lift, place }) {
+    async processMove({ uci, start, end, gameID, seq, lift, place, moveType }) {
         // parse input
         let candidates = [];
 
         // a move without knowing the destination
-        if (uci && uci.endsWith("x") && !uci.startsWith("MULTI")) {
-            candidates = await this.parseCaptureMove(uci, gameID);
-            if (candidates.length === 0) {
-                const lastSeq = gameSeq.get(gameID) ?? 0;
-                return { 
-                    status: ILLEGAL_MOVE,
-                    lastSeq,
-                };
+        if (moveType === MOVE_TYPE.CAPTURE || start === "MULTI" ||
+            uci?.startsWith("MULTI") || uci?.includes(",")) {
+            let fromSq = null;
+            if (start === "MULTI") {
+                fromSq = end?.split(",")?.[0]?.slice(0,2);
+            } else if (uci?.startsWith("MULTI")) {
+                const parts = uci.replace("MULTI:", "").replace("MULTI", "").split(",");
+                fromSq = parts[0]?.slice(0, 2);
+            } else if (uci?.includes(",")) {
+                fromSq = uci.split(",")?.[0]?.slice(0, 2);
+            } else {
+                // CAPTURE normal: "e4d5" or "e4x"
+                fromSq = uci?.replace("x", "")?.slice(0, 2);
             }
+            if (!fromSq) return { error: true, message: "Missing fromSq" };
 
-            console.log(`Capture ${uci} create candidates:`, candidates);
-        }
-        else if (start === "MULTI" && end) {
-            candidates = end.split(",");
-        } else if (uci && uci.startsWith("MULTI")) {
-            candidates = uci.replace("MULTI:", "").replace("MULTI", "").split(",");
-        } else if (uci && uci.includes(",")) {
-            candidates = uci.split(",");
+            candidates = [fromSq + 'x'];
+            console.log(`CAPTURE from ${fromSq}, candidates:`, candidates);
+
+        } else if (moveType === MOVE_TYPE.PROMOTE) {
+            candidates = [`${uci}q`, `${uci}r`, `${uci}b`, `${uci}n`];
+        } else if (moveType === MOVE_TYPE.CASTLE) {
+            candidates = [uci];
         } else if (uci) {
             candidates = [uci];
         } else {
             return { error: true, message: "Missing move data" };
         }
 
+        // save log to debug
         const save_log = await saveLog(gameID, seq, uci, lift, place);
         console.log("savelog result", save_log);
 
         // handle move game
-        const state = await makeMove(gameID, candidates, seq);
-        if (state.status != STATUS_OK) return state;
+        const state = await makeMove(gameID, candidates, seq, moveType);
+
+        if (state.status != MOVE_STATUS.OK) return state;
 
         const fen = state.fen;
         // send best move to frontend

@@ -1,4 +1,5 @@
-import { STATUS_OK } from "../constant.js";
+import { MOVE_STATUS } from "../constant.js";
+
 
 export function parseUCI(uci) {
     return {
@@ -14,7 +15,7 @@ export function formatUCI(from, to, promotion) {
 
 export function buildResponse(gameID, game, seq, extra = {}) {
     return {
-        status: STATUS_OK,
+        status: MOVE_STATUS.OK,
         gameID,
         fen: game.fen(),
         pgn: game.pgn(),
