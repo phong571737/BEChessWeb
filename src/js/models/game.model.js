@@ -9,28 +9,32 @@ export function getPGNCollections(){return pgnGames();}
 
 // Save game state
 export async function saveGame(gameID, state) {
-    return games().updateOne(
-        {_id: gameID},
-        { 
-            $set:{ ...state, updateAt: new Date(),},
-            $setOnInsert: { createdAt: new Date(),}
-        },
-        {upsert: true}
-    );
+    try {
+        return games().updateOne(
+            {_id: gameID},
+            { 
+                $set:{ ...state, updateAt: new Date(),},
+                $setOnInsert: { createdAt: new Date(),}
+            },
+            {upsert: true}
+        );
+    } catch {
+        return null;
+    }
 }
 
-export async function loadAllGame() {
+export async function getAllGame() {
     return games().find({}).toArray();
 }
 
 /**This function is used to load game by id */
-export async function loadGame(gameID) {
-    return games().findOne({ _id: gameID});
+export async function getGame(gameID) {
+    return games().findOne({ gameID });
 }
 
 /**This function is used to remove the game */
 export async function removeGame(gameID) {
-    await games().deleteOne({ _id: gameID});
+    await games().deleteOne({ gameID});
     return{ deleted: gameID }
 }
 

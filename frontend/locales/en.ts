@@ -39,6 +39,11 @@ export const en = {
     "board.agreeDrawResult": "Result: 1/2-1/2",
     "board.confirmDraw": "Confirm Draw",
     "board.confirmResult": "Confirm Result",
+    "board.gameEnded": "Game Over",
+    "board.resignedBy": "resigned",
+    "board.drawAgreed": "Draw by agreement",
+    "board.winner": "won",
+    "board.viewHistory": "View History",
     
     // ----- Review page --------------------------------------------------
     "rev.loading": "Loading review...",

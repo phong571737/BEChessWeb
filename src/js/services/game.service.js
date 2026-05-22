@@ -1,21 +1,29 @@
 import { Chess } from "chess.js";
-import { createGame } from "../game/game.manager.js";
+import { createGame, setCurrentGame } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { executeMove } from "../utils/chess.utils.js";
 
 export const GameService = {
   // create game
-  async create(gameID) {
+  async create(boardID, gameID) {
     const chess = createGame(gameID);
     await saveGame(gameID, {
       gameID,
+      boardID,
       fen: chess.fen(),
       pgn: "",
-      lastMove: null
+      lastMove: null,
+      active: true,
     });
 
-    return chess;
+    setCurrentGame(boardID, gameID);
+
+    return {
+      boardID, 
+      gameID, 
+      fen: chess.fen(),
+    };
   },
 }
 

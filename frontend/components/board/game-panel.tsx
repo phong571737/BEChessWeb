@@ -17,7 +17,7 @@ interface Props {
     // fen: string;
     pgn: string;
     // boardConnected: boolean;
-    // status: string;
+    status: string;
     /** Timestamp of the last move — drives the live thinking clock */
     lastMoveAt: number;
     /** 0-based ply → elapsed ms (only live moves have an entry) */
@@ -35,7 +35,7 @@ export interface GamePanelHandle {
 }
 
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
-    gameID, WhiteName, BlackName, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate,
+    gameID, WhiteName, BlackName, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status
     //  fen, boardConnected, status
 }, ref) {
     const { t } = useT();

@@ -1,3 +1,5 @@
+import { BOARD_STATUS, BOARD_TYPE } from "../constant.js";
+
 const initialBoard = [
     [1, 1, 1, 1, 1, 1, 1, 1], // row 0 - black
     [1, 1, 1, 1, 1, 1, 1, 1], // row 1
@@ -8,6 +10,62 @@ const initialBoard = [
     [1, 1, 1, 1, 1, 1, 1, 1], // row 6 - white
     [1, 1, 1, 1, 1, 1, 1, 1], // row 7
 ];
+
+const initialBoardNFC = {
+    a1:"R", b1:"N", c1:"B", d1:"Q", e1:"K", f1:"B", g1:"N", h1:"R",
+    a2:"P", b2:"P", c2:"P", d2:"P", e2:"P", f2:"P", g2:"P", h2:"P",
+    a7:"p", b7:"p", c7:"p", d7:"p", e7:"p", f7:"p", g7:"p", h7:"p",
+    a8:"r", b8:"n", c8:"b", d8:"q", e8:"k", f8:"b", g8:"n", h8:"r",
+};
+
+/**
+ * Check the state of initial board NFC
+ * @params {Object} board 
+ * @returns {
+ *  status: BOARD_STATUS,
+ *  missingSquares: string[], 
+ *  extraSquares: string[],
+ *  wrongPieceSquares: { square: string, expected: string, actual: string }[]
+ * }
+ */
+export function checkInitialBoardNFC(board) {
+    const missingSquares = [];
+    const extraSquares = [];
+    const wrongPieceSquares = []; // false piece type
+
+    // Loop for all square 
+    for (const [square, expectedPiece] of Object.entries(initialBoardNFC)) {
+        const actualPiece = board[square];
+
+        if (!actualPiece) {
+            missingSquares.push(square);
+        } else if (actualPiece !== expectedPiece) {
+            wrongPieceSquares.push({
+                square,
+                expected: expectedPiece,
+                actual: actualPiece,
+            })
+        }
+    }
+
+    // Check the squares that shouldn't the pieces but do
+    for (const square of Object.keys(board)) {
+        if (!initialBoardNFC[square]) {
+            extraSquares.push(square);
+        }
+    }
+
+    let status;
+    if (extraSquares.length > 0 || wrongPieceSquares.length > 0) {
+        status = BOARD_STATUS.WRONG_PIECE;
+    } else if (missingSquares.length > 0 ) {
+        status = BOARD_STATUS.MISSING_PIECE;
+    } else {
+        status = BOARD_STATUS.READY;
+    }
+
+    return { status, missingSquares, extraSquares, wrongPieceSquares};
+}
 
 function toSquare(row, col){
     const file = String.fromCharCode(97 + col); // a, b, c, ..., h
@@ -42,10 +100,11 @@ export function checkInitialBoard(board){
                 wrongSquares.push(toSquare(r, c));
             }
         }
+
+        let status;
+        if (wrongSquares.length > 0) status = BOARD_STATUS.WRONG_PIECE;
+        else if (missingSquares.length > 0) status = BOARD_STATUS.MISSING_PIECE;
+        else status = BOARD_STATUS.READY;
     }
-    return{
-        status: wrongSquares.length === 0 && missingSquares.length === 0 ? "ok": "invalid",
-        wrongSquares,
-        missingSquares,
-    }
+    return{ status, wrongSquares, missingSquares,}
 }

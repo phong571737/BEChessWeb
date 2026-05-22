@@ -114,3 +114,8 @@
         line-height: 1.35rem;
     }
 }
+
+/* --------- Semantic text helpers ------------------------------ */
+.bg-state-white { background-color: hsl(var(--state-white)); }
+.bg-state-black { background-color: hsl(var(--state-black)); }
+.bg-state-draw { background-color: hsl(var(--state-draw) / 0.45); }

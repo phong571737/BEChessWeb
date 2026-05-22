@@ -28,7 +28,7 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
 
         games.forEach((g: any) => {
           const board: PhysicalBoard = {
-            boardID: g.gameID,
+            boardID: g.boardID,
             gameID: g.gameID,
             gameStatus:
               g.status === "ok"

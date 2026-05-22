@@ -1,31 +1,41 @@
 import { Chess } from "chess.js";
-import { resetGame } from "../game/game.manager.js";
-import { loadGame, renamePlayer, saveGame } from "../models/game.model.js";
+import { resetGame, setCurrentGame } from "../game/game.manager.js";
+import { getGameCollections, getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { createNewGame, endLog } from "../models/log.model.js";
+import { ERROR_STATUS } from "../constant.js";
+import { GameService } from "./game.service.js";
 
 export const GameActionService = {
     // restart game when the restart button is pressed
-    async restart(gameID) {
+    async restart(oldGameID) {
 
         // close the old game
-        await endLog(gameID, "restart");
+        await endLog(oldGameID, "restart");
+        const oldGame = await getGame(oldGameID);
 
-        // create a new sesion
-        const sessionId = await createNewGame(gameID);
-        //Reset game
-        resetGame(gameID);
+        if (!oldGame) {
+            throw new Error(ERROR_STATUS.NOTFOUND);
+        }
 
-        await saveGame(gameID, {
-            gameID,
-            sessionId,
-            fen: new Chess().fen(),
-            pgn: "",
-            lastMove: null,
-            lastSeq: 0
+        // remove old game
+        await removeGame(oldGameID);
+
+        // create a new game id
+        const newGameID = crypto.randomUUID(); 
+
+        // Create a new game from the same board
+        const newGame = await GameService.create(oldGame.boardID, newGameID);
+
+        getIO().emit("game_restart", { 
+            oldGameID,
+            gameID: newGameID,
+            boardID: oldGame.boardID,
         });
 
-        getIO().emit("game_restart", { gameID, sessionId});
+        return {
+            gameID: newGameID
+        }
     },
 
     // reset game 
@@ -45,7 +55,7 @@ export const GameActionService = {
             return;
         }
 
-        const game = await loadGame(gameID);
+        const game = await getGame(gameID);
         if (!game) return;
 
         await renamePlayer(gameID, color, name);

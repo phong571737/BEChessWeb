@@ -1,15 +1,15 @@
 import { Chess } from "chess.js";
-import { loadGame } from "../models/game.model.js";
+import { getGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { ChessService } from "../services/chess.service.js";
 import { buildResponse, executeMove, formatUCI, parseUCI } from "../utils/chess.utils.js";
 import { createBranches } from "../services/game.service.js";
 import { ERROR_STATUS, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
-import { games, gameSeq, activeBranches } from "./game.repository.js";
+import { games, gameSeq, activeBranches, currentGameByBoard } from "./game.repository.js";
 import { printBranches } from "../utils/debug.branch.js";
 
 export async function restorefromDB(gameID) {
-  const data = await loadGame(gameID);
+  const data = await getGame(gameID);
   if (!data) return null;
 
   const game = new Chess();
@@ -445,4 +445,19 @@ export function destroyBoard(gameID) {
 
   const game = games.get(gameID);
   game.destroy();
+}
+
+// Map boarid to gameid
+export function setCurrentGame(boardID, gameID) {
+  console.log("SET CURRENT GAME");
+  console.log(boardID, gameID);
+
+  currentGameByBoard.set(boardID, gameID);
+
+  console.log(currentGameByBoard);
+}
+
+// Get gameID from boardID
+export function getCurrentGame(boardID) {
+  return currentGameByBoard.get(boardID);
 }

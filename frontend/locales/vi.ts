@@ -41,6 +41,11 @@ export const vi: Record<TranslationKeys, string> = {
     "board.agreeDrawResult": "Kết quả: 1/2-1/2",
     "board.confirmDraw": "Xác nhận hoà",
     "board.confirmResult": "Xác nhận kết quả",
+    "board.gameEnded": "Ván cờ kết thúc",
+    "board.resignedBy": "đầu hàng",
+    "board.drawAgreed": "Đồng ý hoà",
+    "board.winner": "thắng",
+    "board.viewHistory": "Xem lịch sử",
 
     // ------ Review page -----------------------------------------------
     "rev.loading": "Đang tải...",

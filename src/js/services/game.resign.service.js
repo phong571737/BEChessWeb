@@ -1,59 +1,74 @@
 import { Chess } from "chess.js";
-import { endGame, loadGame, saveGame } from "../models/game.model.js";
+import { endGame, getGame, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { createNewGame, endLog } from "../models/log.model.js";
+import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
+import { GameService } from "./game.service.js";
 
 export const GameResignService = {
     async handle(gameID, resignSide) {
         // close the old game
-        
         await endLog(gameID, "resign");
 
-        // create a new sesion
-        const sessionId = await createNewGame(gameID);
         // Validate 
-        if (!resignSide || !["white", "black"].includes(resignSide)) {
-            return new Error("resignSide Error");
+        if (!resignSide || !["white", "black", "draw"].includes(resignSide)) {
+            throw new Error(ERROR_STATUS.RESIGN_ERROR);
         }
 
-        const game = await loadGame(gameID);
-        if (!game) throw new Error("Game not found");
+        // get current game
+        const game = await getGame(gameID);
+        if (!game) throw new Error(ERROR_STATUS.NOTFOUND);
 
-        const winner = resignSide === "white" ? "black" : "white";
+        const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
+        
+        // rebuild PGN with headers
         const chess = new Chess();
         const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
         if (pgn) chess.loadPgn(pgn);
+
+        const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
+        const now = new Date();
+        const dateTag = now.toISOString().slice(0, 10).replace(/-/g, "");
+
         chess.setHeader("White", game.WhiteName || "White");
         chess.setHeader("Black", game.BlackName || "Black");
-        chess.setHeader("Result", resignSide === "white" ? "0-1" : "1-0");
-        chess.setHeader("Date", new Date().toISOString().split("T")[0]);
+        chess.setHeader("Result", resultTag);
+        chess.setHeader("Date", dateTag);
         const finalPGN = chess.pgn();
 
         // Save to game played
         const doc = {
             gameID,
             pgn: finalPGN,
-            Result: resignSide === "white" ? "0-1" : "1-0",
+            Result: resultTag,
             White: game.WhiteName || "White",
             Black: game.BlackName || "Black",
             Date: new Date().toISOString().split("T")[0],
-            totalMoves: game.lastSeq,
-            endReason: "resigned",
-            loser: resignSide,
+            totalMoves: game.lastSeq ?? 0,
+            endReason: resignSide === "draw" ? "draw_agreed" : "resigned",
+            loser: resignSide === "draw" ? null : resignSide,
             winner,
             createAt: new Date(),
         }
 
         await endGame(doc);
+
         resetGame(gameID);
-        await saveGame(gameID, {
+
+        const updateResult = await saveGame(gameID, {
             fen: new Chess().fen(),
             pgn: "",
-            sessionId,
             lastMove: null,
-            lastSeq: 0
-        })
+            lastSeq: 0, 
+            status: GAME_STATUS.FINISHED,
+            result: resultTag,
+        });
 
-        return { message: "Resign success", loser: resignSide, winner };
+        const newGameID = crypto.randomUUID();
+        await GameService.create(game.boardID, newGameID);
+
+        console.log("saveGame result =", updateResult);
+
+        return { status: "OK" , oldGameID: gameID, newGameID, loser: resignSide, winner };
     }
 }

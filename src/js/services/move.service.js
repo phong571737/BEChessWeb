@@ -1,5 +1,5 @@
 import { error } from "console";
-import { makeMove, restorefromDB } from "../game/game.manager.js";
+import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { saveLog } from "../models/log.model.js";
 import { getIO } from "../sockets/index.js";
@@ -8,7 +8,18 @@ import { MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games, gameSeq } from "../game/game.repository.js";
 
 export const MoveService = {
-    async processMove({ uci, start, end, gameID, seq, lift, place, moveType }) {
+    async processMove({ uci, start, end, boardID, seq, lift, place, moveType }) {
+        const gameID = getCurrentGame(boardID);
+        console.log("boardID", boardID);
+        console.log("gameID", gameID);
+
+        if (!gameID) {
+            return {
+                error: true,
+                message: "",
+            }
+        }
+        
         // parse input
         let candidates = [];
 

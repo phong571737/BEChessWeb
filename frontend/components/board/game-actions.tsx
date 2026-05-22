@@ -22,6 +22,7 @@ export function GameActions({ gameID, onRestart, onResign }: Props) {
     const [resignSide, setResignSide] = useState<"white" | "black" | "draw">("white");
 
     const confirm = async () => {
+        console.log("confirm() called, pending:", pending, "resignSide:", resignSide);
         if (!pending) return;
         setLoading(true);
         try {

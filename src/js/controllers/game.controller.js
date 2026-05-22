@@ -1,11 +1,11 @@
-import { getPGNCollections, loadAllGame } from "../models/game.model.js";
+import { getPGNCollections, getAllGame } from "../models/game.model.js";
 import { GameService } from "../services/game.service.js";
 
 export const GameController = {
     // Get current state
     async getCurrent(req, res) {
         try {
-            const game = await loadAllGame();
+            const game = await getAllGame();
             if (!game) {
                 return res.json(null);
             }

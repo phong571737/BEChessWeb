@@ -1,15 +1,14 @@
 import express from "express";
 import { restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getPGNCollections, loadGame, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, getPGNCollections, getGame, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { Chess } from "chess.js";
-import { checkInitialBoard, convertHalltoBoard } from "../services/board.service.js";
 import { ObjectId } from "mongodb";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { LogController } from "../controllers/log.controller.js";
-import { WAITING_STATUS } from "../constant.js";
+import { GAME_STATUS } from "../constant.js";
 
 export const gameRouter = express.Router();
 
@@ -43,7 +42,7 @@ gameRouter.delete("/history/:id", GameController.deleteHistory);
 gameRouter.get("/:id", async (req, res) => {
     try {
         const { id } = req.params;
-        const game = await loadGame(id);
+        const game = await getGame(id);
         if (!game) {
             return res.status(404).json({ error: "Game not found" });
         }
@@ -97,6 +96,9 @@ gameRouter.post("/:id/destroy", GameActionController.destroy);
 /**
  * POST games/:id/resign
  * This api is used to post Resign game
+ * Body: {resignSide}
+ * Response 200: { status: OK, oldGameID, newGameID, loser, winner }
+ * Response 400, 404, 500: { error};
  */
 gameRouter.post("/:id/resign", GameActionController.resign);
 
@@ -148,55 +150,6 @@ gameRouter.post("/:id/endgame", async (req, res) => {
 });
 
 /**
- * POST games/:id/initcheck
- * This api is used to send the state init of physicboard
- * Esp32 send
- */
-gameRouter.post("/:id/initcheck", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-        const {board} = req.body;
-
-        if (!board || !Array.isArray(board)) {
-            return res.status(400).json({
-                status: "invalid",
-                error: "Invalid board"
-            });
-        }
-
-        const board2D = convertHalltoBoard(board);
-        const result = checkInitialBoard(board2D);
-
-        // getIO().to(gameID).emit("initcheck", {gameID, ...result});
-
-        if (result.status === "ok") {
-            gameState.set(gameID, {
-                gameStatus: "ready",
-                wrongSquares: [],
-                missingSquares: [],
-            });
-        } else {
-            gameState.set(gameID, {
-                gameStatus: "checkinit",
-                wrongSquares: result.wrongSquares || [],
-                missingSquares: result.missingSquares || [],
-            });
-        }
-
-        emitGameState(gameID);
-
-        res.json({
-            gameID,
-            status: result.status,
-        });
-
-    } catch (e) {
-        console.log("Physical board update error", e);
-        res.status(500).json({ status: "invalid", error: "Server error" });
-    }
-});
-
-/**
  * GET games/:id/initcheck
  * This api is used to get state of physic board
  */
@@ -208,7 +161,7 @@ gameRouter.get("/:id/initcheck", async (req, res) => {
         if (!state) {
             return res.json({
                 gameID,
-                status: WAITING_STATUS,
+                status: GAME_STATUS.WAITING,
                 wrongSquares: [],
                 missingSquares: []
             })
