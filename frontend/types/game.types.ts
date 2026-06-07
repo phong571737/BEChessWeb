@@ -61,4 +61,10 @@ export interface BoardState {
     scanMissing: string[]; 
     /** Reason for scan failure: "MISSING" | "DUPLICATE" | null */
     scanReason: "MISSING" | "DUPLICATE" | null;
+
+    // Check init state :
+    initStatus: "waiting" | "ready" | "check_init";
+    missingSquares: string[];
+    extraSquares: string[];
+    wrongPieceSquares: string[];
 }

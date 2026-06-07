@@ -46,6 +46,9 @@ export function createBranches(game, valid_move) {
   });
 }
 
+export function ensureGameExists() {
+  
+}
 
 
 

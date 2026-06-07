@@ -45,4 +45,5 @@ export const BOARD_STATUS = Object.freeze({
     CHECK_INIT: "checkinit",
     WRONG_PIECE: "wrong_piece",
     MISSING_PIECE: "missing_piece",
+    WAITING_BUTTON: "waiting_button",
 });

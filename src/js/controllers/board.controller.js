@@ -67,7 +67,7 @@ export const BoardController = {
     async initCheck(req, res) {
         try {
             const boardID = req.params.id;
-            const { boardType, board } = req.body;
+            const { boardType, board, buttonState } = req.body;
 
             const gameID = getCurrentGame(boardID);
 
@@ -109,10 +109,15 @@ export const BoardController = {
                 })
             }
 
+            let finalStatus = result.status;
+
             // getIO().to(gameID).emit("initcheck", {gameID, ...result});
+            if (result.status === BOARD_STATUS.READY && buttonState !== true) {
+                finalStatus = BOARD_STATUS.WAITING_BUTTON;
+            }
 
             gameState.set(gameID, {
-                status: result.status === BOARD_STATUS.READY ? BOARD_STATUS.READY : BOARD_STATUS.CHECK_INIT,
+                status: finalStatus === BOARD_STATUS.READY ? BOARD_STATUS.READY : BOARD_STATUS.CHECK_INIT,
                 missingSquares: result.missingSquares || [],
                 extraSquares: result.extraSquares || [],
                 wrongPieceSquares: result.wrongPieceSquares || [],
@@ -122,7 +127,7 @@ export const BoardController = {
 
             return res.status(200).json({
                 boardID,
-                status: result.status,
+                status: finalStatus,
                 missingSquares: result.missingSquares || [],
                 extraSquares: result.extraSquares || [],
                 wrongPieceSquares: result.wrongPieceSquares || [],

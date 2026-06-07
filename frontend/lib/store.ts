@@ -1,5 +1,6 @@
 import type { ActiveGame, BoardState, PhysicalBoard } from "@/types/game.types";
 import { create } from "zustand";
+import { GAME_STATUS } from "./constants/game";
 
 interface GameStoreState {
     /** Active games shown on home page */
@@ -31,8 +32,15 @@ const defaultBoard = (): BoardState => ({
     lastMove: null,
     boardConnected: false,
     status: "waiting",
+
     scanMissing: [],
     scanReason: null,
+
+    // Check initial state 
+    initStatus: GAME_STATUS.WAITING,
+    missingSquares: [],
+    extraSquares: [],
+    wrongPieceSquares: [],
 });
 
 export const useGameStore = create<GameStoreState>((set, get) => ({

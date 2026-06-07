@@ -8,17 +8,35 @@ export function getGameCollections(){ return games();}
 export function getPGNCollections(){return pgnGames();}
 
 // Save game state
-export async function saveGame(gameID, state) {
+export async function saveGame(gameID, state, {uci, fen, seq} = {}) {
     try {
+        // remove fen history
+        const {fenHistory, ...safeState} = state;
+
         return games().updateOne(
             {_id: gameID},
             { 
-                $set:{ ...state, updateAt: new Date(),},
-                $setOnInsert: { createdAt: new Date(),}
+                $set:{ ...safeState, 
+                    updateAt: new Date(),
+                },
+                $setOnInsert: { 
+                    createdAt: new Date(),
+                    // fenHistory: []
+                },
+
+                $push: {
+                    fenHistory: {
+                        seq: seq ?? state.seq,
+                        fen: fen ?? state.fen,
+                        move: uci ?? state.move,
+                        timestamp: new Date(),
+                    }
+                }
             },
             {upsert: true}
         );
-    } catch {
+    } catch (e){
+        console.log(e);
         return null;
     }
 }

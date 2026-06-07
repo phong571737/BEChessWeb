@@ -9,10 +9,49 @@ interface Props {
   boardWidth?:      number;
   /** Extra per-square styles merged on top of lastMove highlight */
   highlightSquares?: Record<string, React.CSSProperties>;
+  missingSquares?: string[];
+  extraSquares?: string[];
+  wrongPieceSquares?: string[];
 }
 
-export function ChessBoardView({ fen, lastMove, boardWidth, highlightSquares }: Props) {
+export function ChessBoardView({ 
+  fen, 
+  lastMove, 
+  boardWidth, 
+  
+  highlightSquares, 
+
+  missingSquares,
+  extraSquares,
+  wrongPieceSquares,
+}: Props) {
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
+
+  // ================ Initcheck =========================
+  // Missing piece
+  missingSquares?.forEach((sq) => {
+    squareStyles[sq] = {
+      ...squareStyles[sq],
+      background: "rgba(255,0,0,0.55)",
+    }
+  });
+
+  // Extra piece 
+  extraSquares?.forEach((sq) => {
+    squareStyles[sq] = {
+      ...squareStyles[sq],
+      background: "rgba(255,165,0,0.55)",
+    }
+  });
+
+  // Wrong piece
+  wrongPieceSquares?.forEach((item: any) => {
+    const sq = item.square;
+    squareStyles[sq] = {
+      background: "rgba(255,255,0,0.55)",
+    }
+  });
+
   if (lastMove) {
     squareStyles[lastMove.from] = { background: "rgba(236,243,116,0.75)" };
     squareStyles[lastMove.to]   = { background: "rgba(236,243,116,0.75)" };

@@ -1,5 +1,7 @@
 import { getPGNCollections, getAllGame } from "../models/game.model.js";
 import { GameService } from "../services/game.service.js";
+import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
+import { gameState } from "../game/game.state.js";
 
 export const GameController = {
     // Get current state
@@ -39,5 +41,39 @@ export const GameController = {
         } catch (e) {
             console.error(e);
         }
-    }
+    },
+
+    // get state initcheck
+    async initcheck(req, res) {
+        try {
+            const gameID = req.params.id;
+            const state = gameState.get(gameID);
+
+            // no state yet
+            if (!state) {
+                return res.status(200).json({
+                    gameID,
+                    status: GAME_STATUS.WAITING,
+                    missingSquares: [],
+                    extraSquares: [],
+                    wrongPieceSquares: [],
+                })
+            }
+
+            // current initcheck state
+            return res.status(200).json({
+                gameID,
+                status: state.gameStatus,
+                missingSquares: state.missingSquares || [],
+                extraSquares: state.extraSquares || [],
+                wrongPieceSquares: state.wrongPieceSquares || [],
+            });
+        } catch (e) {
+            console.log("Init check error", e);
+
+            return res.status(500).json({
+                status: ERROR_STATUS.SERVER_ERROR,
+            });
+        }
+    },
 }

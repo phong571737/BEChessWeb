@@ -179,7 +179,8 @@ function BoardContent() {
     const clearPhysicalBoardGameID = useGameStore((s) => s.clearPhysicalBoardGameID);
 
     const {
-        fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, restart, resign, lastMoveAt, moveTimesMap, status
+        fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, restart, resign, lastMoveAt, moveTimesMap, status,
+        initStatus, missingSquares, extraSquares, wrongPieceSquares
     } = useGame(gameID);
 
     const { t } = useT();
@@ -251,6 +252,9 @@ function BoardContent() {
                                     fen={displayFen}
                                     lastMove={navFen ? null : lastMove}
                                     boardWidth={boardWidth}
+                                    missingSquares={missingSquares}
+                                    extraSquares={extraSquares}
+                                    wrongPieceSquares={wrongPieceSquares}
                                 />
                             </div>
                         </div>

@@ -8,7 +8,7 @@ import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { LogController } from "../controllers/log.controller.js";
-import { GAME_STATUS } from "../constant.js";
+import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 
 export const gameRouter = express.Router();
 
@@ -152,31 +152,21 @@ gameRouter.post("/:id/endgame", async (req, res) => {
 /**
  * GET games/:id/initcheck
  * This api is used to get state of physic board
+ * Response 200: 
+ * { gameID: string,
+ *   status: BOARD_STATUS,
+ *   missingSquares: string[],
+ *   extraSquares: string[],
+ *   wrongPieceSquares: string[]
+ * }
+ * Error Response:
+ * Status: 500
+ * {
+ *   status: ERROR_STATUS.SERVER_ERROR,
+ *   error: string
+ * }
  */
-gameRouter.get("/:id/initcheck", async (req, res) => {
-    try {
-        const gameID = req.params.id;
-        const state = gameState.get(gameID);
-
-        if (!state) {
-            return res.json({
-                gameID,
-                status: GAME_STATUS.WAITING,
-                wrongSquares: [],
-                missingSquares: []
-            })
-        }
-
-        res.json({
-            gameID,
-            status: state.gameStatus,
-            wrongSquares: state.wrongSquares || [],
-            missingSquares: state.missingSquares || [],
-        });
-    } catch (e) {
-        console.log("Init check error", e);
-    }
-});
+gameRouter.get("/:id/initcheck", GameController.initcheck);
 
 /**PUT  games/:id/update
  * This api is used to update data

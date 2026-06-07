@@ -90,9 +90,47 @@ export function useGame(gameID: string) {
             });
     }, [gameID, cachedBoard?.fen, cachedBoard?.pgn]);
 
+    // ---------------Polling initial check state ----------------------------
+    useEffect(() => {
+        if (!gameID || !isLoaded) return;
+
+        let stopped = false;
+
+        const fetchInitCheck = async () => {
+            try {
+                const res = await fetch(`/games/${gameID}/initcheck`);
+
+                if (!res.ok) return;
+                const data = await res.json();
+
+                patchBoard(gameID, {
+                    initStatus: data.status,
+                    missingSquares: data.missingSquares || [],
+                    extraSquares: data.extraSquares || [],
+                    wrongPieceSquares: data.wrongPieceSquares || [],
+                })
+
+                // stop polling when board is ready
+                if (data.status === GAME_STATUS.READY) {
+                    stopped = true;
+                    clearInterval(interval);
+                }
+            } catch (e){
+                console.log("Init check error", e);
+            }
+        };
+
+        fetchInitCheck();
+        const interval = setInterval(() => {
+            if (!stopped) {
+                fetchInitCheck();
+            }
+        }, 1000);
+        return () => clearInterval(interval);
+    }, [gameID, isLoaded]);
+
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
-        console.log({ socket: !!socket, gameID, isLoaded });
         if (!socket || !gameID || !isLoaded) return;
 
         // onMove event 
@@ -201,5 +239,11 @@ export function useGame(gameID: string) {
         lastMoveAt,
         moveTimesMap,
         chess: chessRef.current,
+
+        // initcheck
+        initStatus: board?.initStatus ?? GAME_STATUS.WAITING,
+        missingSquares: board?.missingSquares ?? [],
+        extraSquares: board?.extraSquares ?? [],
+        wrongPieceSquares: board?.wrongPieceSquares ?? [],
     }
 }

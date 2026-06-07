@@ -30,6 +30,8 @@ boardRouter.get("/", BoardController.getCurrent);
  * This api is used to send the state init of physicboard
  * Esp32 send 
  * Body: {boardType, board: {...}}
+ * status: READY: board correct and button correct
+ * WAITING_BUTTON: board correct button start button not correct
  * Response 200: { boardID, status: BOARD_STATUS}
  * Response 400: { status: INVALID, error}
  * Response 500: { status: SERVER ERROR, error} 
