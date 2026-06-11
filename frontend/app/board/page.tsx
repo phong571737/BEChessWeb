@@ -180,14 +180,26 @@ function BoardContent() {
 
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, restart, resign, lastMoveAt, moveTimesMap, status,
-        initStatus, missingSquares, extraSquares, wrongPieceSquares
+        initStatus, missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId
     } = useGame(gameID);
+
+    const prevFenRef = useRef<string>(fen);
+
+    console.log("BoardContent selectBranch:", selectBranch);
 
     const { t } = useT();
     const [navFen, setNavFen] = useState<string | null>(null);
-    const displayFen = navFen ?? fen;
+    // const displayFen = navFen ?? fen;
     const boardWrapRef = useRef<HTMLDivElement | null>(null);
     const [boardWidth, setBoardWidth] = useState(0);
+
+    const [navigationState, setNavigationState] = useState<{
+        fen: string | null;
+        lastMove: { from: string; to: string } | null;
+    }>({ fen: null, lastMove: null });
+
+    const displayFen = navigationState.fen ?? fen;
+    const displayLastMove = navigationState.fen ? navigationState.lastMove : lastMove;
 
     useEffect(() => {
         const el = boardWrapRef.current;
@@ -214,7 +226,17 @@ function BoardContent() {
         }
     }, [isLoaded]);
 
-    const handleNavigate = useCallback((f: string | null) => setNavFen(f), []);
+    useEffect(() => {
+        if (fen !== prevFenRef.current) {
+            prevFenRef.current = fen;
+            setNavigationState({ fen: null, lastMove: null });
+        }
+    }, [fen]);
+
+    // const handleNavigate = useCallback((f: string | null) => setNavFen(f), []);
+    const handleNavigate = useCallback((fen: string | null, lm: { from: string; to: string } | null) => {
+        setNavigationState({ fen: fen, lastMove: lm });
+    }, []);
 
     if (!isLoaded) return <BoardSkeleton />
 
@@ -228,6 +250,11 @@ function BoardContent() {
             />
         )
     }
+
+    console.log("=== BoardContent DEBUG ===");
+    console.log("pgn từ useGame:", pgn);
+    console.log("mainPgnBeforeBranch:", mainPgnBeforeBranch);
+    console.log("branches:", branches);
 
     return (
         <div className="flex flex-col sm:h-[calc(100vh-var(--header-h))]">
@@ -250,7 +277,8 @@ function BoardContent() {
                             >
                                 <ChessBoardView
                                     fen={displayFen}
-                                    lastMove={navFen ? null : lastMove}
+                                    // lastMove={navFen ? null : lastMove}
+                                    lastMove={displayLastMove}
                                     boardWidth={boardWidth}
                                     missingSquares={missingSquares}
                                     extraSquares={extraSquares}
@@ -277,6 +305,10 @@ function BoardContent() {
                                 onResign={resign}
                                 moveTimesMap={moveTimesMap}
                                 onNavigate={handleNavigate}
+                                branches={branches}
+                                onBranchSelect={selectBranch}
+                                mainPgnBeforeBranch={mainPgnBeforeBranch}
+                                selectedBranchId={selectedBranchId}
                             />
                         </div>
 

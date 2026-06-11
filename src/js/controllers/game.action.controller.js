@@ -6,8 +6,8 @@ export const GameActionController = {
     async resign(req, res) {
         try {
             const gameID = req.params.id;
-            const { resignSide } = req.body;
-            const result = await GameResignService.handle(gameID, resignSide);
+            const { resignSide, boardType } = req.body;
+            const result = await GameResignService.handle(gameID, resignSide, boardType);
             res.json(result);
         } catch (e) {
             const status = e.message === "Game not found" ? 404

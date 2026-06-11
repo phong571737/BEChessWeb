@@ -3,7 +3,7 @@ import { getAllGame } from "../models/game.model.js";
 import { ERROR_STATUS } from "../constant.js";
 import { getCurrentGame } from "../game/game.manager.js";
 import { BOARD_TYPE, BOARD_STATUS } from "../constant.js";
-import { checkInitialBoard, checkInitialBoardNFC } from "../services/board.service.js";
+import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
 import { gameState } from "../game/game.state.js";
 import { emitGameState } from "../game/game.state.js";
 
@@ -112,6 +112,7 @@ export const BoardController = {
             let finalStatus = result.status;
 
             // getIO().to(gameID).emit("initcheck", {gameID, ...result});
+            // check button state 
             if (result.status === BOARD_STATUS.READY && buttonState !== true) {
                 finalStatus = BOARD_STATUS.WAITING_BUTTON;
             }

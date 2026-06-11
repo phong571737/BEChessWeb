@@ -4,36 +4,48 @@ import { getIO } from "../sockets/index.js";
 import { updateNotify } from "../../ServerWeb/js/core/notify.manager.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { handleBoardOnline } from "../models/log.model.js";
+import { resetGame } from "../game/game.manager.js";
+import { removeGame, removeGameByBoardID } from "../models/game.model.js";
 
 let mqttClient = null;
 
 // This function is used to handle message
-function handleMessage(topic, message) {
+async function handleMessage(topic, message) {
     const parts = topic.split('/');
 
     if (parts.length === 3 && parts[0] === 'chess' && parts[2] === 'status') {
-        const gameID = parts[1];
+        const boardID = parts[1];
         try {
             const payload = JSON.parse(message.toString());
 
             // if status is online(board connected)
             if (payload.status === 'online') {
-                console.log(`[MQTT] Board ${gameID} online`);
-                gameState.set(gameID, {boardStatus: "online"});
-                handleBoardOnline(gameID);
+                console.log(`[MQTT] Board ${boardID} online`);
+                gameState.set(boardID, {boardStatus: "online"});
+                handleBoardOnline(boardID);
             } else if (payload.status === 'offline') { // board disconnected(power outage)
-                console.log(`[MQTT] Board ${gameID} offline`);
-                gameState.set(gameID, {boardStatus: "offline"});
+                console.log(`[MQTT] Board ${boardID} offline`);
+                gameState.set(boardID, {boardStatus: "offline"});
+
+                try {
+                    resetGame(boardID);
+                    // await removeGame(gameID);
+                    const result = await removeGameByBoardID(boardID);
+                    console.log("[MQTT] Remove result:", result);
+                    getIO().emit("game:destroyed", {boardID});
+                } catch (e) {
+
+                }
             } else if (payload.status === "restart") {
-                console.log(`[MQTT] Board ${gameID} restart`);
-                gameState.set(gameID, {boardStatus: "online", gameStatus: "restart"});
+                console.log(`[MQTT] Board ${boardID} restart`);
+                gameState.set(boardID, {boardStatus: "online", gameStatus: "restart"});
 
                 setTimeout(() => {
-                    gameState.set(gameID, {boardStatus: "online", gameStatus: "checkinit"});
+                    gameState.set(boardID, {boardStatus: "online", gameStatus: "checkinit"});
                 }, 100);
             }
 
-            emitGameState(gameID);
+            emitGameState(boardID);
         } catch (e) {
             console.log("[MQTT] Parse message error: ", e);
         }

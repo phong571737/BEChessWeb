@@ -2,11 +2,11 @@ import { Chess } from "chess.js";
 import { endGame, getGame, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { createNewGame, endLog } from "../models/log.model.js";
-import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
+import { BOARD_TYPE, ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 
 export const GameResignService = {
-    async handle(gameID, resignSide) {
+    async handle(gameID, resignSide, boardType) {
         // close the old game
         await endLog(gameID, "resign");
 
@@ -36,6 +36,9 @@ export const GameResignService = {
         chess.setHeader("Date", dateTag);
         const finalPGN = chess.pgn();
 
+        const currentRound = game.round ?? 1;
+        const nextRound = currentRound + 1;
+
         // Save to game played
         const doc = {
             gameID,
@@ -48,6 +51,9 @@ export const GameResignService = {
             endReason: resignSide === "draw" ? "draw_agreed" : "resigned",
             loser: resignSide === "draw" ? null : resignSide,
             winner,
+            round: currentRound,
+            uciHistory: game.uciHistory ?? [],
+            fenHistory: game.fenHistory ?? [],
             createAt: new Date(),
         }
 
@@ -62,10 +68,13 @@ export const GameResignService = {
             lastSeq: 0, 
             status: GAME_STATUS.FINISHED,
             result: resultTag,
-        });
+            round: nextRound,
+            uciHistory: [], // reset
+            fenHistory: [],
+        }, {boardType});
 
         const newGameID = crypto.randomUUID();
-        await GameService.create(game.boardID, newGameID);
+        await GameService.create(game.boardID, newGameID, nextRound);
 
         console.log("saveGame result =", updateResult);
 

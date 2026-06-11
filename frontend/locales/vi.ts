@@ -24,6 +24,7 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.cancel": "Huỷ",
     "sg.errNoGameID": "Server không trả về gameID",
     "sg.errUnknown": "Lỗi không xác định",
+    "sg.fillName": "Điền tên hai người chơi để bắt đầu ván đấu",
 
     // ------ In-game alert codes --------------------
     "board.noMoves": "Chưa có nước đi",

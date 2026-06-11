@@ -46,19 +46,22 @@ export function GameGrid() {
         <div className="flex flex-col min-h-0">
 
             {/* ----Page header ---------------------------------- */}
-            <div className="flex items-center jutify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
+            <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
                 <div>
                     <h1>{t("home.activeGames")}</h1>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                        {t("home.gamesLive", { n: cardGames.length })}
+                    </p>
                 </div>
 
                 <button type="button" onClick={refresh} disabled={loading} title="Refresh"
-                    className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors">
+                    className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                     <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                 </button>
             </div>
 
             <div className="flex flex-col">
-                {/* --------Physical board --------------------------*/}
+                {/* ------------------ Physical board --------------------------*/}
                 {physicalBoards.length > 0 && (
                     <div className="px-4 sm:px-5 py-4 border-b border-border">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
@@ -72,7 +75,7 @@ export function GameGrid() {
                     </div>
                 )}
 
-                {/* -----------------Active game grid */}
+                {/* -----------------Active game grid --------------------------*/}
                 {loading ? (
                     <div className="p-4 sm:p-5 grid gap-3" style={{
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
@@ -105,6 +108,7 @@ export function GameGrid() {
 
             <StartGameDialog  
                 board={selectedBoard}
+                gameID={selectedBoard?.gameID ?? null}
                 onClose={() => setselectedBoard(null)}
             />
         </div>

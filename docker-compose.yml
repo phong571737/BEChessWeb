@@ -6,3 +6,21 @@ services:
       - "${PORT:-8080}:${PORT:-8080}"
     env_file:
       - .env
+  
+  server:
+    build: .
+    container_name: server
+    working_dir: /app
+    command: node ./src/js/server.js
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build: ./frontend
+    container_name: chess-frontend
+    ports:
+      - "4000:3000"
+    environment:
+      - API_URL=http://server:8080
+    depends_on:
+      - server

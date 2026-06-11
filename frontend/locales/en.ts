@@ -22,6 +22,7 @@ export const en = {
     "sg.cancel": "Cancel",
     "sg.errNoGameID": "Server did not return a gameID",
     "sg.errUnknown": "Unknown error",
+    "sg.fillName": "Fill both player names to start a new match.",
 
     // ------ In-game alert codes --------------------
     "board.noMoves": "No moves yet",

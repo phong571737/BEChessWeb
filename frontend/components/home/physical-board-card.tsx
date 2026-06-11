@@ -15,15 +15,15 @@ export function PhysicalBoardCard({board, onClick}: Props) {
     const {gameID, gameStatus, online} = board;
 
     const isOffline = !online;
-    const isWaitingScan = !isOffline && gameStatus === GAME_STATUS.WAITING;
+    // const isWaitingScan = !isOffline && gameStatus === GAME_STATUS.WAITING;
     const isScanFailed = !isOffline && gameStatus === GAME_STATUS.SCAN_FAIL;
     const inGame = !isOffline && !gameID && gameStatus === GAME_STATUS.ACTIVE;
 
     const borderCls = isOffline
         ? "border-border/40 opacity-60 cursor-default"
         : inGame
-        ? "border-blue-500/25 hover:border-blue-500/40"
-        : isWaitingScan
+        // ? "border-blue-500/25 hover:border-blue-500/40"
+        // : isWaitingScan
         ? "border-amber-500/30 hover:border-amber-500/50"
         : isScanFailed
         ? "border-red-500/25 hover:border-red-500/40"

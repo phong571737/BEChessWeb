@@ -10,10 +10,11 @@ import { Input } from "@/components/ui/input";
 
 interface Props {
     board: PhysicalBoard | null;
+    gameID: string | null;
     onClose: () => void;
 }
 
-export function StartGameDialog({ board, onClose }: Props) {
+export function StartGameDialog({ board, gameID , onClose }: Props) {
     const router = useRouter();
     const { t } = useT();
     const [white, setWhite] = useState("");
@@ -24,28 +25,41 @@ export function StartGameDialog({ board, onClose }: Props) {
     const canStart = white.trim().length > 0 && black.trim().length > 0;
 
     const handleStart = async () => {
-        if (!board || !canStart) return;
+        if (!board || !gameID || !canStart) return;
         setLoading(true);
         setError(null);
 
         try {
-            const res = await fetch("/games", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    WhiteName: white.trim(),
-                    BlackName: black.trim(),
-                    boardID: board?.boardID,
+            // const res = await fetch("/games", {
+            //     method: "POST",
+            //     headers: { "Content-Type": "application/json" },
+            //     body: JSON.stringify({
+            //         WhiteName: white.trim(),
+            //         BlackName: black.trim(),
+            //         boardID: board?.boardID,
+            //     }),
+            // });
+
+            // if (!res.ok) {
+            //     const data = await res.json().catch(() => ({}));
+            //     throw new Error(data.error ?? `HTTP ${res.status}`);
+            // }
+
+            // const { gameID } = await res.json();
+            // if (!gameID) throw new Error(t("sg.errNoGameID"));
+
+            await Promise.all([
+                fetch(`/games/${gameID}/rename`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ color: "White", name: white.trim() }),
                 }),
-            });
-
-            if (!res.ok) {
-                const data = await res.json().catch(() => ({}));
-                throw new Error(data.error ?? `HTTP ${res.status}`);
-            }
-
-            const { gameID } = await res.json();
-            if (!gameID) throw new Error(t("sg.errNoGameID"));
+                fetch(`/games/${gameID}/rename`, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ color: "Black", name: black.trim() }),
+                }),
+            ]);
 
             onClose();
             router.push(`/board?id=${encodeGameID(gameID)}`);
@@ -70,7 +84,7 @@ export function StartGameDialog({ board, onClose }: Props) {
             <DialogContent className="sm:max-w-[420px] px-5 sm:px-6 py-4 sm:py-5">
                 <DialogHeader className="space-y-1 pb-1">
                     <DialogTitle className="text-base sm:text-lg">{t("sg.title")}</DialogTitle>
-                    <p className="text-xs text-muted-foreground">Fill both player names to start a new match.</p>
+                    <p className="text-xs text-muted-foreground">{t("sg.fillName")} </p>
                 </DialogHeader>
 
                 <div className="space-y-5 py-2 px-0 5">
@@ -96,7 +110,7 @@ export function StartGameDialog({ board, onClose }: Props) {
                         />
                     </div>
 
-                    {/*Fill White name  */}
+                    {/* Fill White name */}
                     <div className="space-y-2">
                         <Label htmlFor="sg-black">
                             {t("sg.blackSide")} <span className="text-destructive">*</span>

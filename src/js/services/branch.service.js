@@ -1,346 +1,269 @@
 import { activeBranches, gameSeq, games } from "../game/game.repository.js";
 import { ChessService } from "./chess.service.js";
-import { buildResponse } from "../utils/chess.utils.js";
+import { buildResponse, executeMove } from "../utils/chess.utils.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { MOVE_TYPE } from "../constant.js";
 import { Chess } from "chess.js";
+import { serializeBranches } from "../utils/branch.utils.js";
+import { MOVE_STATUS } from "../constant.js";
+
+const PROMOTION_PIECES = ["q", "r", "b", "n"];
+
+/** Capture */
+function buildCaptureBranches(game, fromSq) {
+    return game
+        .moves({ square: fromSq, verbose: true })
+        .filter(m => m.flags.includes("c") || m.flags.includes("e"));
+}
+
+function buildPromotionBranches(game, fromSq, toSq) {
+    return PROMOTION_PIECES.map((piece) => {
+        const mv = game.move({ from: fromSq, to: toSq, promotion: piece });
+        if (!mv) return null;
+        game.undo();
+        return mv;
+    }).filter(Boolean);
+}
+
+function buildCapturePromotionBranches(game, fromSq) {
+    const uniqueTargets = [
+        ...new Set(
+            game
+                .moves({ square: fromSq, verbose: true })
+                .filter((m) => m.flags.includes("c") || m.flags.includes("e"))
+                .map((m) => m.to)
+        ),
+    ];
+
+    const result = [];
+    for (const toSq of uniqueTargets) {
+        for (const piece of PROMOTION_PIECES) {
+            const mv = game.move({ from: fromSq, to: toSq, promotion: piece });
+            if (!mv) continue;
+            game.undo();
+            result.push(mv);
+        }
+    }
+    return result;
+}
+
+
+export function createBranches(baseGame, moves, parentBranch = null) {
+    const seen = new Set();
+    const branches = [];
+
+    for (const mv of moves) {
+        const clone = new Chess();
+        clone.loadPgn(baseGame.pgn());
+        executeMove(clone, mv);
+
+        const fen = clone.fen();
+        if (seen.has(fen)) continue;
+        seen.add(fen);
+
+        const moveId = `${mv.from}${mv.to}${mv.promotion ?? ""}`;
+        branches.push({
+            id: parentBranch ? `${parentBranch.id}_${moveId}` : moveId,
+            pgn: clone.pgn(),
+            fen,
+            lastApplied: mv,
+            step: (parentBranch?.step ?? 0) + 1,
+            parentId: parentBranch?.id ?? null,
+        });
+    }
+
+    return branches;
+}
 
 // Get longest branch 
 function getLongestBranch(branches) {
     if (!branches || branches.length === 0) return null;
-    return branches.reduce((longest, b) => 
+    return branches.reduce((longest, b) =>
         b.step > longest.step ? b : longest
-    , branches[0]);
+        , branches[0]);
+}
+
+function setBranches(gameID, branches) {
+    if (!branches || branches.length === 0) {
+        activeBranches.delete(gameID);  // remove
+    } else {
+        activeBranches.set(gameID, branches);
+    }
 }
 
 // Sync main game according to the longest branch
 function syncMainToLongest(gameID, mainGame, branches) {
     const longest = getLongestBranch(branches);
+    if (!longest) return null;
+
     mainGame.loadPgn(longest.pgn);
     games.set(gameID, mainGame);
     return longest;
 }
 
-export function handleBranchMove(gameID, mainGame, candidates, seq, moveType) {
-    console.log(`Resolving branches for game ${gameID}`);
+function isPromotionMove(game, fromSq, toSq) {
+    const piece = game.get(fromSq);
+    if (!piece || piece.type !== "p") return false;
+    const toRank = toSq?.[1];
+    return (piece.color === "w" && toRank === "8") || (piece.color === "b" && toRank === "1");
+}
 
-    const currentBranches = activeBranches.get(gameID); // get branch that current
+export function handleBranchMove(gameID, mainGame, candidates, seq, moveType) {
+    const currentBranches = activeBranches.get(gameID) ?? [];
+    console.log(`[handleBranchMove] gameID=${gameID} moveType=${moveType} count=${currentBranches.length}`);
+
     // find all moves llegal for current candidate
     let validMoves = ChessService.findValidMove(mainGame, candidates);
     console.log(`valid move from: ${validMoves}`);
 
-    // passive resolve
-    if (moveType !== MOVE_TYPE.CAPTURE) {
-        resolvePassiveBranches(gameID, mainGame, currentBranches, candidates, seq);
+    // capture
+    if (moveType === MOVE_TYPE.CAPTURE) {
+        return applyCaptureToBranches(gameID, mainGame, currentBranches, candidates, seq);
     }
 
-    // expand branch
-    if (validMoves.length != 1) {
-        expandBranchMoves(gameID, mainGame, currentBranches, candidates, seq, moveType, validMoves);
-    }
-
-    // resolve when just 1 branch 
-    return finalizeBranchResolve(gameID, mainGame, candidates, seq);
+    return applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq);
 }
 
-function finalizeBranchResolve(gameID, mainGame, candidates, seq) {
-    // validMoves === 1, resolve
-    const result = resolveBranches(gameID, mainGame, candidates);
-    //branch move cosumed successfully
+function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq) {
+    const advanced = [];
+    const held = [];
+
+    for (const branch of currentBranches) {
+        const tempGame = new Chess();
+        tempGame.loadPgn(branch.pgn);
+
+        const validMoves = ChessService.findValidMove(tempGame, candidates);
+
+        if (validMoves.length === 1) {
+            // Advance branch
+            const clone = new Chess();
+            clone.loadPgn(branch.pgn);
+            executeMove(clone, validMoves[0]);
+
+            advanced.push({
+                ...branch,
+                pgn: clone.pgn(),
+                fen: clone.fen(),
+                lastApplied: validMoves[0],
+                step: branch.step + 1,
+            });
+        } else if (validMoves.length > 1) {
+            // Ambiguous expand sub-branches
+            const subBranches = createBranches(tempGame, validMoves, branch);
+            advanced.push(...subBranches);
+        } else {
+            // invalid -> hold
+            held.push(branch);
+        }
+    }
+
+    // Dedup advanced according to FEN
+    const seen = new Set();
+    const dedupedAdvanced = advanced.filter((b) => {
+        if (seen.has(b.fen)) return false;
+        seen.add(b.fen);
+        return true;
+    });
+
+    const nextBranches = [...dedupedAdvanced, ...held];
+    console.log(`[MOVE] advanced=${dedupedAdvanced.length} held=${held.length} total=${nextBranches.length}`);
+
+    if (dedupedAdvanced.length === 0) {
+        console.log("[MOVE] No branches advanced, holding all");
+        setBranches(gameID, currentBranches);
+        syncMainToLongest(gameID, mainGame, currentBranches);
+        printBranches(gameID);
+        return buildBranchResponse(gameID, mainGame, seq, currentBranches, { invalidMove: true });
+    }
+
     gameSeq.set(gameID, seq);
 
-    // resolve
-    if (result.resolved) {
-        const resolvedGame = new Chess();
-        resolvedGame.loadPgn(result.pgn);
-        games.set(gameID, resolvedGame);
-        activeBranches.delete(gameID);
-
-        return buildResponse(gameID, resolvedGame, seq, {
-            lastMove: result.lastMove,
-            resolvedMove: result.resolvedMove,
-        });
-    }
-
-    return buildResponse(gameID, mainGame, seq, {
-        ambiguity: result.ambiguity,
-        branches: result.branches,
-        lastMove: result.lastMove
-    });
+    // Save and send to UI
+    setBranches(gameID, nextBranches);
+    syncMainToLongest(gameID, mainGame, nextBranches);
+    printBranches(gameID);
+    return buildBranchResponse(gameID, mainGame, seq, nextBranches);
 }
 
-// Expand branch on a branch
-function expandBranchMoves(gameID, mainGame, currentBranches, candidates, seq, moveType, validMoves) {
-    const expandBranches = [];
+// ---------Handle capture moves from game ------------------------
+function resolveCaptureMovesFromGame(game, candidates) {
     const fromSq = candidates[0]?.slice(0, 2);
-    const isIllegal = validMoves.length === 0;
+    const toSq = candidates[0]?.slice(2, 4) || null;
 
+    if (!fromSq) return [];
+
+    if (toSq && isPromotionMove(game, fromSq, toSq)) {
+        return buildCapturePromotionBranches(game, fromSq);
+    }
+
+    if (!toSq && isPromotionMove(game, fromSq, null)) {
+        return buildCapturePromotionBranches(game, fromSq);
+    }
+
+    if (toSq) {
+        const direct = ChessService.findValidMove(game, candidates).filter(
+            (m) => m.flags?.includes("c") || m.flags?.includes("e")
+        );
+        if (direct.length > 0) return direct;
+    }
+
+    return buildCaptureBranches(game, fromSq);
+}
+
+function buildBranchResponse(gameID, mainGame, seq, branches, extra = {}) {
+    return {
+        status: MOVE_STATUS.OK,
+        gameID,
+        fen: mainGame.fen(),
+        pgn: mainGame.pgn(),
+        lastSeq: seq,
+        branches: serializeBranches(branches),
+        branchCount: branches.length,
+        ...extra,
+    };
+}
+
+// ----------------- Apply Capture to All Branches --------------------------------
+function applyCaptureToBranches(gameID, mainGame, currentBranches, candidates, seq) {
+    const expanded = [];
+    const held = [];
     // loop for all current branch
     for (const branch of currentBranches) {
         const tempGame = new Chess();
         tempGame.loadPgn(branch.pgn);
 
-        let validCandidates = candidates;
+        const captureMoves = resolveCaptureMovesFromGame(tempGame, candidates);
 
-        if (isIllegal && fromSq) {
-            if (moveType === MOVE_TYPE.CAPTURE) {
-                validCandidates = tempGame.moves({ square: fromSq, verbose: true })
-                    .filter(m => m.flags.includes('c') || m.flags.includes('e'))
-                    .map(m => m.from + m.to);
-            } else {
-                // validCandidates = candidates;
-                validCandidates = tempGame
-                    .moves({ square: fromSq, verbose: true })
-                    .map(m => m.from + m.to);
-            }
+        if (captureMoves.length === 0) {
+            held.push(branch);
+            continue;
         }
-
-        // find all the validated moves from new move
-        const branchvalidMoves = ChessService.findValidMove(tempGame, validCandidates);
-
-        if (branchvalidMoves.length === 1) {
-            // just have 1 valid move
-            const clone = new Chess();
-            clone.loadPgn(branch.pgn);
-            executeMove(clone, branchvalidMoves[0]);
-
-            expandBranches.push({
-                ...branch,
-                pgn: clone.pgn(),
-                fen: clone.fen(),
-                lastApplied: branchvalidMoves[0],
-                step: branch.step + 1,
-            });
-        }
-        else if (branchvalidMoves.length > 1) { // There are many valid moves
-            for (const mv of branchvalidMoves) {
-                const clone = new Chess();
-                clone.loadPgn(branch.pgn);
-                executeMove(clone, mv);
-
-                expandBranches.push({
-                    ...branch,
-                    id: `${branch.id}_${mv.from}${mv.to}`,
-                    pgn: clone.pgn(),
-                    fen: clone.fen(),
-                    lastApplied: mv,
-                    step: branch.step + 1,
-                });
-            }
-        }
-        else {
-            //validMoves = 0, create from dep square
-            // const fromSq = candidates[0]?.slice(0, 2);
-            // const movesFromSq = fromSq
-            //   ? tempGame.moves({square: fromSq, verbose: true})
-            //   : [];
-
-            // for (const mv of movesFromSq) {
-            //   const clone = new Chess();
-            //   clone.loadPgn(branch.pgn);
-            //   executeMove(clone, mv);
-
-            //   expandBranches.push({
-            //     ...branch,
-            //     id: `${branch.id}_ill_${mv.from}${mv.to}`,
-            //     pgn: clone.pgn(),
-            //     fen: clone.fen(),
-            //     lastApplied: mv,
-            //     fromIllegal: true,
-            //     step: branch.step + 1,
-            //   });
-            // }
-            // Hold root branch, don't remove
-            console.log(`Branch ${branch.id} invalid for this move, holding...`);
-            expandBranches.push(branch);
-        }
+        const subBranches = createBranches(tempGame, captureMoves, branch);
+        expanded.push(...subBranches);
     }
 
     const seen = new Set();
-    const dedupedBranches = expandBranches.filter(b => {
+    const dedupedExpanded = expanded.filter((b) => {
         if (seen.has(b.fen)) return false;
         seen.add(b.fen);
         return true;
     });
 
-    // Check move for all branch
-    const anyUpdated = dedupedBranches.some(b => 
-        currentBranches.find(old => old.id === b.id && old.fen !== b.fen)
-    );
+    const nextBranches = [...dedupedExpanded, ...held];
+    console.log(`[CAPTURE] expanded=${dedupedExpanded.length} held=${held.length} total=${nextBranches.length}`);
 
-    // move wrong for all branch
-    if (!anyUpdated) {  
-        console.log(`All branches invalid for this move, skipping`);
-        activeBranches.set(gameID, currentBranches);
-        gameSeq.set(gameID, seq);
-
-        const longest = syncMainToLongest(gameID, mainGame, currentBranches); 
-
-        return buildResponse(gameID, mainGame, seq, {
-            ambiguity: true,
-            branches: currentBranches.length,
-            lastMove: longest[0].lastApplied ?? null,
-            invalidMove: true,
-        });
+    if (dedupedExpanded.length === 0) {
+        console.log("[CAPTURE] No branches expanded, holding all");
+        setBranches(gameID, currentBranches);
+        syncMainToLongest(gameID, mainGame, currentBranches);
+        printBranches(gameID);
+        return buildBranchResponse(gameID, mainGame, seq, currentBranches, { invalidMove: true });
     }
-
-    // 1 branch => resolve 
-    const updatedBranches = dedupedBranches.filter(b =>
-        currentBranches.find(old => old.id === b.id && old.fen !== b.fen)
-    );
-
-    if (updatedBranches.length === 1) {
-        const finalBranch = dedupedBranches[0];
-        mainGame.loadPgn(finalBranch.pgn);
-        activeBranches.delete(gameID);
-        gameSeq.set(gameID, seq);
-        return buildResponse(gameID, mainGame, seq, {
-            lastMove: finalBranch.lastApplied,
-        });
-    }
-
-    // Many branch => hold all
-    activeBranches.set(gameID, dedupedBranches);
-    printBranches(gameID);
-    // gameSeq.set(gameID, seq);
-    const longest = syncMainToLongest(gameID, mainGame, dedupedBranches);
-
-    return buildResponse(gameID, mainGame, seq, {
-        ambiguity: true,
-        branches: dedupedBranches.length,
-        lastMove: longest.lastApplied ?? null,
-    });
-}
-
-// Resolve all branch 
-function resolvePassiveBranches(gameID, mainGame, currentBranches, candidates, seq) {
-    const nextBranches = [];
-
-    for (const branch of currentBranches) {
-        const tempGame = new Chess();
-        tempGame.loadPgn(branch.pgn);
-
-        const branchValidMoves = ChessService.findValidMove(tempGame, candidates);
-
-        if (branchValidMoves.length === 1) {
-            const clone = new Chess();
-            clone.loadPgn(branch.pgn);
-            executeMove(clone, branchValidMoves[0]);
-
-            nextBranches.push({
-                ...branch,
-                pgn: clone.pgn(),
-                fen: clone.fen(),
-                lastApplied: branchValidMoves[0],
-                step: branch.step + 1,
-            });
-        } else {
-            // hold branch
-            nextBranches.push(branch);
-        }
-    }
-
-    // Dedup theo fen
-    const seen = new Set();
-    const dedupedBranches = nextBranches.filter(b => {
-        if (seen.has(b.fen)) return false;
-        seen.add(b.fen);
-        return true;
-    });
 
     gameSeq.set(gameID, seq);
 
-    // Resolve if has just 1 branch
-    if (dedupedBranches.length === 1) {
-        const finalBranch = dedupedBranches[0];
-        mainGame.loadPgn(finalBranch.pgn);
-        activeBranches.delete(gameID);
-        games.set(gameID, mainGame);
-
-        return buildResponse(gameID, mainGame, seq, {
-            lastMove: finalBranch.lastApplied,
-        });
-    }
-
-    activeBranches.set(gameID, dedupedBranches);
+    setBranches(gameID, nextBranches);
+    syncMainToLongest(gameID, mainGame, nextBranches);
     printBranches(gameID);
-
-    const longest = syncMainToLongest(gameID, mainGame, dedupedBranches);
-
-    return buildResponse(gameID, mainGame, seq, {
-        ambiguity: true,
-        branches: dedupedBranches.length,
-        lastMove: longest.lastApplied ?? null,
-    });
-}
-
-// This function is resolve ambiguous branches with the lastest move
-export function resolveBranches(gameID, mainGame, candidates) {
-    const branches = activeBranches.get(gameID) || [];
-    const nextBranches = []; // loop all branch
-
-    // Loop through all of branches
-    for (const branch of branches) {
-        let match = false; // flag to check wheather branch valid or not
-
-        // Loop through all of candidates
-        for (const uci of candidates) {
-            const move = parseUCI(uci)
-
-            try {
-                const temp = new Chess();
-                temp.loadPgn(branch.pgn);
-
-                // if branch match, continue
-                if (temp.move(move)) {
-                    nextBranches.push({
-                        ...branch,
-                        pgn: temp.pgn(),
-                        fen: temp.fen(),
-                        branchMove: branch.lastApplied,
-                        lastApplied: {
-                            ...move,
-                            uci: formatUCI(move.from, move.to, move.promotion)
-                        },
-                        step: branch.step + 1
-                    });
-                    match = true;
-                    break;
-                }
-            } catch { }
-        }
-
-        // branch illegal (hold, not remove)
-        if (!match) {
-            nextBranches.push(branch);
-        }
-    }
-
-    // update branch 
-    activeBranches.set(gameID, nextBranches);
-    printBranches(gameID);
-
-    // Commit when just one branch valid
-    if (nextBranches.length === 1) {
-        const finalBranch = nextBranches[0];
-
-        mainGame.loadPgn(finalBranch.pgn);
-        activeBranches.delete(gameID);
-
-        return {
-            status: MOVE_STATUS.OK,
-            resolved: true,
-            fen: mainGame.fen(),
-            pgn: mainGame.pgn(),
-            lastMove: finalBranch.lastApplied,
-            resolvedMove: finalBranch.branchMove,
-        };
-    }
-
-    // ambigous
-    return {
-        ambiguity: true,
-        branches: nextBranches.length,
-        lastMove: nextBranches.find(b => b.lastApplied)?.lastApplied ?? null
-    };
+    return buildBranchResponse(gameID, mainGame, seq, nextBranches);
 }

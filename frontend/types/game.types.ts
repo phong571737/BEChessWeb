@@ -62,9 +62,30 @@ export interface BoardState {
     /** Reason for scan failure: "MISSING" | "DUPLICATE" | null */
     scanReason: "MISSING" | "DUPLICATE" | null;
 
-    // Check init state :
+    // Check init state
     initStatus: "waiting" | "ready" | "check_init";
     missingSquares: string[];
     extraSquares: string[];
     wrongPieceSquares: string[];
+
+    // Branches
+    branches: Branch[];
+    selectedBranchId: string | null;
+}
+
+export interface BranchMove {
+    from: string;
+    to: string;
+    promotion?: string | null;
+    san?: string;
+    uci?: string;
+}
+
+export interface Branch {
+    id: string;
+    fen: string;
+    pgn: string;
+    lastMove: BranchMove | null;
+    step: number;
+    parentId: string | null;
 }

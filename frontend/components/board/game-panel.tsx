@@ -9,6 +9,7 @@ import { PGNTable } from "./pgn-table";
 import { Button } from "@/components/ui/button";
 import { ChevronsLeft, ChevronRight, ChevronLeft, ChevronsRight } from "lucide-react";
 import { GameActions } from "./game-actions";
+import { Branch } from "@/types/game.types";
 
 interface Props {
     gameID: string;
@@ -24,7 +25,11 @@ interface Props {
     moveTimesMap: Record<number, number>;
     onRestart: () => Promise<void>;
     onResign: (resignSide: "white" | "black" | "draw") => Promise<void>;
-    onNavigate: (fen: string | null) => void;
+    onNavigate: (fen: string | null, lastMove: {from: string; to: string} | null) => void;
+    branches?: Branch[];
+    mainPgnBeforeBranch?: string;
+    selectedBranchId: string | null;
+    onBranchSelect: (branchId: string | null) => void;
 }
 
 export interface GamePanelHandle {
@@ -35,30 +40,44 @@ export interface GamePanelHandle {
 }
 
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
-    gameID, WhiteName, BlackName, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status
+    gameID, WhiteName, BlackName, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
+    branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId, 
     //  fen, boardConnected, status
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
+
+    // Determine the current branch
+    const currentBranch = useMemo(() => {
+        return branches.find(b => b.id === selectedBranchId) || null;
+    }, [branches, selectedBranchId]);
+
+    const activePGN = currentBranch ? currentBranch.pgn : pgn;
     const [copied, setCopied] = useState(false);
     const [notationMode, setNotationMove] = useState<"pgn" | "fen">("pgn");
+    // const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
+
+    const hasBranches = branches.length > 0;
 
     // Build FEN history from PGN
-    const fenHistory = useMemo(() => {
-        if (!pgn?.trim()) return [];
+    const {fenHistory, moveHistory} = useMemo(() => {
+        if (!pgn?.trim()) return { fenHistory: [], moveHistory: [] };
         try {
             const c = new Chess();
             const tmp = new Chess();
-            c.loadPgn(pgn);
+            c.loadPgn(activePGN);
             const hist = c.history();
+
             const fens: string[] = ["start"];
+            const moves: (any | null)[] = [null];
+
             for (const m of hist) {
                 tmp.move(m);
                 fens.push(tmp.fen());
             }
-            return fens;
+            return { fenHistory: fens, moveHistory: moves };
         } catch {
-            return [];
+            return { fenHistory: [], moveHistory: [] };
         }
     }, [pgn]);
 
@@ -67,10 +86,23 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     const isWhiteTurn = totalMoves % 2 === 0;
     // const isPlaying = status === GAME_STATUS.PLAYING;
 
+    // Reset cursor
+    useEffect(() => {
+        if (!hasBranches) {
+            setCursor(-1);
+            onNavigate(null, null);
+        }
+    }, [hasBranches]);
+
     const goTo = useCallback((idx: number) => {
         const clamped = Math.max(0, Math.min(totalMoves, idx));
         setCursor(clamped === totalMoves ? -1 : clamped);
-        onNavigate(clamped === totalMoves ? null : fenHistory[clamped] ?? "start");
+
+        const targetFen = clamped === totalMoves && !selectedBranchId ? null : (fenHistory[clamped] ?? "start");
+        const targetMove = moveHistory[clamped] ?? null;
+
+        // onNavigate(clamped === totalMoves ? null : fenHistory[clamped] ?? "start");
+        onNavigate(targetFen, targetMove);
     }, [fenHistory, totalMoves, onNavigate]);
 
     const goStart = useCallback(() => goTo(0), [goTo]);
@@ -95,6 +127,29 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);
     }, [goBack, goNext, goStart, goEnd]);
+
+    function handleBranchSelect(branchId: string | null) {
+        console.log("GamePanel handleBranchSelect called with:", branchId);
+        if (branchId) {
+            const branch = branches.find(b => b.id === branchId);
+            if (branch) {
+                onBranchSelect(branchId);
+                try {
+                    const c = new Chess();
+                    c.loadPgn(branch.pgn);
+                    const hist = c.history({ verbose: true });
+                    const lastMove = hist[hist.length - 1];
+                    console.log("Branch lastMove:", lastMove);
+                    onNavigate(branch.fen, lastMove ? { from: lastMove.from, to: lastMove.to } : null);
+                } catch {
+                    onNavigate(branch.fen, null);
+                }
+            }
+        } else {
+            // onNavigate(cursor === -1 ? null : fenHistory[activeCursor] ?? null);
+            onNavigate(null, null);
+        }
+    }
 
     return (
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
@@ -154,9 +209,14 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0">
                 <PGNTable
                 pgn={pgn}
-                cursor={cursor === -1 ? totalMoves : cursor}
+                mainPgn={mainPgnBeforeBranch || pgn}
+                // cursor={cursor === -1 ? totalMoves : cursor}
+                cursor={activeCursor}
                 moveTimesMap={moveTimesMap}
                 onGoTo={(idx) => goTo(idx)}
+                branches={branches}
+                selectedBranchId={selectedBranchId}
+                onBranchSelect={handleBranchSelect}
                 />
             </div>
                     

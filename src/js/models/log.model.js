@@ -29,12 +29,12 @@ export async function  createNewGame(gameID) {
 }
 
 // save log
-export async function saveLog(gameID, seq, uci, lift, place) {
+export async function saveLog(gameID, seq, uci) {
     return logcollection().updateOne(
         {gameID, isActive: true}, // update newest document
         {
             $push: {
-                moves: { seq, uci, lift, place, createdAt: new Date()},
+                moves: { seq, uci, createdAt: new Date()},
             },
         },
     );

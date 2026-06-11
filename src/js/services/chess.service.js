@@ -21,7 +21,6 @@ export const ChessService = {
         const valid = [];
         const seen = new Set();
 
-        console.log("findValidMove FEN:", game.fen());  // ← FEN này có khác parseCaptureMove không?
         console.log("findValidMove candidates:", candidates);
 
         for (const uci of [...candidates].reverse()) {
@@ -47,7 +46,6 @@ export const ChessService = {
             }
             catch { }
         }
-
         return valid;
     }
 

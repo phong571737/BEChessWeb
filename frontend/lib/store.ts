@@ -41,6 +41,9 @@ const defaultBoard = (): BoardState => ({
     missingSquares: [],
     extraSquares: [],
     wrongPieceSquares: [],
+
+    branches: [],
+    selectedBranchId: null,
 });
 
 export const useGameStore = create<GameStoreState>((set, get) => ({

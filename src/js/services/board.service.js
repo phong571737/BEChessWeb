@@ -100,11 +100,12 @@ export function checkInitialBoard(board){
                 wrongSquares.push(toSquare(r, c));
             }
         }
-
-        let status;
-        if (wrongSquares.length > 0) status = BOARD_STATUS.WRONG_PIECE;
-        else if (missingSquares.length > 0) status = BOARD_STATUS.MISSING_PIECE;
-        else status = BOARD_STATUS.READY;
     }
+
+    let status;
+    if (wrongSquares.length > 0) status = BOARD_STATUS.WRONG_PIECE;
+    else if (missingSquares.length > 0) status = BOARD_STATUS.MISSING_PIECE;
+    else status = BOARD_STATUS.READY;
+
     return{ status, wrongSquares, missingSquares,}
 }
