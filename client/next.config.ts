@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
   outputFileTracingRoot: require("path").join(__dirname, ".."),
   async rewrites() {
     return [
+      { source: "/fen",           destination: `${API_URL}/fen` },
       { source: "/games/:path*",  destination: `${API_URL}/games/:path*` },
       { source: "/moves/:path*",  destination: `${API_URL}/moves/:path*` },
       { source: "/boards",        destination: `${API_URL}/boards` },
