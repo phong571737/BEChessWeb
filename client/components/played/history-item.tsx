@@ -47,9 +47,9 @@ export function HistoryItem({ game, index, onClick }: Props) {
       {/* Players */}
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-1.5 text-sm">
-          <span className="font-medium text-foreground truncate">{game.White}</span>
+          <span className="font-medium text-foreground truncate">{game.WhiteName}</span>
           <span className="text-xs text-muted-foreground shrink-0">vs</span>
-          <span className="font-medium text-foreground truncate">{game.Black}</span>
+          <span className="font-medium text-foreground truncate">{game.BlackName}</span>
         </div>
       </div>
 
