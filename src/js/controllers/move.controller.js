@@ -6,12 +6,6 @@ export const MoveController = {
         try {
             const result = await MoveService.processMove(req.body);
             console.log("result after move", req.body);
-            if (result.error) {
-                return res.status(400).json({
-                    status: MOVE_STATUS.ILLEGAL,
-                    message: result.message
-                });
-            }
 
             res.json(result);
         } catch (err) {

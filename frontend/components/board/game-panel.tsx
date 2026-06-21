@@ -55,7 +55,6 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     const activePGN = currentBranch ? currentBranch.pgn : pgn;
     const [copied, setCopied] = useState(false);
     const [notationMode, setNotationMove] = useState<"pgn" | "fen">("pgn");
-    // const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
 
     const hasBranches = branches.length > 0;
 
@@ -66,7 +65,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             const c = new Chess();
             const tmp = new Chess();
             c.loadPgn(activePGN);
-            const hist = c.history();
+            const hist = c.history({verbose: true});
 
             const fens: string[] = ["start"];
             const moves: (any | null)[] = [null];
@@ -74,12 +73,13 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             for (const m of hist) {
                 tmp.move(m);
                 fens.push(tmp.fen());
+                moves.push({ from: m.from, to: m.to });
             }
             return { fenHistory: fens, moveHistory: moves };
         } catch {
             return { fenHistory: [], moveHistory: [] };
         }
-    }, [pgn]);
+    }, [activePGN]);
 
     const totalMoves = Math.max(0, fenHistory.length - 1);
     const activeCursor = cursor === -1 ? totalMoves : cursor;
@@ -132,6 +132,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         console.log("GamePanel handleBranchSelect called with:", branchId);
         if (branchId) {
             const branch = branches.find(b => b.id === branchId);
+            console.log("Branch ID: ", branch);
             if (branch) {
                 onBranchSelect(branchId);
                 try {
@@ -140,7 +141,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                     const hist = c.history({ verbose: true });
                     const lastMove = hist[hist.length - 1];
                     console.log("Branch lastMove:", lastMove);
-                    onNavigate(branch.fen, lastMove ? { from: lastMove.from, to: lastMove.to } : null);
+                    onNavigate(branch.fen, lastMove ? { from: lastMove.from, to: lastMove.to } : null);  
                 } catch {
                     onNavigate(branch.fen, null);
                 }
@@ -153,7 +154,6 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     return (
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
-
             <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
 
             </div>
@@ -244,6 +244,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             {/* ── Game actions ── */}
             <GameActions
                 gameID={gameID}
+                branches={branches}
                 onRestart={onRestart}
                 onResign={onResign}
             />

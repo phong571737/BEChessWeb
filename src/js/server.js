@@ -38,12 +38,12 @@ async function StartServer() {
   app.use("/boards", boardRouter); // create a new board
   app.use("/", evalRouter);
 
-  const html_path = path.join(__dirname, '../ServerWeb/html/index.html');
-  app.use(express.static(path.join(__dirname, '..'))); // src
+  // const html_path = path.join(__dirname, '../ServerWeb/html/index.html');
+  // app.use(express.static(path.join(__dirname, '..'))); // src
 
-  app.use((req, res) => {
-    res.sendFile(html_path);
-  });
+  // app.use((req, res) => {
+  //   res.sendFile(html_path);
+  // });
 
   await connectDB();
   initSocket(server);

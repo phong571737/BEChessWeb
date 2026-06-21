@@ -252,7 +252,8 @@ src/
 │   │   └── game.model.js       # Database models
 │   ├── routes/
 │   │   ├── game.route.js       # Game endpoints
-│   │   └── move.route.js       # Move endpoints
+│   │   ├── move.route.js       # Move endpoints
+│   │   └── board.route.js      # Board endpoints
 │   ├── services/
 │   │   ├── board.service.js    # Board utilities
 │   │   └── game.service.js     # Game logic
@@ -284,7 +285,7 @@ Docker Files:
 
 ### Game Routes
 - `GET /api/games` - List all games
-- `POST /api/games` - Create a new game
+- `POST /api/boards` - Create a new game
 - `GET /api/games/:id` - Get game details
 - `PUT /api/games/:id` - Update game
 

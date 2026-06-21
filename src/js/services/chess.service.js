@@ -34,20 +34,37 @@ export const ChessService = {
             const isPromotion = piece?.type === "p" &&
                 ((piece.color === "w" && to[1] === "8") || (piece.color === "b" && to[1] === "1"));
 
-            const promotion = uci[4] ?? (isPromotion ? "q" : undefined);
+            if (isPromotion && !uci[4]) {
+                for (const promo of ["q", "r", "b", "n"]) {
+                    const key = from + to + promo;
+                    if (seen.has(key)) continue;
 
-            try {
-                const result = game.move({ from, to, promotion });
-                if (result) {
-                    game.undo();
-                    valid.push({ from, to, promotion, uci: from + to + (promotion ?? "") });
-                    seen.add(key);
+                    try {
+                        const result = game.move({ from, to, promotion: promo });
+                        if (result) {
+                            game.undo();
+                            valid.push({ from, to, promotion: promo, uci: from + to + promo });
+                            seen.add(key);
+                        }
+                    }
+                    catch { }
                 }
+            } else {
+                const promotion = uci[4] ?? undefined;
+                const key = from + to + (promotion ?? "");
+                if (seen.has(key)) continue;
+
+                try {
+                    const result = game.move({ from, to, promotion });
+                    if (result) {
+                        game.undo();
+                        valid.push({ from, to, promotion, uci: from + to + (promotion ?? "") });
+                        seen.add(key);
+                    }
+                }
+                catch { }
             }
-            catch { }
         }
         return valid;
     }
-
-    
 }

@@ -15,6 +15,8 @@ import { Trophy, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
+import { EvalBar } from "@/components/board/eval-bar";
+import { useStockfish } from "@/hooks/use-stockfish";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -172,26 +174,29 @@ function GameEndView({ result, WhiteName, BlackName, fen }: GameEndViewProps) {
 
 // -------- Main board content --------------------------------------------------
 function BoardContent() {
+    const { t } = useT();
     const searchParams = useSearchParams();
     const rawID = searchParams.get("id") ?? "";
     const gameID = rawID ? decodeGameID(rawID) : "";
+    const { workerRef, onMessageRef, isReady } = useStockfish();
+    const pendingFenRef = useRef<string | null>(null);
+    const [cp, setCp] = useState<number | null>(null);
+    const [navFen, setNavFen] = useState<string | null>(null);
+    const currentFenRef = useRef<string | null>(null);
+    // const displayFen = navFen ?? fen;
+    const boardWrapRef = useRef<HTMLDivElement | null>(null);
+    const [boardWidth, setBoardWidth] = useState(0);
 
     const clearPhysicalBoardGameID = useGameStore((s) => s.clearPhysicalBoardGameID);
 
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, restart, resign, lastMoveAt, moveTimesMap, status,
-        initStatus, missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId
+        initStatus, missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId,
+        // cp
     } = useGame(gameID);
 
+    // console.log("BoardContent selectBranch:", selectBranch);
     const prevFenRef = useRef<string>(fen);
-
-    console.log("BoardContent selectBranch:", selectBranch);
-
-    const { t } = useT();
-    const [navFen, setNavFen] = useState<string | null>(null);
-    // const displayFen = navFen ?? fen;
-    const boardWrapRef = useRef<HTMLDivElement | null>(null);
-    const [boardWidth, setBoardWidth] = useState(0);
 
     const [navigationState, setNavigationState] = useState<{
         fen: string | null;
@@ -200,6 +205,43 @@ function BoardContent() {
 
     const displayFen = navigationState.fen ?? fen;
     const displayLastMove = navigationState.fen ? navigationState.lastMove : lastMove;
+
+    useEffect(() => {
+        onMessageRef.current = (line: string) => {
+            const cpMatch = line.match(/score cp (-?\d+)/);
+            const isBlackToMove = currentFenRef.current?.split(" ")[1] === "b";
+
+            if (cpMatch) {
+                let val = Number(cpMatch[1]);
+                if (isBlackToMove) val = -val;
+                console.log("cp:", Number(cpMatch[1]));
+                setCp(val);
+                return;
+            }
+
+            const mateMatch = line.match(/score mate (-?\d+)/);
+            if (mateMatch) {
+                const mate = Number(mateMatch[1]);
+                const sideToMoveWins = mate > 0;
+                const whiteWins = sideToMoveWins ? !isBlackToMove : isBlackToMove;
+                setCp(whiteWins ? 10000 : -10000);
+            }
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!displayFen) return;
+
+        currentFenRef.current = displayFen;
+        pendingFenRef.current = displayFen;
+
+        const worker = workerRef.current;
+        if (!worker || !isReady) return;
+
+        worker.postMessage("stop");
+        worker.postMessage(`position fen ${displayFen}`);
+        worker.postMessage("go movetime 300");
+    }, [displayFen, isReady]);
 
     useEffect(() => {
         const el = boardWrapRef.current;
@@ -251,10 +293,10 @@ function BoardContent() {
         )
     }
 
-    console.log("=== BoardContent DEBUG ===");
-    console.log("pgn từ useGame:", pgn);
-    console.log("mainPgnBeforeBranch:", mainPgnBeforeBranch);
-    console.log("branches:", branches);
+    // console.log("=== BoardContent DEBUG ===");
+    // console.log("pgn from useGame:", pgn);
+    // console.log("mainPgnBeforeBranch:", mainPgnBeforeBranch);
+    // console.log("branches:", branches);
 
     return (
         <div className="flex flex-col sm:h-[calc(100vh-var(--header-h))]">
@@ -285,15 +327,23 @@ function BoardContent() {
                                     wrongPieceSquares={wrongPieceSquares}
                                 />
                             </div>
+
+                            {/* return ( */}
+                            <div className="lg:hidden flex items-center gap-2">
+                                <div className="flex-1 min-w-0">
+                                    <EvalBar cp={cp} fen={displayFen} orientation="horizontal" />
+                                </div>
+                            </div>
+                            {/* ); */}
                         </div>
 
                         {/* ── Vertical eval bar — lg+ only ──────────────────── */}
                         <div className="hidden lg:flex lg:items-center lg:h-full">
-                            {/* <EvalBar cp={cp} /> */}
+                            <EvalBar cp={cp} fen={displayFen}/>
                         </div>
 
                         {/* ----Game panel ------------------------- */}
-                        <div className="sm:h-full">
+                        <div className="sm:h-full sm:min-h-0">
                             <GamePanel
                                 gameID={gameID}
                                 WhiteName={WhiteName}

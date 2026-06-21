@@ -49,13 +49,6 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
           setLoading(false);
         }
       }
-      // fetch("/boards")
-      //   .then((r) => r.json())
-      //   .then((list: PhysicalBoard[]) => {
-      //     if (cancelled) return;
-      //   })
-      //   .catch((err) => console.warn("[usePhysicalBoards] fetch error", err instanceof Error ? err.message : err))
-      //   .finally(() => { if (initial && !cancelled) setLoading(false); });
     };
 
     fetchBoards(true);

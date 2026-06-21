@@ -6,7 +6,7 @@ import { executeMove } from "../utils/chess.utils.js";
 
 export const GameService = {
   // create game
-  async create(boardID, gameID, round = 1) {
+  async create(boardID, gameID, round = 1, WhiteName = "", BlackName = "") {
     const chess = createGame(gameID);
     
     await saveGame(gameID, {
@@ -16,16 +16,13 @@ export const GameService = {
       pgn: "",
       lastMove: null,
       round,
+      WhiteName: WhiteName,
+      BlackName: BlackName,
     });
 
     setCurrentGame(boardID, gameID);
 
-    return {
-      boardID, 
-      gameID, 
-      fen: chess.fen(),
-      round
-    };
+    return { boardID, gameID, fen: chess.fen(), round};
   },
 }
 

@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { House, NotebookPen, Cpu, X, ChevronRight, Menu, Castle, Sun, Moon } from "lucide-react";
+import { House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History } from "lucide-react";
 import React, { useState, useMemo } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -11,11 +11,10 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 
-
 const sectionDefs = [
     { key: "nav.home" as const, url: "/", icon: House },
-    { key: "nav.played" as const, url: "/played", icon: NotebookPen },
-    { key: "nav.device" as const, url: "/device", icon: Cpu },
+    { key: "nav.played" as const, url: "/played", icon: History },
+    { key: "nav.import" as const, url: "/paste", icon: NotebookPen},
 ];
 
 function AppSidebar({
@@ -147,7 +146,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
         played: t("nav.played"),
-        device: t("nav.device"),
+        // device: t("nav.device"),
         board:  "Board",
         review: t("rev.moveReview"),
         };

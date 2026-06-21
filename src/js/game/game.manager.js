@@ -42,9 +42,9 @@ export async function makeMove(gameID, candidates, seq, moveType, boardType) {
   const expectedSeq = lastSeq + 1;
 
   //duplicated
-  if (seq < expectedSeq) return { status: MOVE_STATUS.DUPLICATE, fen: mainGame.fen(), lastSeq };
-  //Out of order
-  if (seq > expectedSeq) return { status: MOVE_STATUS.OUT_OF_SEQ, expectedSeq, lastSeq };
+  // if (seq < expectedSeq) return { status: MOVE_STATUS.DUPLICATE, fen: mainGame.fen(), lastSeq };
+  // //Out of order
+  // if (seq > expectedSeq) return { status: MOVE_STATUS.OUT_OF_SEQ, expectedSeq, lastSeq };
 
   if (boardType === BOARD_TYPE.HALL) {
     if (activeBranches.has(gameID)) { // Resolve branches
@@ -53,6 +53,10 @@ export async function makeMove(gameID, candidates, seq, moveType, boardType) {
 
     if (moveType === MOVE_TYPE.CAPTURE) {
       return handleNewCaptureMove(gameID, mainGame, candidates, seq);
+    }
+    
+    if (moveType === MOVE_TYPE.MOVE_ERROR) {
+      return handleErrorMove(gameID, mainGame, candidates, seq);
     }
 
     // another moveType
@@ -96,6 +100,57 @@ function handleNFCMove(gameID, mainGame, candidates, seq) {
     },
     branches: [],
     branchCount: 0,
+  };
+}
+
+/**handle when receive multimove */
+function handleErrorMove(gameID, mainGame, candidates, seq) {
+  const validMoves = candidates.flatMap(fromSq =>  
+    mainGame.moves({square: fromSq, verbose: true})
+  );  
+
+  if (validMoves.length === 0) {
+    console.log(`[ERROR MOVE] No valid moves from ${candidates}, ignoring`);
+    gameSeq.set(gameID, seq);
+    return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+  }
+
+  if (validMoves.length === 1) {
+    // Exactly 1 valid move
+    const mv = validMoves[0];
+    executeMove(mainGame, mv);
+    gameSeq.set(gameID, seq);
+
+    return {
+      status: MOVE_STATUS.OK,
+      gameID,
+      fen: mainGame.fen(),
+      pgn: mainGame.pgn(),
+      lastSeq: seq,
+      lastMove: {
+        from: mv.from,
+        to: mv.to,
+        promotion: mv.promotion ?? null,
+        uci: formatUCI(mv.from, mv.to, mv.promotion),
+      },
+      branches: [],
+      branchCount: 0,
+    }
+  }
+
+  const branches = createBranches(mainGame, validMoves);
+  activeBranches.set(gameID, branches);
+  gameSeq.set(gameID, seq);
+  printBranches(gameID);
+
+  return {
+    status: MOVE_STATUS.OK,
+    gameID,
+    fen: mainGame.fen(),
+    pgn: mainGame.pgn(),
+    lastSeq: seq,
+    branches: serializeBranches(branches),
+    branchCount: branches.length,
   };
 }
 
@@ -255,6 +310,7 @@ export function resetGame(gameID) {
     throw new Error("Game not found");
   game.reset();
   gameSeq.set(gameID, 0);
+  activeBranches.delete(gameID)
   return game
 }
 

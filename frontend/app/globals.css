@@ -115,7 +115,36 @@
     }
 }
 
+.animate-rippling {
+  animation: rippling var(--duration, 600ms) ease-out;
+}
+
 /* --------- Semantic text helpers ------------------------------ */
 .bg-state-white { background-color: hsl(var(--state-white)); }
 .bg-state-black { background-color: hsl(var(--state-black)); }
 .bg-state-draw { background-color: hsl(var(--state-draw) / 0.45); }
+
+/* ---------------------- Eval bar ------------------------------- */
+.eval-bar {
+  position: relative;
+  width: 24px;
+  border: 1px solid hsl(var(--border));
+  overflow: hidden;
+  background: #1a1a1a;
+}
+.eval-black-seg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  background: #1a1a1a;
+  transition: height 0.3s ease;
+}
+.eval-white-seg {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #f0f0f0;
+  transition: height 0.3s ease;
+}

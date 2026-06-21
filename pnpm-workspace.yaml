@@ -1,0 +1,3 @@
+allowBuilds:
+  cloudflared: set this to true or false
+  stockfish: set this to true or false

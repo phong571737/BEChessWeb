@@ -337,6 +337,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
             </details>
           )}
 
+          {/* Display move from esp32 */}
+          {!!game.uciHistory?.length && (
+            <div className="space-y-1">
+              <span className="text-sm font-medium">{t("rev.moveEBoard")}</span>
+              <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
+                <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+                  {game.uciHistory.map((u, i) => `${i + 1}.${u}`).join(" ")}
+                </pre>
+              </ScrollArea>
+            </div>
+          )}
+
           {!game.pgn?.trim() && !!game.fenHistory?.length && (
             <div className="text-[11px] text-amber-600 dark:text-amber-400">Using FEN fallback (PGN missing).</div>
           )}

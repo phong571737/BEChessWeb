@@ -157,18 +157,10 @@ function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq)
         }
     }
 
-    // Dedup advanced according to FEN
-    const seen = new Set();
-    const dedupedAdvanced = advanced.filter((b) => {
-        if (seen.has(b.fen)) return false;
-        seen.add(b.fen);
-        return true;
-    });
+    const nextBranches = [...advanced, ...held];
+    console.log(`[MOVE] advanced=${advanced.length} held=${held.length} total=${nextBranches.length}`);
 
-    const nextBranches = [...dedupedAdvanced, ...held];
-    console.log(`[MOVE] advanced=${dedupedAdvanced.length} held=${held.length} total=${nextBranches.length}`);
-
-    if (dedupedAdvanced.length === 0) {
+    if (advanced.length === 0) {
         console.log("[MOVE] No branches advanced, holding all");
         setBranches(gameID, currentBranches);
         syncMainToLongest(gameID, mainGame, currentBranches);
@@ -177,7 +169,6 @@ function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq)
     }
 
     gameSeq.set(gameID, seq);
-
     // Save and send to UI
     setBranches(gameID, nextBranches);
     syncMainToLongest(gameID, mainGame, nextBranches);
@@ -242,17 +233,10 @@ function applyCaptureToBranches(gameID, mainGame, currentBranches, candidates, s
         expanded.push(...subBranches);
     }
 
-    const seen = new Set();
-    const dedupedExpanded = expanded.filter((b) => {
-        if (seen.has(b.fen)) return false;
-        seen.add(b.fen);
-        return true;
-    });
+    const nextBranches = [...expanded, ...held];
+    console.log(`[CAPTURE] expanded=${expanded.length} held=${held.length} total=${nextBranches.length}`);
 
-    const nextBranches = [...dedupedExpanded, ...held];
-    console.log(`[CAPTURE] expanded=${dedupedExpanded.length} held=${held.length} total=${nextBranches.length}`);
-
-    if (dedupedExpanded.length === 0) {
+    if (expanded.length === 0) {
         console.log("[CAPTURE] No branches expanded, holding all");
         setBranches(gameID, currentBranches);
         syncMainToLongest(gameID, mainGame, currentBranches);

@@ -107,13 +107,13 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   const branchCol = branchPly >= 0 ? branchPly % 2 : -1;
   const isTrailingBranch = branchPly >= 0 && branchPly >= pairs.length * 2;
 
-  console.log("=== PGNTable DEBUG ===");
-  console.log("pgn:", pgn);
-  console.log("mainPgn:", mainPgn);
-  console.log("branches:", branches);
-  console.log("branchPly:", branchPly);
-  console.log("branchPairIdx:", branchPairIdx);
-  console.log("branchCol:", branchCol);
+  // console.log("=== PGNTable DEBUG ===");
+  // console.log("pgn:", pgn);
+  // console.log("mainPgn:", mainPgn);
+  // console.log("branches:", branches);
+  // console.log("branchPly:", branchPly);
+  // console.log("branchPairIdx:", branchPairIdx);
+  // console.log("branchCol:", branchCol);
 
   // Scroll active move into view
   useEffect(() => {
@@ -302,9 +302,9 @@ function BranchDots({
             : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
         )}
       >
-        <Ellipsis className="size-3.5" />
+        <Ellipsis className="size-4" />
         {branches.length > 1 && (
-          <span className="text-[10px] ml-0.5">{branches.length}</span>
+          <span className="text-[11px] ml-0.5">{branches.length}</span>
         )}
       </button>
 

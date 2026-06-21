@@ -3,7 +3,6 @@ import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { updateNotify } from "../../ServerWeb/js/core/notify.manager.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { handleBoardOnline } from "../models/log.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { removeGame, removeGameByBoardID } from "../models/game.model.js";
 
@@ -21,27 +20,31 @@ async function handleMessage(topic, message) {
             // if status is online(board connected)
             if (payload.status === 'online') {
                 console.log(`[MQTT] Board ${boardID} online`);
-                gameState.set(boardID, {boardStatus: "online"});
-                handleBoardOnline(boardID);
+                gameState.set(boardID, { boardStatus: "online" });
             } else if (payload.status === 'offline') { // board disconnected(power outage)
                 console.log(`[MQTT] Board ${boardID} offline`);
-                gameState.set(boardID, {boardStatus: "offline"});
+                gameState.set(boardID, { boardStatus: "offline" });
 
                 try {
-                    resetGame(boardID);
-                    // await removeGame(gameID);
                     const result = await removeGameByBoardID(boardID);
                     console.log("[MQTT] Remove result:", result);
-                    getIO().emit("game:destroyed", {boardID});
+                    if (result?.gameIDs?.length) {
+                        for (const gameID of result.gameIDs) {
+                            games.delete(gameID);
+                            gameSeq.delete(gameID);
+                            activeBranches.delete(gameID);
+                        }
+                    }
+                    getIO().emit("game:destroyed", { boardID });
                 } catch (e) {
 
                 }
             } else if (payload.status === "restart") {
                 console.log(`[MQTT] Board ${boardID} restart`);
-                gameState.set(boardID, {boardStatus: "online", gameStatus: "restart"});
+                gameState.set(boardID, { boardStatus: "online", gameStatus: "restart" });
 
                 setTimeout(() => {
-                    gameState.set(boardID, {boardStatus: "online", gameStatus: "checkinit"});
+                    gameState.set(boardID, { boardStatus: "online", gameStatus: "checkinit" });
                 }, 100);
             }
 
@@ -68,12 +71,12 @@ export function initMqtt() {
         console.log("Connect to broker successfully!");
 
         // subcribe status to broker
-        mqttClient.subscribe("chess/+/status", {qos: 1}, (err) => {
-          if (err) {
-            console.error("[MQTT] Subscribe failed:", err);
-          } else {
-            console.log(`[MQTT] Subscribed to chess/+/status`);
-          }
+        mqttClient.subscribe("chess/+/status", { qos: 1 }, (err) => {
+            if (err) {
+                console.error("[MQTT] Subscribe failed:", err);
+            } else {
+                console.log(`[MQTT] Subscribed to chess/+/status`);
+            }
         })
     })
 

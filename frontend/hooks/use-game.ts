@@ -226,6 +226,11 @@ export function useGame(gameID: string) {
             });
         }
 
+        const onEval = (data: any) => {
+            if (data.gameID !== gameID) return;
+            patchBoard(gameID, {cp: data.cp});
+        };
+
         // Restore game 
         const onRestore = (data: any) => {
             if (data.game != gameID) return;
@@ -289,9 +294,9 @@ export function useGame(gameID: string) {
         }
     }, [displayPgn]);
 
-    console.log("selectedBranchId", selectedBranchId);
-    console.log("selectedBranch", selectedBranch);
-    console.log("displayPgn", displayPgn);
+    // console.log("selectedBranchId", selectedBranchId);
+    // console.log("selectedBranch", selectedBranch);
+    // console.log("displayPgn", displayPgn);
 
     // ----- Game actions ---------------------------------------
     const restart = async () => {
@@ -302,12 +307,12 @@ export function useGame(gameID: string) {
     }
 
     // Resign
-    const resign = async (resignSide: "white" | "black" | "draw" = "white") => {
+    const resign = async (resignSide: "white" | "black" | "draw" = "white", branchId?: string | null) => {
         console.log("RESIGN CLICKED", resignSide);
         await fetch(`/games/${gameID}/resign`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resignSide }),
+            body: JSON.stringify({ resignSide, branchId: branchId ?? null }),
         });
         invalidateFetchCache(`/games/${gameID}`);
         invalidateFetchCache("/games/current");
@@ -343,6 +348,7 @@ export function useGame(gameID: string) {
     return {
         fen: board?.fen ?? "start",
         pgn: selectedBranch?.pgn ?? board?.pgn ?? "",
+        cp: board?.cp ?? null,
         WhiteName: board?.WhiteName ?? "White",
         BlackName: board?.BlackName ?? "Black",
         lastMove: computedLastMove ?? board?.lastMove ?? null,

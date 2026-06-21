@@ -4,6 +4,7 @@ import { GAME_STATUS } from "@/lib/constants/game";
 import { useT } from "@/lib/i18n";
 import { PhysicalBoard } from "@/types/game.types";
 import { cn } from "@/lib/utils";
+import { Cpu, Loader2 } from "lucide-react";
 
 interface Props {
     board: PhysicalBoard;
@@ -40,7 +41,13 @@ export function PhysicalBoardCard({board, onClick}: Props) {
                 borderCls
             )}
         >
-
+            <div className="items-center justify-center">
+                <Cpu className="size-4"/>
+            </div>
+            {/* Text */}
+            <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate leading-tight"> {board.boardID}</p>
+            </div>
         </button>
     );
 }

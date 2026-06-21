@@ -2,16 +2,13 @@ import { Chess } from "chess.js";
 import { resetGame, setCurrentGame } from "../game/game.manager.js";
 import { getGameCollections, getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
-import { createNewGame, endLog } from "../models/log.model.js";
 import { ERROR_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 
 export const GameActionService = {
     // restart game when the restart button is pressed
     async restart(oldGameID) {
-
         // close the old game
-        await endLog(oldGameID, "restart");
         const oldGame = await getGame(oldGameID);
 
         if (!oldGame) {

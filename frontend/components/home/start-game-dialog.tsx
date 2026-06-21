@@ -30,24 +30,6 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         setError(null);
 
         try {
-            // const res = await fetch("/games", {
-            //     method: "POST",
-            //     headers: { "Content-Type": "application/json" },
-            //     body: JSON.stringify({
-            //         WhiteName: white.trim(),
-            //         BlackName: black.trim(),
-            //         boardID: board?.boardID,
-            //     }),
-            // });
-
-            // if (!res.ok) {
-            //     const data = await res.json().catch(() => ({}));
-            //     throw new Error(data.error ?? `HTTP ${res.status}`);
-            // }
-
-            // const { gameID } = await res.json();
-            // if (!gameID) throw new Error(t("sg.errNoGameID"));
-
             await Promise.all([
                 fetch(`/games/${gameID}/rename`, {
                     method: "POST",

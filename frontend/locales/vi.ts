@@ -5,6 +5,7 @@ export const vi: Record<TranslationKeys, string> = {
     "nav.home": "Trang chủ",
     "nav.played": "Lịch sử",
     "nav.device": "Thiết bị",
+    "nav.import": "Nhập ván cờ", 
 
     // ----- Home ----------------------------------------------------------
     "home.activeGames": "Ván cờ đang diễn ra",
@@ -22,11 +23,16 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.starting": "Đang tạo...",
     "sg.start": "Bắt đầu",
     "sg.cancel": "Huỷ",
+    "sg.next": "Tiếp theo",
     "sg.errNoGameID": "Server không trả về gameID",
     "sg.errUnknown": "Lỗi không xác định",
     "sg.fillName": "Điền tên hai người chơi để bắt đầu ván đấu",
+    "sg.moves": "moves",
+    "sg.branch": "Nhánh",
+    "sg.mainBranch": "Nhánh chính", 
+    "sg.changeBranch": "Chọn lại nhánh",
 
-    // ------ In-game alert codes --------------------
+    // ------------- In-game alert codes --------------------
     "board.noMoves": "Chưa có nước đi",
     "board.restart": "Chơi lại",
     "board.resign": "Đầu hàng",
@@ -34,6 +40,7 @@ export const vi: Record<TranslationKeys, string> = {
     "board.restartDesc": "Bàn cờ sẽ được đặt lại về vị trí ban đầu.",
     "board.resignTitle": "Đầu hàng?",
     "board.resignDesc": "Chọn bên thua hoặc đồng ý hoà.",
+    "board.resignSelectBranch": "Lựa chọn nhánh kết thúc.",
     "board.whiteResign": "Trắng đầu hàng",
     "board.whiteResignResult": "Kết quả: 0-1 (Đen thắng)",
     "board.blackResign": "Đen đầu hàng",
@@ -74,6 +81,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.pieceActivity": "Hoạt động quân cờ",
     "rev.captureTimeline": "Thời gian ăn quân",
     "rev.moveTypeDist": "Phân loại nước đi",
+    "rev.moveEBoard": "Nước đi nhận từ bàn cờ điện tử", 
 
     // ----- Played / History ---------------------------------------------
     "played.title": "Lịch sử ván cờ",
@@ -106,6 +114,14 @@ export const vi: Record<TranslationKeys, string> = {
     "played.gamesDrawn": "Ván hoà",
     "played.performance": "Thống kê",
     "played.total": "Tổng",
+
+    // --------------- Import games ------------------------------------
+    "pg.pasteUCI": "Dán chuỗi nước đi vào đây",
+    "pg.description": "Nhập và dán chuỗi nước đi của ván cờ để tạo chuỗi PGN hợp lệ.",
+    "pg.notation": "Có thể có nhiều nhánh PGN, có thể chọn một trong các nhánh đó.",
+    "pg.clear": "Xóa",
+    "pg.generatePgn": "Tạo PGN",
+    "pg.listbranch": "Danh sách PGN",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Tốt",

@@ -69,7 +69,7 @@ export async function removeGame(gameID) {
 
 /**This function is used to remove the board */
 export async function removeGameByBoardID(boardID) {
-    const result = await games().deleteOne({ boardID });
+    const result = await games().deleteMany({ boardID });
     return { deleted: boardID, deletedCount: result.deletedCount };
 }
 

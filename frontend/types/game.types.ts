@@ -43,6 +43,7 @@ export interface HistoryGame {
     endedAt?: string;
     durationSec?: number | null;
     fenHistory?: string [];
+    uciHistory?: string [];
 }
 
 /** Per-game live state stored in Zustand */

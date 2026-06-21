@@ -1,27 +1,29 @@
 import { error } from "console";
 import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
-import { saveLog } from "../models/log.model.js";
 import { getIO } from "../sockets/index.js";
 import { stockfishService } from "./stockfish.instance.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games, gameSeq } from "../game/game.repository.js";
 
-function parseCandidates({ boardType, uci, start, end, moveType }) {
+/**Parse json
+ * boardType  is HALL:
+ *  
+ */
+function parseCandidates({ boardType, uci, moveType, departures, arrivals }) {
     // parse input
     let candidates = [];
     let fromSq = null;
 
     if (boardType === BOARD_TYPE.HALL) {
-        if (!uci) {
-            return { error: true, message: "Missing UCI" };
-        } 
-        
-        if (moveType === MOVE_TYPE.PROMOTE) {
-            return {
-                candidates:  [`${uci}q`, `${uci}r`, `${uci}b`, `${uci}n`]
-            }
-        }  
+        // if (!uci) {
+        //     return { error: true, message: "Missing UCI" };
+        // } 
+        if(moveType === MOVE_TYPE.MOVE_ERROR) {
+            const depList = departures ? departures.split(",").map(s => s.trim()).filter(Boolean) : [];
+
+            return {candidates: depList, isError: true};
+        }
         
         return {
             candidates: [uci]
@@ -65,17 +67,25 @@ async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci }) {
     return state;
 }
 
-async function processMoveHall({ boardType, gameID, seq, moveType, uci, start, end }) {
-    const parsed = parseCandidates({ boardType, uci, start, end, moveType });
+async function processMoveHall({ boardType, gameID, seq, moveType, uci, departures, arrivals }) {
+    const parsed = parseCandidates({ boardType, uci, moveType, departures, arrivals });
     if (!parsed) return parsed;
-    const { candidates } = parsed;
+    const { candidates, isError } = parsed;
     
     const state = await makeMove(gameID, candidates, seq, moveType, boardType); // handle move game
 
     if (state.status != MOVE_STATUS.OK) return state;
+    const uciToSave = isError ? `dep:${departures ?? ""} arr:${arrivals ?? ""}` : uci; 
 
-    await afterMove(gameID, state, uci, seq, boardType);
-    return state;
+    await afterMove(gameID, state, uciToSave, seq, boardType);
+    return {
+        status: state.status,
+        fen: state.fen,
+        lastSeq: state.lastSeq,
+        lastMove: state.lastMove ?? null,
+        branchCount: state.branchCount,
+        branches: state.branches?.map(b => ({ uci: b.uci, from: b.from, to: b.to })) ?? [],
+    };
 }
 
 /**
@@ -83,19 +93,13 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, start, e
  */
 async function afterMove(gameID, state, uci, seq, boardType, fen ) {
     // const fen = state.fen;
-    // send best move to frontend
-    // const bestmove = await stockfishService.evaluate(fen, (cp) => {
-    //     getIO().to(gameID).emit("eval_bestmove", { gameID, cp });
-    // });
-
-    // console.log("[Move] Best move:", bestmove);
 
     await saveGame(gameID, state, { uci, fen, seq, boardType }); // save db
     getIO().to(gameID).emit("esp_move", state);// broadcast move
 }
 
 export const MoveService = {
-    async processMove({ boardType, uci, start, end, fen, boardID, seq, moveType }) {
+    async processMove({ boardType, uci, start, end, fen, boardID, seq, moveType, departures, arrivals }) {
         const gameID = getCurrentGame(boardID);
         console.log(`boardID: ${boardID} and gameID: ${gameID} and boardType: ${boardType}`);
 
@@ -117,15 +121,11 @@ export const MoveService = {
             }
         }
 
-        // save log to debug
-        // const save_log = await saveLog(gameID, seq, uci);
-        // console.log("savelog result", save_log);
-
         switch (boardType) {
             case BOARD_TYPE.NFC:
                 return processMoveNFC({ boardType, gameID, fen, seq, moveType, uci });
             case BOARD_TYPE.HALL:
-                return processMoveHall({boardType, gameID, seq, moveType, uci, start, end });
+                return processMoveHall({boardType, gameID, seq, moveType, uci, departures, arrivals });
             default:
                 console.error("Unknown boardType: ", boardType);
                 return { error: true, message: `Unknown boardType: ${boardType}` };

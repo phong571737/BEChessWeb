@@ -3,6 +3,7 @@ export const en = {
     "nav.home": "Home",
     "nav.played": "Played",
     "nav.device": "Device",
+    "nav.import": "Import game", 
 
     // -----Home --------------------------------------------------------
     "home.activeGames": "Active Games",
@@ -20,9 +21,14 @@ export const en = {
     "sg.starting": "Starting...",
     "sg.start": "Start",
     "sg.cancel": "Cancel",
+    "sg.next": "Next",
     "sg.errNoGameID": "Server did not return a gameID",
     "sg.errUnknown": "Unknown error",
     "sg.fillName": "Fill both player names to start a new match.",
+    "sg.moves": "nước đi",
+    "sg.branch": "Branch",
+    "sg.mainBranch": "Main branch", 
+    "sg.changeBranch": "Select another branch",
 
     // ------ In-game alert codes --------------------
     "board.noMoves": "No moves yet",
@@ -32,6 +38,7 @@ export const en = {
     "board.restartDesc": "This will reset the board to the starting position.",
     "board.resignTitle": "Resign game?",
     "board.resignDesc": "Choose loser side or agree draw.",
+    "board.resignSelectBranch": "Choose the end branch",
     "board.whiteResign": "White resign",
     "board.whiteResignResult": "Result: 0-1 (Black win)",
     "board.blackResign": "Black resign",
@@ -72,6 +79,7 @@ export const en = {
     "rev.pieceActivity": "Piece Activity",
     "rev.captureTimeline": "Capture Timeline",
     "rev.moveTypeDist": "Move Type Distribution",
+    "rev.moveEBoard": "The move received from e-board.", 
 
     // -------- Played / History -------------------------------------------
     "played.title": "Game History",
@@ -104,6 +112,14 @@ export const en = {
     "played.gamesDrawn": "Games drawn",
     "played.performance": "Performance",
     "played.total": "Total",
+
+    // --------------- Import games ------------------------------------
+    "pg.pasteUCI": "Paste the moves text here",
+    "pg.description": "Enter or paste a game's move sequence to generate a valid PGN.",
+    "pg.notation": "Some move sequences may result in multiple PGN variations. You can select the desired variation.",
+    "pg.clear": "Delete",
+    "pg.generatePgn": "Generate PGN",
+    "pg.listbranch": "List of PGN",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Pawn",
