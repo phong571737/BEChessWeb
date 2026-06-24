@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { Chess } from "chess.js";
 import {
   Dialog,
@@ -181,6 +181,20 @@ export function PGNReviewContent({ game }: ReviewProps) {
     } catch {}
   };
 
+  const downloadPGN = () => {
+    const pgnContent = game.pgn || "";
+    const filename = `${game.WhiteName}-vs-${game.BlackName}-${game.Date || "unknown"}.pgn`.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    const blob = new Blob([pgnContent], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -250,25 +264,31 @@ export function PGNReviewContent({ game }: ReviewProps) {
               </div>
               {timeline.length > 1 && timeline[1].san.startsWith("fen#") && (
                 <div className="px-3 py-1 text-[10px] text-amber-600 dark:text-amber-400 border-b border-border/60">
-                  PGN parse failed, using FEN timeline.
+                  PGN unavailable, showing position timeline.
                 </div>
               )}
               <ScrollArea className="h-[160px]">
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  {timeline.slice(1).map((m, i) => (
-                    <button
-                      key={`${m.san}-${i}`}
-                      type="button"
-                      onClick={() => goTo(i + 1)}
-                      className={`text-left px-2 py-1 rounded-sm text-xs border ${
-                        currentIndex === i + 1
-                          ? "bg-accent border-border text-foreground"
-                          : "border-transparent hover:bg-accent/70 text-muted-foreground"
-                      }`}
-                    >
-                      {i + 1}. {m.san}
-                    </button>
-                  ))}
+                  {timeline.slice(1).map((m, i) => {
+                    const label = m.san.startsWith("fen#")
+                      ? m.san.replace("fen#", "").split(" ")[0]
+                      : m.san;
+                    return (
+                      <button
+                        key={`${m.san}-${i}`}
+                        type="button"
+                        onClick={() => goTo(i + 1)}
+                        className={`text-left px-2 py-1 rounded-sm text-xs border font-mono ${
+                          currentIndex === i + 1
+                            ? "bg-accent border-border text-foreground"
+                            : "border-transparent hover:bg-accent/70 text-muted-foreground"
+                        }`}
+                        title={m.san.startsWith("fen#") ? m.san.replace("fen#", "") : m.san}
+                      >
+                        <span className="text-muted-foreground/60">{i + 1}.</span> {label}
+                      </button>
+                    );
+                  })}
                 </div>
               </ScrollArea>
               <div className="flex items-center justify-center gap-1 p-2 border-t border-border">
@@ -293,12 +313,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
         <div className="px-4 sm:px-5 pb-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{t("rev.pgnNotation")}</span>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyPGN}>
-              {copied
-                ? <><Check className="h-3 w-3" />{t("rev.copiedPgn")}</>
-                : <><Copy className="h-3 w-3" />{t("rev.copyPgn")}</>
-              }
-            </Button>
+            <div className="flex gap-1.5">
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={downloadPGN}>
+                <Download className="h-3 w-3" />
+                {t("rev.downloadPgn")}
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyPGN}>
+                {copied
+                  ? <><Check className="h-3 w-3" />{t("rev.copiedPgn")}</>
+                  : <><Copy className="h-3 w-3" />{t("rev.copyPgn")}</>
+                }
+              </Button>
+            </div>
           </div>
 
           {/* Moves only */}

@@ -225,6 +225,7 @@ export const en = {
   "rev.pgnNotation": "PGN Notation",
   "rev.copyPgn": "Copy PGN",
   "rev.copiedPgn": "Copied!",
+  "rev.downloadPgn": "Download PGN",
   "rev.showFullPgn": "Show full PGN",
   "rev.analysis": "Match Analysis",
   "rev.totalPlies": "Total plies",

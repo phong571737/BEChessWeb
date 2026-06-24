@@ -11,6 +11,7 @@ import {
   WifiOff,
   Copy,
   Check,
+  Download,
   List,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -264,6 +265,27 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">FEN</span>
           <code className="flex-1 min-w-0 truncate text-[10px] font-mono text-muted-foreground/80">{fen || "-"}</code>
+          {!!pgn?.trim() && (
+            <button
+              type="button"
+              onClick={() => {
+                const filename = `${whiteName}-vs-${blackName}.pgn`.replace(/[^a-zA-Z0-9._\-]/g, "_");
+                const blob = new Blob([pgn], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors"
+              title="Download PGN"
+              aria-label="Download PGN"
+            >
+              <Download className="size-3" />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => { navigator.clipboard.writeText(fen || ""); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
