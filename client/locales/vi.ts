@@ -228,6 +228,7 @@ export const vi: Record<TranslationKeys, string> = {
   "rev.copyPgn": "Copy PGN",
   "rev.copiedPgn": "Đã copy!",
   "rev.downloadPgn": "Tải PGN",
+  "rev.downloadFen": "Tải FEN (.txt)",
   "rev.showFullPgn": "Xem đầy đủ PGN",
   "rev.analysis": "Phân tích ván cờ",
   "rev.totalPlies": "Tổng số nước đi",

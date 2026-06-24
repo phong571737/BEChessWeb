@@ -305,21 +305,48 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             PGN unavailable, using FEN timeline
           </div>
         )}
-        <div className="inline-flex rounded-md border border-border overflow-hidden bg-muted/40">
-          <button
-            type="button"
-            onClick={() => setNotationMode("pgn")}
-            className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "pgn" ? "bg-accent text-foreground" : "text-muted-foreground")}
-          >
-            PGN
-          </button>
-          <button
-            type="button"
-            onClick={() => setNotationMode("fen")}
-            className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "fen" ? "bg-accent text-foreground" : "text-muted-foreground")}
-          >
-            FEN
-          </button>
+        <div className="flex items-center justify-between gap-2">
+          <div className="inline-flex rounded-md border border-border overflow-hidden bg-muted/40">
+            <button
+              type="button"
+              onClick={() => setNotationMode("pgn")}
+              className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "pgn" ? "bg-accent text-foreground" : "text-muted-foreground")}
+            >
+              PGN
+            </button>
+            <button
+              type="button"
+              onClick={() => setNotationMode("fen")}
+              className={cn("px-2.5 py-1 text-xs font-medium", notationMode === "fen" ? "bg-accent text-foreground" : "text-muted-foreground")}
+            >
+              FEN
+            </button>
+          </div>
+          {fenHistory.length > 1 && (
+            <button
+              type="button"
+              onClick={() => {
+                const lines = fenHistory.slice(1).map((f, i) => `${i + 1}. ${f}`);
+                const header = `Game: ${whiteName} vs ${blackName}\n\nFEN Timeline:\n`;
+                const content = header + lines.join("\n");
+                const filename = `${whiteName}-vs-${blackName}-fens.txt`.replace(/[^a-zA-Z0-9._\-]/g, "_");
+                const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url; a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              }}
+              className="shrink-0 text-muted-foreground/50 hover:text-foreground transition-colors flex items-center gap-1 text-[10px]"
+              title="Download FEN (.txt)"
+              aria-label="Download FEN"
+            >
+              <Download className="size-3" />
+              <span className="hidden sm:inline">FEN</span>
+            </button>
+          )}
         </div>
       </div>
 
@@ -336,20 +363,20 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             <div className="p-1.5 space-y-1">
               {fenHistory.map((fenAt, idx) => {
                 const isActive = activeCursor === idx;
+                const displayFen = fenAt === "start" ? "start" : fenAt.split(" ")[0];
                 return (
                   <button
                     key={`fen-${idx}`}
                     type="button"
                     onClick={() => goTo(idx)}
+                    title={fenAt}
                     className={cn(
-                      "w-full text-left px-2 py-1 rounded-sm border transition-colors",
+                      "w-full text-left px-2 py-1 rounded-sm border transition-colors flex items-center gap-2 overflow-hidden",
                       isActive ? "bg-accent border-accent" : "border-border hover:bg-accent/50"
                     )}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-xs text-muted-foreground font-mono shrink-0">{idx}</span>
-                      <span className="text-xs text-muted-foreground truncate flex-1 text-right">{fenAt}</span>
-                    </div>
+                    <span className="text-[11px] text-muted-foreground font-mono shrink-0 tabular-nums">{idx}</span>
+                    <span className="text-[11px] text-muted-foreground font-mono truncate min-w-0">{displayFen}</span>
                   </button>
                 );
               })}

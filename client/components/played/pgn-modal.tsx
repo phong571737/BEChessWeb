@@ -195,6 +195,25 @@ export function PGNReviewContent({ game }: ReviewProps) {
     URL.revokeObjectURL(url);
   };
 
+  const downloadFEN = () => {
+    const lines = timeline.slice(1).map((m, i) => {
+      const fen = m.san.startsWith("fen#") ? m.san.replace("fen#", "") : m.fen;
+      return `${i + 1}. ${fen}`;
+    });
+    const header = `Game: ${game.WhiteName} vs ${game.BlackName}\nResult: ${game.Result}\nDate: ${game.Date || "unknown"}\n\nFEN Timeline:\n`;
+    const content = header + lines.join("\n");
+    const filename = `${game.WhiteName}-vs-${game.BlackName}-${game.Date || "unknown"}-fens.txt`.replace(/[^a-zA-Z0-9._\-]/g, "_");
+    const blob = new Blob([content], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -268,28 +287,48 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 </div>
               )}
               <ScrollArea className="h-[160px]">
-                <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  {timeline.slice(1).map((m, i) => {
-                    const label = m.san.startsWith("fen#")
-                      ? m.san.replace("fen#", "").split(" ")[0]
-                      : m.san;
-                    return (
+                {timeline.length > 1 && timeline[1].san.startsWith("fen#") ? (
+                  <div className="p-1.5 space-y-1">
+                    {timeline.slice(1).map((m, i) => {
+                      const rawFen = m.san.replace("fen#", "");
+                      const displayFen = rawFen.split(" ")[0];
+                      return (
+                        <button
+                          key={`fen-tl-${i}`}
+                          type="button"
+                          onClick={() => goTo(i + 1)}
+                          title={rawFen}
+                          className={`w-full text-left px-2 py-1 rounded-sm text-[11px] border font-mono flex items-center gap-2 min-w-0 overflow-hidden ${
+                            currentIndex === i + 1
+                              ? "bg-accent border-border text-foreground"
+                              : "border-transparent hover:bg-accent/70 text-muted-foreground"
+                          }`}
+                        >
+                          <span className="shrink-0 text-muted-foreground/50 tabular-nums">{i + 1}.</span>
+                          <span className="truncate min-w-0">{displayFen}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
+                    {timeline.slice(1).map((m, i) => (
                       <button
                         key={`${m.san}-${i}`}
                         type="button"
                         onClick={() => goTo(i + 1)}
-                        className={`text-left px-2 py-1 rounded-sm text-xs border font-mono ${
+                        className={`text-left px-2 py-1 rounded-sm text-xs border ${
                           currentIndex === i + 1
                             ? "bg-accent border-border text-foreground"
                             : "border-transparent hover:bg-accent/70 text-muted-foreground"
                         }`}
-                        title={m.san.startsWith("fen#") ? m.san.replace("fen#", "") : m.san}
+                        title={m.san}
                       >
-                        <span className="text-muted-foreground/60">{i + 1}.</span> {label}
+                        <span className="text-muted-foreground/60">{i + 1}.</span> {m.san}
                       </button>
-                    );
-                  })}
-                </div>
+                    ))}
+                  </div>
+                )}
               </ScrollArea>
               <div className="flex items-center justify-center gap-1 p-2 border-t border-border">
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goTo(0)} disabled={currentIndex === 0}>
@@ -311,9 +350,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
         {/* PGN section */}
         <div className="px-4 sm:px-5 pb-5 space-y-2">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-2">
             <span className="text-sm font-medium">{t("rev.pgnNotation")}</span>
-            <div className="flex gap-1.5">
+            <div className="flex gap-1.5 flex-wrap">
+              {timeline.length > 1 && (
+                <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={downloadFEN}>
+                  <Download className="h-3 w-3" />
+                  {t("rev.downloadFen")}
+                </Button>
+              )}
               <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={downloadPGN}>
                 <Download className="h-3 w-3" />
                 {t("rev.downloadPgn")}
