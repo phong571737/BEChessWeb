@@ -1,14 +1,24 @@
 import { Chess } from "chess.js";
-import { createGame, setCurrentGame } from "../game/game.manager.js";
+import { createGame, getCurrentGame, setCurrentGame } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { executeMove } from "../utils/chess.utils.js";
+import { activeBranches, games, gameSeq } from "../game/game.repository.js";
+import { gameState } from "../game/game.state.js";
 
 export const GameService = {
   // create game
   async create(boardID, gameID, round = 1, WhiteName = "", BlackName = "") {
+    // Remove old game from RAM first
+    const oldGameID = getCurrentGame(boardID);
+    if (oldGameID && oldGameID !== gameID) {
+      games.delete(oldGameID);
+      gameSeq.delete(oldGameID);
+      activeBranches.delete(oldGameID);
+      console.log(`Cleaned old game ${oldGameID} from RAM`);
+    }
+
     const chess = createGame(gameID);
-    
     await saveGame(gameID, {
       gameID,
       boardID,
@@ -21,6 +31,7 @@ export const GameService = {
     });
 
     setCurrentGame(boardID, gameID);
+    gameState.set(boardID, {gameID, gameStatus: "idle"})
 
     return { boardID, gameID, fen: chess.fen(), round};
   },

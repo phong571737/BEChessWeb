@@ -10,7 +10,7 @@ import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash } from "lucide-rea
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
-import { resultVariant, formatDateTime, formatDuration } from "@/lib/game-utils";
+import { resultVariant, formatDateTime, formatDuration, parsePgnHeader } from "@/lib/game-utils";
 
 const INPUT_CLS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground " +
@@ -29,7 +29,19 @@ export function GameHistory() {
 
   useEffect(() => {
     fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
-      .then((data: HistoryGame[]) => setGames(data))
+      .then((data: HistoryGame[]) => {
+        const normalized = data.map((g) => {
+          const headers = parsePgnHeader(g.pgn ?? "");
+          return {
+            ...g,
+            WhiteName: g.WhiteName || headers["White"] || "?",
+            BlackName: g.BlackName || headers["Black"] || "?",
+            Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
+            Date: g.Date || headers["Date"] || g.createdAt || "",
+          }
+        });
+        setGames(normalized);
+      })
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
   }, []);

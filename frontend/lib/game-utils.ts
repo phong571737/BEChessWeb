@@ -37,3 +37,15 @@ export function formatDuration(sec?: number | null): string {
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
+
+// parse header of pgn
+export function parsePgnHeader(pgn: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  const lines = pgn.split("\n");
+  for (const line of lines) {
+    const match = line.match(/^\[(\w+)\s+"(.*)"\]$/);
+    if (match) headers[match[1]] = match[2];
+    else if (line.trim() && !line.startsWith("[")) break; // moves section started
+  }
+  return headers;
+}

@@ -23,7 +23,7 @@ export const GameController = {
         try {
             const games = await getPGNCollections()
                 .find({})
-                .sort({ createAt: -1 }) // newest
+                .sort({ createdAt: -1 }) // newest
                 .toArray();
 
             res.json(games);

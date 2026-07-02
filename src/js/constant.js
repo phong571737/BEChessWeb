@@ -16,7 +16,6 @@ export const MOVE_TYPE = Object.freeze({
     ENPASSANT: "ENPASSANT", //enpassant
     PROMOTE: "PROMOTE", // promtion
     MOVE_ERROR: "MOVE_ERROR", // ERROR
-    MOVE_CAPTURE_ERROR: "CAPTURE_ERROR",
 })
 
 // Error status

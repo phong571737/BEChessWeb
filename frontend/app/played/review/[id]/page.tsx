@@ -10,6 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import type { HistoryGame } from "@/types/game.types";
 import { fetchJSONCached } from "@/lib/fetch-cache";
 import { useT } from "@/lib/i18n";
+import { parsePgnHeader } from "@/lib/game-utils";
 
 function ReviewSkeleton() {
   return (
@@ -73,8 +74,19 @@ export default function PlayedReviewPage() {
     if (!id) return;
     fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
       .then((rows: HistoryGame[]) => {
-        const found = rows.find((x) => x._id === id) ?? null;
-        setGame(found);
+        const raws = rows.find((x) => x._id === id) ?? null;
+        if (!raws) {
+          setGame(null); 
+          return;
+        }
+        const headers = parsePgnHeader(raws.pgn ?? "");
+        setGame({
+          ...raws,
+          WhiteName: raws?.WhiteName || headers["White"] || "?",
+          BlackName: raws?.BlackName || headers["Black"] || "?",
+          Result: (raws.Result || headers["Result"] || "*") as HistoryGame["Result"],
+          Date: raws.Date || headers["Date"] || raws.createdAt || "",
+        });
       })
       .catch(() => setGame(null))
       .finally(() => setLoading(false));

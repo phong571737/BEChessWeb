@@ -3,6 +3,25 @@ import { endGame, getGame, saveGame } from "../models/game.model.js";
 import { createGame, resetGame, setCurrentGame } from "../game/game.manager.js";
 import { BOARD_TYPE, ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
+import { finishGame } from "../../../../ChessServer/src/js/models/game.model.js";
+
+function buildResultTag(resignSide) {
+    const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
+    return resultTag;
+}
+
+function buildFinalPGN(game, pgn, resultTag) {
+    // rebuild PGN with headers
+    const chess = new Chess();
+    if (pgn) chess.loadPgn(pgn);
+
+    chess.setHeader("White", game.WhiteName || "White");
+    chess.setHeader("Black", game.BlackName || "Black");
+    chess.setHeader("Result", resultTag);
+    chess.setHeader("Date", new Date().toISOString().slice(0, 10).replace(/-/g, "."));
+
+    return { chess, finalPGN: chess.pgn() };
+}
 
 export const GameResignService = {
     async handle(gameID, resignSide, boardType, branchId = null) {
@@ -16,8 +35,6 @@ export const GameResignService = {
         if (!game) throw new Error(ERROR_STATUS.NOTFOUND);
 
         const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
-
-        // const pgn = typeof game.pgn === "string" && game.pgn.trim() ? game.pgn : "";
         let pgn = game.pgn ?? "";
 
         if (branchId) {
@@ -29,20 +46,9 @@ export const GameResignService = {
 
             pgn = branch.pgn ?? "";
         }
-        // rebuild PGN with headers
-        const chess = new Chess();
-        if (pgn) chess.loadPgn(pgn);
 
-        const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
-        const now = new Date();
-        const dateTag = now.toISOString().slice(0, 10).replace(/-/g, "");
-
-        chess.setHeader("White", game.WhiteName || "White");
-        chess.setHeader("Black", game.BlackName || "Black");
-        chess.setHeader("Result", resultTag);
-        chess.setHeader("Date", dateTag);
-        const finalPGN = chess.pgn();
-
+        const resultTag = buildResultTag(resignSide);
+        const { chess, finalPGN } = buildFinalPGN(game, pgn, resultTag);
         const currentRound = game.round ?? 1;
         const nextRound = currentRound + 1;
 
@@ -50,18 +56,11 @@ export const GameResignService = {
         const doc = {
             gameID,
             pgn: finalPGN,
-            Result: resultTag,
-            White: game.WhiteName || "White",
-            Black: game.BlackName || "Black",
-            Date: new Date().toISOString().split("T")[0],
             totalMoves: chess.history().length,
-            endReason: resignSide === "draw" ? "draw_agreed" : "resigned",
-            loser: resignSide === "draw" ? null : resignSide,
-            winner,
             round: currentRound,
             uciHistory: game.uciHistory ?? [],
             fenHistory: game.fenHistory ?? [],
-            createAt: new Date(),
+            createdAt: new Date(),
         }
 
         await endGame(doc);

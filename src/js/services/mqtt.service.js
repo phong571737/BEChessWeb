@@ -5,6 +5,7 @@ import { updateNotify } from "../../ServerWeb/js/core/notify.manager.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { resetGame } from "../game/game.manager.js";
 import { removeGame, removeGameByBoardID } from "../models/game.model.js";
+import { currentGameByBoard } from "../game/game.repository.js";
 
 let mqttClient = null;
 
@@ -33,11 +34,14 @@ async function handleMessage(topic, message) {
                             games.delete(gameID);
                             gameSeq.delete(gameID);
                             activeBranches.delete(gameID);
+                            console.log(`Cleaned game ${gameID} from RAM`);
                         }
                     }
+                    currentGameByBoard.delete(boardID); // remove old gameID
+                    gameState.set(boardID, {boardStatus: "offline", gameID: null});
                     getIO().emit("game:destroyed", { boardID });
                 } catch (e) {
-
+                    console.error("[MQTT] Cleanup error:", e);
                 }
             } else if (payload.status === "restart") {
                 console.log(`[MQTT] Board ${boardID} restart`);

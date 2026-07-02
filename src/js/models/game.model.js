@@ -2,7 +2,7 @@ import { getDB } from "../config/database.js";
 import { BOARD_TYPE } from "../constant.js";
 
 const games = () => getDB().collection("games");
-const pgnGames = () => getDB().collection("pgn_games");
+const pgnGames = () => getDB().collection("game_history");
 
 // Get data from database
 export function getGameCollections() { return games(); }
@@ -42,7 +42,7 @@ export async function saveGame(gameID, state, { uci, fen, seq, boardType } = {})
         }
 
         return games().updateOne(
-            { _id: gameID },
+            { gameID },
             updateOp,
             {upsert: true}
         );

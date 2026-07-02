@@ -1,6 +1,6 @@
 import { getDB } from "../config/database.js";
 
-const pgnGames = () => getDB().collection("pgn_games");
+const pgnGames = () => getDB().collection("game_history");
 
 export function getPGNCollections(){return pgnGames();}
 /**

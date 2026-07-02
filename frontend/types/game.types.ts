@@ -39,7 +39,6 @@ export interface HistoryGame {
     totalPlies?: number;
     pgn: string;
     createdAt?: string;
-    // createAt?: string;
     endedAt?: string;
     durationSec?: number | null;
     fenHistory?: string [];
