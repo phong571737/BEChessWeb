@@ -9,6 +9,9 @@ frontend/node_modules
 # next js
 frontend/.next
 
+pnpm-lock.yaml
+pnpm-workspace.yaml
+
 mongodb_data/
 .DS_Store
 dist/
