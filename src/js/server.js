@@ -33,6 +33,8 @@ async function StartServer() {
     credentials: true
   }));
 
+  app.get("/health", (req, res) => res.status(200).send("OK"));
+
   app.use("/moves", moveRouter); //moves
   app.use("/games", gameRouter); // get games/current and games
   app.use("/boards", boardRouter); // create a new board

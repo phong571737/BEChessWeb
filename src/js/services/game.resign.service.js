@@ -3,7 +3,7 @@ import { endGame, getGame, saveGame } from "../models/game.model.js";
 import { createGame, resetGame, setCurrentGame } from "../game/game.manager.js";
 import { BOARD_TYPE, ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
-import { finishGame } from "../../../../ChessServer/src/js/models/game.model.js";
+// import { finishGame } from "../../../../ChessServer/src/js/models/game.model.js";
 
 function buildResultTag(resignSide) {
     const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
