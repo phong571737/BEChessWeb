@@ -8,7 +8,12 @@ services:
       - .env
 
   frontend:
-    build: ./frontend
+    build: 
+      context: ./frontend
+      args:
+        API_URL: http://ttlab-chess-app:${PORT:-8080}
+        NEXT_PUBLIC_API_URL: ${BACKEND_PUBLIC_URL}
+        NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL}
     container_name: chess-frontend
     ports:
       - "4000:3000"
@@ -16,3 +21,12 @@ services:
       - API_URL=http://ttlab-chess-app:8080
     depends_on:
       - ttlab-chess-app
+
+newt:
+    image: fosrl/newt
+    container_name: newt
+    restart: unless-stopped
+    environment:
+      - PANGOLIN_ENDPOINT=<PANGOLIN_ENDPOINT>
+      - NEWT_ID=<ID>
+      - NEWT_SECRET=<SECRET>

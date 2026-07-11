@@ -2,6 +2,11 @@
 .env.local
 .env.*.local
 
+# using npm only, no lockfiles committed
+pnpm-lock.yaml
+pnpm-workspace.yaml
+pgpm-workspace.yaml
+
 # node module
 node_modules/
 frontend/node_modules
@@ -9,9 +14,13 @@ frontend/node_modules
 # next js
 frontend/.next
 
-pnpm-lock.yaml
-pnpm-workspace.yaml
-pgpm-workspace.yaml
+# package
+package-lock.json
+package.json
+
+# package frontend
+frontend/package-lock.json
+frontend/package.json
 
 mongodb_data/
 .DS_Store
