@@ -1,6 +1,6 @@
 import { activeBranches, gameSeq, games } from "../game/game.repository.js";
 import { ChessService } from "./chess.service.js";
-import { buildResponse, executeMove } from "../utils/chess.utils.js";
+import { executeMove } from "../utils/chess.utils.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { MOVE_TYPE } from "../constant.js";
 import { Chess } from "chess.js";

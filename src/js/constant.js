@@ -47,4 +47,5 @@ export const BOARD_STATUS = Object.freeze({
     WRONG_PIECE: "wrong_piece",
     MISSING_PIECE: "missing_piece",
     WAITING_BUTTON: "waiting_button",
+    INVALID: "Board_invalid",
 });

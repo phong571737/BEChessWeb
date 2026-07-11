@@ -11,6 +11,7 @@ frontend/.next
 
 pnpm-lock.yaml
 pnpm-workspace.yaml
+pgpm-workspace.yaml
 
 mongodb_data/
 .DS_Store
