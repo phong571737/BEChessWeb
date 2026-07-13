@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { endGameOnce, loadGame, saveGame } from "../models/game.model.js";
+import { loadGame, saveGame } from "../models/game.model.js";
 import { resetGame, games as memGames } from "../game/game.manager.js";
 import { getIO } from "../sockets/index.js";
 import { getBoardRegistry } from "../routes/board.route.js";
@@ -70,7 +70,9 @@ export const GameResignService = {
             durationSec,
         }
 
-        await endGameOnce(doc);
+        // Do NOT write to history (pgn_games) here. Stash the finalized record as
+        // `pendingHistory` on the game doc so the player can review it first and only
+        // persist to history when they explicitly click "Save" (POST /:id/save-history).
         resetGame(gameID);
         await saveGame(gameID, {
             fen: new Chess().fen(),
@@ -79,6 +81,8 @@ export const GameResignService = {
             lastSeq: 0,
             status: "finished",
             result,
+            pendingHistory: doc,
+            saved: false,
         });
 
         // Detach board from this finished game so ESP32 shows as "Ready" again

@@ -76,6 +76,12 @@ export const vi: Record<TranslationKeys, string> = {
   "board.drawAgreed": "Đồng ý hoà",
   "board.winner": "thắng",
   "board.viewHistory": "Xem lịch sử",
+  "board.reviewTitle": "Xem lại ván đấu",
+  "board.saveHint": "Xem lại ván đấu, rồi bấm Lưu để thêm vào lịch sử.",
+  "board.saveGame": "Lưu ván đấu",
+  "board.saving": "Đang lưu…",
+  "board.saved": "Đã lưu",
+  "board.saveFailed": "Lưu thất bại, thử lại",
 
   // ── Result labels ───────────────────────────────────────────────
   "result.whiteWin": "Trắng thắng",

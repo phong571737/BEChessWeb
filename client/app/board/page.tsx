@@ -11,9 +11,11 @@ import { EvalBar } from "@/components/board/eval-bar";
 import { GamePanel, type GamePanelHandle } from "@/components/board/game-panel";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
-import { Loader2, AlertTriangle, WifiOff, X, Home, Trophy } from "lucide-react";
+import { Loader2, AlertTriangle, WifiOff, X, Home, Trophy, Save, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useT } from "@/lib/i18n";
+import { PGNReviewContent } from "@/components/played/pgn-modal";
+import type { HistoryGame } from "@/types/game.types";
 
 const STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
@@ -306,6 +308,74 @@ function GameEndedView({ result, whiteName, blackName, fen }: GameEndedViewProps
   );
 }
 
+// ── Game review + save overlay ────────────────────────────────────────────────
+interface GameReviewEndedViewProps {
+  pendingHistory: HistoryGame;
+  saved: boolean;
+  onSave: () => Promise<boolean>;
+}
+
+function GameReviewEndedView({ pendingHistory, saved, onSave }: GameReviewEndedViewProps) {
+  const { t } = useT();
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
+    saved ? "saved" : "idle",
+  );
+
+  // Keep in sync if the store reports the game as already saved (e.g. refetch/poll)
+  useEffect(() => {
+    if (saved) setSaveState("saved");
+  }, [saved]);
+
+  const handleSave = async () => {
+    setSaveState("saving");
+    const ok = await onSave();
+    setSaveState(ok ? "saved" : "error");
+  };
+
+  return (
+    <div className="max-w-3xl mx-auto p-3 sm:p-4">
+      {/* ── Action bar: title + Save ── */}
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold leading-none">{t("board.reviewTitle")}</h2>
+          <p className="text-xs text-muted-foreground mt-1">{t("board.saveHint")}</p>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Button variant="outline" size="sm" asChild>
+            <Link href="/"><Home className="size-3.5 mr-1.5" />{t("nav.home")}</Link>
+          </Button>
+          {saveState === "saved" ? (
+            <>
+              <span className="inline-flex items-center gap-1.5 rounded-md bg-green-500/10 px-2.5 py-1.5 text-xs font-medium text-green-600 dark:text-green-400">
+                <Check className="size-3.5" />{t("board.saved")}
+              </span>
+              <Button size="sm" asChild>
+                <Link href="/played">{t("board.viewHistory")}</Link>
+              </Button>
+            </>
+          ) : (
+            <Button size="sm" onClick={handleSave} disabled={saveState === "saving"}>
+              {saveState === "saving"
+                ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
+                : <Save className="size-3.5 mr-1.5" />}
+              {saveState === "saving" ? t("board.saving") : t("board.saveGame")}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {saveState === "error" && (
+        <p className="text-xs text-destructive mb-2">{t("board.saveFailed")}</p>
+      )}
+
+      {/* ── Rich review UI (board replay + move list + PGN), reused from history ── */}
+      <div className="rounded-lg border border-border bg-card overflow-hidden">
+        <PGNReviewContent game={pendingHistory} />
+      </div>
+    </div>
+  );
+}
+
 // ── Board offline banner ──────────────────────────────────────────────────────
 function BoardOfflineBanner() {
   const { t } = useT();
@@ -372,6 +442,7 @@ function BoardContent() {
     fen, pgn, fenHistory, cp, whiteName, blackName, lastMove,
     boardConnected, boardOffline, activeAlert, dismissAlert,
     status, result, scanMissing, scanReason,
+    pendingHistory, saved, saveHistory,
     isLoaded, notFound, restart, resign, rescan, rescanLoading,
     lastMoveAt, moveTimesMap,
     scanActive, scanLatencyMs,
@@ -454,6 +525,17 @@ function BoardContent() {
 
   // ── Game ended overlay ───────────────────────────────────────────────────────
   if (status === "ended") {
+    // New games carry a `pendingHistory` snapshot → show the interactive review +
+    // Save flow. Older finished games (pre-feature) fall back to the simple view.
+    if (pendingHistory) {
+      return (
+        <GameReviewEndedView
+          pendingHistory={pendingHistory}
+          saved={saved}
+          onSave={saveHistory}
+        />
+      );
+    }
     return (
       <GameEndedView
         result={result}

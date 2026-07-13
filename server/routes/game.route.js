@@ -109,8 +109,40 @@ gameRouter.post("/:id/destroy", GameActionController.destroy);
 gameRouter.post("/:id/resign", GameActionController.resign);
 
 /**
+ * POST games/:id/save-history
+ * Commit a finished-but-unsaved game to history (pgn_games).
+ * The game is finalized on resign/draw but only stashed as `pendingHistory`;
+ * this endpoint persists it when the player clicks "Save" after reviewing.
+ */
+gameRouter.post("/:id/save-history", async (req, res) => {
+    try {
+        const gameID = req.params.id;
+        const game = await loadGame(gameID);
+        if (!game) {
+            return res.status(404).json({ error: "Game not found" });
+        }
+        if (game.saved) {
+            return res.json({ ok: true, alreadySaved: true });
+        }
+        if (!game.pendingHistory) {
+            return res.status(400).json({ error: "No game to save" });
+        }
+
+        const result = await endGameOnce(game.pendingHistory);
+        await saveGame(gameID, { saved: true });
+        invalidateCached("games:");
+        invalidateCached(`games:item:${gameID}`);
+
+        res.json({ ok: true, ...result });
+    } catch (e) {
+        console.error("[POST /games/:id/save-history]", e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+/**
  * POST games/:id/reset
- * This api is used to post reset board when the game end 
+ * This api is used to post reset board when the game end
  */
 gameRouter.post("/:id/reset", GameActionController.reset);
 

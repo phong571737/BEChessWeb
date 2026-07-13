@@ -71,4 +71,8 @@ export interface BoardState {
   scanMissing: string[];
   /** Reason for scan failure: "MISSING" | "DUPLICATE" | null */
   scanReason: "MISSING" | "DUPLICATE" | null;
+  /** Finalized history record awaiting an explicit Save (set when status === "ended") */
+  pendingHistory?: HistoryGame | null;
+  /** Whether the finished game has been committed to history (pgn_games) */
+  saved?: boolean;
 }

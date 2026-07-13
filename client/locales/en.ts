@@ -74,6 +74,12 @@ export const en = {
   "board.drawAgreed": "Draw by agreement",
   "board.winner": "won",
   "board.viewHistory": "View History",
+  "board.reviewTitle": "Review Game",
+  "board.saveHint": "Review the game, then Save to add it to your history.",
+  "board.saveGame": "Save Game",
+  "board.saving": "Saving…",
+  "board.saved": "Saved",
+  "board.saveFailed": "Save failed, try again",
 
   // ── Result labels ───────────────────────────────────────────────
   "result.whiteWin": "White win",

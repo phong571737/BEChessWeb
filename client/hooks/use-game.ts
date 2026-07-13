@@ -218,6 +218,8 @@ export function useGame(gameID: string) {
           result:      game.result    ?? undefined,
           scanMissing: game.scanMissing ?? [],
           scanReason:  game.scanReason  ?? null,
+          pendingHistory: game.pendingHistory ?? null,
+          saved:          game.saved ?? false,
         });
         setIsLoaded(true);
       })
@@ -252,7 +254,12 @@ export function useGame(gameID: string) {
           pgn:      game.pgn      || "",
           lastMove: game.lastMove || null,
           fenHistory: game.fenHistory || null,
-          ...(game.status === "finished" && { status: "ended", result: game.result }),
+          ...(game.status === "finished" && {
+            status: "ended",
+            result: game.result,
+            pendingHistory: game.pendingHistory ?? null,
+            saved: game.saved ?? false,
+          }),
         });
       } catch {}
     };
@@ -405,6 +412,34 @@ export function useGame(gameID: string) {
     invalidateFetchCache(`/games/${gameID}`);
     invalidateFetchCache("/games/current");
     invalidateFetchCache("/games/history");
+
+    // Refetch the finished game so the review overlay gets the finalized PGN
+    // (pendingHistory) immediately, instead of waiting for the 2 s poll.
+    try {
+      const res = await fetch(`/games/${gameID}?_t=${Date.now()}`, { cache: "no-store" });
+      if (res.ok) {
+        const game = await res.json();
+        patchBoard(gameID, {
+          status: "ended",
+          result: game.result ?? undefined,
+          pendingHistory: game.pendingHistory ?? null,
+          saved: game.saved ?? false,
+        });
+      }
+    } catch {}
+  };
+
+  const saveHistory = async (): Promise<boolean> => {
+    try {
+      const res = await fetch(`/games/${gameID}/save-history`, { method: "POST" });
+      if (!res.ok) return false;
+      patchBoard(gameID, { saved: true });
+      invalidateFetchCache(`/games/${gameID}`);
+      invalidateFetchCache("/games/history");
+      return true;
+    } catch {
+      return false;
+    }
   };
 
   const rescan = async () => {
@@ -434,6 +469,8 @@ export function useGame(gameID: string) {
     result:         board?.result         ?? null,
     scanMissing:    board?.scanMissing    ?? [],
     scanReason:     board?.scanReason     ?? null,
+    pendingHistory: board?.pendingHistory ?? null,
+    saved:          board?.saved          ?? false,
     boardOffline,
     activeAlert,
     dismissAlert,
@@ -442,6 +479,7 @@ export function useGame(gameID: string) {
     notFound,
     restart,
     resign,
+    saveHistory,
     rescan,
     rescanLoading,
     chess:        chessRef.current,
