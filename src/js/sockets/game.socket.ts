@@ -1,6 +1,16 @@
-import { getCurrentState, makeMove } from "../game/game.manager.js";
+import { Server } from "socket.io";
+import { getCurrentState } from "../game/game.manager.js";
+import { GameIDPayload, ResignPayload } from "../types/game.types.js";
 
-export function initGameSocket(io) {
+type RequestCurrentGamePayload = Partial<GameIDPayload>;
+interface MatchStatus {
+    status: "ongoing" | "ended";
+    winner: Exclude<ResignPayload["resignSide"], "draw"> | null;
+}
+
+const gameStatus = new Map<string, MatchStatus>();
+
+export function initGameSocket(io: Server): void {
     io.on("connection", (socket) =>{
 
         // join room
@@ -10,14 +20,14 @@ export function initGameSocket(io) {
         });
 
         // Save data to currentGameState
-        socket.on('request_current_game', (data)=>{
+        socket.on('request_current_game', async (data: RequestCurrentGamePayload) => {
             if(!data || !data.gameID){
                 console.log("The uploaded data is missing the gameID");
                 return;
             }
 
             const gameID = data.gameID;
-            const currentstate = getCurrentState(gameID);
+            const currentstate = await getCurrentState(gameID);
             
             if(currentstate){
                 socket.emit("restore_game", {
@@ -30,14 +40,14 @@ export function initGameSocket(io) {
             }
         });
 
-        socket.on("resign", ({gameID, resignSide}) => {
-            const game = getCurrentState(gameID);
+        socket.on("resign", async ({gameID, resignSide}: ResignPayload) => {
+            const current = gameStatus.get(gameID) ?? { status: "ongoing" as const, winner: null };
 
             // anti double click
-            if(game?.status === "ended") return;
+            if(current.status === "ended") return;
 
-            game.status = "ended";
-            game.winner = resignSide === "white" ? "black" : "white";
+            const winner: MatchStatus["winner"] = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
+            gameStatus.set(gameID, { status: "ended", winner });
 
             // notify to all client update board
             io.to(gameID).emit("update_all_game", {

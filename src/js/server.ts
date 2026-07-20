@@ -4,7 +4,7 @@ import cors from "cors";
 import { initSocket } from "./sockets/index.js";
 import { connectDB } from "./config/database.js";
 import dns from "node:dns/promises";
-import { evalRouter } from "./routes/eval.router.js";
+// import { evalRouter } from "./routes/eval.router.js";
 import { initMqtt } from "./services/mqtt.service.js";
 import { boardRouter } from "./routes/board.router.js";
 import { gameRouter } from "./routes/game.router.js";
@@ -28,7 +28,7 @@ async function StartServer() {
   app.use("/moves", moveRouter); //moves
   app.use("/games", gameRouter); // get games/current and games
   app.use("/boards", boardRouter); // create a new board
-  app.use("/", evalRouter);
+  // app.use("/", evalRouter);
 
   await connectDB();
   initSocket(server);

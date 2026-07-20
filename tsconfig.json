@@ -6,6 +6,7 @@
     "checkJs": true,
     "module": "NodeNext",
     "moduleResolution": "NodeNext", 
+    "noUncheckedIndexedAccess": true,
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,

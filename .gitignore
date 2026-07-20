@@ -5,7 +5,7 @@
 # using npm only, no lockfiles committed
 pnpm-lock.yaml
 pnpm-workspace.yaml
-pgpm-workspace.yaml
+pnpm-workspace.yaml
 
 # node module
 node_modules/

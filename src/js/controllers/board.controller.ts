@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
 import { GameService } from "../services/game.service.js";
-import { getAllGame } from "../models/game.model.js";
+import { getAllGame, removeGame } from "../models/game.model.js";
 import { getCurrentGame } from "../game/game.manager.js";
 import { ERROR_STATUS, BOARD_TYPE, BOARD_STATUS } from "../constant.js";
 import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
 import { gameState, emitGameState } from "../game/game.state.js";
-import { CreateBoardBody, InitCheckBody, InitCheckParams } from "../types/board.types.js";
+import { CreateBoardBody, InitCheckBody } from "../types/board.types.js";
+import { GameIdParams } from "../types/game.types.js";
+import { games, gameSeq, activeBranches } from "../game/game.repository.js";
 
 export const BoardController = {
     // This function is used to create a new game
@@ -21,14 +23,22 @@ export const BoardController = {
                 });
             }
 
-            const currentGame = getCurrentGame(boardID);
-            if (currentGame) {
-                return res.status(200).json({
-                    status: "OK",
-                    boardID,
-                    gameID: currentGame,
-                });
-            }
+            // const currentGame = getCurrentGame(boardID);
+            // if (currentGame) {
+            //     return res.status(200).json({
+            //         status: "OK",
+            //         boardID,
+            //         gameID: currentGame,
+            //     });
+            // }
+
+            const oldGameID = getCurrentGame(boardID);
+            if (oldGameID) {
+            await removeGame(oldGameID); 
+            games.delete(oldGameID);
+            gameSeq.delete(oldGameID);
+            activeBranches.delete(oldGameID);
+        }
 
             const gameID = crypto.randomUUID();
 
@@ -66,7 +76,7 @@ export const BoardController = {
 
     // Check init 
     async initCheck(
-        req: Request<InitCheckParams, unknown, InitCheckBody>, 
+        req: Request<GameIdParams, unknown, InitCheckBody>, 
         res: Response
     ): Promise<Response | void> {
         try {
@@ -121,11 +131,13 @@ export const BoardController = {
                 finalStatus = BOARD_STATUS.WAITING_BUTTON;
             }
 
-            gameState.set(gameID, {
-                status: finalStatus === BOARD_STATUS.READY ? BOARD_STATUS.READY : BOARD_STATUS.CHECK_INIT,
+            const extraSquares = "extraSquares" in result ? result.extraSquares : result.wrongSquares;
+            const wrongPieceSquares = "wrongPieceSquares" in result ? result.wrongPieceSquares : [];
+            gameState.set(boardID, {
+                gameStatus: finalStatus === BOARD_STATUS.READY ? BOARD_STATUS.READY : BOARD_STATUS.CHECK_INIT,
                 missingSquares: result.missingSquares || [],
-                extraSquares: result.extraSquares || [],
-                wrongPieceSquares: result.wrongPieceSquares || [],
+                extraSquares,
+                wrongPieceSquares,
             });
 
             emitGameState(boardID);
@@ -134,8 +146,8 @@ export const BoardController = {
                 boardID,
                 status: finalStatus,
                 missingSquares: result.missingSquares || [],
-                extraSquares: result.extraSquares || [],
-                wrongPieceSquares: result.wrongPieceSquares || [],
+                extraSquares,
+                wrongPieceSquares,
             });
 
         } catch (e) {

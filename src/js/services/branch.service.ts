@@ -3,29 +3,24 @@ import { ChessService } from "./chess.service.js";
 import { executeMove } from "../utils/chess.utils.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { MOVE_TYPE } from "../constant.js";
-import { Chess } from "chess.js";
+import { Chess, Move, PieceSymbol, Square } from "chess.js";
 import { serializeBranches } from "../utils/branch.utils.js";
 import { MOVE_STATUS } from "../constant.js";
+import { Branch, BranchResponse, MoveLike } from "../types/chess.types.js";
 
-const PROMOTION_PIECES = ["q", "r", "b", "n"];
+const PROMOTION_PIECES: PieceSymbol[] = ["q", "r", "b", "n"];
+
+export type Candidate = string;
+export type MoveType = (typeof MOVE_TYPE)[keyof typeof MOVE_TYPE];
 
 /** Capture */
-function buildCaptureBranches(game, fromSq) {
+function buildCaptureBranches(game: Chess, fromSq: Square): Move[] {
     return game
         .moves({ square: fromSq, verbose: true })
         .filter(m => m.flags.includes("c") || m.flags.includes("e"));
 }
 
-function buildPromotionBranches(game, fromSq, toSq) {
-    return PROMOTION_PIECES.map((piece) => {
-        const mv = game.move({ from: fromSq, to: toSq, promotion: piece });
-        if (!mv) return null;
-        game.undo();
-        return mv;
-    }).filter(Boolean);
-}
-
-function buildCapturePromotionBranches(game, fromSq) {
+function buildCapturePromotionBranches(game: Chess, fromSq: Square): Move[] {
     const uniqueTargets = [
         ...new Set(
             game
@@ -47,10 +42,9 @@ function buildCapturePromotionBranches(game, fromSq) {
     return result;
 }
 
-
-export function createBranches(baseGame, moves, parentBranch = null) {
+export function createBranches(baseGame: Chess, moves: MoveLike[], parentBranch: Branch | null = null): Branch[] {
     const seen = new Set();
-    const branches = [];
+    const branches: Branch[] = [];
 
     for (const mv of moves) {
         const clone = new Chess();
@@ -64,6 +58,7 @@ export function createBranches(baseGame, moves, parentBranch = null) {
         const moveId = `${mv.from}${mv.to}${mv.promotion ?? ""}`;
         branches.push({
             id: parentBranch ? `${parentBranch.id}_${moveId}` : moveId,
+            move: mv,
             pgn: clone.pgn(),
             fen,
             lastApplied: mv,
@@ -76,14 +71,15 @@ export function createBranches(baseGame, moves, parentBranch = null) {
 }
 
 // Get longest branch 
-function getLongestBranch(branches) {
+function getLongestBranch(branches: Branch[] | null | undefined): Branch | null {
     if (!branches || branches.length === 0) return null;
+
     return branches.reduce((longest, b) =>
         b.step > longest.step ? b : longest
-        , branches[0]);
+        , branches[0]!);
 }
 
-function setBranches(gameID, branches) {
+function setBranches(gameID: string, branches: Branch[] | null | undefined): void {
     if (!branches || branches.length === 0) {
         activeBranches.delete(gameID);  // remove
     } else {
@@ -92,7 +88,7 @@ function setBranches(gameID, branches) {
 }
 
 // Sync main game according to the longest branch
-function syncMainToLongest(gameID, mainGame, branches) {
+function syncMainToLongest(gameID: string, mainGame: Chess, branches: Branch[]): Branch | null{
     const longest = getLongestBranch(branches);
     if (!longest) return null;
 
@@ -101,14 +97,20 @@ function syncMainToLongest(gameID, mainGame, branches) {
     return longest;
 }
 
-function isPromotionMove(game, fromSq, toSq) {
+function isPromotionMove(game: Chess, fromSq: Square, toSq: Square | null) {
     const piece = game.get(fromSq);
     if (!piece || piece.type !== "p") return false;
     const toRank = toSq?.[1];
     return (piece.color === "w" && toRank === "8") || (piece.color === "b" && toRank === "1");
 }
 
-export function handleBranchMove(gameID, mainGame, candidates, seq, moveType) {
+export function handleBranchMove(
+    gameID: string, 
+    mainGame: Chess, 
+    candidates: Candidate[], 
+    seq: number, 
+    moveType: string 
+): BranchResponse {
     const currentBranches = activeBranches.get(gameID) ?? [];
     console.log(`[handleBranchMove] gameID=${gameID} moveType=${moveType} count=${currentBranches.length}`);
 
@@ -124,7 +126,13 @@ export function handleBranchMove(gameID, mainGame, candidates, seq, moveType) {
     return applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq);
 }
 
-function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq) {
+function applyMoveToBranches(
+    gameID: string, 
+    mainGame: Chess, 
+    currentBranches: Branch[], 
+    candidates: Candidate[], 
+    seq: number
+): BranchResponse {
     const advanced = [];
     const held = [];
 
@@ -138,13 +146,14 @@ function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq)
             // Advance branch
             const clone = new Chess();
             clone.loadPgn(branch.pgn);
-            executeMove(clone, validMoves[0]);
+            const move = validMoves[0]!;
+            executeMove(clone, move);
 
             advanced.push({
                 ...branch,
                 pgn: clone.pgn(),
                 fen: clone.fen(),
-                lastApplied: validMoves[0],
+                lastApplied: move,
                 step: branch.step + 1,
             });
         } else if (validMoves.length > 1) {
@@ -177,9 +186,9 @@ function applyMoveToBranches(gameID, mainGame, currentBranches, candidates, seq)
 }
 
 // ---------Handle capture moves from game ------------------------
-function resolveCaptureMovesFromGame(game, candidates) {
-    const fromSq = candidates[0]?.slice(0, 2);
-    const toSq = candidates[0]?.slice(2, 4) || null;
+function resolveCaptureMovesFromGame(game: Chess, candidates: Candidate[]): MoveLike[] {
+    const fromSq = candidates[0]?.slice(0, 2) as Square | undefined;
+    const toSq = (candidates[0]?.slice(2, 4) || null) as Square | null;
 
     if (!fromSq) return [];
 
@@ -201,7 +210,13 @@ function resolveCaptureMovesFromGame(game, candidates) {
     return buildCaptureBranches(game, fromSq);
 }
 
-function buildBranchResponse(gameID, mainGame, seq, branches, extra = {}) {
+function buildBranchResponse(
+    gameID: string, 
+    mainGame: Chess, 
+    seq: number, 
+    branches: Branch[], 
+    extra = {}
+): BranchResponse {
     return {
         status: MOVE_STATUS.OK,
         gameID,
@@ -215,9 +230,15 @@ function buildBranchResponse(gameID, mainGame, seq, branches, extra = {}) {
 }
 
 // ----------------- Apply Capture to All Branches --------------------------------
-function applyCaptureToBranches(gameID, mainGame, currentBranches, candidates, seq) {
-    const expanded = [];
-    const held = [];
+function applyCaptureToBranches(
+    gameID: string, 
+    mainGame: Chess, 
+    currentBranches: Branch[],
+    candidates: Candidate[],
+    seq: number
+): BranchResponse {
+    const expanded: Branch[] = [];
+    const held: Branch[] = [];
     // loop for all current branch
     for (const branch of currentBranches) {
         const tempGame = new Chess();

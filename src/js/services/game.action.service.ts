@@ -1,30 +1,32 @@
-import { Chess } from "chess.js";
-import { resetGame, setCurrentGame } from "../game/game.manager.js";
-import { getGameCollections, getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
+import { resetGame } from "../game/game.manager.js";
+import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
+import { GameIDPayload } from "../types/game.types.js";
+import { getBoardIDByGame } from "../game/game.manager.js";
 
 export const GameActionService = {
     // restart game when the restart button is pressed
-    async restart(oldGameID) {
+    async restart(oldGameID: string): Promise<GameIDPayload> {
         // close the old game
         const oldGame = await getGame(oldGameID);
 
         if (!oldGame) {
             throw new Error(ERROR_STATUS.NOTFOUND);
         }
-
-        // remove old game
-        await removeGame(oldGameID);
-
-        // create a new game id
-        const newGameID = crypto.randomUUID(); 
-
+        const boardID = oldGame.boardID ?? getBoardIDByGame(oldGameID);
+        if (!boardID) {
+            throw new Error(`Game ${oldGameID} is missing boardID`);
+        }
+        
+        const newGameID: string = crypto.randomUUID(); // create a new game id
+        
         // Create a new game from the same board
-        const newGame = await GameService.create(oldGame.boardID, newGameID);
+        const newGame = await GameService.create(boardID, newGameID);
+        await removeGame(oldGameID); // remove old game
 
-        getIO().emit("game_restart", { 
+        getIO().emit("game_restart", {
             oldGameID,
             gameID: newGameID,
             boardID: oldGame.boardID,
@@ -36,7 +38,7 @@ export const GameActionService = {
     },
 
     // reset game 
-    async reset(gameID) {
+    async reset(gameID: string): Promise<void> {
         // Reset server 
         resetGame(gameID);
         await saveGame(gameID, {
@@ -47,7 +49,7 @@ export const GameActionService = {
         });
     },
 
-    async rename(gameID, color, name) {
+    async rename(gameID: string, color: string, name: string): Promise<void> {
         if (!name.trim() || !["Black", "White"].includes(color)) {
             return;
         }
@@ -57,10 +59,10 @@ export const GameActionService = {
 
         await renamePlayer(gameID, color, name);
         // Broad cast to all the game that using name gameid
-        getIO().to(gameID).emit("game:renamed", {color, name});
+        getIO().to(gameID).emit("game:renamed", { color, name });
     },
 
-    async destroy(gameID) {
-       return await removeGame(gameID);
+    async destroy(gameID: string) {
+        return await removeGame(gameID);
     },
 }

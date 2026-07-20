@@ -1,9 +1,5 @@
 import express from "express";
 import { BoardController } from "../controllers/board.controller.js";
-import { BOARD_STATUS, BOARD_TYPE, ERROR_STATUS, MOVE_STATUS } from "../constant.js";
-import { emitGameState, gameState } from "../game/game.state.js";
-import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
-import { getCurrentGame } from "../game/game.manager.js";
 
 export const boardRouter = express.Router();
 

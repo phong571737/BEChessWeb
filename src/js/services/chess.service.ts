@@ -1,13 +1,14 @@
-import { Chess } from "chess.js";
+import { Chess, PieceSymbol, Square } from "chess.js";
+import { ValidMove } from "../types/chess.types.js";
 
 export const ChessService = {
     // This function is used to clone fen state
-    cloneFromFen(fen) {
+    cloneFromFen(fen: string): Chess {
         return new Chess(fen);
     },
 
     // This function is used to apply a move
-    applyMove(game, from, to, promotion) {
+    applyMove(game: Chess, from: Square, to: Square, promotion?: PieceSymbol) {
         try {
             const result = game.move({ from, to, promotion });
             return result;
@@ -17,15 +18,15 @@ export const ChessService = {
     },
 
     // this function is used to find all of moves validation
-    findValidMove(game, candidates) {
-        const valid = [];
-        const seen = new Set();
+    findValidMove(game: Chess, candidates: string[]) {
+        const valid: ValidMove[] = [];
+        const seen = new Set<string>();
 
         console.log("findValidMove candidates:", candidates);
 
         for (const uci of [...candidates].reverse()) {
-            const from = uci.slice(0, 2);
-            const to = uci.slice(2, 4);
+            const from = uci.slice(0, 2) as Square;
+            const to = uci.slice(2, 4) as Square;
             const key = from + to;
 
             if (seen.has(key)) continue; // if key is in seen => skip
@@ -36,15 +37,15 @@ export const ChessService = {
 
             if (isPromotion && !uci[4]) {
                 for (const promo of ["q", "r", "b", "n"]) {
-                    const key = from + to + promo;
+                    const promoKey = from + to + promo;
                     if (seen.has(key)) continue;
 
                     try {
                         const result = game.move({ from, to, promotion: promo });
                         if (result) {
                             game.undo();
-                            valid.push({ from, to, promotion: promo, uci: from + to + promo });
-                            seen.add(key);
+                            valid.push({ ...result, uci: from + to + promo });
+                            seen.add(promoKey);
                         }
                     }
                     catch { }
@@ -58,7 +59,7 @@ export const ChessService = {
                     const result = game.move({ from, to, promotion });
                     if (result) {
                         game.undo();
-                        valid.push({ from, to, promotion, uci: from + to + (promotion ?? "") });
+                        valid.push({ ...result, uci: from + to + (promotion ?? "") });
                         seen.add(key);
                     }
                 }

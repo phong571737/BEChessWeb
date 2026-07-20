@@ -1,16 +1,20 @@
-import { Chess } from "chess.js";
+import { Chess, PieceSymbol, Square } from "chess.js";
 import { getGame } from "../models/game.model.js";
-import { getIO } from "../sockets/index.js";
 import { ChessService } from "../services/chess.service.js";
-import { buildResponse, executeMove, formatUCI, parseUCI } from "../utils/chess.utils.js";
+import { buildResponse, executeMove, formatUCI } from "../utils/chess.utils.js";
 import { createBranches } from "../services/game.service.js";
+import { Branch } from "../types/chess.types.js";
 import { BOARD_TYPE, ERROR_STATUS, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
-import { games, gameSeq, activeBranches, currentGameByBoard } from "./game.repository.js";
+import { games, gameSeq, activeBranches, currentGameByBoard, boardIDByGame, pgnBaseFen } from "./game.repository.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { handleBranchMove } from "../services/branch.service.js";
 import { serializeBranches } from "../utils/branch.utils.js";
+import { MoveState } from "../types/move.types.js";
+import { applyRawMove } from "../utils/chess.utils.js";
+import { customPGN } from "../utils/custom.chess.js";
+import { rawMoveHistory } from "./game.repository.js";
 
-export async function restorefromDB(gameID) {
+export async function restorefromDB(gameID: string) {
   const data = await getGame(gameID);
   if (!data) return null;
 
@@ -27,9 +31,11 @@ export async function restorefromDB(gameID) {
 }
 
 /**This function is used to create make move */
-export async function makeMove(gameID, candidates, seq, moveType, boardType) {
+export async function makeMove(
+  gameID: string, candidates: string[], seq: number, moveType: string, boardType: string, fen?: string
+): Promise<MoveState> {
   if (!candidates?.length || seq === undefined) {
-    return { status: ERROR_STATUS.INVALID };
+    return { status: ERROR_STATUS.INVALID, gameID };
   }
 
   if (!games.has(gameID)) {
@@ -39,12 +45,6 @@ export async function makeMove(gameID, candidates, seq, moveType, boardType) {
 
   const mainGame = games.get(gameID);
   const lastSeq = gameSeq.get(gameID) ?? 0;
-  const expectedSeq = lastSeq + 1;
-
-  //duplicated
-  // if (seq < expectedSeq) return { status: MOVE_STATUS.DUPLICATE, fen: mainGame.fen(), lastSeq };
-  // //Out of order
-  // if (seq > expectedSeq) return { status: MOVE_STATUS.OUT_OF_SEQ, expectedSeq, lastSeq };
 
   if (boardType === BOARD_TYPE.HALL) {
     if (activeBranches.has(gameID)) { // Resolve branches
@@ -54,7 +54,7 @@ export async function makeMove(gameID, candidates, seq, moveType, boardType) {
     if (moveType === MOVE_TYPE.CAPTURE) {
       return handleNewCaptureMove(gameID, mainGame, candidates, seq);
     }
-    
+
     if (moveType === MOVE_TYPE.MOVE_ERROR) {
       return handleErrorMove(gameID, mainGame, candidates, seq);
     }
@@ -62,52 +62,84 @@ export async function makeMove(gameID, candidates, seq, moveType, boardType) {
     // another moveType
     return handleNewNormalMove(gameID, mainGame, candidates, seq);
   } else if (boardType === BOARD_TYPE.NFC) {
-    const result = handleNFCMove(gameID, mainGame, candidates, seq);
+    gameSeq.set(gameID, seq);
+    const existingMoves = rawMoveHistory.get(gameID) ?? [];
+    const { pgn: customPgn } = customPGN(existingMoves);
 
-    return result.status !== MOVE_STATUS.OK
-      ? { ...result, fen: currentFen }
-      : result;
+    if (moveType === MOVE_TYPE.MOVE_ERROR) {
+      gameSeq.set(gameID, seq);
+      const newFen = fen ?? mainGame.fen();
+      try {
+        mainGame.load(newFen, { skipValidation: true });
+      } catch (e) {
+        console.error("[MOVE_ERROR] Failed to load fen:", newFen, e);
+      }
+      rawMoveHistory.set(gameID, []);
+      pgnBaseFen.set(gameID, newFen);
+
+      return {
+        status: MOVE_STATUS.OK,
+        gameID,
+        fen: fen ?? mainGame.fen(),
+        pgn: customPgn,
+        lastSeq: seq,
+        lastMove: null,
+        isError: true,
+      } as MoveState
+    }
+    return handleNFCMove(gameID, mainGame, candidates, seq);
   }
 
   return { status: ERROR_STATUS.INVALID };
 }
 
 // This function is used to for NFC
-function handleNFCMove(gameID, mainGame, candidates, seq) {
-  const validMoves = ChessService.findValidMove(mainGame, candidates);
-
-  if (validMoves.length === 0) {
-    console.log(`[NFC MOVE] No valid move for ${JSON.stringify(candidates)}, ignoring`);
+function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], seq: number): MoveState {
+  const uci = candidates[0];
+  if (!uci || uci.length < 4) {
+    console.log(`[NFC MOVE] Invalid uci format: ${uci}, ignoring`);
     gameSeq.set(gameID, seq);
     return buildResponse(gameID, mainGame, seq, { invalidMove: true });
   }
 
-  const mv = validMoves[0];
-  executeMove(mainGame, mv);
+  const from = uci.slice(0, 2);
+  const to = uci.slice(2, 4);
+  const promotion = uci.length > 4 ? uci[4] : undefined;
+
+  const result = applyRawMove(mainGame, from, to, promotion);
+
+  if (!result) {
+    console.log(`[NFC MOVE] No piece at ${from}, ignoring`);
+    gameSeq.set(gameID, seq);
+    return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+  }
+
+  if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+  rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
+
+  const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!);
   gameSeq.set(gameID, seq);
 
   return {
     status: MOVE_STATUS.OK,
     gameID,
     fen: mainGame.fen(),
-    pgn: mainGame.pgn(),
+    pgn: customPgn,
     lastSeq: seq,
     lastMove: {
-      from: mv.from,
-      to: mv.to,
-      promotion: mv.promotion ?? null,
-      uci: formatUCI(mv.from, mv.to, mv.promotion),
+      from,
+      to,
+      promotion: promotion ?? null,
+      uci: formatUCI(from, to, promotion),
     },
-    branches: [],
-    branchCount: 0,
   };
 }
 
 /**handle when receive multimove */
-function handleErrorMove(gameID, mainGame, candidates, seq) {
-  const validMoves = candidates.flatMap(fromSq =>  
-    mainGame.moves({square: fromSq, verbose: true})
-  );  
+function handleErrorMove(gameID: string, mainGame: Chess, candidates: string[], seq: number): MoveState {
+  const validMoves = candidates.flatMap(fromSq =>
+    mainGame.moves({ square: fromSq as Square, verbose: true })
+  );
 
   if (validMoves.length === 0) {
     console.log(`[ERROR MOVE] No valid moves from ${candidates}, ignoring`);
@@ -118,6 +150,11 @@ function handleErrorMove(gameID, mainGame, candidates, seq) {
   if (validMoves.length === 1) {
     // Exactly 1 valid move
     const mv = validMoves[0];
+    if (!mv) {
+      console.log(`[ERROR MOVE] validMoves[0] unexpectedly undefined from ${candidates}, ignoring`);
+      gameSeq.set(gameID, seq);
+      return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+    }
     executeMove(mainGame, mv);
     gameSeq.set(gameID, seq);
 
@@ -154,7 +191,7 @@ function handleErrorMove(gameID, mainGame, candidates, seq) {
   };
 }
 
-function handleNewNormalMove(gameID, mainGame, candidates, seq) {
+function handleNewNormalMove(gameID: string, mainGame: Chess, candidates: string[], seq: number): MoveState {
   const validMoves = ChessService.findValidMove(mainGame, candidates);
 
   if (validMoves.length === 0) {
@@ -166,6 +203,11 @@ function handleNewNormalMove(gameID, mainGame, candidates, seq) {
   if (validMoves.length === 1) {
     // Exactly 1 valid move
     const mv = validMoves[0];
+    if (!mv) {
+      console.log(`[NEW MOVE] validMoves[0] unexpectedly undefined for ${JSON.stringify(candidates)}, ignoring`);
+      gameSeq.set(gameID, seq);
+      return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+    }
     executeMove(mainGame, mv);
     gameSeq.set(gameID, seq);
 
@@ -186,7 +228,7 @@ function handleNewNormalMove(gameID, mainGame, candidates, seq) {
     }
   }
 
-  const branches = createBranches(mainGame, validMoves);
+  const branches: Branch[] = createBranches(mainGame, validMoves);
   activeBranches.set(gameID, branches);
   gameSeq.set(gameID, seq);
   printBranches(gameID);
@@ -205,14 +247,14 @@ function handleNewNormalMove(gameID, mainGame, candidates, seq) {
 /**first CAPTURE
  * find all move fromsq
  */
-function handleNewCaptureMove(gameID, mainGame, candidates, seq) {
+function handleNewCaptureMove(gameID: string, mainGame: Chess, candidates: string[], seq: number): MoveState {
   const fromSq = candidates[0]?.slice(0, 2);
 
   if (!fromSq) {
-    return { status: ERROR_STATUS.INVALID };
+    return { status: ERROR_STATUS.INVALID, gameID };
   }
 
-  const captureMove = mainGame.moves({ square: fromSq, verbose: true })
+  const captureMove = mainGame.moves({ square: fromSq as never, verbose: true })
     .filter((m) => m.flags.includes("c") || m.flags.includes("e"));
 
   // Don't have any capture
@@ -225,6 +267,11 @@ function handleNewCaptureMove(gameID, mainGame, candidates, seq) {
   // 1 capture, apply
   if (captureMove.length === 1) {
     const mv = captureMove[0];
+    if (!mv) {
+      console.log(`[NEW CAPTURE] captureMove[0] unexpectedly undefined from ${fromSq}, ignoring`);
+      gameSeq.set(gameID, seq);
+      return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+    }
     executeMove(mainGame, mv);
     gameSeq.set(gameID, seq);
     return {
@@ -263,7 +310,7 @@ function handleNewCaptureMove(gameID, mainGame, candidates, seq) {
 
 
 /**This function is used to create game  */
-export function createGame(gameID) {
+export function createGame(gameID: string): Chess {
   if (games.has(gameID)) { // if the game is exists
     return games.get(gameID);
   }
@@ -275,7 +322,9 @@ export function createGame(gameID) {
 }
 
 /**This function is used to get current game state */
-export async function getCurrentState(gameID) {
+export async function getCurrentState(
+  gameID: string
+): Promise<{ gameID: string, fen: string, lastMove: null } | null> {
   let game = games.get(gameID);
   // create a game if game is not exists
   if (!game) {
@@ -290,7 +339,7 @@ export async function getCurrentState(gameID) {
   };
 }
 
-export function loadPGN(gameID, pgn) {
+export function loadPGN(gameID: string, pgn: string): void {
   const game = games.get(gameID);
   if (!game) throw new Error("Game not found");
 
@@ -299,7 +348,7 @@ export function loadPGN(gameID, pgn) {
 
 /**This function is used to reset the game 
  * to its initial state */
-export function resetGame(gameID) {
+export function resetGame(gameID: string): Chess {
   //Create a new one if it is not already in RAM
   if (!games.has(gameID)) {
     games.set(gameID, new Chess());
@@ -310,12 +359,13 @@ export function resetGame(gameID) {
     throw new Error("Game not found");
   game.reset();
   gameSeq.set(gameID, 0);
-  activeBranches.delete(gameID)
+  activeBranches.delete(gameID);
+  rawMoveHistory.delete(gameID);
   return game
 }
 
 /**This function is used to destroy board */
-export function destroyBoard(gameID) {
+export function destroyBoard(gameID: string): void {
   if (!games.has(gameID)) {
     games.set(gameID, new Chess());
   }
@@ -325,16 +375,34 @@ export function destroyBoard(gameID) {
 }
 
 // Map boarid to gameid
-export function setCurrentGame(boardID, gameID) {
+export function setCurrentGame(boardID: string, gameID: string): void {
   console.log("SET CURRENT GAME");
   console.log(boardID, gameID);
 
+  // clean up old game
+  const oldGameID = currentGameByBoard.get(boardID);
+  if (oldGameID && oldGameID !== gameID) {
+    boardIDByGame.delete(oldGameID);
+  }
+
   currentGameByBoard.set(boardID, gameID);
+  boardIDByGame.set(gameID, boardID);
 
   console.log(currentGameByBoard);
 }
 
 // Get gameID from boardID
-export function getCurrentGame(boardID) {
+export function getCurrentGame(boardID: string): string | undefined {
   return currentGameByBoard.get(boardID);
+}
+
+// get boardID from gameID
+export function getBoardIDByGame(gameID: string): string | undefined {
+  return boardIDByGame.get(gameID);
+}
+
+export function removeCurrenGame(boardID: string): void {
+  const gameID = currentGameByBoard.get(boardID);
+  currentGameByBoard.delete(boardID);
+  if (gameID) boardIDByGame.delete(gameID);
 }

@@ -1,10 +1,10 @@
-import { Server, Socket } from "socket.io";
+import { Server } from "socket.io";
+import { Server as HTTPServer } from "http";
 import { initGameSocket } from "./game.socket.js";
-import { EvalSocket } from "./eval.socket.js";
 
-let io;
+let io: Server | undefined;
 
-export function initSocket(server){
+export function initSocket(server: HTTPServer): void{
     io = new Server(server, {
         cors:{
             origin: "*",
@@ -14,7 +14,6 @@ export function initSocket(server){
     });
 
     initGameSocket(io);
-    EvalSocket(io);
 }
 
 export function getIO(){

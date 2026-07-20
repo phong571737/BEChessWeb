@@ -1,17 +1,20 @@
+import { Request, Response } from "express";
 import { getPGNCollections, getAllGame } from "../models/game.model.js";
-import { GameService } from "../services/game.service.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
+import { GameIdParams } from "../types/game.types.js";
+import { ObjectId } from "mongodb";
+import { getBoardIDByGame } from "../game/game.manager.js";
 
 export const GameController = {
     // Get current state
-    async getCurrent(req, res) {
+    async getCurrent(req: Request, res: Response): Promise<void> {
         try {
             const game = await getAllGame();
             if (!game) {
-                return res.json(null);
+                res.json(null);
+                return;
             }
-            // console.log("Current game: ", game);
             res.json(game);
         } catch (e) {
             console.log(e);
@@ -19,7 +22,7 @@ export const GameController = {
     },
 
     // get history of game
-    async getHistory(req, res) {
+    async getHistory(req: Request, res: Response): Promise<void> {
         try {
             const games = await getPGNCollections()
                 .find({})
@@ -33,7 +36,7 @@ export const GameController = {
     },
 
     // delete history of game
-    async deleteHistory(req, res) {
+    async deleteHistory(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
             await getPGNCollections()
                 .deleteOne({ _id: new ObjectId(req.params.id) });
@@ -44,10 +47,11 @@ export const GameController = {
     },
 
     // get state initcheck
-    async initcheck(req, res) {
+    async initcheck(req: Request<GameIdParams>, res: Response): Promise<Response | void> {
         try {
             const gameID = req.params.id;
-            const state = gameState.get(gameID);
+            const boardID = getBoardIDByGame(gameID);
+            const state = boardID ? gameState.get(boardID) : undefined;
 
             // no state yet
             if (!state) {

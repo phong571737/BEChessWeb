@@ -242,36 +242,31 @@ docker compose exec app env
 ```
 src/
 ├── js/                          # Backend source code
-│   ├── server.js               # Main Express server
+│   ├── server.ts               # Main Express server
 │   ├── config/
-│   │   ├── database.js         # MongoDB configuration
-│   │   └── environment.js      # Environment variables
+│   │   ├── database.ts         # MongoDB configuration
+│   │   └── environment.ts      # Environment variables
 │   ├── controllers/
-│   │   └── game.controller.js  # Game request handlers
+│   │   └── game.controller.ts  # Game request handlers
 │   ├── models/
-│   │   └── game.model.js       # Database models
+│   │   └── game.model.ts       # Database models
 │   ├── routes/
-│   │   ├── game.route.js       # Game endpoints
-│   │   ├── move.route.js       # Move endpoints
-│   │   └── board.route.js      # Board endpoints
+│   │   ├── game.route.ts       # Game endpoints
+│   │   ├── move.route.ts       # Move endpoints
+│   │   └── board.route.ts      # Board endpoints
 │   ├── services/
-│   │   ├── board.service.js    # Board utilities
-│   │   └── game.service.js     # Game logic
+│   │   ├── board.service.ts    # Board utilities
+│   │   └── game.service.ts     # Game logic
 │   ├── game/
-│   │   └── game.manager.js     # Game state management
+│   │   └── game.manager.ts     # Game state management
 │   ├── sockets/
-│   │   └── index.js            # WebSocket handlers
+│   │   └── index.ts            # WebSocket handlers
 │   └── utils/
-│       └── ucis.js             # Chess utilities
+│       └── ucis.ts             # Chess utilities
 ├── lib/                         # Third-party libraries
 │   ├── chess.js/               # Chess engine library
 │   └── chessboardjs-1.0.0/     # Chessboard UI library
-└── ServerWeb/                   # Frontend assets
-    ├── app.js                  # Frontend application
-    ├── html/                   # HTML templates
-    ├── css/                    # Stylesheets
-    ├── js/                     # Client-side JavaScript
-    └── img/                    # Images
+
 
 Docker Files:
 ├── Dockerfile                   # Container image definition

@@ -3,9 +3,9 @@ import { Document } from "mongodb";
 export type ResignSide = "white" | "black" | "draw";
 
 export interface GameBranch {
-  id: string;
-  pgn?: string;
-  fen?: string;
+    id: string;
+    pgn?: string;
+    fen?: string;
 }
 
 export interface GameDoc extends Document {
@@ -46,6 +46,14 @@ export interface PostPgnBody {
     lastMove: unknown;
 }
 
+export interface GameIDPayload {
+    gameID: string;
+}
+
+export interface ResignPayload extends GameIDPayload {
+    resignSide: ResignSide;
+}
+
 export interface EndGameBody {
     pgn: string;
 }
@@ -60,4 +68,15 @@ export interface RemoveGameByBoardResult {
     deleted: string;
     deletedCount: number;
     gameIDs: string[];
+}
+
+export interface ResignBody {
+    resignSide: ResignSide;
+    boardType: string;
+    branchId?: string | null;
+}
+
+export interface RenameBody {
+    color: string;
+    name: string;
 }

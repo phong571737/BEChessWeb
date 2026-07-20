@@ -6,8 +6,8 @@ import { Chess } from "chess.js";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Branch } from "@/types/game.types";
-import { useGame } from "@/hooks/use-game";
 import { Ellipsis, GitBranch, X } from "lucide-react";
+import { extractSanMoves } from "@/lib/custom-chess";
 
 /** Format ms compact clock string shown beside each move */
 function fmtMoveTime(ms: number): string {
@@ -78,25 +78,39 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
   const pairs = useMemo((): MovePair[] => {
     if (!pgn?.trim()) return [];
-    try {
-      const c = new Chess();
-      c.loadPgn(pgn);
-      const hist = c.history();
-      return Array.from({ length: Math.ceil(hist.length / 2) }, (_, pairIdx) => {
-        const i = pairIdx * 2;
-        return {
-          num: pairIdx + 1,
-          white: hist[i],
-          black: hist[i + 1],
-          wi: i + 1,
-          bi: i + 2,
-          wPly: i,
-          bPly: i + 1,
-        };
-      });
-    } catch {
-      return [];
-    }
+    const hist = extractSanMoves(pgn);
+    return Array.from({ length: Math.ceil(hist.length / 2) }, (_, pairIdx) => {
+      const i = pairIdx * 2;
+      return {
+        num: pairIdx + 1,
+        white: hist[i],
+        black: hist[i + 1],
+        wi: i + 1,
+        bi: i + 2,
+        wPly: i,
+        bPly: i + 1,
+      };
+    });
+
+    // try {
+    //   const c = new Chess();
+    //   c.loadPgn(pgn);
+    //   const hist = c.history();
+    //   return Array.from({ length: Math.ceil(hist.length / 2) }, (_, pairIdx) => {
+    //     const i = pairIdx * 2;
+    //     return {
+    //       num: pairIdx + 1,
+    //       white: hist[i],
+    //       black: hist[i + 1],
+    //       wi: i + 1,
+    //       bi: i + 2,
+    //       wPly: i,
+    //       bPly: i + 1,
+    //     };
+    //   });
+    // } catch {
+    //   return [];
+    // }
   }, [pgn]);
 
   const branchPly = useMemo(
@@ -106,14 +120,6 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   const branchPairIdx = branchPly >= 0 ? Math.floor(branchPly / 2) : -1;
   const branchCol = branchPly >= 0 ? branchPly % 2 : -1;
   const isTrailingBranch = branchPly >= 0 && branchPly >= pairs.length * 2;
-
-  // console.log("=== PGNTable DEBUG ===");
-  // console.log("pgn:", pgn);
-  // console.log("mainPgn:", mainPgn);
-  // console.log("branches:", branches);
-  // console.log("branchPly:", branchPly);
-  // console.log("branchPairIdx:", branchPairIdx);
-  // console.log("branchCol:", branchCol);
 
   // Scroll active move into view
   useEffect(() => {

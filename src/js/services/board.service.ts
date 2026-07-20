@@ -1,4 +1,5 @@
-import { BOARD_STATUS, BOARD_TYPE } from "../constant.js";
+import { BOARD_STATUS } from "../constant.js";
+import { HallCheckResult, NFCBoard, NFCCheckResult, WrongPieceInfo } from "../types/board.types.js";
 
 const initialBoard = [
     [1, 1, 1, 1, 1, 1, 1, 1], // row 0 - black
@@ -11,7 +12,7 @@ const initialBoard = [
     [1, 1, 1, 1, 1, 1, 1, 1], // row 7
 ];
 
-const initialBoardNFC = {
+const initialBoardNFC: NFCBoard = {
     a1:"R", b1:"N", c1:"B", d1:"Q", e1:"K", f1:"B", g1:"N", h1:"R",
     a2:"P", b2:"P", c2:"P", d2:"P", e2:"P", f2:"P", g2:"P", h2:"P",
     a7:"p", b7:"p", c7:"p", d7:"p", e7:"p", f7:"p", g7:"p", h7:"p",
@@ -28,10 +29,10 @@ const initialBoardNFC = {
  *  wrongPieceSquares: { square: string, expected: string, actual: string }[]
  * }
  */
-export function checkInitialBoardNFC(board) {
-    const missingSquares = [];
-    const extraSquares = [];
-    const wrongPieceSquares = []; // false piece type
+export function checkInitialBoardNFC(board: NFCBoard): NFCCheckResult {
+    const missingSquares: string[] = [];
+    const extraSquares: string[] = [];
+    const wrongPieceSquares: WrongPieceInfo[] = []; // false piece type
 
     // Loop for all square 
     for (const [square, expectedPiece] of Object.entries(initialBoardNFC)) {
@@ -67,13 +68,13 @@ export function checkInitialBoardNFC(board) {
     return { status, missingSquares, extraSquares, wrongPieceSquares};
 }
 
-function toSquare(row, col){
+function toSquare(row: number, col: number){
     const file = String.fromCharCode(97 + col); // a, b, c, ..., h
     const rank = 8 - row; // scan reverse row 1 -> 8
     return file + rank;
 }
 
-export function convertHalltoBoard(hallArr) {
+export function convertHalltoBoard(hallArr: number[]) {
     return [...hallArr].reverse().map(rowBits =>
         Array.from({length: 8}, (_, c) =>
             (rowBits >> (c)) & 1
@@ -81,14 +82,14 @@ export function convertHalltoBoard(hallArr) {
     );
 }
 
-export function checkInitialBoard(board){
-    const wrongSquares = [];
-    const missingSquares = [];
+export function checkInitialBoard(board: number[][]): HallCheckResult{
+    const wrongSquares: string[] = [];
+    const missingSquares: string[] = [];
 
     for(let r = 0; r < 8; r++){
         for(let c = 0; c < 8; c++){
-            const expectBoard = initialBoard[r][c];
-            const actualBoard = board[r][c];
+            const expectBoard = initialBoard[r]![c]!;
+            const actualBoard = board[r]![c]!;
 
             //Missing pieces when the board was initialized
             if(expectBoard === 1 && actualBoard === 0){

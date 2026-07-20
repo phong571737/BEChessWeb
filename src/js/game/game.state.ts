@@ -1,9 +1,22 @@
 import { getIO } from "../sockets/index.js";
 
-export const gameState = {
-    data: {},
+export type BoardStatus = "offline" | "online";
+export type GameStatus = "idle" | "playing" | "finished" | "restart" | "checkinit" | "ready";
 
-    saveState(gameID) {
+export interface GameStateData {
+    boardStatus: BoardStatus;
+    gameStatus: GameStatus;
+    wrongSquares: string[];
+    missingSquares: string[];
+    [key: string]: unknown;
+}
+
+export type GameStatePatch = Partial<GameStateData>;
+
+export const gameState = {
+    data: {} as Record<string, GameStateData>,
+
+    saveState(gameID: string): GameStateData {
         if (!this.data[gameID]) {
             this.data[gameID] = {
                 boardStatus: "offline",
@@ -16,7 +29,7 @@ export const gameState = {
     },
 
     // set data 
-    set(gameID, patch) {
+    set(gameID: string, patch: GameStatePatch): void {
         const current = this.saveState(gameID);
         this.data[gameID] = {
             ...current,
@@ -27,12 +40,12 @@ export const gameState = {
         };
     },
 
-    get(gameID) {
+    get(gameID: string) {
         return this.data[gameID];
     }
 }
 
-export function emitGameState(gameID) {
+export function emitGameState(gameID: string): void {
     const state = gameState.get(gameID);
     if (!state) return;
 

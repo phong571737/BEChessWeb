@@ -1,43 +1,34 @@
-import { error } from "console";
 import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
-import { stockfishService } from "./stockfish.instance.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
-import { games, gameSeq } from "../game/game.repository.js";
+import { games } from "../game/game.repository.js";
+import { MoveState, ParseCandidatesInput, ParsedCandidates, ProcessMoveInput } from "../types/move.types.js";
 
 /**Parse json
- * boardType  is HALL:
- *  
+ * boardType is HALL
  */
-function parseCandidates({ boardType, uci, moveType, departures, arrivals }) {
+function parseCandidates({ boardType, uci, moveType, departures, arrivals }: ParseCandidatesInput): ParsedCandidates {
     // parse input
-    let candidates = [];
-    let fromSq = null;
-
     if (boardType === BOARD_TYPE.HALL) {
-        // if (!uci) {
-        //     return { error: true, message: "Missing UCI" };
-        // } 
         if(moveType === MOVE_TYPE.MOVE_ERROR) {
             const depList = departures ? departures.split(",").map(s => s.trim()).filter(Boolean) : [];
-
             return {candidates: depList, isError: true};
         }
         
         return {
-            candidates: [uci]
+            candidates: uci ? [uci] :[],
         }
     } else if (boardType === BOARD_TYPE.NFC) {
+        if(moveType === MOVE_TYPE.MOVE_ERROR) {
+            const depList = departures ? departures.split(",").map(s => s.trim()).filter(Boolean) : [];
+            return {candidates: depList, isError: true};
+        }
+
         if (!uci) {
             return {
                 error: true,
                 message: "Missing UCI",
-            }
-        }
-        if (moveType === MOVE_TYPE.PROMOTE) {
-            return {
-                candidates: [`${uci}q`, `${uci}r`, `${uci}b`, `${uci}n`]
             }
         }
         return {
@@ -45,21 +36,23 @@ function parseCandidates({ boardType, uci, moveType, departures, arrivals }) {
         };
     }
 
-    return { candidates, fromSq };
+    return { candidates: []};
 }
 
 /**
  * NFC flow
  * makeMove with those candidates
  */
-async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci }) {
-    // test
-    const parsed = parseCandidates({ boardType, uci, moveType });
-    if (!parsed) return parsed;
+async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals }: {
+    boardType: string, gameID: string, fen?: string, seq: number, moveType: string, uci?: string, 
+    departures?: string, arrivals?: string
+}): Promise<MoveState | ParsedCandidates> {
+    const parsed = parseCandidates({ boardType, uci, moveType, departures, arrivals });
+    if (parsed.error) return parsed;
 
     const { candidates } = parsed;
     
-    const state = await makeMove(gameID, candidates, seq, moveType, boardType); // handle move game
+    const state = await makeMove(gameID, candidates, seq, moveType, boardType, fen); // handle move game
 
     if (state.status != MOVE_STATUS.OK) return state;
     await afterMove(gameID, state, uci, seq, boardType, fen);
@@ -67,9 +60,11 @@ async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci }) {
     return state;
 }
 
-async function processMoveHall({ boardType, gameID, seq, moveType, uci, departures, arrivals }) {
+async function processMoveHall({ boardType, gameID, seq, moveType, uci, departures, arrivals }: {
+    boardType: string, gameID: string, seq: number, moveType: string, uci?: string, departures?: string, arrivals?: string
+}) {
     const parsed = parseCandidates({ boardType, uci, moveType, departures, arrivals });
-    if (!parsed) return parsed;
+    if (parsed.error) return parsed;
     const { candidates, isError } = parsed;
     
     const state = await makeMove(gameID, candidates, seq, moveType, boardType); // handle move game
@@ -91,15 +86,22 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, departur
 /**
  * Shared post-move logic: stockfish eval, DB save, socket broadcast.
  */
-async function afterMove(gameID, state, uci, seq, boardType, fen ) {
-    // const fen = state.fen;
+async function afterMove(
+    gameID: string, state: MoveState, uci: string | undefined, seq: number, boardType: string, fen?: string 
+): Promise<void> {
+    await saveGame(
+        gameID, 
+        { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove}, 
+        { uci, fen, seq, boardType }
+    ); // save db
+    const roomSize = getIO().sockets.adapter.rooms.get(gameID)?.size ?? 0;
+    console.log(`[SOCKET DEBUG] Room ${gameID} has ${roomSize} client(s)`);
 
-    await saveGame(gameID, state, { uci, fen, seq, boardType }); // save db
     getIO().to(gameID).emit("esp_move", state);// broadcast move
 }
 
 export const MoveService = {
-    async processMove({ boardType, uci, start, end, fen, boardID, seq, moveType, departures, arrivals }) {
+    async processMove({ boardType, uci, fen, boardID, seq, moveType, departures, arrivals }: ProcessMoveInput) {
         const gameID = getCurrentGame(boardID);
         console.log(`boardID: ${boardID} and gameID: ${gameID} and boardType: ${boardType}`);
 
@@ -123,7 +125,7 @@ export const MoveService = {
 
         switch (boardType) {
             case BOARD_TYPE.NFC:
-                return processMoveNFC({ boardType, gameID, fen, seq, moveType, uci });
+                return processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals });
             case BOARD_TYPE.HALL:
                 return processMoveHall({boardType, gameID, seq, moveType, uci, departures, arrivals });
             default:

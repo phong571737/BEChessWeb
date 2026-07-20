@@ -71,6 +71,8 @@ export interface BoardState {
     // Branches
     branches: Branch[];
     selectedBranchId: string | null;
+
+    errorSquares: string[];
 }
 
 export interface BranchMove {

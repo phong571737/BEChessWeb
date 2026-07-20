@@ -97,6 +97,8 @@ export function PasteGame() {
 
             {/* Area to display pgn */}
             {result && result.branches.length > 1 && (
+
+                 
                 <div className="px-4 sm:px-5 space-y-1">
                     <span className="text-2xs font-bold">{t("pg.listbranch")}</span>
                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-1.5">

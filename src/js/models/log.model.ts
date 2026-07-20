@@ -6,7 +6,7 @@ const logcollection = () => getDB().collection("log_viewer");
 export function getLogCollections() {return logcollection();};
 
 // Create a new session
-export async function  createNewGame(gameID) {
+export async function  createNewGame(gameID: string) {
     await logcollection().updateMany({
         gameID, isActive: true
     }, {
@@ -29,7 +29,7 @@ export async function  createNewGame(gameID) {
 }
 
 // get active session
-export async function getActiveSession(gameID) {
+export async function getActiveSession(gameID: string) {
     return logcollection().findOne({
         gameID, 
         isActive: true
@@ -37,7 +37,7 @@ export async function getActiveSession(gameID) {
 }
 
 // get all log
-export async function getLogsByName(gameID) {
+export async function getLogsByName(gameID: string) {
     return logcollection().find({gameID}).sort({startedAt: -1}).toArray();
 }
 

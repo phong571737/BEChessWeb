@@ -5,6 +5,13 @@ type CacheEntry<T> = {
 
 const memoryCache = new Map<string, CacheEntry<unknown>>();
 
+export class FetchNotFoundError extends Error {
+  constructor(public url: string) {
+    super(`Not found: ${url}`);
+    this.name = "FetchNotFoundError";
+  }
+}
+
 export function invalidateFetchCache(prefix = ""): void {
   for (const key of memoryCache.keys()) {
     if (!prefix || key.startsWith(prefix)) {

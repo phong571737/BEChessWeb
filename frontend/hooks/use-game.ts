@@ -1,11 +1,12 @@
 import { useSocket } from "@/components/providers/socket-provider";
-import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
+import { fetchJSONCached, FetchNotFoundError, invalidateFetchCache } from "@/lib/fetch-cache";
 import { useGameStore } from "@/lib/store";
 import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Chess } from "chess.js"
 import { CLIENT_EVENT, SERVER_EVENT, SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { Branch } from "@/types/game.types";
+import { extractSanMoves } from "@/lib/custom-chess";
 
 export interface boardAlert {
     code: string;
@@ -20,6 +21,8 @@ export function useGame(gameID: string) {
     const sessionTs = useRef<number[]>([]);
     const [isLoaded, setIsLoaded] = useState(false);
     const [moveTimesMap, setMoveTimesMap] = useState<Record<number, number>>({});
+    const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
+
     const cachedBoard = boards[gameID];
 
     // ------- Branch state ----------------------------------------
@@ -88,6 +91,8 @@ export function useGame(gameID: string) {
         }
 
         setIsLoaded(false);
+        setLoadError(null);
+        let cancelled = false;
 
         fetchJSONCached<any>(`/games/${gameID}`, 1_500)
             .then((game) => {
@@ -132,7 +137,18 @@ export function useGame(gameID: string) {
                     result: game.result ?? undefined,
                 })
                 setIsLoaded(true);
+            })
+            .catch((err) => {
+                if (cancelled) return;
+                if (err instanceof FetchNotFoundError) {
+                    setLoadError("not-found");
+                } else {
+                    setLoadError("error");
+                }
+                setIsLoaded(false);
             });
+
+        return () => { cancelled = true; }
     }, [gameID, cachedBoard?.fen, cachedBoard?.pgn]);
 
     // ---------------Polling initial check state ----------------------------
@@ -154,7 +170,7 @@ export function useGame(gameID: string) {
                     extraSquares: data.extraSquares || [],
                     wrongPieceSquares: data.wrongPieceSquares || [],
                 })
-
+                console.log("game status: ", data.status);
                 // stop polling when board is ready
                 if (data.status === GAME_STATUS.READY) {
                     stopped = true;
@@ -182,6 +198,23 @@ export function useGame(gameID: string) {
         const onMove = (data: any) => {
             if (data.gameID !== gameID) return;
             console.log("Receive move", data);
+
+            if (data.isError) {
+                try {
+                    chessRef.current.load(data.fen);
+                } catch { }
+
+                patchBoard(gameID, {
+                    fen: data.fen,
+                    pgn: chessRef.current.pgn(),
+                    lastMove: null,
+                    errorSquares: data.departures
+                        ? data.departures.split(",").map((s: string) => s.trim())
+                        : [],
+                });
+
+                return
+            }
 
             const incomingBranches: Branch[] = data.branches ?? [];
             const newPgn = data.pgn || chessRef.current.pgn();
@@ -228,7 +261,7 @@ export function useGame(gameID: string) {
 
         const onEval = (data: any) => {
             if (data.gameID !== gameID) return;
-            patchBoard(gameID, {cp: data.cp});
+            patchBoard(gameID, { cp: data.cp });
         };
 
         // Restore game 
@@ -282,21 +315,19 @@ export function useGame(gameID: string) {
         selectedBranchIdRef.current = board?.selectedBranchId ?? null;
     }, [board?.selectedBranchId]);
 
-    const moves = useMemo(() => {
-        const pgn = board?.pgn ?? "";
-        if (!pgn.trim()) return [];
-        try {
-            const c = new Chess();
-            c.loadPgn(displayPgn);
-            return c.history();
-        } catch {
-            return [];
-        }
-    }, [displayPgn]);
+    // const moves = useMemo(() => {
+    //     const pgn = board?.pgn ?? "";
+    //     if (!pgn.trim()) return [];
+    //     try {
+    //         const c = new Chess();
+    //         c.loadPgn(displayPgn);
+    //         return c.history();
+    //     } catch {
+    //         return [];
+    //     }
+    // }, [displayPgn]);
 
-    // console.log("selectedBranchId", selectedBranchId);
-    // console.log("selectedBranch", selectedBranch);
-    // console.log("displayPgn", displayPgn);
+    const moves = useMemo(() => extractSanMoves(displayPgn), [displayPgn]);
 
     // ----- Game actions ---------------------------------------
     const restart = async () => {

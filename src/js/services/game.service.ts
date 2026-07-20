@@ -1,25 +1,11 @@
-import { Chess, Move } from "chess.js";
+import { Chess } from "chess.js";
 import { createGame, getCurrentGame, setCurrentGame } from "../game/game.manager.js";
 import { saveGame } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
 import { activeBranches, games, gameSeq } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
-
-export interface CreateGameResult {
-  boardID: string;
-  gameID: string;
-  fen: string;
-  round: number;
-}
- 
-export interface Branch {
-  id: string;
-  move: Move;
-  fen: string;
-  pgn: string;
-  lastApplied: Move;
-  step: number;
-}
+import { MoveLike } from "../types/chess.types.js";
+import { Branch } from "../types/chess.types.js";
 
 export const GameService = {
   // create game
@@ -53,7 +39,7 @@ export const GameService = {
 }
 
 // This function is used to create a branch when validation move
-export function createBranches(game: Chess, valid_move: Move[]): Branch[] {
+export function createBranches(game: Chess, valid_move: MoveLike[], parentId: string | null = null): Branch[] {
   return valid_move.map((mv, i) => {
     const clone = new Chess();
 
@@ -66,14 +52,13 @@ export function createBranches(game: Chess, valid_move: Move[]): Branch[] {
       fen: clone.fen(), 
       pgn: clone.pgn(), 
       lastApplied: mv,
-      step: 1 // a number of steps in branch
+      step: 1, // a number of steps in branch
+      parentId
     };
   });
 }
 
-export function ensureGameExists() {
-  
-}
+export function ensureGameExists() {}
 
 
 

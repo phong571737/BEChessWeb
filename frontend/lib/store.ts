@@ -44,6 +44,7 @@ const defaultBoard = (): BoardState => ({
 
     branches: [],
     selectedBranchId: null,
+    errorSquares: [],
 });
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
