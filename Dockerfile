@@ -11,8 +11,10 @@ RUN npm install
 # Copy application code
 COPY . .
 
+RUN npm run build
+
 # Expose port
 EXPOSE 8080
 
 # Start the application
-ENTRYPOINT ["node", "./src/js/server.js"]
+ENTRYPOINT ["node", "dist/js/server.js"]

@@ -1,8 +1,8 @@
 #Base image
 FROM node:20-alpine AS deps
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 
 # Build next.js
 FROM node:20-alpine AS builder
@@ -12,7 +12,11 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ARG API_URL=http://ttlab-chess-app:8080
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_SOCKET_URL
 ENV API_URL=$API_URL
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_SOCKET_URL=$NEXT_PUBLIC_SOCKET_URL
 
 # Enable standalone output for Docker self-hosting
 ENV DOCKER=1

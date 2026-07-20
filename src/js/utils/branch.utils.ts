@@ -1,6 +1,7 @@
+import { Branch } from "../types/chess.types.js";
 import { formatUCI } from "./chess.utils.js";
 
-export function serializeBranches(branches) {
+export function serializeBranches(branches: Branch[]) {
   return branches.map((b) => ({
     id: b.id,
     fen: b.fen,

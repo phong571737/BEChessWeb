@@ -1,3 +1,5 @@
+import { PieceSymbol, Square } from "chess.js";
+
 export interface ParseCandidatesInput {
     boardType: string;
     uci?: string;
@@ -6,7 +8,7 @@ export interface ParseCandidatesInput {
     arrivals?: string;
 }
 
-export interface ProcessMoveInput extends ParseCandidatesInput{
+export interface ProcessMoveInput extends ParseCandidatesInput {
     fen?: string;
     boardID: string;
     seq: number;
@@ -27,9 +29,19 @@ export interface ParsedCandidatesError {
 export type ParsedCandidates = | ParsedCandidatesSuccess | ParsedCandidatesError;
 
 export interface SerializedBranch {
-    uci: string;
-    from: string;
-    to: string;
+    id: string;
+    fen: string;
+    pgn: string;
+
+    lastMove: {
+        from: Square;
+        to: Square;
+        promotion: PieceSymbol | null;
+        uci: string;
+    } | null;
+
+    step: number;
+    parentId: string | null;
 }
 
 export interface MoveState {

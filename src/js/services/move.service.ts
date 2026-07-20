@@ -79,7 +79,7 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, departur
         lastSeq: state.lastSeq,
         lastMove: state.lastMove ?? null,
         branchCount: state.branchCount,
-        branches: state.branches?.map(b => ({ uci: b.uci, from: b.from, to: b.to })) ?? [],
+        // branches: state.branches?.map(b => ({ uci: b.uci, from: b.from, to: b.to })) ?? [],
     };
 }
 

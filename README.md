@@ -57,46 +57,50 @@ git clone https://github.com/yourusername/TTLab_BEChessWeb.git
 cd TTLab_BEChessWeb
 ```
 
-### Step 2: Create Environment File
+### Step 2: Create Environment Files
 
-Create a `.env` file in the root directory with your configuration:
+Create a `.env` file in the root directory:
 
 ```bash
-# .env file
-# Server information
-AUTHOR=Your Name
+#mongodb
+MONGO_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/?appName=<your-app>
+MONGO_LOCAL=mongodb://localhost:27017
+VERCEL_WEB=https://<your-vercel-app>.vercel.app
+AUTHOR=<your-name>
 PORT=8080
-SERVER_NAME=your-server-name
+SERVER_NAME=<your-server-name>
 
-# Database (use MongoDB Atlas)
-MONGO_URI=mongodb+srv://username:password@your-cluster.mongodb.net/?appName=your-app
-
-# MQTT Broker Configuration
-URL_HIVEMQTT=mqtts://your-broker-url.hivemq.cloud
-MQTT_USER=your-mqtt-username
-MQTT_PASSWORD=your-mqtt-password
+# Public hostnames fronted by Pangolin (Newt tunnel), used only at
+# `docker compose build` time to bake the frontend's browser-facing API/socket URLs.
+FRONTEND_PUBLIC_URL=https://<your-frontend-domain>
+BACKEND_PUBLIC_URL=https://<your-backend-domain>
+# MQTT
+URL_HIVEMQTT=mqtts://<your-broker-url>.hivemq.cloud
+MQTT_USER=<your-mqtt-username>
+MQTT_PASSWORD=<your-mqtt-password>
 MQTT_PORT=8883
-MQTT_TOPIC_GET_IP=your/mqtt/topic
+MQTT_TOPIC_GET_IP=<your/mqtt/topic>
+```
+
+Create a `frontend/.env.local` file (local, non-Docker `npm run dev` only — Docker Compose bakes the equivalent values in at build time instead):
+
+```bash
+API_URL=http://localhost:8080          # HTTP proxy target (server-side)
+NEXT_PUBLIC_SOCKET_URL=http://localhost:8080   # Socket.io URL (browser-side)
 ```
 
 **Configuration Details:**
-- `MONGO_URI` - MongoDB Atlas connection string (create free account at [mongodb.com](https://www.mongodb.com/cloud/atlas))
+- `MONGO_URI` - MongoDB Atlas connection string
+- `MONGO_LOCAL` - Local MongoDB fallback URI
+- `VERCEL_WEB` - URL of the Vercel-hosted frontend deployment
 - `PORT` - Application port (default: 8080)
-- `SERVER_NAME` - Identifier for your server instance
+- `SERVER_NAME` - Identifier for this server instance
 - `AUTHOR` - Server author/maintainer name
-- `URL_HIVEMQTT` - MQTT broker URL (get free account at [hivemq.cloud](https://www.hivemq.cloud))
-- `MQTT_USER` - MQTT authentication username
-- `MQTT_PASSWORD` - MQTT authentication password (use strong password)
+- `FRONTEND_PUBLIC_URL` / `BACKEND_PUBLIC_URL` - Public hostnames (fronted by Pangolin/Newt) baked into the frontend build for browser-facing API/socket calls
+- `URL_HIVEMQTT` - MQTT broker URL
+- `MQTT_USER` / `MQTT_PASSWORD` - MQTT authentication credentials
 - `MQTT_PORT` - MQTT broker port (8883 for secure)
-- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery (customize as needed)
-
-**⚠️ Security Note:** Never commit `.env` file to version control. Add it to `.gitignore`:
-
-```
-.env
-.env.local
-.env.*.local
-```
+- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery
 
 ### Step 3: Build and Deploy with Docker Compose
 
@@ -133,27 +137,6 @@ docker compose ps
 ## Docker Architecture
 
 ```
-<<<<<<< HEAD
-┌─────────────────────────────────────────────┐
-│         Docker Compose Network              │
-│         (ttlab-network)                     │
-│                                             │
-│  ┌──────────────────┐  ┌────────────────┐  │
-│  │    MongoDB       │  │   Chess App    │  │
-│  │    Container     │  │   Container    │  │
-│  │  (Port 27017)    │  │  (Port 8080)   │  │
-│  │                  │  │                │  │
-│  │  mongo:7.0       │  │  Node.js +     │  │
-│  │                  │  │  Express +     │  │
-│  │  Volume:         │  │  Socket.io     │  │
-│  │  mongodb_data    │  │                │  │
-│  └──────────────────┘  └────────────────┘  │
-│         ▲                       ▲           │
-│         └───────────────────────┘           │
-│     Internal Docker DNS:                    │
-│     mongodb://mongodb:27017                 │
-└─────────────────────────────────────────────┘
-=======
 ┌─────────────────────────────────────────────────────┐
 │         Docker Compose Network                      │
 │         (ttlab-network)                             │
@@ -172,7 +155,6 @@ docker compose ps
 │  └────────────────────────────────────────────┘   │
 │                                                     │
 └─────────────────────────────────────────────────────┘
->>>>>>> 0ef15fbfd68034529014f6a80dc7e135057497a4
 ```
 
 ## Common Docker Commands
@@ -242,31 +224,36 @@ docker compose exec app env
 ```
 src/
 ├── js/                          # Backend source code
-│   ├── server.ts               # Main Express server
+│   ├── server.js               # Main Express server
 │   ├── config/
-│   │   ├── database.ts         # MongoDB configuration
-│   │   └── environment.ts      # Environment variables
+│   │   ├── database.js         # MongoDB configuration
+│   │   └── environment.js      # Environment variables
 │   ├── controllers/
-│   │   └── game.controller.ts  # Game request handlers
+│   │   └── game.controller.js  # Game request handlers
 │   ├── models/
-│   │   └── game.model.ts       # Database models
+│   │   └── game.model.js       # Database models
 │   ├── routes/
-│   │   ├── game.route.ts       # Game endpoints
-│   │   ├── move.route.ts       # Move endpoints
-│   │   └── board.route.ts      # Board endpoints
+│   │   ├── game.route.js       # Game endpoints
+│   │   ├── move.route.js       # Move endpoints
+│   │   └── board.route.js      # Board endpoints
 │   ├── services/
-│   │   ├── board.service.ts    # Board utilities
-│   │   └── game.service.ts     # Game logic
+│   │   ├── board.service.js    # Board utilities
+│   │   └── game.service.js     # Game logic
 │   ├── game/
-│   │   └── game.manager.ts     # Game state management
+│   │   └── game.manager.js     # Game state management
 │   ├── sockets/
-│   │   └── index.ts            # WebSocket handlers
+│   │   └── index.js            # WebSocket handlers
 │   └── utils/
-│       └── ucis.ts             # Chess utilities
+│       └── ucis.js             # Chess utilities
 ├── lib/                         # Third-party libraries
 │   ├── chess.js/               # Chess engine library
 │   └── chessboardjs-1.0.0/     # Chessboard UI library
-
+└── ServerWeb/                   # Frontend assets
+    ├── app.js                  # Frontend application
+    ├── html/                   # HTML templates
+    ├── css/                    # Stylesheets
+    ├── js/                     # Client-side JavaScript
+    └── img/                    # Images
 
 Docker Files:
 ├── Dockerfile                   # Container image definition

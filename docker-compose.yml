@@ -8,7 +8,7 @@ services:
       - .env
 
   frontend:
-    build: 
+    build:
       context: ./frontend
       args:
         API_URL: http://ttlab-chess-app:${PORT:-8080}
@@ -18,11 +18,11 @@ services:
     ports:
       - "4000:3000"
     environment:
-      - API_URL=http://ttlab-chess-app:8080
+      - API_URL=http://ttlab-chess-app:${PORT:-8080}
     depends_on:
       - ttlab-chess-app
 
-newt:
+  newt:
     image: fosrl/newt
     container_name: newt
     restart: unless-stopped

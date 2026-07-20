@@ -52,10 +52,10 @@ export function ChessBoardView({
     }
   });
 
-  if (lastMove) {
-    squareStyles[lastMove.from] = { background: "rgba(236,243,116,0.75)" };
-    squareStyles[lastMove.to]   = { background: "rgba(236,243,116,0.75)" };
-  }
+  // if (lastMove) {
+  //   squareStyles[lastMove.from] = { background: "rgba(236,243,116,0.75)" };
+  //   squareStyles[lastMove.to]   = { background: "rgba(236,243,116,0.75)" };
+  // }
 
   // Loading skeleton before the parent has measured its size
   if (!boardWidth || boardWidth < 120) {
