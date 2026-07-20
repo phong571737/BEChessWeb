@@ -63,11 +63,10 @@ export async function makeMove(
     return handleNewNormalMove(gameID, mainGame, candidates, seq);
   } else if (boardType === BOARD_TYPE.NFC) {
     gameSeq.set(gameID, seq);
-    const existingMoves = rawMoveHistory.get(gameID) ?? [];
-    const { pgn: customPgn } = customPGN(existingMoves);
+    // const existingMoves = rawMoveHistory.get(gameID) ?? [];
+    // const { pgn: customPgn } = customPGN(existingMoves);
 
     if (moveType === MOVE_TYPE.MOVE_ERROR) {
-      gameSeq.set(gameID, seq);
       const newFen = fen ?? mainGame.fen();
       try {
         mainGame.load(newFen, { skipValidation: true });
@@ -76,12 +75,13 @@ export async function makeMove(
       }
       rawMoveHistory.set(gameID, []);
       pgnBaseFen.set(gameID, newFen);
+      const { pgn: freshPgn } = customPGN([], newFen);
 
       return {
         status: MOVE_STATUS.OK,
         gameID,
         fen: fen ?? mainGame.fen(),
-        pgn: customPgn,
+        pgn: freshPgn,
         lastSeq: seq,
         lastMove: null,
         isError: true,
@@ -361,6 +361,7 @@ export function resetGame(gameID: string): Chess {
   gameSeq.set(gameID, 0);
   activeBranches.delete(gameID);
   rawMoveHistory.delete(gameID);
+  pgnBaseFen.delete(gameID);
   return game
 }
 

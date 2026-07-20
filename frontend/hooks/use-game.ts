@@ -81,7 +81,8 @@ export function useGame(gameID: string) {
         if (!gameID) return;
         if (cachedBoard?.fen) {
             try {
-                if (cachedBoard.pgn) chessRef.current.loadPgn(cachedBoard.pgn);
+                chessRef.current.load(cachedBoard.fen);
+                // if (cachedBoard.pgn) chessRef.current.loadPgn(cachedBoard.pgn);
             } catch { }
 
             initialMoveCountRef.current = chessRef.current.history().length;
@@ -98,8 +99,12 @@ export function useGame(gameID: string) {
             .then((game) => {
                 console.log("current chessref", chessRef.current);
                 try {
-                    if (game.pgn) chessRef.current.loadPgn(game.pgn);
-
+                    // if (game.pgn) chessRef.current.loadPgn(game.pgn);
+                    if (game.fen) {
+                        chessRef.current.load(game.fen);
+                    } else if (game.pgn) {
+                        chessRef.current.loadPgn(game.pgn);
+                    }
                 } catch { }
                 initialMoveCountRef.current = chessRef.current.history().length;
 
@@ -199,28 +204,29 @@ export function useGame(gameID: string) {
             if (data.gameID !== gameID) return;
             console.log("Receive move", data);
 
-            if (data.isError) {
-                try {
-                    chessRef.current.load(data.fen);
-                } catch { }
+            // if (data.isError) {
+            //     try {
+            //         chessRef.current.load(data.fen);
+            //     } catch { }
 
-                patchBoard(gameID, {
-                    fen: data.fen,
-                    pgn: chessRef.current.pgn(),
-                    lastMove: null,
-                    errorSquares: data.departures
-                        ? data.departures.split(",").map((s: string) => s.trim())
-                        : [],
-                });
+            //     patchBoard(gameID, {
+            //         fen: data.fen,
+            //         pgn: chessRef.current.pgn(),
+            //         lastMove: null,
+            //         errorSquares: data.departures
+            //             ? data.departures.split(",").map((s: string) => s.trim())
+            //             : [],
+            //     });
 
-                return
-            }
+            //     return
+            // }
 
             const incomingBranches: Branch[] = data.branches ?? [];
             const newPgn = data.pgn || chessRef.current.pgn();
 
             try {
-                if (data.pgn) chessRef.current.loadPgn(data.pgn);
+                // if (data.pgn) chessRef.current.loadPgn(data.pgn);
+                if (data.fen) chessRef.current.load(data.fen);
             } catch { }
 
             if (incomingBranches.length > 0) {
@@ -269,7 +275,12 @@ export function useGame(gameID: string) {
             if (data.game != gameID) return;
 
             try {
-                if (data.pgn) chessRef.current.loadPgn(data.pgn);
+                // if (data.pgn) chessRef.current.loadPgn(data.pgn);
+                if (data.fen) {
+                    chessRef.current.load(data.fen);
+                } else if (data.pgn) {
+                    chessRef.current.loadPgn(data.pgn);
+                }
             } catch { }
 
             initialMoveCountRef.current = chessRef.current.history().length;

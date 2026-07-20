@@ -18,10 +18,16 @@ function buildResultTag(resignSide: ResignSide) {
     return resultTag;
 }
 
-function buildFinalPGN(game: GameDoc, pgn: string, resultTag: string): { chess: Chess, finalPGN: string } {
+function buildFinalPGN(game: GameDoc, fen: string, resultTag: string): { chess: Chess, finalPGN: string } {
     // rebuild PGN with headers
+    // const chess = new Chess();
+    // if (pgn) chess.loadPgn(pgn);
     const chess = new Chess();
-    if (pgn) chess.loadPgn(pgn);
+    try {
+        if (fen) chess.load(fen, { skipValidation: true });
+    } catch (e) {
+        console.error("[RESIGN] Failed to load fen, using default position:", e);
+    }
 
     chess.setHeader("White", game.WhiteName || "White");
     chess.setHeader("Black", game.BlackName || "Black");
@@ -43,20 +49,24 @@ export const GameResignService = {
         if (!game) throw new Error(ERROR_STATUS.NOTFOUND);
 
         const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
-        let pgn = game.pgn ?? "";
+        // let pgn = game.pgn ?? "";
+        let fen = game.fen ?? "";
+        let fenHistory = game.fenHistory ?? [];
+        let uciHistory = game.uciHistory ?? [];
 
         if (branchId) {
             const branch = game.branches?.find((b) => b.id === branchId);
-
             if (!branch) {
                 throw new Error("Branch not found");
             }
-
-            pgn = branch.pgn ?? "";
+            // pgn = branch.pgn ?? "";
+            fen = branch.fen ?? game.fen ?? "";
+            fenHistory = (branch as any).fenHistory ?? game.fenHistory ?? [];
+            uciHistory = (branch as any).uciHistory ?? game.uciHistory ?? [];
         }
 
         const resultTag = buildResultTag(resignSide);
-        const { chess, finalPGN } = buildFinalPGN(game, pgn, resultTag);
+        const { chess, finalPGN } = buildFinalPGN(game, fen, resultTag);
         const currentRound = game.round ?? 1;
         const nextRound = currentRound + 1;
 
@@ -64,7 +74,7 @@ export const GameResignService = {
         const doc = {
             gameID,
             pgn: finalPGN,
-            totalMoves: chess.history().length,
+            totalMoves: fenHistory.length,
             round: currentRound,
             uciHistory: game.uciHistory ?? [],
             fenHistory: game.fenHistory ?? [],

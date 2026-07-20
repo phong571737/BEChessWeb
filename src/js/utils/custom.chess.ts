@@ -28,7 +28,7 @@ function findAmbiguousPieces(
             if (sq === from) continue;
 
             const p = game.get(sq);
-            if (!p || p.type || !pieceType || p.color !== color) continue;
+            if (!p || p.type !== pieceType || p.color !== color) continue;
 
             if (canPseudoReach(pieceType,sq, to)) {
                 result.push(sq);
