@@ -8,14 +8,26 @@
  * Server-side (SSR / rewrites): uses API_URL env var.
  */
 export function getApiUrl(): string {
-  if (typeof window === "undefined") {
-    return process.env.API_URL ?? "http://localhost:8080";
-  }
-  // Build-time override for cloud deployments (Vercel → Render)
+  // Build-time / runtime override via environment variables
   if (process.env.NEXT_PUBLIC_API_URL) {
     return process.env.NEXT_PUBLIC_API_URL;
   }
+
+  if (typeof window === "undefined") {
+    return process.env.API_URL ?? "http://localhost:8080";
+  }
+
   // Auto-discovery: works for localhost, LAN, Tailscale, ngrok, etc.
   const { protocol, hostname } = window.location;
-  return `${protocol}//${hostname}:8080`;
+  if (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname.startsWith("192.168.") ||
+    hostname.startsWith("10.") ||
+    hostname.endsWith(".local")
+  ) {
+    return `${protocol}//${hostname}:8080`;
+  }
+
+  return process.env.API_URL ?? "http://localhost:8080";
 }

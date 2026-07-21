@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
-const API_URL = process.env.API_URL || "http://localhost:8080";
+const API_URL =
+  process.env.API_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://localhost:8080";
 const isDocker = process.env.DOCKER === "1";
 
 const nextConfig: NextConfig = {
