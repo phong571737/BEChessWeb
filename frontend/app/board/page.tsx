@@ -452,10 +452,10 @@ function BoardContent() {
 }
 
 export default function BoardPage() {
-    // return (
-    //     <Suspense fallback={<BoardSkeleton />}>
-    //         <BoardContent />
-    //     </Suspense>
-    // )
-    return <BoardContent />;
+    return (
+        <Suspense fallback={<BoardSkeleton />}>
+            <BoardContent />
+        </Suspense>
+    )
+    // return <BoardContent />;
 }
