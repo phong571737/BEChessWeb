@@ -58,15 +58,35 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
 
   // Live updates via Socket.io
   useEffect(() => {
+    // Dev: log socket presence so we can see when client connects
+    try {
+      // eslint-disable-next-line no-console
+      console.debug("[usePhysicalBoards] socket present?", !!socket);
+    } catch (e) {}
     if (!socket) return;
 
-    const onHeartbeat = (board: PhysicalBoard) => patchPhysicalBoard(board);
+    const unwrap = (rawData: any) => (Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData);
 
-    const onOffline = ({ boardID }: { boardID: string }) => {
+    const onOffline = (rawData: any) => {
+      const payload = unwrap(rawData);
+      if (!payload || typeof payload.boardID !== "string") return;
+      const { boardID } = payload;
+      // Dev: log offline events
+      try {
+        // eslint-disable-next-line no-console
+        console.debug("[usePhysicalBoards] BOARD_OFFLINE", boardID);
+      } catch (e) {}
       removePhysicalBoard(boardID);
+      try {
+        // eslint-disable-next-line no-console
+        console.debug("[usePhysicalBoards] physicalBoards after remove", useGameStore.getState().physicalBoards.map(b=>b.boardID));
+      } catch (e) {}
     };
 
-    const onGameStatusUpdate = ({ gameID, status }: { gameID: string; status: string }) => {
+    const onGameStatusUpdate = (rawData: any) => {
+      const payload = unwrap(rawData);
+      if (!payload || typeof payload.gameID !== "string" || typeof payload.status !== "string") return;
+      const { gameID, status } = payload;
       if (status === GAME_STATUS.FINISHED) {
         // Game ended — detach board so card shows "Ready" and can start a new game
         clearPhysicalBoardGameID(gameID);
@@ -75,12 +95,28 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       }
     };
 
+    const onScanOk = (rawData: any) => {
+      const payload = unwrap(rawData);
+      if (!payload || typeof payload.boardID !== "string") return;
+
+      const board: PhysicalBoard = {
+        boardID: payload.boardID,
+        gameID: payload.gameID,
+        gameStatus: payload.status === "ok" ? "active" : payload.status,
+        online: true,
+      };
+
+      patchPhysicalBoard(board);
+    };
+
     socket.on(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
     socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
+    socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
 
     return () => {
       socket.off(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
       socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
+      socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
     };
   }, [socket, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID]);
 

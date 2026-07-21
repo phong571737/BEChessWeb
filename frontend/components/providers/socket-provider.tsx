@@ -13,8 +13,26 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     let sock: Socket;
 
     import("socket.io-client").then(({ io }) => {
-      const url = getApiUrl();
+      const url = process.env.NEXT_PUBLIC_SOCKET_URL ?? getApiUrl();
       sock = io(url, { transports: ["websocket", "polling"] });
+      // Dev: log connection state and incoming socket events to help debugging
+      try {
+        sock.on("connect", () => {
+          // eslint-disable-next-line no-console
+          console.debug("[socket] connected", sock.id, "to", url);
+        });
+        sock.on("connect_error", (err: any) => {
+          // eslint-disable-next-line no-console
+          console.error("[socket] connect_error", err);
+        });
+        // @ts-ignore
+        sock.onAny((event: string, ...args: any[]) => {
+          // eslint-disable-next-line no-console
+          console.debug("[socket] recv", event, args);
+        });
+      } catch (e) {
+        // ignore in prod if onAny not available
+      }
       setSocket(sock);
     });
 

@@ -100,10 +100,10 @@ export function useGame(gameID: string) {
                 console.log("current chessref", chessRef.current);
                 try {
                     // if (game.pgn) chessRef.current.loadPgn(game.pgn);
-                    if (game.fen) {
-                        chessRef.current.load(game.fen);
-                    } else if (game.pgn) {
+                    if (game.pgn) {
                         chessRef.current.loadPgn(game.pgn);
+                    } else if (game.fen) {
+                        chessRef.current.load(game.fen);
                     }
                 } catch { }
                 initialMoveCountRef.current = chessRef.current.history().length;
@@ -313,6 +313,8 @@ export function useGame(gameID: string) {
         }
     }, [socket, gameID, isLoaded, boards]);
 
+    
+
     // --- PGN history -----------------------------------------
     const board = boards[gameID];
 
@@ -401,6 +403,7 @@ export function useGame(gameID: string) {
         resign,
         status: board?.status,
         isLoaded,
+        loadError,
         lastMoveAt,
         moveTimesMap,
         chess: chessRef.current,

@@ -5,6 +5,7 @@ import { getCurrentGame } from "../game/game.manager.js";
 import { ERROR_STATUS, BOARD_TYPE, BOARD_STATUS } from "../constant.js";
 import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
 import { gameState, emitGameState } from "../game/game.state.js";
+import { getIO } from "../sockets/index.js";
 import { CreateBoardBody, InitCheckBody } from "../types/board.types.js";
 import { GameIdParams } from "../types/game.types.js";
 import { games, gameSeq, activeBranches } from "../game/game.repository.js";
@@ -44,6 +45,14 @@ export const BoardController = {
 
             await GameService.create(boardID, gameID);
 
+            // Notify frontend clients that a board was scanned/created so UI updates immediately
+            try {
+                const io = getIO();
+                io.emit("board_scan_ok", { boardID, gameID, status: "ok" });
+            } catch (err) {
+                // socket may not be initialized in some environments; ignore if so
+                // console.warn("Socket not initialized, cannot emit board_scan_ok", err);
+            }
             // Return 201 (create successfully)
             return res.status(201).json({
                 status: "OK",

@@ -2,6 +2,7 @@
   "compilerOptions": {
     "esModuleInterop": true,
     "moduleResolution": "node",
+    "ignoreDeprecations": "6.0",
     "removeComments": false,
     "sourceMap": true,
     "strict": true,

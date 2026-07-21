@@ -24,7 +24,13 @@ async function StartServer() {
     methods: ['GET', 'POST'],
     credentials: true
   }));
+  
+    // Simple health endpoint: GET /
+    app.get("/", (req, res) => {
+      res.json({ ok: true, message: "Chess API running" });
+    });
 
+  app.get("/health", (req, res) => res.status(200).send("OK"));
   app.use("/moves", moveRouter); //moves
   app.use("/games", gameRouter); // get games/current and games
   app.use("/boards", boardRouter); // create a new board

@@ -42,7 +42,18 @@ async function cleanupBoard(boardID: string) {
         }
         removeCurrenGame(boardID) // remove old gameID
         gameState.set(boardID, { boardStatus: "offline", gameID: null });
-        getIO().emit("game:destroyed", { boardID });
+            try {
+                console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
+                getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
+            } catch (e) {
+                // socket may not be initialized; ignore
+            }
+            try {
+                console.log(`[MQTT] Emitting board_offline for ${boardID} after cleanup`);
+                getIO().emit("board_offline", { boardID });
+            } catch (e) {
+                // ignore
+            }
     } catch (e) {
         console.error("[MQTT] Cleanup error:", e);
     } finally {
@@ -69,11 +80,19 @@ async function handleMessage(topic: string, message: Buffer) {
                 console.log(`[MQTT] Board ${boardID} offline`);
                 gameState.set(boardID, { boardStatus: "offline" });
 
-                if (!pendingCleanupTimers.has(boardID)) {
-                    const timer = setTimeout(() => {
-                        cleanupBoard(boardID)
-                    }, OFFLINE_CLEANUP_DELAY_MS);
-                    pendingCleanupTimers.set(boardID, timer);
+                // Notify frontend immediately that the board is offline so it can be removed
+                try {
+                    console.log(`[MQTT] Emitting board_offline for ${boardID}`);
+                    getIO().emit("board_offline", { boardID });
+                } catch (e) {
+                    // ignore if socket not initialized
+                }
+
+                // Remove the board/game immediately so /boards no longer returns stale data.
+                try {
+                    await cleanupBoard(boardID);
+                } catch (cleanupError) {
+                    console.error(`[MQTT] Immediate cleanup failed for ${boardID}:`, cleanupError);
                 }
             } else if (payload.status === "restart") {
                 console.log(`[MQTT] Board ${boardID} restart`);

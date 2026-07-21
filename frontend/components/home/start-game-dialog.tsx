@@ -3,6 +3,8 @@ import { PhysicalBoard } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { encodeGameID } from "@/lib/id-utils";
+import { useGameStore } from "@/lib/store";
+import { invalidateFetchCache } from "@/lib/fetch-cache";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -42,6 +44,17 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     body: JSON.stringify({ color: "Black", name: black.trim() }),
                 }),
             ]);
+
+            useGameStore.getState().patchBoard(gameID, {
+                WhiteName: white.trim(),
+                BlackName: black.trim(),
+            });
+
+            useGameStore.getState().patchBoard(gameID, {
+                WhiteName: white.trim(),
+                BlackName: black.trim(),
+            });
+            invalidateFetchCache(`/games/${gameID}`);
 
             onClose();
             router.push(`/board?id=${encodeGameID(gameID)}`);

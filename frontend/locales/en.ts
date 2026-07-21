@@ -52,6 +52,7 @@ export const en = {
     "board.drawAgreed": "Draw by agreement",
     "board.winner": "won",
     "board.viewHistory": "View History",
+    "board.offlineRedirect": "Board went offline, returning home...",
     
     // ----- Review page --------------------------------------------------
     "rev.loading": "Loading review...",
@@ -117,8 +118,20 @@ export const en = {
     "pg.pasteUCI": "Paste the moves text here",
     "pg.description": "Enter or paste a game's move sequence to generate a valid PGN.",
     "pg.notation": "Some move sequences may result in multiple PGN variations. You can select the desired variation.",
+    "pg.pasteHint": "Paste UCI move tokens and generate a clean PGN output.",
+    "pg.pastePlaceholder": "e2e4 e7e5 g1f3",
     "pg.clear": "Delete",
     "pg.generatePgn": "Generate PGN",
+    "pg.input": "Input",
+    "pg.noInput": "No moves pasted yet.",
+    "pg.tokens": "tokens",
+    "pg.branches": "Branches",
+    "pg.branchesFound": "{count} branches found",
+    "pg.resultSummary": "Result summary",
+    "pg.preview": "Preview",
+    "pg.previewDescription": "Select a branch to review its generated PGN.",
+    "pg.pgnPreview": "PGN output",
+    "pg.noPreview": "Paste moves to see PGN here.",
     "pg.listbranch": "List of PGN",
 
     // ----------- Piece names -----------------------------------------

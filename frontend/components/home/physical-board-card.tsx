@@ -16,15 +16,15 @@ export function PhysicalBoardCard({board, onClick}: Props) {
     const {gameID, gameStatus, online} = board;
 
     const isOffline = !online;
-    // const isWaitingScan = !isOffline && gameStatus === GAME_STATUS.WAITING;
+    const isPending = !isOffline && !gameID;
     const isScanFailed = !isOffline && gameStatus === GAME_STATUS.SCAN_FAIL;
-    const inGame = !isOffline && !gameID && gameStatus === GAME_STATUS.ACTIVE;
+    const inGame = !isOffline && !!gameID && gameStatus === GAME_STATUS.ACTIVE;
 
     const borderCls = isOffline
         ? "border-border/40 opacity-60 cursor-default"
+        : isPending
+        ? "border-amber-500/30 cursor-not-allowed"
         : inGame
-        // ? "border-blue-500/25 hover:border-blue-500/40"
-        // : isWaitingScan
         ? "border-amber-500/30 hover:border-amber-500/50"
         : isScanFailed
         ? "border-red-500/25 hover:border-red-500/40"
@@ -32,11 +32,13 @@ export function PhysicalBoardCard({board, onClick}: Props) {
 
     return (
         <button
-            onClick={() => !isOffline && onClick(board)}
+            type="button"
+            disabled={isOffline || isPending}
+            onClick={() => !isOffline && !isPending && onClick(board)}
             className={cn(
                 "w-full flex items-center gap-3 rounded-lg border bg-card text-left",
                 "px-3.5 py-3 transition-all duration-150",
-                !isOffline && "hover:shadow-sm hover:-translate-y-px",
+                !isOffline && !isPending && "hover:shadow-sm hover:-translate-y-px",
                 "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                 borderCls
             )}

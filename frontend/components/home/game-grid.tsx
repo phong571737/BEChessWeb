@@ -9,7 +9,7 @@ import type { PhysicalBoard } from "@/types/game.types";
 import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { encodeGameID } from "@/lib/id-utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useT } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "./empty-state";
@@ -24,6 +24,15 @@ export function GameGrid() {
     const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
 
+    // If the selected board goes offline/removed or becomes active, close the dialog
+    useEffect(() => {
+        if (!selectedBoard) return;
+        const current = physicalBoards.find((b) => b.boardID === selectedBoard.boardID);
+        if (!current || !current.online || (selectedBoard.gameID === null && current.gameID !== null)) {
+            setselectedBoard(null);
+        }
+    }, [physicalBoards, selectedBoard]);
+
     // Hide scan-flow games (shown as PhysicalBoardCard) and finished games
     const cardGames = activeGames.filter(
         (g) => g.status !== GAME_STATUS.WAITING
@@ -33,13 +42,14 @@ export function GameGrid() {
 
     const handleBoardClick = (board: PhysicalBoard) => {
         console.log("clicked", board);
-        const isLive = board.gameID && board.gameStatus != GAME_STATUS.FINISHED && board.gameStatus != null;
-        if (isLive) {
-            router.push(`/board?id=${encodeGameID(board.gameID!)}`)
+
+        const isActiveBoard = board.gameID != null && board.gameStatus === GAME_STATUS.ACTIVE;
+        if (isActiveBoard && board.gameID) {
+            router.push(`/board?id=${encodeGameID(board.gameID)}`);
             return;
-        } else {
-            setselectedBoard(board);
         }
+
+        setselectedBoard(board);
     }
 
     return (

@@ -113,7 +113,7 @@ export async function renamePlayer(
     name: string
 ) {
     const field = color === "Black" ? "BlackName" : "WhiteName";
-    return games().updateOne({ _id: gameID } as unknown as Filter<GameDoc>, {
+    return games().updateOne({ gameID } as Filter<GameDoc>, {
         $set: { [field]: name, updateAt: new Date() },
     } as UpdateFilter<GameDoc>);
 }

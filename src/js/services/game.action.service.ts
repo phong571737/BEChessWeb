@@ -58,8 +58,11 @@ export const GameActionService = {
         if (!game) return;
 
         await renamePlayer(gameID, color, name);
-        // Broad cast to all the game that using name gameid
-        getIO().to(gameID).emit("game:renamed", { color, name });
+        // Broadcast to all clients in the game room so board page can update immediately
+        const payload: Record<string, string> = { gameID };
+        if (color === "White") payload.WhiteName = name;
+        if (color === "Black") payload.BlackName = name;
+        getIO().to(gameID).emit("game:renamed", payload);
     },
 
     async destroy(gameID: string) {

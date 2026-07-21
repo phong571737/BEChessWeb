@@ -1,14 +1,15 @@
 "use client"
 
 import { decodeGameID } from "@/lib/id-utils";
-import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useRef, useState, useCallback } from "react";
 import { useGameStore } from "@/lib/store";
 import { useGame } from "@/hooks/use-game";
 import { ChessBoardView } from "@/components/board/chess-board-view";
 import { useT } from "@/lib/i18n";
 import { GamePanel } from "@/components/board/game-panel";
-import { useCallback } from "react";
+import { useSocket } from "@/components/providers/socket-provider";
+import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { Trophy, Home } from "lucide-react";
@@ -178,11 +179,15 @@ function BoardContent() {
     const searchParams = useSearchParams();
     const rawID = searchParams.get("id") ?? "";
     const gameID = rawID ? decodeGameID(rawID) : "";
+    const router = useRouter();
+    const socket = useSocket();
     const { workerRef, onMessageRef, isReady } = useStockfish();
     const pendingFenRef = useRef<string | null>(null);
     const [cp, setCp] = useState<number | null>(null);
     const [navFen, setNavFen] = useState<string | null>(null);
     const currentFenRef = useRef<string | null>(null);
+    const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
+    const redirectTimerRef = useRef<number | null>(null);
     // const displayFen = navFen ?? fen;
     const boardWrapRef = useRef<HTMLDivElement | null>(null);
     const [boardWidth, setBoardWidth] = useState(0);
@@ -190,7 +195,7 @@ function BoardContent() {
     const clearPhysicalBoardGameID = useGameStore((s) => s.clearPhysicalBoardGameID);
 
     const {
-        fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, restart, resign, lastMoveAt, moveTimesMap, status,
+        fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         initStatus, missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId,
         // cp
     } = useGame(gameID);
@@ -205,6 +210,72 @@ function BoardContent() {
 
     const displayFen = navigationState.fen ?? fen;
     const displayLastMove = navigationState.fen ? navigationState.lastMove : lastMove;
+
+    useEffect(() => {
+        if (!router || !loadError) return;
+        if (loadError === "not-found") {
+            setOfflineNotice(t("board.offlineRedirect"));
+            if (redirectTimerRef.current) {
+                window.clearTimeout(redirectTimerRef.current);
+            }
+            redirectTimerRef.current = window.setTimeout(() => {
+                router.replace("/");
+            }, 1500);
+        }
+    }, [loadError, router, t]);
+
+    useEffect(() => {
+        if (!socket || !gameID) return;
+
+        // Ensure UI always uses server FEN as the single source of truth.
+        const onEspMove = (rawData: any) => {
+            const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
+            if (!data || data.gameID !== gameID) return;
+            // Clear any navigation override so displayFen falls back to the store's fen
+            setNavigationState({ fen: null, lastMove: null });
+        };
+
+        const onGameDestroyed = (data: any) => {
+            if (!data) return;
+            const gameIDs = Array.isArray(data.gameIDs) ? data.gameIDs : [];
+            if (gameIDs.includes(gameID)) {
+                setOfflineNotice(t("board.offlineRedirect"));
+                if (redirectTimerRef.current) {
+                    window.clearTimeout(redirectTimerRef.current);
+                }
+                redirectTimerRef.current = window.setTimeout(() => {
+                    router.replace("/");
+                }, 1500);
+            }
+        };
+
+        const onBoardOffline = (data: any) => {
+            if (!data || !data.boardID) return;
+            try {
+                const boards = useGameStore.getState().physicalBoards;
+                const b = boards.find((x: any) => x.boardID === data.boardID && x.gameID === gameID);
+                if (b) {
+                    setOfflineNotice(t("board.offlineRedirect"));
+                    if (redirectTimerRef.current) window.clearTimeout(redirectTimerRef.current);
+                    redirectTimerRef.current = window.setTimeout(() => router.replace('/'), 1500);
+                }
+            } catch (e) {
+                // ignore
+            }
+        };
+
+        socket.on(SOCKET_CONSTANTS.GAME_DESTROYED, onGameDestroyed);
+        socket.on(SOCKET_CONSTANTS.BOARD_OFFLINE, onBoardOffline);
+        socket.on(SERVER_EVENT.ESP_MOVE, onEspMove);
+        return () => {
+            socket.off(SOCKET_CONSTANTS.GAME_DESTROYED, onGameDestroyed);
+            socket.off(SOCKET_CONSTANTS.BOARD_OFFLINE, onBoardOffline);
+            socket.off(SERVER_EVENT.ESP_MOVE, onEspMove);
+            if (redirectTimerRef.current) {
+                window.clearTimeout(redirectTimerRef.current);
+            }
+        };
+    }, [socket, gameID, router, t]);
 
     useEffect(() => {
         onMessageRef.current = (line: string) => {
@@ -279,6 +350,17 @@ function BoardContent() {
     const handleNavigate = useCallback((fen: string | null, lm: { from: string; to: string } | null) => {
         setNavigationState({ fen: fen, lastMove: lm });
     }, []);
+
+    if (offlineNotice) {
+        return (
+            <div className="p-6 min-h-[calc(100vh-var(--header-h))] flex flex-col items-center justify-center text-center">
+                <div className="rounded-xl border border-border bg-background/80 p-6 shadow-sm">
+                    <p className="text-sm text-muted-foreground mb-2">{offlineNotice}</p>
+                    <p className="text-xs text-muted-foreground">{t("board.viewHistory")}</p>
+                </div>
+            </div>
+        );
+    }
 
     if (!isLoaded) return <BoardSkeleton />
 
@@ -370,9 +452,10 @@ function BoardContent() {
 }
 
 export default function BoardPage() {
-    return (
-        <Suspense fallback={<BoardSkeleton />}>
-            <BoardContent />
-        </Suspense>
-    )
+    // return (
+    //     <Suspense fallback={<BoardSkeleton />}>
+    //         <BoardContent />
+    //     </Suspense>
+    // )
+    return <BoardContent />;
 }

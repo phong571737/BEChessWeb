@@ -9,7 +9,7 @@ export function initSocket(server: HTTPServer): void{
         cors:{
             origin: "*",
             methods: ['GET', 'POST'],
-            credentials: true
+            credentials: false
         }
     });
 
