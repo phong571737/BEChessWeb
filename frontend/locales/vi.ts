@@ -54,6 +54,8 @@ export const vi: Record<TranslationKeys, string> = {
     "board.drawAgreed": "Đồng ý hoà",
     "board.winner": "thắng",
     "board.viewHistory": "Xem lịch sử",
+    "board.offlineRedirect": "Bàn cờ đã ngắt kết nối, đang quay về trang chủ...",
+
 
     // ------ Review page -----------------------------------------------
     "rev.loading": "Đang tải...",

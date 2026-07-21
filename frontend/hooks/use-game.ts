@@ -306,12 +306,35 @@ export function useGame(gameID: string) {
         socket.on(CLIENT_EVENT.RESTORED, onRestore);
         socket.on(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
 
+        const onUpdateAllGame = (data: any) => {
+            if (data?.gameID && data.gameID !== gameID) return;
+            console.log("[SOCKET] update_all_game received for game:", gameID);
+            patchBoard(gameID, { status: GAME_STATUS.ENDED });
+            invalidateFetchCache(`/games/${gameID}`);
+            invalidateFetchCache("/games/current");
+            invalidateFetchCache("/games/history");
+        };
+
+        const onGameRestart = (data: any) => {
+            if (data?.oldGameID && data.oldGameID !== gameID) return;
+            console.log("[SOCKET] game_restart received for game:", gameID);
+            patchBoard(gameID, { status: GAME_STATUS.ENDED });
+            invalidateFetchCache(`/games/${gameID}`);
+            invalidateFetchCache("/games/current");
+            invalidateFetchCache("/games/history");
+        };
+
+        socket.on("update_all_game", onUpdateAllGame);
+        socket.on("game_restart", onGameRestart);
+
         return () => {
             socket.off(SERVER_EVENT.ESP_MOVE, onMove);
             socket.off(CLIENT_EVENT.RESTORED, onRestore);
             socket.off(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
+            socket.off("update_all_game", onUpdateAllGame);
+            socket.off("game_restart", onGameRestart);
         }
-    }, [socket, gameID, isLoaded, boards]);
+    }, [socket, gameID, isLoaded]);
 
     
 
@@ -344,7 +367,12 @@ export function useGame(gameID: string) {
 
     // ----- Game actions ---------------------------------------
     const restart = async () => {
-        await fetch(`/games/${gameID}/restart`, { method: "POST" });
+        try {
+            await fetch(`/games/${gameID}/restart`, { method: "POST" });
+            patchBoard(gameID, { status: GAME_STATUS.ENDED });
+        } catch (e) {
+            console.error("Restart error:", e);
+        }
         invalidateFetchCache(`/games/${gameID}`);
         invalidateFetchCache("/games/current");
         invalidateFetchCache("/games/history");
@@ -353,11 +381,32 @@ export function useGame(gameID: string) {
     // Resign
     const resign = async (resignSide: "white" | "black" | "draw" = "white", branchId?: string | null) => {
         console.log("RESIGN CLICKED", resignSide);
-        await fetch(`/games/${gameID}/resign`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ resignSide, branchId: branchId ?? null }),
-        });
+        const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
+        try {
+            const res = await fetch(`/games/${gameID}/resign`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ resignSide, branchId: branchId ?? null }),
+            });
+            if (res.ok) {
+                const data = await res.json();
+                patchBoard(gameID, {
+                    status: GAME_STATUS.ENDED,
+                    result: resultTag,
+                });
+            } else {
+                patchBoard(gameID, {
+                    status: GAME_STATUS.ENDED,
+                    result: resultTag,
+                });
+            }
+        } catch (e) {
+            console.error("Resign error:", e);
+            patchBoard(gameID, {
+                status: GAME_STATUS.ENDED,
+                result: resultTag,
+            });
+        }
         invalidateFetchCache(`/games/${gameID}`);
         invalidateFetchCache("/games/current");
         invalidateFetchCache("/games/history");

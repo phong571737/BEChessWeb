@@ -17,9 +17,9 @@ const links = [
 
 export function Navbar() {
     const pathname = usePathname();
-    const { theme, setTheme } = useTheme();
+    const { resolvedTheme, setTheme } = useTheme();
     const [open, setOpen] = useState(false);
-    const toggle = () => setTheme(theme === "dark" ? "light" : "dark");
+    const toggle = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
 
     return (
         <header className="sticky top-0 z-40 w-full border-b border-border bg-background/95 backdrop-blur-sm" style={{ height: "var(--header-h)" }}>

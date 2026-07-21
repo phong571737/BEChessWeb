@@ -138,7 +138,7 @@ function AppSidebar({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { theme, setTheme } = useTheme();
+    const { theme, setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
@@ -235,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                     variant="ghost"
                                     size="icon"
                                     className="size-8"
-                                    onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
                                     >
                                     <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                                     <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />

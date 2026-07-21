@@ -49,6 +49,11 @@ export function initGameSocket(io: Server): void {
             const winner: MatchStatus["winner"] = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
             gameStatus.set(gameID, { status: "ended", winner });
 
+            // Tự động xóa sau 60 giây để tránh leak
+            setTimeout(() => {
+                gameStatus.delete(gameID);
+            }, 60_000);
+
             // notify to all client update board
             io.to(gameID).emit("update_all_game", {
                 gameID,
@@ -63,6 +68,11 @@ export function initGameSocket(io: Server): void {
             io.to(gameID).emit("update_all_game", {
                 gameID
             });
-        })
+        });
+
+        // Cleanup khi client ngắt kết nối
+        socket.on("disconnect", () => {
+            console.log(`Socket ${socket.id} disconnected`);
+        });
     })
-}
+}

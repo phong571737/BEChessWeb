@@ -3,7 +3,7 @@ import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { removeGameByBoardID } from "../models/game.model.js";
-import { games, gameSeq, activeBranches } from "../game/game.repository.js";
+import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { removeCurrenGame } from "../game/game.manager.js";
 
 let mqttClient: MqttClient | null = null;
@@ -37,23 +37,25 @@ async function cleanupBoard(boardID: string) {
                 games.delete(gameID);
                 gameSeq.delete(gameID);
                 activeBranches.delete(gameID);
+                rawMoveHistory.delete(gameID);
+                pgnBaseFen.delete(gameID);
                 console.log(`Cleaned game ${gameID} from RAM`);
             }
         }
-        removeCurrenGame(boardID) // remove old gameID
-        gameState.set(boardID, { boardStatus: "offline", gameID: null });
-            try {
-                console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
-                getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
-            } catch (e) {
-                // socket may not be initialized; ignore
-            }
-            try {
-                console.log(`[MQTT] Emitting board_offline for ${boardID} after cleanup`);
-                getIO().emit("board_offline", { boardID });
-            } catch (e) {
-                // ignore
-            }
+        removeCurrenGame(boardID); // remove old gameID
+        gameState.delete(boardID); // xóa hẳn thay vì set offline để tránh leak
+        try {
+            console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
+            getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
+        } catch (e) {
+            // socket may not be initialized; ignore
+        }
+        try {
+            console.log(`[MQTT] Emitting board_offline for ${boardID} after cleanup`);
+            getIO().emit("board_offline", { boardID });
+        } catch (e) {
+            // ignore
+        }
     } catch (e) {
         console.error("[MQTT] Cleanup error:", e);
     } finally {
@@ -76,11 +78,11 @@ async function handleMessage(topic: string, message: Buffer) {
                 console.log(`[MQTT] Board ${boardID} online`);
                 cancelPendingCleanup(boardID);
                 gameState.set(boardID, { boardStatus: "online" });
-            } else if (payload.status === 'offline') { // board disconnected(power outage)
-                console.log(`[MQTT] Board ${boardID} offline`);
+            } else if (payload.status === 'offline') { // board disconnected (power outage or network hiccup)
+                console.log(`[MQTT] Board ${boardID} offline signal received`);
                 gameState.set(boardID, { boardStatus: "offline" });
 
-                // Notify frontend immediately that the board is offline so it can be removed
+                // Notify frontend immediately that the board is offline
                 try {
                     console.log(`[MQTT] Emitting board_offline for ${boardID}`);
                     getIO().emit("board_offline", { boardID });
@@ -88,12 +90,16 @@ async function handleMessage(topic: string, message: Buffer) {
                     // ignore if socket not initialized
                 }
 
-                // Remove the board/game immediately so /boards no longer returns stale data.
-                try {
+                // Hủy timer cũ nếu có
+                cancelPendingCleanup(boardID);
+
+                // Chờ 2 phút mới thực sự xóa game để phòng trường hợp rớt ping chốc lát hoặc reconnect
+                const timer = setTimeout(async () => {
+                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 2m offline`);
                     await cleanupBoard(boardID);
-                } catch (cleanupError) {
-                    console.error(`[MQTT] Immediate cleanup failed for ${boardID}:`, cleanupError);
-                }
+                }, OFFLINE_CLEANUP_DELAY_MS);
+
+                pendingCleanupTimers.set(boardID, timer);
             } else if (payload.status === "restart") {
                 console.log(`[MQTT] Board ${boardID} restart`);
                 cancelPendingCleanup(boardID);

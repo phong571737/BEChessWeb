@@ -5,14 +5,13 @@ import { buildResponse, executeMove, formatUCI } from "../utils/chess.utils.js";
 import { createBranches } from "../services/game.service.js";
 import { Branch } from "../types/chess.types.js";
 import { BOARD_TYPE, ERROR_STATUS, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
-import { games, gameSeq, activeBranches, currentGameByBoard, boardIDByGame, pgnBaseFen } from "./game.repository.js";
+import { games, gameSeq, activeBranches, currentGameByBoard, boardIDByGame, pgnBaseFen, rawMoveHistory } from "./game.repository.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { handleBranchMove } from "../services/branch.service.js";
 import { serializeBranches } from "../utils/branch.utils.js";
 import { MoveState } from "../types/move.types.js";
 import { applyRawMove } from "../utils/chess.utils.js";
 import { customPGN } from "../utils/custom.chess.js";
-import { rawMoveHistory } from "./game.repository.js";
 
 export async function restorefromDB(gameID: string) {
   const data = await getGame(gameID);
@@ -367,12 +366,12 @@ export function resetGame(gameID: string): Chess {
 
 /**This function is used to destroy board */
 export function destroyBoard(gameID: string): void {
-  if (!games.has(gameID)) {
-    games.set(gameID, new Chess());
-  }
-
-  const game = games.get(gameID);
-  game.destroy();
+  // Xóa hoàn toàn khỏi RAM thay vì tạo Chess object thừa
+  games.delete(gameID);
+  gameSeq.delete(gameID);
+  activeBranches.delete(gameID);
+  rawMoveHistory.delete(gameID);
+  pgnBaseFen.delete(gameID);
 }
 
 // Map boarid to gameid

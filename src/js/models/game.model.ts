@@ -57,8 +57,8 @@ export async function saveGame(
     }
 }
 
-export async function getAllGame() {
-    return games().find({}).toArray();
+export async function getAllGame(limit = 200) {
+    return games().find({}).limit(limit).toArray();
 }
 
 /**This function is used to load game by id */

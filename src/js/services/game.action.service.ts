@@ -1,5 +1,6 @@
 import { resetGame } from "../game/game.manager.js";
 import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
+import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
@@ -24,7 +25,14 @@ export const GameActionService = {
         
         // Create a new game from the same board
         const newGame = await GameService.create(boardID, newGameID);
-        await removeGame(oldGameID); // remove old game
+        await removeGame(oldGameID); // remove old game from DB
+
+        // Xóa hoàn toàn game cũ khỏi RAM
+        games.delete(oldGameID);
+        gameSeq.delete(oldGameID);
+        activeBranches.delete(oldGameID);
+        rawMoveHistory.delete(oldGameID);
+        pgnBaseFen.delete(oldGameID);
 
         getIO().emit("game_restart", {
             oldGameID,
@@ -66,6 +74,12 @@ export const GameActionService = {
     },
 
     async destroy(gameID: string) {
+        // Cleanup RAM trước khi xóa DB
+        games.delete(gameID);
+        gameSeq.delete(gameID);
+        activeBranches.delete(gameID);
+        rawMoveHistory.delete(gameID);
+        pgnBaseFen.delete(gameID);
         return await removeGame(gameID);
     },
 }

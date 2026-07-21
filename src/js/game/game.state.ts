@@ -42,6 +42,10 @@ export const gameState = {
 
     get(gameID: string) {
         return this.data[gameID];
+    },
+
+    delete(gameID: string): void {
+        delete this.data[gameID];
     }
 }
 

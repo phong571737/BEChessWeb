@@ -1,22 +1,25 @@
 import { Chess } from "chess.js";
 import { createGame, getCurrentGame, setCurrentGame } from "../game/game.manager.js";
-import { saveGame } from "../models/game.model.js";
+import { saveGame, removeGameByBoardID } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
-import { activeBranches, games, gameSeq } from "../game/game.repository.js";
+import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
-import { MoveLike } from "../types/chess.types.js";
-import { Branch } from "../types/chess.types.js";
+import { MoveLike, Branch } from "../types/chess.types.js";
 
 export const GameService = {
   // create game
   async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "") {
-    // Remove old game from RAM first
-    const oldGameID: string | undefined = getCurrentGame(boardID);
-    if (oldGameID && oldGameID !== gameID) {
-      games.delete(oldGameID);
-      gameSeq.delete(oldGameID);
-      activeBranches.delete(oldGameID);
-      console.log(`Cleaned old game ${oldGameID} from RAM`);
+    // Clean up ALL old game records (active or finished) for this boardID from DB & RAM
+    const result = await removeGameByBoardID(boardID);
+    if (result?.gameIDs?.length) {
+      for (const oldId of result.gameIDs) {
+        games.delete(oldId);
+        gameSeq.delete(oldId);
+        activeBranches.delete(oldId);
+        rawMoveHistory.delete(oldId);
+        pgnBaseFen.delete(oldId);
+      }
+      console.log(`[GameService] Cleaned ${result.gameIDs.length} old game(s) for board ${boardID} from DB & RAM`);
     }
 
     const chess: Chess = createGame(gameID);

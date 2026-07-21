@@ -33,14 +33,6 @@ export const BoardController = {
             //     });
             // }
 
-            const oldGameID = getCurrentGame(boardID);
-            if (oldGameID) {
-            await removeGame(oldGameID); 
-            games.delete(oldGameID);
-            gameSeq.delete(oldGameID);
-            activeBranches.delete(oldGameID);
-        }
-
             const gameID = crypto.randomUUID();
 
             await GameService.create(boardID, gameID);

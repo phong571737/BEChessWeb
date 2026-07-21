@@ -1,6 +1,7 @@
 import { Chess } from "chess.js";
 import { endGame, getGame, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
+import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 import { GameDoc, ResignSide } from "../types/game.types.js";
@@ -84,6 +85,12 @@ export const GameResignService = {
         await endGame(doc);
 
         resetGame(gameID);
+        // Xóa hoàn toàn game cũ khỏi RAM để GC có thể thu hồi
+        games.delete(gameID);
+        gameSeq.delete(gameID);
+        activeBranches.delete(gameID);
+        rawMoveHistory.delete(gameID);
+        pgnBaseFen.delete(gameID);
 
         const updateResult = await saveGame(gameID, {
             fen: new Chess().fen(),
