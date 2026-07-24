@@ -85,7 +85,7 @@ export function buildPickerGames(
 
     for (const [id, b] of Object.entries(boards)) {
         if (map.has(id)) continue;
-        if (b.status === "ended" || b.status === "finished") continue;
+        if (b.status === "ended") continue;
         upsert(id, b.WhiteName, b.BlackName);
     }
 
