@@ -206,7 +206,7 @@ export function useGame(gameID: string) {
         // onMove event 
         const onMove = (data: any) => {
             if (data.gameID !== gameID) return;
-            console.log("Receive move", data);
+            // console.log("Receive move", data);
 
             // if (data.isError) {
             //     try {

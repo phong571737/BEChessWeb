@@ -17,6 +17,8 @@ import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { EvalBar } from "@/components/board/eval-bar";
 import { useStockfish } from "@/hooks/use-stockfish";
+import { useChessClock } from "@/hooks/use-chess-clock";
+import { ChessClockCard } from "@/components/board/chess-clock-card";
 
 interface Props {
     gameID: string;
@@ -244,8 +246,19 @@ export function BoardViewSlot({
 
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
-        missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId,
+        missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves,
     } = useGame(gameID);
+
+    const { whiteMs, blackMs, activeSide } = useChessClock({
+        gameID,
+        fen,
+        pgn,
+        status,
+        isLoaded,
+        moveCount: moves.length,
+        initialSeconds: 10 * 60,
+        incrementSeconds: 0,
+    });
 
     const prevFenRef = useRef<string>(fen);
     const [navigationState, setNavigationState] = useState<{
@@ -519,6 +532,18 @@ export function BoardViewSlot({
                         </div>
 
                         <div className="sm:h-full sm:min-h-0">
+                            <div className="mb-2 grid grid-cols-2 gap-2">
+                                <ChessClockCard
+                                    label="White"
+                                    timeMs={whiteMs}
+                                    active={activeSide === "white"}
+                                />
+                                <ChessClockCard
+                                    label="Black"
+                                    timeMs={blackMs}
+                                    active={activeSide === "black"}
+                                />
+                            </div>
                             <GamePanel
                                 gameID={gameID}
                                 WhiteName={WhiteName}

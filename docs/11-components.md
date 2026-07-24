@@ -1,0 +1,89 @@
+# 11. Components
+
+## Frontend UI taxonomy
+
+The frontend is organized around feature areas rather than a single monolithic page tree.
+
+The components are grouped into:
+
+- `home` – dashboard of current games
+- `board` – board page and move visualization components
+- `played` – history and review UI
+- `layout` – app shell and navigation
+- `providers` – context providers for socket and theme
+- `import-game` – board or game import entry points
+- `ui` – design-system primitives
+
+## Core page-level components
+
+### `app-shell`
+
+The app shell is the global layout wrapper. It provides:
+
+- navigation
+- locale/theme switching
+- shell-level context composition
+
+### `game-grid`
+
+The game grid shows current game cards. It is driven by `useActiveGames` and the Zustand `activeGames` collection.
+
+### `board-view-slot`
+
+This is the primary chessboard display slot component. It is responsible for rendering a board state connected to the live `fen` and `pgn` data from the store.
+
+### `game-panel`
+
+Provides the interaction and control panel for game activities such as restart, resign, and branch actions.
+
+### `pgn-table`
+
+Displays the move sequence in PGN form with branch awareness.
+
+### `eval-bar`
+
+Shows engine or evaluation metadata when present in the board state.
+
+## Provider components
+
+### `SocketProvider`
+
+Creates the socket client and makes it available through React context.
+
+This is the front door for all live browser-side updates.
+
+### `ThemeProvider`
+
+Wraps the app with theme settings used for dark/light styling.
+
+## UI primitives
+
+The `ui` folder contains reusable building blocks such as:
+
+- `button`
+- `card`
+- `badge`
+- `dialog`
+- `input`
+- `separator`
+- `scroll-area`
+- `skeleton`
+
+These primitives are used to create consistent app-level styling and interaction behavior.
+
+## Component responsibility boundaries
+
+A useful mental model is:
+
+- `hooks` fetch and subscribe,
+- `store` caches and reconciles,
+- `components` present state,
+- `lib` contains parsing, URL resolution, and utility behavior.
+
+This separation is visible in the board review flow where the data is loaded in hooks, transferred to the store, and rendered in components.
+
+## Cross references
+
+- [12-hooks.md](12-hooks.md) explains the hook layer that powers these components.
+- [10-state-management.md](10-state-management.md) explains the store values consumed by board and home components.
+- [13-pages.md](13-pages.md) explains the page-level entry points that host these components.

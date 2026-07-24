@@ -58,9 +58,9 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     const hasBranches = branches.length > 0;
 
-    // Build FEN history from PGN
+    // Build FEN history from the active PGN view shown on the board
     const {fenHistory, moveHistory} = useMemo(() => {
-        if (!pgn?.trim()) return { fenHistory: [], moveHistory: [] };
+        if (!activePGN?.trim()) return { fenHistory: [], moveHistory: [] };
         try {
             const c = new Chess();
             const tmp = new Chess();
@@ -83,7 +83,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     const totalMoves = Math.max(0, fenHistory.length - 1);
     const activeCursor = cursor === -1 ? totalMoves : cursor;
-    const isWhiteTurn = totalMoves % 2 === 0;
+    const isWhiteTurn = activeCursor % 2 === 0;
     // const isPlaying = status === GAME_STATUS.PLAYING;
 
     // Reset cursor
@@ -208,7 +208,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             {/* ── PGN move list ── */}
             <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0">
                 <PGNTable
-                pgn={pgn}
+                pgn={activePGN}
                 mainPgn={mainPgnBeforeBranch || pgn}
                 // cursor={cursor === -1 ? totalMoves : cursor}
                 cursor={activeCursor}

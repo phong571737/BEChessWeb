@@ -1,0 +1,72 @@
+# 12. Hooks
+
+## Hook-layer role
+
+The frontend relies on a small set of custom hooks to coordinate network reads, realtime subscriptions, and local state reconciliation.
+
+The principal pattern is:
+
+- hook fetches or subscribes,
+- store is patched with new data,
+- components render from the store.
+
+## Key hooks
+
+### `useActiveGames`
+
+Responsible for:
+
+- fetching the current game list from `/games/current`,
+- refreshing the list on game creation or destruction,
+- patching individual game cards when a move arrives,
+- responding to socket events from the server.
+
+This hook is mainly used by the home page and game card grid.
+
+### `useGame(gameID)`
+
+This is the most important runtime hook for the board page.
+
+Responsibilities:
+
+- fetch the current game definition from REST if not already in store,
+- load the current board into a `Chess` instance,
+- start polling `/games/:id/initcheck` until the board reports readiness,
+- listen to WebSocket move events,
+- compute the selected branch display PGN,
+- expose restart and resign actions back to the UI.
+
+This hook acts as the bridge between the REST API, the socket layer, and the board page UI.
+
+### `usePhysicalBoards`
+
+Responsible for:
+
+- fetching the physical board list,
+- reconciling board online/offline state,
+- updating the store when a new board scan succeeds or a board goes offline.
+
+### `useStockfish`
+
+Wraps the Stockfish worker for analysis-related UI behavior.
+
+This is used as optional engine support for analyzing board position or evaluating move strength.
+
+## Hook composition logic
+
+The frontend is intentionally built around composable hooks rather than server-side page data loading. This keeps pages simple and allows the UI to remain reactive to live board events.
+
+A common lifecycle is:
+
+1. page mounts,
+2. hook receives `gameID`,
+3. hook reads the cached store,
+4. hook fetches the latest game snapshot,
+5. hook attaches socket listeners,
+6. component renders state returned from the hook.
+
+## Cross references
+
+- [10-state-management.md](10-state-management.md) explains which store shapes these hooks patch.
+- [11-components.md](11-components.md) describes the components that consume these hooks.
+- [07-api-socket.md](07-api-socket.md) describes the socket events these hooks subscribe to.
