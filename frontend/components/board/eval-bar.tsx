@@ -1,98 +1,103 @@
 "use client"
 
 interface Props {
+    /** Centipawns from White's perspective. Ignored when `mate` is set. */
     cp?: number | null;
-    fen?: string;
+    /** Mate in N from White's perspective (+ = White mates, − = Black mates). */
+    mate?: number | null;
     orientation?: "vertical" | "horizontal";
 }
 
-function getMaterial(fen: string): number {
-    const vals: Record<string, number> = {
-        p: 1, n: 3, b: 3, r: 5, q: 9,
-        P: 1, N: 3, B: 3, R: 5, Q: 9
-    };
-    return [...fen.split(" ")[0]].reduce((s, c) => s + (vals[c] ?? 0), 0);
-}
-
-function cpToWinRate(cp: number, fen: string): number {
-    if (cp >= 10000) return 1;
-    if (cp <= -10000) return 0;
-    const clamped = Math.max(-1000, Math.min(1000, cp));
-    return 1 / (1 + Math.exp(-0.00368208 * clamped));
-
-    // // The fitted model only uses data for material counts in [17, 78], and is anchored at count 58
-    // const material = Math.max(17, Math.min(78, getMaterial(fen)));
-    // const m = material / 58.0
-
-    // // Return a = p_a(material) and b = p_b(material), see github.com/official-stockfish/WDL_mode
-    // const as = [-72.32565836, 185.93832038, -144.58862193, 416.4495044];
-    // const bs = [83.86794042, -136.06112997, 69.98820887, 47.6290143];
-    
-    // const a = (((as[0] * m + as[1]) * m + as[2]) * m) + as[3];
-    // const b = (((bs[0] * m + bs[1]) * m + bs[2]) * m) + bs[3];
-
-    // console.log("material:", material, "m:", m, "a:", a, "b:", b, "cp:", cp, "winRate:", 1 / (1 + Math.exp((a - cp) / b)));
-    // return 1 / (1 + Math.exp((a - cp) / b));
-}
-
-export function EvalBar({ cp, fen = "", orientation = "vertical" }: Props) {
-    const hasEval = cp != null && !isNaN(cp);
-    const winRate = hasEval ? cpToWinRate(cp!, fen) : 0.5;
-
-    const absEval = hasEval ? Math.abs(cp!) / 100 : 0;
-    const label = hasEval
-        ? (cp! >= 0 ? `+${absEval.toFixed(1)}` : `-${absEval.toFixed(1)}`)
-        : "0.0";
-
-    // Where the boundary sits (0 = all black, 1 = all white)
-    const WhitePct = winRate * 100;
-    const BlackPct = (1 - winRate) * 100;
-
-    if (orientation == "horizontal") {
-        const whiteAhead = hasEval && cp! > 0;
-        return (
-            <div className="flex items-center gap-1.5">
-                {/* Bar */}
-                <div className="relative flex-1 h-3 border border-border rounded-sm overflow-hidden flex">
-                    {/* Black segment on left */}
-                    <div
-                        className="h-full bg-[#1a1a1a] transition-all duration-300"
-                        style={{ width: `${BlackPct}%` }}
-                    />
-                </div>
-            </div>
-        )
+/** Lichess winning-chances → [0, 1] share for White (see lichess-org/lila). */
+function whiteWinShare(cp: number | null | undefined, mate: number | null | undefined): number {
+    if (mate != null && mate !== 0) {
+        const signedCp = (21 - Math.min(10, Math.abs(mate))) * 100 * Math.sign(mate);
+        return (rawWinningChances(signedCp) + 1) / 2;
     }
+    if (cp == null || Number.isNaN(cp)) return 0.5;
+    const clamped = Math.max(-1000, Math.min(1000, cp));
+    return (rawWinningChances(clamped) + 1) / 2;
+}
 
-    // Vertical bar
-    const boundaryPct = BlackPct; // from top
-    const textInWhite = winRate >= 0.5;
+function rawWinningChances(cp: number): number {
+    // https://github.com/lichess-org/lila/pull/11148
+    return 2 / (1 + Math.exp(-0.00368208 * cp)) - 1;
+}
 
-    return (
-        <div className="h-full flex flex-col items-center">
-            <div className="eval-bar h-full relative" style={{ width: "25px" }}>
-                {/* Black segment (top) */}
-                <div className="eval-black-seg" style={{ height: `${BlackPct}%` }} />
-                {/* White segment (bottom) */}
-                <div className="eval-white-seg" style={{ height: `${WhitePct}%` }} />
+/** Format like Lichess / Chess.com: +1.2, −0.5, #3, #−2 */
+function formatEval(cp: number | null | undefined, mate: number | null | undefined): string {
+    if (mate != null && mate !== 0) {
+        return mate > 0 ? `#${mate}` : `#−${Math.abs(mate)}`;
+    }
+    if (cp == null || Number.isNaN(cp)) return "0.0";
+    const pawns = cp / 100;
+    const abs = Math.abs(pawns);
+    // Cap displayed magnitude like common UIs (huge advantages still read as ±99.9)
+    const shown = Math.min(abs, 99.9).toFixed(1);
+    if (pawns > 0) return `+${shown}`;
+    if (pawns < 0) return `−${shown}`;
+    return "0.0";
+}
 
+export function EvalBar({ cp = null, mate = null, orientation = "vertical" }: Props) {
+    const hasEval = mate != null || (cp != null && !Number.isNaN(cp));
+    const whitePct = whiteWinShare(cp, mate) * 100;
+    const blackPct = 100 - whitePct;
+    const label = formatEval(cp, mate);
+    const whiteAhead = hasEval ? (mate != null ? mate > 0 : (cp ?? 0) >= 0) : true;
+
+    if (orientation === "horizontal") {
+        return (
+            <div className="eval-bar eval-bar--horizontal relative w-full h-5 overflow-hidden border border-border">
                 <div
-                    className="absolute inset-x-0 flex justify-center items-center"
+                    className="absolute inset-y-0 left-0 bg-[#403d39] transition-[width] duration-500 ease-out"
+                    style={{ width: `${blackPct}%` }}
+                />
+                <div
+                    className="absolute inset-y-0 right-0 bg-[#f0f0f0] transition-[width] duration-500 ease-out"
+                    style={{ width: `${whitePct}%` }}
+                />
+                <div
+                    className="absolute inset-y-0 flex items-center px-1.5 pointer-events-none"
                     style={{
-                        top: textInWhite ? `calc(${boundaryPct}% + 3px)` : `calc(${boundaryPct}% - 13px)`,
+                        left: whiteAhead ? "auto" : 0,
+                        right: whiteAhead ? 0 : "auto",
                     }}
                 >
                     <span
-                        className="font-mono leading-none select-none"
-                        style={{
-                            fontSize: "9px",
-                            color: textInWhite ? "#1a1a1a" : "#f0f0f0",
-                            letterSpacing: "-0.02em",
-                        }}
+                        className="font-mono text-[10px] leading-none select-none tabular-nums"
+                        style={{ color: whiteAhead ? "#1a1a1a" : "#f0f0f0" }}
                     >
                         {label}
                     </span>
                 </div>
+            </div>
+        );
+    }
+
+    // Vertical — black on top, white on bottom (Lichess / Chess.com)
+    return (
+        <div className="eval-bar eval-bar--vertical relative h-full w-full overflow-hidden border border-border bg-[#f0f0f0]">
+            <div
+                className="absolute inset-x-0 top-0 bg-[#403d39] transition-[height] duration-500 ease-out"
+                style={{ height: `${blackPct}%` }}
+            />
+            {/* Midline tick (equal position) */}
+            <div className="absolute inset-x-0 top-1/2 h-px -translate-y-px bg-black/25 pointer-events-none" />
+
+            <div
+                className="absolute inset-x-0 flex justify-center pointer-events-none"
+                style={{
+                    top: whiteAhead ? "auto" : 4,
+                    bottom: whiteAhead ? 4 : "auto",
+                }}
+            >
+                <span
+                    className="font-mono text-[9px] leading-none select-none tabular-nums"
+                    style={{ color: whiteAhead ? "#1a1a1a" : "#f0f0f0" }}
+                >
+                    {label}
+                </span>
             </div>
         </div>
     );

@@ -18,10 +18,14 @@ export async function restorefromDB(gameID: string) {
   if (!data) return null;
 
   const game = new Chess();
-  if (data.pgn) {
+  if (data.fen) {
+    try {
+      game.load(data.fen, { skipValidation: true });
+    } catch (e) {
+      if (data.pgn) game.loadPgn(data.pgn);
+    }
+  } else if (data.pgn) {
     game.loadPgn(data.pgn);
-  } else if (data.fen) {
-    game.load(data.fen);
   }
 
   games.set(gameID, game);
@@ -31,9 +35,10 @@ export async function restorefromDB(gameID: string) {
 
 /**This function is used to create make move */
 export async function makeMove(
-  gameID: string, candidates: string[], seq: number, moveType: string, boardType: string, fen?: string
+  gameID: string, candidates: string[], seq?: number, moveType?: string, boardType?: string, fen?: string
 ): Promise<MoveState> {
-  if (!candidates?.length || seq === undefined) {
+  const isMoveError = moveType === MOVE_TYPE.MOVE_ERROR;
+  if (!candidates?.length && !isMoveError) {
     return { status: ERROR_STATUS.INVALID, gameID };
   }
 
@@ -43,27 +48,26 @@ export async function makeMove(
   }
 
   const mainGame = games.get(gameID);
-  const lastSeq = gameSeq.get(gameID) ?? 0;
+  const effectiveSeq = seq ?? (gameSeq.get(gameID) ?? 0) + 1;
+  const normalizedBoardType = boardType?.toUpperCase() ?? BOARD_TYPE.HALL;
 
-  if (boardType === BOARD_TYPE.HALL) {
+  if (normalizedBoardType === BOARD_TYPE.HALL) {
     if (activeBranches.has(gameID)) { // Resolve branches
-      return handleBranchMove(gameID, mainGame, candidates, seq, moveType);
+      return handleBranchMove(gameID, mainGame, candidates, effectiveSeq, moveType ?? "");
     }
 
     if (moveType === MOVE_TYPE.CAPTURE) {
-      return handleNewCaptureMove(gameID, mainGame, candidates, seq);
+      return handleNewCaptureMove(gameID, mainGame, candidates, effectiveSeq);
     }
 
     if (moveType === MOVE_TYPE.MOVE_ERROR) {
-      return handleErrorMove(gameID, mainGame, candidates, seq);
+      return handleErrorMove(gameID, mainGame, candidates, effectiveSeq);
     }
 
     // another moveType
-    return handleNewNormalMove(gameID, mainGame, candidates, seq);
-  } else if (boardType === BOARD_TYPE.NFC) {
-    gameSeq.set(gameID, seq);
-    // const existingMoves = rawMoveHistory.get(gameID) ?? [];
-    // const { pgn: customPgn } = customPGN(existingMoves);
+    return handleNewNormalMove(gameID, mainGame, candidates, effectiveSeq);
+  } else if (normalizedBoardType === BOARD_TYPE.NFC) {
+    gameSeq.set(gameID, effectiveSeq);
 
     if (moveType === MOVE_TYPE.MOVE_ERROR) {
       const newFen = fen ?? mainGame.fen();
@@ -81,57 +85,85 @@ export async function makeMove(
         gameID,
         fen: fen ?? mainGame.fen(),
         pgn: freshPgn,
-        lastSeq: seq,
+        lastSeq: effectiveSeq,
         lastMove: null,
         isError: true,
       } as MoveState
     }
-    return handleNFCMove(gameID, mainGame, candidates, seq);
+    return handleNFCMove(gameID, mainGame, candidates, effectiveSeq, fen);
   }
 
   return { status: ERROR_STATUS.INVALID };
 }
 
 // This function is used to for NFC
-function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], seq: number): MoveState {
+function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], seq: number, fen?: string): MoveState {
   const uci = candidates[0];
-  if (!uci || uci.length < 4) {
-    console.log(`[NFC MOVE] Invalid uci format: ${uci}, ignoring`);
-    gameSeq.set(gameID, seq);
-    return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+  const hasValidUci = !!(uci && uci.length >= 4);
+
+  if (fen) {
+    try {
+      mainGame.load(fen, { skipValidation: true });
+    } catch (e) {
+      console.error("[NFC MOVE] Failed to load fen:", fen, e);
+    }
   }
 
-  const from = uci.slice(0, 2);
-  const to = uci.slice(2, 4);
-  const promotion = uci.length > 4 ? uci[4] : undefined;
+  if (hasValidUci) {
+    const from = uci.slice(0, 2);
+    const to = uci.slice(2, 4);
+    const promotion = uci.length > 4 ? uci[4] : undefined;
 
-  const result = applyRawMove(mainGame, from, to, promotion);
+    if (!fen) {
+      const result = applyRawMove(mainGame, from as Square, to as Square, promotion as PieceSymbol);
+      if (!result) {
+        console.log(`[NFC MOVE] No piece at ${from}, ignoring`);
+        gameSeq.set(gameID, seq);
+        return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+      }
+    }
 
-  if (!result) {
-    console.log(`[NFC MOVE] No piece at ${from}, ignoring`);
+    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+    rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
+
+    const baseFen = pgnBaseFen.get(gameID);
+    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen);
     gameSeq.set(gameID, seq);
-    return buildResponse(gameID, mainGame, seq, { invalidMove: true });
+
+    return {
+      status: MOVE_STATUS.OK,
+      gameID,
+      fen: mainGame.fen(),
+      pgn: customPgn,
+      lastSeq: seq,
+      lastMove: {
+        from,
+        to,
+        promotion: promotion ?? null,
+        uci: formatUCI(from, to, promotion),
+      },
+    };
   }
 
-  if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
-  rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
+  if (fen) {
+    const existingMoves = rawMoveHistory.get(gameID) ?? [];
+    const baseFen = pgnBaseFen.get(gameID);
+    const { pgn: customPgn } = customPGN(existingMoves, baseFen);
+    gameSeq.set(gameID, seq);
 
-  const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!);
+    return {
+      status: MOVE_STATUS.OK,
+      gameID,
+      fen: mainGame.fen(),
+      pgn: customPgn,
+      lastSeq: seq,
+      lastMove: null,
+    };
+  }
+
+  console.log(`[NFC MOVE] Invalid uci format: ${uci} and no FEN provided, ignoring`);
   gameSeq.set(gameID, seq);
-
-  return {
-    status: MOVE_STATUS.OK,
-    gameID,
-    fen: mainGame.fen(),
-    pgn: customPgn,
-    lastSeq: seq,
-    lastMove: {
-      from,
-      to,
-      promotion: promotion ?? null,
-      uci: formatUCI(from, to, promotion),
-    },
-  };
+  return buildResponse(gameID, mainGame, seq, { invalidMove: true });
 }
 
 /**handle when receive multimove */

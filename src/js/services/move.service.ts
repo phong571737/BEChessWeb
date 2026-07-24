@@ -9,20 +9,23 @@ import { MoveState, ParseCandidatesInput, ParsedCandidates, ProcessMoveInput } f
  * boardType is HALL
  */
 function parseCandidates({ boardType, uci, moveType, departures, arrivals }: ParseCandidatesInput): ParsedCandidates {
+    const normalizedBoardType = boardType?.toUpperCase();
+    const isMoveError = moveType === MOVE_TYPE.MOVE_ERROR;
+
     // parse input
-    if (boardType === BOARD_TYPE.HALL) {
-        if(moveType === MOVE_TYPE.MOVE_ERROR) {
+    if (normalizedBoardType === BOARD_TYPE.HALL) {
+        if (isMoveError) {
             const depList = departures ? departures.split(",").map(s => s.trim()).filter(Boolean) : [];
-            return {candidates: depList, isError: true};
+            return { candidates: depList.length > 0 ? depList : [uci || "MOVE_ERROR"], isError: true };
         }
         
         return {
-            candidates: uci ? [uci] :[],
+            candidates: uci ? [uci] : [],
         }
-    } else if (boardType === BOARD_TYPE.NFC) {
-        if(moveType === MOVE_TYPE.MOVE_ERROR) {
+    } else if (normalizedBoardType === BOARD_TYPE.NFC) {
+        if (isMoveError) {
             const depList = departures ? departures.split(",").map(s => s.trim()).filter(Boolean) : [];
-            return {candidates: depList, isError: true};
+            return { candidates: depList.length > 0 ? depList : [uci || "MOVE_ERROR"], isError: true };
         }
 
         if (!uci) {
@@ -36,7 +39,7 @@ function parseCandidates({ boardType, uci, moveType, departures, arrivals }: Par
         };
     }
 
-    return { candidates: []};
+    return { candidates: [] };
 }
 
 /**
@@ -44,7 +47,7 @@ function parseCandidates({ boardType, uci, moveType, departures, arrivals }: Par
  * makeMove with those candidates
  */
 async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals }: {
-    boardType: string, gameID: string, fen?: string, seq: number, moveType: string, uci?: string, 
+    boardType: string, gameID: string, fen?: string, seq?: number, moveType?: string, uci?: string, 
     departures?: string, arrivals?: string
 }): Promise<MoveState | ParsedCandidates> {
     const parsed = parseCandidates({ boardType, uci, moveType, departures, arrivals });
@@ -52,27 +55,27 @@ async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, depa
 
     const { candidates } = parsed;
     
-    const state = await makeMove(gameID, candidates, seq, moveType, boardType, fen); // handle move game
+    const state = await makeMove(gameID, candidates, seq, moveType ?? "", boardType, fen); // handle move game
 
     if (state.status != MOVE_STATUS.OK) return state;
-    await afterMove(gameID, state, uci, seq, boardType, fen);
+    await afterMove(gameID, state, uci, state.lastSeq ?? seq ?? 0, boardType, fen);
 
     return state;
 }
 
 async function processMoveHall({ boardType, gameID, seq, moveType, uci, departures, arrivals }: {
-    boardType: string, gameID: string, seq: number, moveType: string, uci?: string, departures?: string, arrivals?: string
+    boardType: string, gameID: string, seq?: number, moveType?: string, uci?: string, departures?: string, arrivals?: string
 }) {
     const parsed = parseCandidates({ boardType, uci, moveType, departures, arrivals });
     if (parsed.error) return parsed;
     const { candidates, isError } = parsed;
     
-    const state = await makeMove(gameID, candidates, seq, moveType, boardType); // handle move game
+    const state = await makeMove(gameID, candidates, seq, moveType ?? "", boardType); // handle move game
 
     if (state.status != MOVE_STATUS.OK) return state;
     const uciToSave = isError ? `dep:${departures ?? ""} arr:${arrivals ?? ""}` : uci; 
 
-    await afterMove(gameID, state, uciToSave, seq, boardType);
+    await afterMove(gameID, state, uciToSave, state.lastSeq ?? seq ?? 0, boardType);
     return {
         status: state.status,
         fen: state.fen,

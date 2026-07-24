@@ -3,7 +3,7 @@ import { PieceSymbol, Square } from "chess.js";
 export interface ParseCandidatesInput {
     boardType: string;
     uci?: string;
-    moveType: string;
+    moveType?: string;
     departures?: string;
     arrivals?: string;
 }
@@ -11,7 +11,7 @@ export interface ParseCandidatesInput {
 export interface ProcessMoveInput extends ParseCandidatesInput {
     fen?: string;
     boardID: string;
-    seq: number;
+    seq?: number;
 }
 
 export interface ParsedCandidatesSuccess {

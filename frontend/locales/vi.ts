@@ -55,6 +55,21 @@ export const vi: Record<TranslationKeys, string> = {
     "board.winner": "thắng",
     "board.viewHistory": "Xem lịch sử",
     "board.offlineRedirect": "Bàn cờ đã ngắt kết nối, đang quay về trang chủ...",
+    "board.layoutSwitcher": "Bố cục bàn cờ",
+    "board.layout1": "1 bàn cờ",
+    "board.layout2": "2 bàn cờ hai bên",
+    "board.layout4": "4 bàn cờ",
+    "board.layoutNeedMore": "Cần thêm ván đang chơi cho bố cục này",
+    "board.selectGame": "Chọn ván cờ",
+    "board.changeGame": "Đổi bàn cờ",
+    "board.swapSlot": "Đổi chỗ",
+    "board.pickBoards": "Chọn bàn cờ hiển thị",
+    "board.slotLeft": "Bàn 1 (trái)",
+    "board.slotRight": "Bàn 2 (phải)",
+    "board.slotN": "Bàn {n}",
+    "board.applyLayout": "Áp dụng",
+    "board.noOtherGames": "Không còn ván nào khác để hiển thị",
+    "board.removeSlot": "Gỡ bàn cờ",
 
 
     // ------ Review page -----------------------------------------------

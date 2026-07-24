@@ -88,7 +88,7 @@ function getDisambiguator(
 
 function moveToSanUnchecked(game: Chess, move: MoveLike): string {
   const piece = game.get(move.from);
-  if (!piece) throw new Error(`No piece at ${move.from}`);
+  if (!piece) return move.from + move.to;
 
   if (piece.type === "k") {
     const df = FILES.indexOf(fileOf(move.to)) - FILES.indexOf(fileOf(move.from));

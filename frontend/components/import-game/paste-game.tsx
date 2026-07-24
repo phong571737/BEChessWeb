@@ -1,43 +1,51 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useT } from "@/lib/i18n";
-import { 
-    Sparkles, 
-    Copy, 
-    Check, 
-    Download, 
-    Clipboard, 
-    RotateCcw, 
-    GitBranch, 
-    Terminal, 
-    FileCode2, 
-    Play, 
+import {
+    Sparkles,
+    Copy,
+    Check,
+    Download,
+    Clipboard,
+    RotateCcw,
+    GitBranch,
+    Terminal,
+    FileCode2,
+    Play,
     Wand2,
     Layers,
     CheckCircle2,
-    AlertCircle
+    AlertCircle,
+    ChevronRight,
+    Zap,
+    Hash,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { parseUciBranches, ParseUciResult } from "./parse-uci";
 import { cn } from "@/lib/utils";
 
 // Sample UCI move presets for quick testing
 const SAMPLES = [
     {
-        name: "Scholar's Mate (Bẫy 4 nước)",
+        name: "Scholar's Mate",
+        label: "4 moves",
         uci: "e2e4 e7e5 d2d4 b8c6 f1c4 g8f6 d1f3 c6d4 f3f7",
+        color: "from-amber-500/20 to-orange-500/10 border-amber-500/30 hover:border-amber-500/60",
+        dot: "bg-amber-500",
     },
     {
-        name: "Italian Game (Khai cuộc Ý)",
+        name: "Italian Game",
+        label: "Classic",
         uci: "e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6 d2d4 e5d4 c3d4 c5b4",
+        color: "from-emerald-500/20 to-teal-500/10 border-emerald-500/30 hover:border-emerald-500/60",
+        dot: "bg-emerald-500",
     },
     {
-        name: "Ambiguous Capture (Ăn quân phân nhánh)",
+        name: "Ambiguous Capture",
+        label: "Branching",
         uci: "e2e4 d7d5 e4d5 c7c6 d5c6 b8c6 g1f3 e7e5 f1c4 e5e4",
+        color: "from-violet-500/20 to-purple-500/10 border-violet-500/30 hover:border-violet-500/60",
+        dot: "bg-violet-500",
     },
 ];
 
@@ -48,6 +56,8 @@ export function PasteGame() {
     const [selectedBranch, setSelectedBranch] = useState(0);
     const [copiedBranch, setCopiedBranch] = useState<number | null>(null);
     const [isParsing, setIsParsing] = useState(false);
+    const [isFocused, setIsFocused] = useState(false);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const activeBranch = useMemo(() => result?.branches[selectedBranch], [result, selectedBranch]);
 
@@ -60,6 +70,7 @@ export function PasteGame() {
         setResult(null);
         setSelectedBranch(0);
         setCopiedBranch(null);
+        textareaRef.current?.focus();
     }
 
     function handleParse() {
@@ -89,9 +100,7 @@ export function PasteGame() {
     async function handlePasteFromClipboard() {
         try {
             const text = await navigator.clipboard.readText();
-            if (text) {
-                setRawInput(text);
-            }
+            if (text) setRawInput(text);
         } catch {
             // Permission denied or unavailable
         }
@@ -119,296 +128,343 @@ export function PasteGame() {
     }
 
     return (
-        <div className="max-w-[1400px] mx-auto space-y-6 px-4 py-6 sm:px-6">
-            {/* Header Hero Section */}
-            <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-card via-card/80 to-accent/20 p-6 sm:p-8 shadow-sm">
-                <div className="absolute -right-12 -top-12 size-64 rounded-full bg-primary/5 blur-3xl pointer-events-none" />
-                <div className="relative z-10 flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
-                    <div className="space-y-2">
-                        <div className="flex items-center gap-3">
-                            <div className="flex size-10 items-center justify-center rounded-2xl bg-primary/10 text-primary ring-1 ring-primary/20">
-                                <Sparkles className="size-5" />
+        <div className="min-h-full bg-background">
+            {/* ─── Header Hero ───────────────────────────────────────── */}
+            <div className="relative overflow-hidden border-b border-border bg-gradient-to-br from-background via-background to-accent/20">
+                {/* Decorative blobs */}
+                <div className="pointer-events-none absolute -right-32 -top-32 size-80 rounded-full bg-primary/5 blur-3xl" />
+                <div className="pointer-events-none absolute -left-20 bottom-0 size-60 rounded-full bg-primary/4 blur-3xl" />
+
+                <div className="relative z-10 mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">
+                    {/* Title row */}
+                    <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 ring-1 ring-primary/20 shadow-sm shadow-primary/10">
+                                    <Sparkles className="size-5 text-primary" />
+                                </div>
+                                <div>
+                                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                                        {t("nav.import")}
+                                    </h1>
+                                    <p className="text-xs text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
+                                        UCI → PGN Converter
+                                    </p>
+                                </div>
                             </div>
-                            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
-                                {t("nav.import")}
-                            </h1>
+                            <p className="max-w-lg text-sm text-muted-foreground leading-relaxed">
+                                {t("pg.description")}
+                            </p>
                         </div>
-                        <p className="max-w-2xl text-sm text-muted-foreground leading-relaxed">
-                            {t("pg.description")}
+
+                        {/* Sample Presets */}
+                        <div className="flex flex-col gap-2 lg:items-end">
+                            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                <Wand2 className="size-3" />
+                                {locale === "vi" ? "Ví dụ mẫu" : "Quick Presets"}
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                                {SAMPLES.map((sample, idx) => (
+                                    <button
+                                        key={idx}
+                                        onClick={() => handleLoadSample(sample.uci)}
+                                        className={cn(
+                                            "group relative flex items-center gap-2 rounded-xl border bg-gradient-to-r px-3.5 py-2 text-xs font-medium transition-all duration-200",
+                                            "hover:scale-[1.03] active:scale-[0.98] shadow-sm hover:shadow-md",
+                                            sample.color
+                                        )}
+                                    >
+                                        <span className={cn("size-1.5 rounded-full shrink-0", sample.dot)} />
+                                        <span className="text-foreground">{sample.name}</span>
+                                        <span className="text-muted-foreground">·</span>
+                                        <span className="text-muted-foreground">{sample.label}</span>
+                                        <ChevronRight className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 -ml-1 transition-all group-hover:translate-x-0.5" />
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* ─── Main Grid ─────────────────────────────────────────── */}
+            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+                <div className="grid gap-5 lg:grid-cols-2">
+
+                    {/* ── Input Panel ─────────────────────────────────── */}
+                    <div className="flex flex-col gap-4">
+                        {/* Card */}
+                        <div className={cn(
+                            "flex flex-col rounded-2xl border bg-card shadow-sm transition-all duration-300",
+                            isFocused && "border-primary/40 shadow-md shadow-primary/5 ring-2 ring-primary/10"
+                        )}>
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-5 py-3.5 rounded-t-2xl">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+                                        <Terminal className="size-3.5 text-primary" />
+                                    </div>
+                                    <span className="font-semibold text-sm">{t("pg.pasteUCI")}</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    {tokenCount > 0 && (
+                                        <div className="flex items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 py-1 text-[11px] font-mono font-semibold text-primary">
+                                            <Hash className="size-3" />
+                                            {tokenCount} {t("pg.tokens")}
+                                        </div>
+                                    )}
+                                    <button
+                                        type="button"
+                                        onClick={handlePasteFromClipboard}
+                                        className="flex items-center gap-1.5 rounded-lg border border-border/60 bg-background/80 px-2.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-border hover:text-foreground hover:bg-accent active:scale-95"
+                                    >
+                                        <Clipboard className="size-3.5" />
+                                        <span>{locale === "vi" ? "Dán" : "Paste"}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Textarea Area */}
+                            <div className="relative flex-1 min-h-[280px] p-1.5">
+                                <textarea
+                                    ref={textareaRef}
+                                    value={rawInput}
+                                    onChange={(e) => setRawInput(e.target.value)}
+                                    onFocus={() => setIsFocused(true)}
+                                    onBlur={() => setIsFocused(false)}
+                                    aria-label={t("pg.pasteUCI")}
+                                    autoCorrect="off"
+                                    spellCheck={false}
+                                    onKeyDown={(e) => {
+                                        if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleParse();
+                                    }}
+                                    className="w-full h-full min-h-[280px] resize-none rounded-xl bg-transparent p-4 font-mono text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
+                                    placeholder={t("pg.pastePlaceholder") || "e2e4 e7e5 g1f3 b8c6 f1c4..."}
+                                />
+                                {rawInput.length > 0 && (
+                                    <button
+                                        type="button"
+                                        onClick={handleClear}
+                                        className="absolute right-4 top-4 flex size-7 items-center justify-center rounded-lg border border-border/60 bg-background/90 text-muted-foreground shadow-sm transition-all hover:border-border hover:text-foreground hover:scale-110 active:scale-95"
+                                        title={t("pg.clear")}
+                                    >
+                                        <RotateCcw className="size-3.5" />
+                                    </button>
+                                )}
+                            </div>
+
+                            {/* Card Footer */}
+                            <div className="border-t border-border/40 bg-muted/20 px-5 py-3 rounded-b-2xl">
+                                <div className="flex items-center justify-between gap-3">
+                                    {/* Hint */}
+                                    <div className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground">
+                                        <FileCode2 className="size-3.5 shrink-0 text-primary/50" />
+                                        <span className="truncate">{t("pg.notation")}</span>
+                                    </div>
+
+                                    {/* Parse button */}
+                                    <button
+                                        type="button"
+                                        disabled={rawInput.trim().length === 0 || isParsing}
+                                        onClick={handleParse}
+                                        className={cn(
+                                            "shrink-0 flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold transition-all duration-200",
+                                            "bg-primary text-primary-foreground shadow-md shadow-primary/20",
+                                            "hover:shadow-lg hover:shadow-primary/30 hover:scale-[1.02]",
+                                            "active:scale-[0.98]",
+                                            "disabled:opacity-40 disabled:cursor-not-allowed disabled:scale-100 disabled:shadow-none"
+                                        )}
+                                    >
+                                        {isParsing ? (
+                                            <Sparkles className="size-4 animate-spin" />
+                                        ) : (
+                                            <Play className="size-4 fill-current" />
+                                        )}
+                                        <span>{t("pg.generatePgn")}</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Keyboard shortcut tip */}
+                        <p className="text-center text-[11px] text-muted-foreground/60">
+                            <kbd className="rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">
+                                Ctrl+Enter
+                            </kbd>
+                            {" "}{locale === "vi" ? "để tạo PGN" : "to generate PGN"}
                         </p>
                     </div>
 
-                    {/* Quick Presets */}
-                    <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5 mr-1">
-                            <Wand2 className="size-3.5" />
-                            {locale === "vi" ? "Mẫu nhanh:" : "Presets:"}
-                        </span>
-                        {SAMPLES.map((sample, idx) => (
-                            <button
-                                key={idx}
-                                onClick={() => handleLoadSample(sample.uci)}
-                                className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/60 px-3 py-1 text-xs font-medium text-foreground backdrop-blur-sm transition-all hover:border-primary/50 hover:bg-primary/10 hover:text-primary active:scale-95"
-                            >
-                                {sample.name}
-                            </button>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
-            {/* Main Content Grid */}
-            <div className="grid gap-6 lg:grid-cols-12">
-                {/* Input Panel */}
-                <Card className="lg:col-span-6 flex flex-col overflow-hidden border-border shadow-sm">
-                    <CardHeader className="border-b border-border/60 bg-muted/30 px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <Terminal className="size-4 text-primary" />
-                                <CardTitle className="text-base font-semibold">{t("pg.pasteUCI")}</CardTitle>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                {tokenCount > 0 && (
-                                    <Badge variant="secondary" className="font-mono text-[11px]">
-                                        {tokenCount} {t("pg.tokens")}
-                                    </Badge>
-                                )}
-                                <Button
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={handlePasteFromClipboard}
-                                    className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-                                    title="Paste from clipboard"
-                                >
-                                    <Clipboard className="size-3.5" />
-                                    <span>{locale === "vi" ? "Dán" : "Paste"}</span>
-                                </Button>
-                            </div>
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="flex-1 flex flex-col p-6 space-y-4">
-                        {/* Editor Area */}
-                        <div className="relative flex-1 min-h-[280px] rounded-2xl border border-border/80 bg-muted/40 transition-all focus-within:border-primary/60 focus-within:ring-2 focus-within:ring-primary/10">
-                            <textarea
-                                value={rawInput}
-                                onChange={(e) => setRawInput(e.target.value)}
-                                aria-label={t("pg.pasteUCI")}
-                                autoCorrect="off"
-                                spellCheck={false}
-                                className="w-full h-full min-h-[280px] resize-none bg-transparent p-4 font-mono text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/60"
-                                placeholder={t("pg.pastePlaceholder") || "e2e4 e7e5 g1f3 b8c6 f1c4..."}
-                            />
-
-                            {/* Floating Clear Button */}
-                            {rawInput.length > 0 && (
-                                <button
-                                    type="button"
-                                    onClick={handleClear}
-                                    className="absolute right-3 top-3 p-1.5 rounded-lg bg-background/80 text-muted-foreground hover:text-foreground hover:bg-background border border-border/60 transition-all"
-                                    title={t("pg.clear")}
-                                >
-                                    <RotateCcw className="size-3.5" />
-                                </button>
-                            )}
-                        </div>
-
-                        {/* Formatting info */}
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground bg-accent/40 rounded-xl px-3.5 py-2.5 border border-border/40">
-                            <FileCode2 className="size-4 shrink-0 text-primary/70" />
-                            <p className="line-clamp-1">{t("pg.notation")}</p>
-                        </div>
-
-                        {/* Action Bar */}
-                        <div className="pt-2 flex items-center justify-between gap-3">
-                            <div className="text-xs text-muted-foreground font-mono">
-                                {rawInput.trim().length === 0 ? (
-                                    <span>{t("pg.noInput")}</span>
-                                ) : (
-                                    <span className="text-foreground font-medium">
-                                        {rawInput.length} {locale === "vi" ? "ký tự" : "chars"}
-                                    </span>
-                                )}
-                            </div>
-
-                            <Button
-                                type="button"
-                                disabled={rawInput.trim().length === 0 || isParsing}
-                                onClick={handleParse}
-                                className="gap-2 px-6 shadow-md transition-all hover:shadow-lg hover:shadow-primary/20 active:scale-95"
-                            >
-                                {isParsing ? (
-                                    <Sparkles className="size-4 animate-spin" />
-                                ) : (
-                                    <Play className="size-4 fill-current" />
-                                )}
-                                <span>{t("pg.generatePgn")}</span>
-                            </Button>
-                        </div>
-                    </CardContent>
-                </Card>
-
-                {/* Preview & Result Panel */}
-                <Card className="lg:col-span-6 flex flex-col overflow-hidden border-border shadow-sm">
-                    <CardHeader className="border-b border-border/60 bg-muted/30 px-6 py-4">
-                        <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                                <GitBranch className="size-4 text-primary" />
-                                <CardTitle className="text-base font-semibold">{t("pg.preview")}</CardTitle>
-                            </div>
-                            {result && (
-                                <Badge variant="outline" className="gap-1.5 text-xs font-normal border-primary/30 bg-primary/5 text-primary">
-                                    <CheckCircle2 className="size-3" />
-                                    {result.branches.length} {result.branches.length > 1 ? t("pg.branches") : (locale === "vi" ? "nhánh" : "branch")}
-                                </Badge>
-                            )}
-                        </div>
-                    </CardHeader>
-
-                    <CardContent className="flex-1 flex flex-col p-6 space-y-6">
-                        {/* Stats Summary Bar */}
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                            <div className="rounded-xl border border-border/70 bg-card p-3.5 text-center">
-                                <span className="text-[11px] uppercase font-semibold text-muted-foreground tracking-wider block">
-                                    {t("pg.branches")}
-                                </span>
-                                <span className="text-xl font-bold mt-1 block text-foreground">
-                                    {result?.branches.length ?? 0}
-                                </span>
-                            </div>
-                            <div className="rounded-xl border border-border/70 bg-card p-3.5 text-center">
-                                <span className="text-[11px] uppercase font-semibold text-muted-foreground tracking-wider block">
-                                    {locale === "vi" ? "Nước đi" : "Moves"}
-                                </span>
-                                <span className="text-xl font-bold mt-1 block text-primary">
-                                    {activeBranch?.appliedCount ?? 0}
-                                </span>
-                            </div>
-                            <div className="col-span-2 sm:col-span-1 rounded-xl border border-border/70 bg-card p-3.5 text-center">
-                                <span className="text-[11px] uppercase font-semibold text-muted-foreground tracking-wider block">
-                                    {locale === "vi" ? "Bỏ qua" : "Skipped"}
-                                </span>
-                                <span className={cn(
-                                    "text-xl font-bold mt-1 block",
-                                    (activeBranch?.skipped.length ?? 0) > 0 ? "text-destructive" : "text-emerald-500"
-                                )}>
-                                    {activeBranch?.skipped.length ?? 0}
-                                </span>
-                            </div>
-                        </div>
-
-                        {/* PGN Box Header & Actions */}
-                        <div className="space-y-3 flex-1 flex flex-col min-h-0">
-                            <div className="flex items-center justify-between gap-3">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                                    <Layers className="size-3.5 text-primary" />
-                                    {result ? t("pg.pgnPreview") : t("pg.noPreview")}
-                                </span>
-
-                                {activeBranch && (
-                                    <div className="flex items-center gap-2">
-                                        <Button
-                                            type="button"
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={handleDownloadPgn}
-                                            className="h-8 gap-1.5 text-xs"
-                                            title="Download .pgn file"
-                                        >
-                                            <Download className="size-3.5" />
-                                            <span>.pgn</span>
-                                        </Button>
-                                        <Button
-                                            type="button"
-                                            variant="secondary"
-                                            size="sm"
-                                            onClick={() => activeBranch && handleCopy(selectedBranch, activeBranch.pgn)}
-                                            className="h-8 gap-1.5 text-xs"
-                                        >
-                                            {copiedBranch === selectedBranch ? (
-                                                <>
-                                                    <Check className="size-3.5 text-emerald-500" />
-                                                    <span>{t("rev.copiedPgn")}</span>
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Copy className="size-3.5" />
-                                                    <span>{t("rev.copyPgn")}</span>
-                                                </>
-                                            )}
-                                        </Button>
+                    {/* ── Result Panel ────────────────────────────────── */}
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col rounded-2xl border bg-card shadow-sm overflow-hidden">
+                            {/* Card Header */}
+                            <div className="flex items-center justify-between border-b border-border/60 bg-muted/30 px-5 py-3.5">
+                                <div className="flex items-center gap-2.5">
+                                    <div className="flex size-7 items-center justify-center rounded-lg bg-primary/10">
+                                        <GitBranch className="size-3.5 text-primary" />
+                                    </div>
+                                    <span className="font-semibold text-sm">{t("pg.preview")}</span>
+                                </div>
+                                {result && (
+                                    <div className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 px-2.5 py-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">
+                                        <CheckCircle2 className="size-3" />
+                                        {result.branches.length} {result.branches.length > 1 ? t("pg.branches") : (locale === "vi" ? "nhánh" : "branch")}
                                     </div>
                                 )}
                             </div>
 
-                            {/* PGN Code Block */}
-                            <div className="flex-1 min-h-[200px] rounded-2xl border border-border/80 bg-muted/60 relative overflow-hidden">
-                                <ScrollArea className="h-full max-h-[280px]">
-                                    <pre className="p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words select-all">
-                                        {activeBranch?.pgn || (
-                                            <span className="text-muted-foreground/60 italic flex items-center gap-2 pt-8 justify-center">
-                                                <AlertCircle className="size-4 opacity-50" />
-                                                {t("pg.noPreview")}
+                            <div className="flex flex-col p-5 gap-5">
+                                {/* Stats row */}
+                                <div className="grid grid-cols-3 gap-3">
+                                    {[
+                                        {
+                                            label: t("pg.branches"),
+                                            value: result?.branches.length ?? 0,
+                                            color: "text-foreground",
+                                            bg: "bg-muted/40",
+                                            icon: <GitBranch className="size-3.5 text-muted-foreground" />
+                                        },
+                                        {
+                                            label: locale === "vi" ? "Nước đi" : "Moves",
+                                            value: activeBranch?.appliedCount ?? 0,
+                                            color: "text-primary",
+                                            bg: "bg-primary/5",
+                                            icon: <Zap className="size-3.5 text-primary" />
+                                        },
+                                        {
+                                            label: locale === "vi" ? "Bỏ qua" : "Skipped",
+                                            value: activeBranch?.skipped.length ?? 0,
+                                            color: (activeBranch?.skipped.length ?? 0) > 0 ? "text-destructive" : "text-emerald-500",
+                                            bg: (activeBranch?.skipped.length ?? 0) > 0 ? "bg-destructive/5" : "bg-emerald-500/5",
+                                            icon: <AlertCircle className={cn("size-3.5", (activeBranch?.skipped.length ?? 0) > 0 ? "text-destructive" : "text-emerald-500")} />
+                                        },
+                                    ].map((stat, i) => (
+                                        <div key={i} className={cn("flex flex-col items-center justify-center rounded-xl border border-border/60 py-3.5 gap-1", stat.bg)}>
+                                            <div className="flex items-center gap-1 mb-0.5">{stat.icon}</div>
+                                            <span className={cn("text-xl font-bold tabular-nums", stat.color)}>
+                                                {stat.value}
                                             </span>
-                                        )}
-                                    </pre>
-                                </ScrollArea>
-                            </div>
-                        </div>
+                                            <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">{stat.label}</span>
+                                        </div>
+                                    ))}
+                                </div>
 
-                        {/* Branch Variations Selector */}
-                        {result && result.branches.length > 1 && (
-                            <div className="space-y-3 pt-2">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground block">
-                                    {t("pg.listbranch")} ({result.branches.length})
-                                </span>
-                                <ScrollArea className="max-h-[180px]">
-                                    <div className="grid gap-2 pr-2">
-                                        {result.branches.map((branch, idx) => (
+                                {/* PGN output header + actions */}
+                                <div className="flex items-center justify-between gap-3">
+                                    <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                        <Layers className="size-3.5 text-primary" />
+                                        {result ? t("pg.pgnPreview") : t("pg.noPreview")}
+                                    </span>
+                                    {activeBranch && (
+                                        <div className="flex items-center gap-2">
                                             <button
-                                                key={idx}
                                                 type="button"
-                                                onClick={() => setSelectedBranch(idx)}
+                                                onClick={handleDownloadPgn}
+                                                className="flex items-center gap-1.5 rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-xs text-muted-foreground transition-all hover:border-border hover:text-foreground hover:bg-accent active:scale-95"
+                                                title="Download .pgn file"
+                                            >
+                                                <Download className="size-3.5" />
+                                                <span>.pgn</span>
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => activeBranch && handleCopy(selectedBranch, activeBranch.pgn)}
                                                 className={cn(
-                                                    "group flex items-center justify-between rounded-xl border p-3 text-left transition-all text-xs",
-                                                    idx === selectedBranch
-                                                        ? "border-primary bg-primary/10 shadow-sm ring-1 ring-primary/20"
-                                                        : "border-border/60 bg-card hover:border-border hover:bg-accent/40"
+                                                    "flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-all active:scale-95",
+                                                    copiedBranch === selectedBranch
+                                                        ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/30"
+                                                        : "bg-secondary text-secondary-foreground border border-border/60 hover:bg-secondary/80"
                                                 )}
                                             >
-                                                <div className="space-y-1 min-w-0 pr-3">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="font-semibold text-foreground">
-                                                            {t("sg.branch")} #{idx + 1}
-                                                        </span>
-                                                        {idx === 0 && (
-                                                            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                                                                {t("sg.mainBranch")}
-                                                            </Badge>
-                                                        )}
-                                                    </div>
-                                                    <p className="text-muted-foreground font-mono text-[11px] truncate">
-                                                        {branch.sanHistory.slice(0, 6).join(" ")}
-                                                        {branch.sanHistory.length > 6 ? "..." : ""}
-                                                    </p>
-                                                </div>
-                                                <Badge
-                                                    variant={idx === selectedBranch ? "default" : "outline"}
-                                                    className="shrink-0 font-mono text-[11px]"
-                                                >
-                                                    {branch.appliedCount}/{branch.totalTokens} {locale === "vi" ? "nước" : "moves"}
-                                                </Badge>
+                                                {copiedBranch === selectedBranch ? (
+                                                    <><Check className="size-3.5 text-emerald-500" /><span>{t("rev.copiedPgn")}</span></>
+                                                ) : (
+                                                    <><Copy className="size-3.5" /><span>{t("rev.copyPgn")}</span></>
+                                                )}
                                             </button>
-                                        ))}
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* PGN Code block */}
+                                <div className="relative min-h-[180px] rounded-xl border border-border/70 bg-muted/40 overflow-hidden">
+                                    {activeBranch?.pgn ? (
+                                        <div className="overflow-auto max-h-[260px]">
+                                            <pre className="p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words select-all">
+                                                {activeBranch.pgn}
+                                            </pre>
+                                        </div>
+                                    ) : (
+                                        <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-3 p-6 text-center">
+                                            <div className="flex size-12 items-center justify-center rounded-2xl bg-muted/60 text-muted-foreground/40">
+                                                <FileCode2 className="size-6" />
+                                            </div>
+                                            <p className="text-sm text-muted-foreground/60 italic">{t("pg.noPreview")}</p>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Branch Selector */}
+                                {result && result.branches.length > 1 && (
+                                    <div className="space-y-2.5">
+                                        <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            <GitBranch className="size-3" />
+                                            {t("pg.listbranch")} ({result.branches.length})
+                                        </span>
+                                        <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-0.5">
+                                            {result.branches.map((branch, idx) => (
+                                                <button
+                                                    key={idx}
+                                                    type="button"
+                                                    onClick={() => setSelectedBranch(idx)}
+                                                    className={cn(
+                                                        "group flex items-center justify-between rounded-xl border px-3.5 py-2.5 text-left text-xs transition-all duration-150",
+                                                        idx === selectedBranch
+                                                            ? "border-primary/40 bg-primary/8 ring-1 ring-primary/20 shadow-sm"
+                                                            : "border-border/60 bg-card hover:border-border hover:bg-accent/40"
+                                                    )}
+                                                >
+                                                    <div className="flex items-center gap-2.5 min-w-0">
+                                                        <div className={cn(
+                                                            "size-1.5 rounded-full shrink-0 transition-colors",
+                                                            idx === selectedBranch ? "bg-primary" : "bg-muted-foreground/30"
+                                                        )} />
+                                                        <div className="min-w-0">
+                                                            <div className="flex items-center gap-1.5">
+                                                                <span className="font-semibold text-foreground">
+                                                                    {t("sg.branch")} #{idx + 1}
+                                                                </span>
+                                                                {idx === 0 && (
+                                                                    <span className="rounded-md border border-primary/20 bg-primary/10 px-1.5 py-0 text-[10px] text-primary font-medium">
+                                                                        {t("sg.mainBranch")}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            <p className="text-muted-foreground font-mono text-[11px] truncate mt-0.5">
+                                                                {branch.sanHistory.slice(0, 7).join(" ")}
+                                                                {branch.sanHistory.length > 7 ? "…" : ""}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <span className={cn(
+                                                        "shrink-0 ml-2 font-mono text-[11px] rounded-lg border px-2 py-0.5 font-semibold tabular-nums",
+                                                        idx === selectedBranch
+                                                            ? "bg-primary/10 text-primary border-primary/20"
+                                                            : "bg-muted/50 text-muted-foreground border-border/60"
+                                                    )}>
+                                                        {branch.appliedCount}/{branch.totalTokens}
+                                                    </span>
+                                                </button>
+                                            ))}
+                                        </div>
                                     </div>
-                                </ScrollArea>
+                                )}
                             </div>
-                        )}
-                    </CardContent>
-                </Card>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
     );
 }
-

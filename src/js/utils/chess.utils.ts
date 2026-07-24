@@ -47,6 +47,37 @@ export function applyRawMove(
   const capturedPiece = game.get(to as any);
   const captured = capturedPiece ? capturedPiece.type : null;
 
+  // Handle castling: when king moves 2 squares, also relocate the rook
+  if (piece.type === "k") {
+    const fromFile = from.charCodeAt(0); // 'e' = 101
+    const toFile   = to.charCodeAt(0);
+    const df = toFile - fromFile;
+    const fromRank = from[1];
+    const toRank   = to[1];
+
+    if (Math.abs(df) === 2 && fromRank === toRank) {
+      if (df > 0) {
+        // King-side castling: rook h→f
+        const rookFrom = ("h" + fromRank) as any;
+        const rookTo   = ("f" + fromRank) as any;
+        const rook = game.get(rookFrom);
+        if (rook) {
+          game.remove(rookFrom);
+          game.put(rook, rookTo);
+        }
+      } else {
+        // Queen-side castling: rook a→d
+        const rookFrom = ("a" + fromRank) as any;
+        const rookTo   = ("d" + fromRank) as any;
+        const rook = game.get(rookFrom);
+        if (rook) {
+          game.remove(rookFrom);
+          game.put(rook, rookTo);
+        }
+      }
+    }
+  }
+
   game.remove(from as any);
   game.remove(to as any);
 

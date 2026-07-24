@@ -100,10 +100,14 @@ export function useGame(gameID: string) {
                 console.log("current chessref", chessRef.current);
                 try {
                     // if (game.pgn) chessRef.current.loadPgn(game.pgn);
-                    if (game.pgn) {
+                    if (game.fen) {
+                        try {
+                            chessRef.current.load(game.fen);
+                        } catch {
+                            if (game.pgn) chessRef.current.loadPgn(game.pgn);
+                        }
+                    } else if (game.pgn) {
                         chessRef.current.loadPgn(game.pgn);
-                    } else if (game.fen) {
-                        chessRef.current.load(game.fen);
                     }
                 } catch { }
                 initialMoveCountRef.current = chessRef.current.history().length;

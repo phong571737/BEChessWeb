@@ -12,7 +12,7 @@ interface StatusPayload {
     status: "online" | "offline" | "restart" | string;
 }
 
-const OFFLINE_CLEANUP_DELAY_MS = 2 * 60 * 1000;  // 2 minutes
+const OFFLINE_CLEANUP_DELAY_MS = 5 * 60 * 1000;  // 2 minutes
 const pendingCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 interface RemoveGameByBoardResult {

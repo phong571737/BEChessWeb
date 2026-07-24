@@ -10,6 +10,7 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
+import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
 
 const sectionDefs = [
     { key: "nav.home" as const, url: "/", icon: House },
@@ -221,6 +222,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">
+                                <BoardLayoutHeaderControl />
+
                                 <Button
                                     variant="ghost"
                                     size="sm"

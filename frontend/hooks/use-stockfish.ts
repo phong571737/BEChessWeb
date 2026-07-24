@@ -2,15 +2,19 @@
 
 import { useEffect, useRef, useState } from "react";
 
-export function useStockfish() {
+export function useStockfish(enabled = true) {
     const workerRef = useRef<Worker | null>(null);
     const onMessageRef = useRef<((line: string) => void) | null>(null);
     const [isReady, setIsReady] = useState(false);
 
     useEffect(() => {
+        if (!enabled) {
+            setIsReady(false);
+            return;
+        }
+
         const worker = new Worker("/stockfish/stockfish-18-lite-single.js");
         workerRef.current = worker;
-        console.log("worker created", worker);
         setIsReady(false);
 
         worker.onerror = (e) => console.error("worker error", e);
@@ -18,7 +22,6 @@ export function useStockfish() {
             const line = e.data as string;
             if (line.includes("readyok")) setIsReady(true);
             onMessageRef.current?.(line);
-            // console.log("SF: ", line);
         };
 
         worker.postMessage("uci");
@@ -28,8 +31,9 @@ export function useStockfish() {
             worker.postMessage("quit");
             worker.terminate();
             workerRef.current = null;
-        }
-    }, []);
+            setIsReady(false);
+        };
+    }, [enabled]);
 
-    return {workerRef, onMessageRef, isReady};
+    return { workerRef, onMessageRef, isReady };
 }
