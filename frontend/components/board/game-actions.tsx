@@ -12,6 +12,7 @@ interface Props {
     onRestart: () => Promise<void>;
     onResign: (resignSide: "white" | "black" | "draw", branchId: string | null) => Promise<void>;
     branches?: Branch[];
+    isAdmin?: boolean;
 }
 
 type PendingAction = "restart" | "resign" | null;
@@ -39,7 +40,7 @@ function pgnPreview(pgn: string | undefined | null, maxTokens = 10): { text: str
 }
 
 
-export function GameActions({ gameID, onRestart, onResign, branches = [] }: Props) {
+export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmin = false }: Props) {
     void gameID;
     const { t } = useT();
     const [pending, setPending] = useState<PendingAction>(null);
@@ -78,26 +79,28 @@ export function GameActions({ gameID, onRestart, onResign, branches = [] }: Prop
 
     return (
         <>
-            <div className="flex gap-2 p-3 border-t border-border">
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1.5 text-xs"
-                    onClick={() => setPending("restart")}
-                >
-                    <RotateCcw className="h-3.5 w-3.5" />
-                    {t("board.restart")}
-                </Button>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1 gap-1.5 text-xs text-destructive hover:text-destructive"
-                    onClick={openResign}
-                >
-                    <Flag className="h-3.5 w-3.5" />
-                    {t("board.resign")}
-                </Button>
-            </div>
+            {isAdmin && (
+                <div className="flex gap-2 p-3 border-t border-border">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-1.5 text-xs"
+                        onClick={() => setPending("restart")}
+                    >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                        {t("board.restart")}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 gap-1.5 text-xs text-destructive hover:text-destructive"
+                        onClick={openResign}
+                    >
+                        <Flag className="h-3.5 w-3.5" />
+                        {t("board.resign")}
+                    </Button>
+                </div>
+            )}
 
             <Dialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
                 <DialogContent className="max-w-sm">

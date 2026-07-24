@@ -86,10 +86,18 @@ function getDisambiguator(
   return fileOf(from);                             
 }
 
+function isEnPassant(game: Chess, move: MoveLike): boolean {
+  const piece = game.get(move.from);
+  if (!piece || piece.type !== "p") return false;
+  // En-passant: pawn moves diagonally to an empty square ≠ starting file
+  return fileOf(move.from) !== fileOf(move.to) && !game.get(move.to);
+}
+
 function moveToSanUnchecked(game: Chess, move: MoveLike): string {
   const piece = game.get(move.from);
   if (!piece) return move.from + move.to;
 
+  // Castling
   if (piece.type === "k") {
     const df = FILES.indexOf(fileOf(move.to)) - FILES.indexOf(fileOf(move.from));
     if (Math.abs(df) === 2 && rankOf(move.from) === rankOf(move.to)) {
@@ -98,7 +106,7 @@ function moveToSanUnchecked(game: Chess, move: MoveLike): string {
   }
 
   const targetPiece = game.get(move.to);
-  const isCapture = !!targetPiece;
+  const isCapture = !!targetPiece || isEnPassant(game, move);
 
   let san = "";
 
@@ -118,12 +126,54 @@ function moveToSanUnchecked(game: Chess, move: MoveLike): string {
     san += "=" + move.promotion.toUpperCase();
   }
 
+  // Add check (+) / checkmate (#) based on the position *after* the move
+  // Because the board state hasn't been updated yet, we apply the move,
+  // check the status, then undo it.
+  // Clone approach: create a temp game, apply the move, check status.
+  try {
+    const tmp = new Chess(game.fen(), { skipValidation: true });
+    const tmpPiece = tmp.get(move.from);
+    if (tmpPiece) {
+      if (tmpPiece.type === "k") {
+        const df2 = FILES.indexOf(fileOf(move.to)) - FILES.indexOf(fileOf(move.from));
+        if (Math.abs(df2) === 2 && rankOf(move.from) === rankOf(move.to)) {
+          const rank = rankOf(move.from);
+          if (df2 > 0) {
+            const rookFrom = ("h" + rank) as Square;
+            const rookTo   = ("f" + rank) as Square;
+            const rook = tmp.get(rookFrom);
+            if (rook) { tmp.remove(rookFrom); tmp.put(rook, rookTo); }
+          } else {
+            const rookFrom = ("a" + rank) as Square;
+            const rookTo   = ("d" + rank) as Square;
+            const rook = tmp.get(rookFrom);
+            if (rook) { tmp.remove(rookFrom); tmp.put(rook, rookTo); }
+          }
+        }
+      }
+      tmp.remove(move.from);
+      tmp.remove(move.to);
+      tmp.put({ type: move.promotion ?? tmpPiece.type, color: tmpPiece.color }, move.to);
+      if (tmp.isCheckmate()) {
+        san += "#";
+      } else if (tmp.isCheck()) {
+        san += "+";
+      }
+    }
+  } catch {
+    // If the clone fails, skip the check annotation
+  }
+
   return san;
 }
 
-function applyRawMove(game: Chess, move: MoveLike): void {
+function applyRawMove(game: Chess, move: MoveLike): boolean {
   const piece = game.get(move.from);
-  if (!piece) throw new Error(`No piece at ${move.from}`);
+  if (!piece) {
+    // Invalid move — no piece at from-square. Return false so the
+    // caller can skip this move instead of crashing the PGN builder.
+    return false;
+  }
 
   if (piece.type === "k") {
     const df = FILES.indexOf(fileOf(move.to)) - FILES.indexOf(fileOf(move.from));
@@ -154,6 +204,7 @@ function applyRawMove(game: Chess, move: MoveLike): void {
   game.remove(move.from);
   game.remove(move.to);
   game.put({ type: move.promotion ?? piece.type, color: piece.color }, move.to);
+  return true;
 }
 
 export function customPGN(
@@ -192,8 +243,14 @@ export function customPGN(
     }
     moveString += " " + san;
 
-    applyRawMove(game, move); 
-    turn = turn === "w" ? "b" : "w";
+    const applied = applyRawMove(game, move);
+    if (!applied) {
+      // Invalid move (e.g. no piece at from-square) — do NOT flip the
+      // turn because the board state didn't actually change.
+      // The SAN text "xx" is still appended so the PGN shows the attempt.
+    } else {
+      turn = turn === "w" ? "b" : "w";
+    }
   }
 
   if (moveString.length) moveParts.push(moveString);

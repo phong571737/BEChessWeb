@@ -10,12 +10,14 @@ import { Button } from "@/components/ui/button";
 import { ChevronsLeft, ChevronRight, ChevronLeft, ChevronsRight } from "lucide-react";
 import { GameActions } from "./game-actions";
 import { Branch } from "@/types/game.types";
+import type { ClockSide } from "@/hooks/use-chess-clock";
+import { formatClockMs } from "@/hooks/use-chess-clock";
 
 interface Props {
     gameID: string;
     WhiteName: string;
     BlackName: string;
-    // fen: string;
+    fen: string;
     pgn: string;
     // boardConnected: boolean;
     status: string;
@@ -30,6 +32,11 @@ interface Props {
     mainPgnBeforeBranch?: string;
     selectedBranchId: string | null;
     onBranchSelect: (branchId: string | null) => void;
+    /** Chess clock — displayed inline next to player name */
+    whiteClockMs?: number;
+    blackClockMs?: number;
+    activeClockSide?: ClockSide;
+    isAdmin?: boolean;
 }
 
 export interface GamePanelHandle {
@@ -40,9 +47,9 @@ export interface GamePanelHandle {
 }
 
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
-    gameID, WhiteName, BlackName, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
-    branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId, 
-    //  fen, boardConnected, status
+    gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
+    branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
+    whiteClockMs, blackClockMs, activeClockSide, isAdmin = false,
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
@@ -83,7 +90,15 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     const totalMoves = Math.max(0, fenHistory.length - 1);
     const activeCursor = cursor === -1 ? totalMoves : cursor;
-    const isWhiteTurn = activeCursor % 2 === 0;
+
+    // Determine whose turn it is from the FEN string (the single source of truth).
+    // FEN format: "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"
+    // The 2nd field is "w" for White's turn or "b" for Black's turn.
+    // "start" means initial position → White's turn.
+    const isWhiteTurn = useMemo(() => {
+        const activeFen = fen === "start" ? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" : fen;
+        return activeFen.split(" ")[1] === "w";
+    }, [fen]);
     // const isPlaying = status === GAME_STATUS.PLAYING;
 
     // Reset cursor
@@ -158,7 +173,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
             </div>
 
-            {/* Player with turn indicator */}
+            {/* Player with turn indicator + inline clock */}
             <div className="border-b border-border">
                 {/* Black player — red border + bg when it's black's turn */}
                 <div className={cn(
@@ -169,16 +184,22 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 )}>
                     <div className="w-3.5 h-3.5 rounded-full bg-[#1a1a1a] border border-white/20 shrink-0 dark:border-white/10" />
                     <span className={cn(
-                        "text-xs font-medium truncate flex-1 min-w-0 transition-colors",
+                        "text-xs font-medium min-w-0 transition-colors",
                         !isWhiteTurn ? "text-red-600 dark:text-red-400" : ""
                     )}>
                         {BlackName}
                     </span>
                     {!isWhiteTurn && (
-                        <>
-                            {/* <ThinkingClock lastMoveAt={lastMoveAt} color="black" /> */}
-                            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                        </>
+                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
+                    )}
+                    {/* Clock on the right side */}
+                    {blackClockMs !== undefined && (
+                        <span className={cn(
+                            "ml-auto font-mono text-xs tabular-nums",
+                            activeClockSide === "black" ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground"
+                        )}>
+                            {formatClockMs(blackClockMs)}
+                        </span>
                     )}
                 </div>
 
@@ -191,16 +212,22 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 )}>
                     <div className="w-3.5 h-3.5 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
                     <span className={cn(
-                        "text-xs font-medium truncate flex-1 min-w-0 transition-colors",
+                        "text-xs font-medium min-w-0 transition-colors",
                         isWhiteTurn ? "text-green-700 dark:text-green-400" : ""
                     )}>
                         {WhiteName}
                     </span>
                     {isWhiteTurn && (
-                        <>
-                            {/* <ThinkingClock lastMoveAt={lastMoveAt} color="white" /> */}
-                            <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                        </>
+                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
+                    )}
+                    {/* Clock on the right side */}
+                    {whiteClockMs !== undefined && (
+                        <span className={cn(
+                            "ml-auto font-mono text-xs tabular-nums",
+                            activeClockSide === "white" ? "text-green-700 dark:text-green-400 font-semibold" : "text-muted-foreground"
+                        )}>
+                            {formatClockMs(whiteClockMs)}
+                        </span>
                     )}
                 </div>
             </div>
@@ -247,6 +274,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 branches={branches}
                 onRestart={onRestart}
                 onResign={onResign}
+                isAdmin={isAdmin}
             />
         </div >
     );

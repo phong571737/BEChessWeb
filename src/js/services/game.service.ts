@@ -8,7 +8,7 @@ import { MoveLike, Branch } from "../types/chess.types.js";
 
 export const GameService = {
   // create game
-  async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "") {
+  async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "", clockSeconds?: number, clockIncrement?: number) {
     // Clean up ALL old game records (active or finished) for this boardID from DB & RAM
     const result = await removeGameByBoardID(boardID);
     if (result?.gameIDs?.length) {
@@ -32,6 +32,8 @@ export const GameService = {
       round,
       WhiteName: WhiteName,
       BlackName: BlackName,
+      clockSeconds,
+      clockIncrement,
     });
 
     setCurrentGame(boardID, gameID);

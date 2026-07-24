@@ -7,11 +7,11 @@ The repository uses two distinct state models:
 1. backend runtime state, which is mutable and in-memory, and
 2. frontend client state, which is cached in a Zustand store.
 
-This split reflects the product’s need for a fast live session while preserving a simple browser-side state model.
+This split reflects the product's need for a fast live session while preserving a simple browser-side state model.
 
 ## Backend in-memory state
 
-The backend’s runtime maps are managed in the `game` layer. The most important concepts are:
+The backend's runtime maps are managed in the `game` layer. The most important concepts are:
 
 - `boardID -> gameID`
 - `gameID -> runtime board state`
@@ -53,6 +53,20 @@ It keeps three main collections:
 - `physicalBoards` for board status cards and heartbeat state
 - `boards` for per-game board page state
 
+## Authentication state
+
+Authentication state is managed via React Context in [frontend/lib/auth-context.tsx](../frontend/lib/auth-context.tsx).
+
+It provides:
+
+- `user` — current user object with `id`, `username`, `email`
+- `token` — JWT token stored in localStorage
+- `login(token, user)` — persist and set auth state
+- `logout()` — clear auth state
+- `isAuthenticated` — boolean flag
+
+The token is stored in localStorage and automatically restored on page load.
+
 ## Why Zustand is a good fit here
 
 The app is a hybrid of:
@@ -81,6 +95,8 @@ Each board entry stores:
 - `wrongPieceSquares`
 - `branches`
 - `selectedBranchId`
+- `clockSeconds` — initial clock time per side in seconds (optional)
+- `clockIncrement` — increment per move in seconds (optional)
 
 This structure allows the board page to avoid repeatedly fetching everything from the API after a socket update. It is not a full normalized state graph; it is a per-game cached projection.
 

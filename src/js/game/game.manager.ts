@@ -1,7 +1,7 @@
 import { Chess, PieceSymbol, Square } from "chess.js";
 import { getGame } from "../models/game.model.js";
 import { ChessService } from "../services/chess.service.js";
-import { buildResponse, executeMove, formatUCI } from "../utils/chess.utils.js";
+import { buildResponse, executeMove, formatUCI, inferMoveFromFen } from "../utils/chess.utils.js";
 import { createBranches } from "../services/game.service.js";
 import { Branch } from "../types/chess.types.js";
 import { BOARD_TYPE, ERROR_STATUS, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
@@ -70,20 +70,37 @@ export async function makeMove(
     gameSeq.set(gameID, effectiveSeq);
 
     if (moveType === MOVE_TYPE.MOVE_ERROR) {
-      const newFen = fen ?? mainGame.fen();
+      // Save engine state BEFORE loading the board FEN so we can
+      // infer what move was actually played (if any).
+      const engineFenBefore = mainGame.fen();
+      const newFen = fen ?? engineFenBefore;
       try {
         mainGame.load(newFen, { skipValidation: true });
       } catch (e) {
         console.error("[MOVE_ERROR] Failed to load fen:", newFen, e);
       }
-      rawMoveHistory.set(gameID, []);
-      pgnBaseFen.set(gameID, newFen);
-      const { pgn: freshPgn } = customPGN([], newFen);
+
+      // Try to infer the move from FEN diff and push it to history.
+      // If inference fails, keep the old history unchanged.
+      if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+      const inferred = inferMoveFromFen(engineFenBefore, newFen);
+      if (inferred && inferred.from && inferred.to) {
+        console.log(`[MOVE_ERROR] Inferred move from FEN diff: ${inferred.from}→${inferred.to}`);
+        rawMoveHistory.get(gameID)!.push({
+          from: inferred.from as Square,
+          to: inferred.to as Square,
+          promotion: inferred.promotion as PieceSymbol | undefined,
+        });
+      }
+
+      const existingMoves = rawMoveHistory.get(gameID) ?? [];
+      const baseFen = pgnBaseFen.get(gameID);
+      const { pgn: freshPgn } = customPGN(existingMoves, baseFen);
 
       return {
         status: MOVE_STATUS.OK,
         gameID,
-        fen: fen ?? mainGame.fen(),
+        fen: newFen,
         pgn: freshPgn,
         lastSeq: effectiveSeq,
         lastMove: null,
@@ -101,20 +118,25 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
   const uci = candidates[0];
   const hasValidUci = !!(uci && uci.length >= 4);
 
-  if (fen) {
-    try {
-      mainGame.load(fen, { skipValidation: true });
-    } catch (e) {
-      console.error("[NFC MOVE] Failed to load fen:", fen, e);
-    }
-  }
-
   if (hasValidUci) {
     const from = uci.slice(0, 2);
     const to = uci.slice(2, 4);
     const promotion = uci.length > 4 ? uci[4] : undefined;
 
-    if (!fen) {
+    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+
+    if (fen) {
+      // Board provided a complete FEN — the position is already correct.
+      // Load it directly so the engine matches the physical board.
+      // The UCI describes what *was* played; record it for PGN but do
+      // NOT call applyRawMove (the piece is already at the target).
+      try {
+        mainGame.load(fen, { skipValidation: true });
+      } catch (e) {
+        console.error("[NFC MOVE] Failed to load fen:", fen, e);
+      }
+    } else {
+      // No FEN — apply the UCI to the current engine position.
       const result = applyRawMove(mainGame, from as Square, to as Square, promotion as PieceSymbol);
       if (!result) {
         console.log(`[NFC MOVE] No piece at ${from}, ignoring`);
@@ -123,7 +145,7 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
       }
     }
 
-    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+    // Always record the UCI for PGN generation
     rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
 
     const baseFen = pgnBaseFen.get(gameID);
@@ -145,10 +167,38 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     };
   }
 
+  // UCI is invalid or too short — but we may still have a FEN from the board.
+  // Try to infer the move by diffing the engine's current FEN vs the incoming FEN.
   if (fen) {
-    const existingMoves = rawMoveHistory.get(gameID) ?? [];
+    const engineFenBefore = mainGame.fen();
+    try {
+      mainGame.load(fen, { skipValidation: true });
+    } catch (e) {
+      console.error("[NFC MOVE] Failed to load fen:", fen, e);
+    }
+
+    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+
+    // Try to infer the move from FEN diff
+    const inferred = inferMoveFromFen(engineFenBefore, fen);
+    if (inferred && inferred.from && inferred.to) {
+      console.log(`[NFC MOVE] Inferred move from FEN diff: ${inferred.from}→${inferred.to}`);
+      rawMoveHistory.get(gameID)!.push({
+        from: inferred.from as Square,
+        to: inferred.to as Square,
+        promotion: inferred.promotion as PieceSymbol | undefined,
+      });
+    } else {
+      // Cannot infer — push placeholder so PGN shows something
+      console.log(`[NFC MOVE] Cannot infer move from FEN diff, pushing placeholder`);
+      rawMoveHistory.get(gameID)!.push({
+        from: uci?.slice(0, 2) as Square ?? "--" as Square,
+        to: uci?.slice(2, 4) as Square ?? "--" as Square,
+      });
+    }
+
     const baseFen = pgnBaseFen.get(gameID);
-    const { pgn: customPgn } = customPGN(existingMoves, baseFen);
+    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen);
     gameSeq.set(gameID, seq);
 
     return {

@@ -473,5 +473,9 @@ export function useGame(gameID: string) {
         mainPgnBeforeBranch: mainPgnAtBranchRef.current,
         hasBranches: (board?.branches ?? []).length > 0,
         selectBranch,
+
+        // chess clock
+        clockSeconds: board?.clockSeconds,
+        clockIncrement: board?.clockIncrement,
     }
 }

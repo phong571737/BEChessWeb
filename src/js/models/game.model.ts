@@ -106,14 +106,19 @@ export async function finishGame(id: string, data: Partial<GameDoc>) {
     return game;
 }
 
-// Rename player 
+// Rename player + optional clock settings
 export async function renamePlayer(
     gameID: string,
     color: string,
-    name: string
+    name: string,
+    clockSeconds?: number,
+    clockIncrement?: number
 ) {
     const field = color === "Black" ? "BlackName" : "WhiteName";
+    const update: Record<string, unknown> = { [field]: name, updateAt: new Date() };
+    if (clockSeconds !== undefined) update.clockSeconds = clockSeconds;
+    if (clockIncrement !== undefined) update.clockIncrement = clockIncrement;
     return games().updateOne({ gameID } as Filter<GameDoc>, {
-        $set: { [field]: name, updateAt: new Date() },
+        $set: update,
     } as UpdateFilter<GameDoc>);
 }

@@ -73,6 +73,10 @@ export interface BoardState {
     selectedBranchId: string | null;
 
     errorSquares: string[];
+
+    // Chess clock
+    clockSeconds?: number;
+    clockIncrement?: number;
 }
 
 export interface BranchMove {

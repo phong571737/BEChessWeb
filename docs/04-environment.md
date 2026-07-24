@@ -23,6 +23,15 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 - `SERVER_NAME` – server identity label
 - `MQTT_TOPIC_GET_IP` – topic used for IP discovery or device-side signaling
 - `MONGO_LOCAL` – local fallback MongoDB URI
+- `ADMIN_USERNAME` – optional bootstrap administrator username
+- `ADMIN_EMAIL` – optional bootstrap administrator email/login
+- `ADMIN_PASSWORD` – optional bootstrap administrator password
+
+### Default admin account
+
+On backend startup, the server can ensure one administrator account exists, but only when all three admin bootstrap variables are provided through local environment variables or deployment secrets. No administrator credential is hard-coded in source control or documentation.
+
+If a user with `ADMIN_EMAIL` already exists, the bootstrap keeps the existing password and only promotes that account to `role: "admin"` when needed.
 
 ## Why these values exist
 

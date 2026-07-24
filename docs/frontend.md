@@ -10,6 +10,8 @@ The frontend is a Next.js 16 App Router project.
 - `/board` – multi-slot board review interface
 - `/paste` – PGN paste/import workflow
 - `/played` – game history and review interface
+- `/login` – user login page
+- `/register` – user registration page
 
 ## UI structure
 

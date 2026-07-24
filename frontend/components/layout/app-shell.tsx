@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
+import { useAuth } from "@/lib/auth-context";
 
 const sectionDefs = [
     { key: "nav.home" as const, url: "/", icon: House },
@@ -141,6 +142,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { theme, setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
+    const { user, isAuthenticated, logout } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -223,6 +225,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">
                                 <BoardLayoutHeaderControl />
+
+                                {isAuthenticated && user ? (
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-xs text-muted-foreground hidden sm:inline">
+                                            {user.username}
+                                        </span>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-8 px-2.5 text-xs font-medium text-destructive hover:text-destructive"
+                                            onClick={logout}
+                                            >
+                                            Đăng xuất
+                                        </Button>
+                                    </div>
+                                ) : (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                        asChild
+                                    >
+                                        <Link href="/login">Đăng nhập</Link>
+                                    </Button>
+                                )}
 
                                 <Button
                                     variant="ghost"

@@ -169,6 +169,30 @@ export const en = {
     "result.blackWin": "Black win",
     "result.draw": "Draw",
     "result.ongoing": "*",
+
+    // ---- Authentication ---------------------------------------
+    "login.title": "Login",
+    "login.subtitle": "Sign in to your account",
+    "login.email": "Email",
+    "login.password": "Password",
+    "login.submit": "Sign in",
+    "login.loading": "Signing in...",
+    "login.noAccount": "Don't have an account?",
+    "login.registerLink": "Sign up",
+    "login.error": "Login failed",
+
+    "register.title": "Sign Up",
+    "register.subtitle": "Create a new account",
+    "register.username": "Username",
+    "register.email": "Email",
+    "register.password": "Password",
+    "register.confirmPassword": "Confirm Password",
+    "register.submit": "Sign Up",
+    "register.loading": "Creating account...",
+    "register.hasAccount": "Already have an account?",
+    "register.loginLink": "Sign in",
+    "register.error": "Registration failed",
+    "register.passwordMismatch": "Passwords do not match",
 } as const;
 
 export type TranslationKeys = keyof typeof en;

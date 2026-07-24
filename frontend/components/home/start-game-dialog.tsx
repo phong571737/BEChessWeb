@@ -16,11 +16,30 @@ interface Props {
     onClose: () => void;
 }
 
+const CLOCK_OPTIONS = [
+    { label: "1 phút", value: 60 },
+    { label: "3 phút", value: 180 },
+    { label: "5 phút", value: 300 },
+    { label: "10 phút", value: 600 },
+    { label: "15 phút", value: 900 },
+    { label: "30 phút", value: 1800 },
+];
+
+const INCREMENT_OPTIONS = [
+    { label: "0 giây", value: 0 },
+    { label: "1 giây", value: 1 },
+    { label: "2 giây", value: 2 },
+    { label: "5 giây", value: 5 },
+    { label: "10 giây", value: 10 },
+];
+
 export function StartGameDialog({ board, gameID , onClose }: Props) {
     const router = useRouter();
     const { t } = useT();
     const [white, setWhite] = useState("");
     const [black, setBlack] = useState("");
+    const [clockSeconds, setClockSeconds] = useState(600);
+    const [clockIncrement, setClockIncrement] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,28 +51,31 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         setError(null);
 
         try {
-            await Promise.all([
-                fetch(`/games/${gameID}/rename`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ color: "White", name: white.trim() }),
+            // Save names + clock settings in one request
+            await fetch(`/games/${gameID}/rename`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    color: "White",
+                    name: white.trim(),
+                    clockSeconds,
+                    clockIncrement,
                 }),
-                fetch(`/games/${gameID}/rename`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ color: "Black", name: black.trim() }),
-                }),
-            ]);
+            });
 
-            useGameStore.getState().patchBoard(gameID, {
-                WhiteName: white.trim(),
-                BlackName: black.trim(),
+            await fetch(`/games/${gameID}/rename`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ color: "Black", name: black.trim() }),
             });
 
             useGameStore.getState().patchBoard(gameID, {
                 WhiteName: white.trim(),
                 BlackName: black.trim(),
+                clockSeconds,
+                clockIncrement,
             });
+
             invalidateFetchCache(`/games/${gameID}`);
 
             onClose();
@@ -118,6 +140,38 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             disabled={loading}
                             onKeyDown={(e) => e.key === "Enter" && canStart && handleStart()}
                         />
+                    </div>
+
+                    {/* Clock settings */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div className="space-y-2">
+                            <Label htmlFor="sg-clock">Thời gian</Label>
+                            <select
+                                id="sg-clock"
+                                value={clockSeconds}
+                                onChange={(e) => setClockSeconds(Number(e.target.value))}
+                                disabled={loading}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                {CLOCK_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="sg-increment">Thêm thời gian</Label>
+                            <select
+                                id="sg-increment"
+                                value={clockIncrement}
+                                onChange={(e) => setClockIncrement(Number(e.target.value))}
+                                disabled={loading}
+                                className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            >
+                                {INCREMENT_OPTIONS.map(opt => (
+                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                ))}
+                            </select>
+                        </div>
                     </div>
 
                     {/* Error */}

@@ -34,6 +34,44 @@ export function formatClockMs(ms: number): string {
   return `${minutes}:${seconds}`;
 }
 
+// ── sessionStorage helpers ──────────────────────────────────────────
+const STORAGE_PREFIX = "chess:clock:";
+
+interface ClockPersistData {
+  whiteMs: number;
+  blackMs: number;
+  activeSide: ClockSide;
+  lastTickAt: number;
+  moveCount: number;
+}
+
+function loadClockData(gameID: string): ClockPersistData | null {
+  try {
+    const raw = sessionStorage.getItem(STORAGE_PREFIX + gameID);
+    if (!raw) return null;
+    return JSON.parse(raw) as ClockPersistData;
+  } catch {
+    return null;
+  }
+}
+
+function saveClockData(gameID: string, data: ClockPersistData): void {
+  try {
+    sessionStorage.setItem(STORAGE_PREFIX + gameID, JSON.stringify(data));
+  } catch {
+    // storage full or blocked — ignore
+  }
+}
+
+function clearClockData(gameID: string): void {
+  try {
+    sessionStorage.removeItem(STORAGE_PREFIX + gameID);
+  } catch {
+    // ignore
+  }
+}
+// ────────────────────────────────────────────────────────────────────
+
 export function useChessClock({
   gameID,
   fen,
@@ -44,28 +82,54 @@ export function useChessClock({
   initialSeconds = DEFAULT_INITIAL_SECONDS,
   incrementSeconds = DEFAULT_INCREMENT_SECONDS,
 }: UseChessClockOptions) {
-  const [whiteMs, setWhiteMs] = useState(initialSeconds * 1000);
-  const [blackMs, setBlackMs] = useState(initialSeconds * 1000);
-  const [activeSide, setActiveSide] = useState<ClockSide>("white");
+  const initialMs = initialSeconds * 1000;
 
-  const whiteMsRef = useRef(initialSeconds * 1000);
-  const blackMsRef = useRef(initialSeconds * 1000);
-  const activeSideRef = useRef<ClockSide>("white");
-  const lastTickRef = useRef(Date.now());
-  const previousMoveCountRef = useRef(moveCount);
+  // ── Initialise from sessionStorage or fall back to default ──────
+  const [state, setState] = useState<ClockPersistData>(() => {
+    const saved = loadClockData(gameID);
+    if (saved) {
+      return saved;
+    }
+    return {
+      whiteMs: initialMs,
+      blackMs: initialMs,
+      activeSide: "white",
+      lastTickAt: Date.now(),
+      moveCount: 0,
+    };
+  });
+
+  const [whiteMs, setWhiteMs] = useState(state.whiteMs);
+  const [blackMs, setBlackMs] = useState(state.blackMs);
+  const [activeSide, setActiveSide] = useState<ClockSide>(state.activeSide);
+
+  const whiteMsRef = useRef(state.whiteMs);
+  const blackMsRef = useRef(state.blackMs);
+  const activeSideRef = useRef<ClockSide>(state.activeSide);
+  const lastTickRef = useRef(state.lastTickAt);
+  const previousMoveCountRef = useRef(state.moveCount);
   const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
+  const restoringRef = useRef<boolean>(true);
 
+  // ── Restore persisted clock offsets when game loads ─────────────
   useEffect(() => {
-    const resetMs = initialSeconds * 1000;
-    whiteMsRef.current = resetMs;
-    blackMsRef.current = resetMs;
-    setWhiteMs(resetMs);
-    setBlackMs(resetMs);
-    activeSideRef.current = "white";
-    setActiveSide("white");
-    previousMoveCountRef.current = 0;
-    lastTickRef.current = Date.now();
-  }, [gameID, initialSeconds]);
+    if (!isLoaded) return;
+    if (state.moveCount > 0) {
+      // compute elapsed since last saved tick and advance the clock
+      const elapsed = Date.now() - state.lastTickAt;
+      if (elapsed > 0 && !isEnded) {
+        if (state.activeSide === "white") {
+          whiteMsRef.current = Math.max(0, state.whiteMs - elapsed);
+          setWhiteMs(whiteMsRef.current);
+        } else {
+          blackMsRef.current = Math.max(0, state.blackMs - elapsed);
+          setBlackMs(blackMsRef.current);
+        }
+      }
+      lastTickRef.current = Date.now();
+    }
+    restoringRef.current = false;
+  }, [isLoaded]); // only run once after load
 
   useEffect(() => {
     if (!isLoaded || !fen) return;
@@ -93,6 +157,15 @@ export function useChessClock({
       activeSideRef.current = nextSide;
       setActiveSide(nextSide);
       lastTickRef.current = Date.now();
+
+      // Persist after a move — update the moveCount so reloads pick up the correct baseline
+      saveClockData(gameID, {
+        whiteMs: whiteMsRef.current,
+        blackMs: blackMsRef.current,
+        activeSide: nextSide,
+        lastTickAt: Date.now(),
+        moveCount,
+      });
     }
 
     previousMoveCountRef.current = moveCount;
@@ -115,10 +188,19 @@ export function useChessClock({
         blackMsRef.current = nextBlackMs;
         setBlackMs(nextBlackMs);
       }
+
+      // Persist every tick so mid-turn time survives page reload
+      saveClockData(gameID, {
+        whiteMs: whiteMsRef.current,
+        blackMs: blackMsRef.current,
+        activeSide: activeSideRef.current,
+        lastTickAt: Date.now(),
+        moveCount,
+      });
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [isLoaded, isEnded, fen, status]);
+  }, [isLoaded, isEnded, fen, status, gameID, moveCount]);
 
   return {
     whiteMs,

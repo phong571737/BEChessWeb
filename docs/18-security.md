@@ -38,7 +38,6 @@ The application should be deployed behind a secure network boundary or a reverse
 
 From the repository structure alone, the app does not appear to include:
 
-- user authentication,
 - role-based access control,
 - explicit API authorization middleware,
 - rate limiting,
@@ -46,6 +45,59 @@ From the repository structure alone, the app does not appear to include:
 - strict input validation beyond the local controller and service checks.
 
 This means the product is functionally oriented and operationally targeted rather than security-hardened.
+
+## Authentication and authorization
+
+The application implements a lightweight authentication system using JWT tokens.
+
+### Authentication mechanism
+
+- Users register with username, email, and password
+- Passwords are hashed using bcrypt before storage
+- On successful login, a JWT token is issued with 7-day expiry
+- The token is stored in the frontend's localStorage
+- Protected routes and UI elements check authentication status via React Context
+
+### Authorization principles
+
+The system follows the principle of **not exposing sensitive information to unauthorized parties**:
+
+- User passwords are never returned in API responses
+- JWT tokens are required for authenticated operations
+- User identity is verified on each protected request
+- Sensitive operations (login, register) use HTTPS in production
+- Error messages do not reveal whether an email exists in the system
+
+### Administrator account and UI authorization
+
+Administrator credentials are not hard-coded in source control or documentation. The backend only bootstraps an administrator account when `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are supplied through environment variables or deployment secrets.
+
+Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. The board UI uses this flag to show operational actions such as **Restart** and **Resign** only to administrators.
+
+### Data exposure rules
+
+The following information is considered sensitive and must not be exposed:
+
+- User passwords (even hashed versions should not be returned from APIs)
+- JWT tokens in URLs or logs
+- Internal MongoDB document structure (_id fields in public responses)
+- Environment variables and configuration secrets
+- MQTT broker credentials
+- Internal API endpoints and architecture details
+
+### Frontend security
+
+- Authentication state is managed via React Context
+- Token is stored in localStorage (consider httpOnly cookies for enhanced security)
+- UI adapts based on authentication status
+- Logout clears all authentication data
+
+### Backend security
+
+- Passwords are hashed with bcrypt (10 salt rounds)
+- JWT tokens are signed and verified
+- User lookup by email/username for authentication
+- No password plaintext storage
 
 ## Operational recommendations
 

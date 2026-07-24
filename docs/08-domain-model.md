@@ -13,6 +13,7 @@ The essential concepts are:
 - `branch` – an alternate sequence of moves derived from the main line
 - `board status` – scan and readiness status from the physical board
 - `result` – game outcome such as white win, black win, or draw
+- `user` – authenticated user account with username, email, and hashed password
 
 ## Entity truth model
 
@@ -32,6 +33,8 @@ The persisted game object is a MongoDB document with fields such as:
 - `status`
 - `branches`
 - `createdAt`, `updatedAt`
+- `clockSeconds` — initial clock time per side in seconds (optional)
+- `clockIncrement` — increment per move in seconds (optional)
 
 This is the durable projection of the current game state.
 

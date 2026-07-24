@@ -62,6 +62,37 @@ This route supports two board modes:
 - `NFC` board, using an object-based square map
 - `HALL` board, using a 2D binary array derived from board scan data
 
+## `/auth`
+
+### `POST /auth/register`
+
+Creates a new user account.
+
+Request body:
+
+- `username` — unique username
+- `email` — unique email address
+- `password` — plain text password (will be hashed)
+
+Returns:
+
+- `token` — JWT token valid for 7 days
+- `user` — object with `id`, `username`, `email`
+
+### `POST /auth/login`
+
+Authenticates an existing user.
+
+Request body:
+
+- `email` — registered email
+- `password` — plain text password
+
+Returns:
+
+- `token` — JWT token valid for 7 days
+- `user` — object with `id`, `username`, `email`
+
 ## `/games`
 
 ### `GET /games/current`
@@ -107,6 +138,15 @@ Resets a game to the initial board state.
 ### `POST /games/:id/rename`
 
 Updates player names and emits the update to the socket room.
+
+Request body:
+
+- `color`: `"White"` or `"Black"`
+- `name`: new player name
+- optional `clockSeconds`: initial clock time per side in seconds
+- optional `clockIncrement`: increment per move in seconds
+
+If `clockSeconds` or `clockIncrement` are provided, they are persisted to the game document.
 
 ### `POST /games/:id/endgame`
 

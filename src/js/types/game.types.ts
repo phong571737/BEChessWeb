@@ -26,6 +26,10 @@ export interface GameDoc extends Document {
     fenHistory?: string[];
     updateAt?: Date;
     createdAt?: Date;
+    /** Chess clock: initial time per side in seconds */
+    clockSeconds?: number;
+    /** Chess clock: increment per move in seconds */
+    clockIncrement?: number;
     [key: string]: unknown;
 }
 
@@ -79,4 +83,6 @@ export interface ResignBody {
 export interface RenameBody {
     color: string;
     name: string;
+    clockSeconds?: number;
+    clockIncrement?: number;
 }

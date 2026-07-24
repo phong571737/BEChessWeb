@@ -72,9 +72,9 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name } = req.body;
+            const { color, name, clockSeconds, clockIncrement } = req.body;
 
-            await GameActionService.rename(gameID, color, name);
+            await GameActionService.rename(gameID, color, name, clockSeconds, clockIncrement);
 
             res.json({
                 ok: true

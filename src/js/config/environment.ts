@@ -26,6 +26,9 @@ export interface Env {
   MQTT_PORT: number;
   MQTT_TOPIC_GET_IP?: string;
   MONGO_LOCAL?: string;
+  ADMIN_USERNAME?: string;
+  ADMIN_EMAIL?: string;
+  ADMIN_PASSWORD?: string;
 }
 
 export const env: Env = {
@@ -39,4 +42,7 @@ export const env: Env = {
   MQTT_PORT: Number(requireEnv("MQTT_PORT")),
   MQTT_TOPIC_GET_IP: optionalEnv("MQTT_TOPIC_GET_IP"),
   MONGO_LOCAL: optionalEnv("MONGO_LOCAL"),
+  ADMIN_USERNAME: optionalEnv("ADMIN_USERNAME"),
+  ADMIN_EMAIL: optionalEnv("ADMIN_EMAIL"),
+  ADMIN_PASSWORD: optionalEnv("ADMIN_PASSWORD"),
 };

@@ -19,6 +19,7 @@ import { EvalBar } from "@/components/board/eval-bar";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { useChessClock } from "@/hooks/use-chess-clock";
 import { ChessClockCard } from "@/components/board/chess-clock-card";
+import { useAuth } from "@/lib/auth-context";
 
 interface Props {
     gameID: string;
@@ -231,6 +232,7 @@ export function BoardViewSlot({
     className,
 }: Props) {
     const { t } = useT();
+    const { isAdmin } = useAuth();
     const router = useRouter();
     const socket = useSocket();
     const { workerRef, onMessageRef, isReady } = useStockfish(enableEval);
@@ -247,6 +249,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves,
+        clockSeconds, clockIncrement,
     } = useGame(gameID);
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
@@ -256,8 +259,8 @@ export function BoardViewSlot({
         status,
         isLoaded,
         moveCount: moves.length,
-        initialSeconds: 10 * 60,
-        incrementSeconds: 0,
+        initialSeconds: WhiteName ? (clockSeconds ?? 10 * 60) : 10 * 60,
+        incrementSeconds: WhiteName ? (clockIncrement ?? 0) : 0,
     });
 
     const prevFenRef = useRef<string>(fen);
@@ -532,22 +535,11 @@ export function BoardViewSlot({
                         </div>
 
                         <div className="sm:h-full sm:min-h-0">
-                            <div className="mb-2 grid grid-cols-2 gap-2">
-                                <ChessClockCard
-                                    label="White"
-                                    timeMs={whiteMs}
-                                    active={activeSide === "white"}
-                                />
-                                <ChessClockCard
-                                    label="Black"
-                                    timeMs={blackMs}
-                                    active={activeSide === "black"}
-                                />
-                            </div>
                             <GamePanel
                                 gameID={gameID}
                                 WhiteName={WhiteName}
                                 BlackName={BlackName}
+                                fen={displayFen}
                                 pgn={pgn}
                                 status={status}
                                 lastMoveAt={lastMoveAt}
@@ -559,6 +551,10 @@ export function BoardViewSlot({
                                 onBranchSelect={selectBranch}
                                 mainPgnBeforeBranch={mainPgnBeforeBranch}
                                 selectedBranchId={selectedBranchId}
+                                whiteClockMs={whiteMs}
+                                blackClockMs={blackMs}
+                                activeClockSide={activeSide}
+                                isAdmin={isAdmin}
                             />
                         </div>
                     </div>

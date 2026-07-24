@@ -1,6 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 import { Providers } from "@/components/providers/providers";
+import { AuthProvider } from "@/lib/auth-context";
 
 export default function RootLayout({
     children,
@@ -12,7 +13,9 @@ export default function RootLayout({
         <html lang="en" suppressHydrationWarning>
             <body >
                 <Providers>
-                    <AppShell>{children}</AppShell>
+                    <AuthProvider>
+                        <AppShell>{children}</AppShell>
+                    </AuthProvider>
                 </Providers>
             </body>
         </html>
