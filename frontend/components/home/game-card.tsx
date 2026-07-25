@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { encodeGameID } from "@/lib/id-utils";
+import { useBoardDisplay } from "@/components/providers/board-display-provider";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -21,6 +22,7 @@ export function GameCard({ game }: Props) {
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
+  const { boardColors } = useBoardDisplay();
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -55,8 +57,8 @@ export function GameCard({ game }: Props) {
             position={game.fen || "start"}
             arePiecesDraggable={false}
             customSquareStyles={squareStyles}
-            customDarkSquareStyle={{ backgroundColor: "var(--board-dark)" }}
-            customLightSquareStyle={{ backgroundColor: "var(--board-light)" }}
+            customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
+            customLightSquareStyle={{ backgroundColor: boardColors.light }}
             boardWidth={boardWidth}
           />
         ) : (

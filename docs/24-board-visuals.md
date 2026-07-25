@@ -6,12 +6,7 @@ The main board component is [frontend/components/board/chess-board-view.tsx](../
 
 ## Board color contract
 
-The board uses explicit square colors:
-
-- light square: `#e8e8e8`
-- dark square: `#7b6040`
-
-The same pair also appears as CSS theme tokens in [frontend/app/globals.css](../frontend/app/globals.css): `--board-light` and `--board-dark`.
+The default Classic palette uses light square `#e8e8e8` and dark square `#7b6040`. The runtime palette is supplied by the shared board-display provider so every rendered board uses the same user preference. Six curated palettes are available, and the color picker also supports arbitrary light/dark color pairs. The active selection is persisted in browser storage.
 
 ## Move highlighting
 

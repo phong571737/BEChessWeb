@@ -26,7 +26,7 @@ export function ChessBoardView({
   extraSquares,
   wrongPieceSquares,
 }: Props) {
-  const { flipped } = useBoardDisplay();
+  const { flipped, boardColors } = useBoardDisplay();
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
 
   // ================ Initcheck =========================
@@ -80,8 +80,8 @@ export function ChessBoardView({
         border: "1px solid hsl(var(--border))",
         overflow: "hidden",
       }}
-      customDarkSquareStyle={{ backgroundColor: "var(--board-dark)" }}
-      customLightSquareStyle={{ backgroundColor: "var(--board-light)" }}
+      customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
+      customLightSquareStyle={{ backgroundColor: boardColors.light }}
     />
   );
 }

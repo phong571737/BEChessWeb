@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, Check, FlipHorizontal, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Settings, UserRound } from "lucide-react";
+import { BarChart3, Check, FlipHorizontal, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Palette, Settings, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -12,7 +12,7 @@ import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
 import { useAuth } from "@/lib/auth-context";
-import { useBoardDisplay } from "@/components/providers/board-display-provider";
+import { BOARD_COLOR_PRESETS, useBoardDisplay } from "@/components/providers/board-display-provider";
 import { APP_VERSION } from "@/lib/app-version";
 
 const sectionDefs = [
@@ -145,7 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const { setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
     const { user, isAuthenticated, logout } = useAuth();
-    const { flipped, showEvaluation, toggleFlipped, toggleEvaluation } = useBoardDisplay();
+    const { flipped, showEvaluation, boardColorTheme, boardColors, toggleFlipped, toggleEvaluation, setBoardColorTheme, setCustomBoardColors } = useBoardDisplay();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -327,6 +327,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                             <button type="button" role="menuitem" onClick={() => { toggleEvaluation(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
                                                 <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />Evaluation bar</span>{showEvaluation && <Check className="size-3.5 text-primary" />}
                                             </button>
+                                            <div className="my-1 border-t border-border" />
+                                            <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Palette className="size-3.5" />{t("settings.boardColors")}</p>
+                                            <div className="grid grid-cols-3 gap-1 px-1 pb-1">
+                                                {(Object.entries(BOARD_COLOR_PRESETS) as [keyof typeof BOARD_COLOR_PRESETS, typeof BOARD_COLOR_PRESETS[keyof typeof BOARD_COLOR_PRESETS]][]).map(([name, colors]) => (
+                                                    <button key={name} type="button" role="menuitem" title={t(`settings.boardColor.${name}`)} aria-label={t(`settings.boardColor.${name}`)} onClick={() => { setBoardColorTheme(name); setSettingsMenuOpen(false); }} className="relative overflow-hidden rounded-sm border border-border p-0.5 transition-shadow hover:ring-2 hover:ring-ring/40">
+                                                        <span className="flex h-6 overflow-hidden rounded-[2px]"><span className="w-1/2" style={{ backgroundColor: colors.light }} /><span className="w-1/2" style={{ backgroundColor: colors.dark }} /></span>
+                                                        {boardColorTheme === name && <Check className="absolute inset-0 m-auto size-3.5 text-white drop-shadow" />}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            <details className="mx-1 rounded-sm border border-border px-2 py-1.5 text-xs text-muted-foreground">
+                                                <summary className="cursor-pointer select-none">{t("settings.customBoardColors")}</summary>
+                                                <div className="mt-2 flex items-center justify-between gap-2">
+                                                    <label className="flex items-center gap-1.5">{t("settings.lightSquare")}<input type="color" value={boardColors.light} onChange={(event) => setCustomBoardColors({ ...boardColors, light: event.target.value })} className="size-6 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
+                                                    <label className="flex items-center gap-1.5">{t("settings.darkSquare")}<input type="color" value={boardColors.dark} onChange={(event) => setCustomBoardColors({ ...boardColors, dark: event.target.value })} className="size-6 cursor-pointer rounded border-0 bg-transparent p-0" /></label>
+                                                </div>
+                                                <button type="button" onClick={() => setSettingsMenuOpen(false)} className="mt-2 w-full rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-secondary-foreground hover:bg-surface-hover">{t("settings.done")}</button>
+                                            </details>
                                             <div className="mt-1 border-t border-border px-2.5 py-2 text-[10px] text-muted-foreground">Version v{APP_VERSION}</div>
                                         </div>
                                     )}

@@ -127,18 +127,18 @@ export function PasteGame() {
     }
 
     return (
-        <div className="min-h-full bg-background">
+        <div className="min-h-full min-w-0 max-w-full overflow-x-clip bg-background">
             {/* ─── Standard page header ───────────────────────────────── */}
             <div className="border-b border-border bg-card/60">
-                <div className="mx-auto max-w-7xl px-4 py-5 sm:px-6 lg:py-6">
-                    <div className="flex flex-col gap-5 xl:flex-row xl:items-center xl:justify-between">
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-3">
-                                <div className="flex size-11 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 shadow-sm shadow-primary/10">
-                                    <FileInput className="size-5 text-primary" />
+                <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:py-6">
+                    <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                        <div className="min-w-0 space-y-2">
+                            <div className="flex items-center gap-2.5 sm:gap-3">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 shadow-sm shadow-primary/10 sm:size-11">
+                                    <FileInput className="size-[18px] text-primary sm:size-5" />
                                 </div>
-                                <div>
-                                    <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">
+                                <div className="min-w-0">
+                                    <h1 className="text-xl font-bold tracking-tight sm:text-3xl">
                                         {t("nav.import")}
                                     </h1>
                                     <p className="text-xs text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
@@ -152,18 +152,18 @@ export function PasteGame() {
                         </div>
 
                         {/* Sample Presets */}
-                        <div className="flex flex-col gap-2 xl:items-end">
+                        <div className="flex flex-col gap-2 2xl:items-end">
                             <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                                 <Library className="size-3" />
                                 {locale === "vi" ? "Ví dụ mẫu" : "Quick Presets"}
                             </span>
-                            <div className="flex flex-wrap gap-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:flex 2xl:flex-wrap 2xl:justify-end">
                                 {SAMPLES.map((sample, idx) => (
                                     <button
                                         key={idx}
                                     onClick={() => handleLoadSample(sample.uci, idx)}
                                     className={cn(
-                                            "group relative flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-all",
+                                            "group relative flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-all",
                                             selectedPreset === idx
                                                 ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
                                                 : "border-border bg-card text-foreground hover:border-primary/25 hover:bg-surface-hover",
@@ -184,27 +184,27 @@ export function PasteGame() {
             </div>
 
             {/* ─── Main Grid ─────────────────────────────────────────── */}
-            <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-                <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)]">
+                <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+                <div className="grid min-w-0 items-start gap-5 2xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] 2xl:gap-6">
 
                     {/* ── Input Panel ─────────────────────────────────── */}
-                    <div className="flex flex-col gap-4">
+                    <div className="flex min-w-0 flex-col gap-4">
                         {/* Card */}
                         <div className={cn(
-                            "flex min-h-[458px] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all",
+                            "flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all sm:min-h-[420px] 2xl:min-h-[458px]",
                             isFocused && "border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/5"
                         )}>
                             {/* Card Header */}
-                            <div className="flex items-center justify-between border-b border-border bg-background-secondary px-5 py-3.5">
-                                <div className="flex items-center gap-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                                <div className="flex min-w-0 items-center gap-2.5">
                                     <div className="flex size-8 items-center justify-center rounded-md bg-primary/10">
                                         <Clipboard className="size-3.5 text-primary" />
                                     </div>
-                                    <span className="font-semibold text-sm">{t("pg.pasteUCI")}</span>
+                                    <span className="truncate font-semibold text-sm">{t("pg.pasteUCI")}</span>
                                 </div>
-                                <div className="flex items-center gap-2">
+                                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                                     {tokenCount > 0 && (
-                                        <div className="flex items-center gap-1.5 rounded-sm bg-primary/10 px-2 py-1 text-[11px] font-mono font-semibold text-primary">
+                                        <div className="flex items-center gap-1 rounded-sm bg-primary/10 px-1.5 py-1 text-[11px] font-mono font-semibold text-primary sm:gap-1.5 sm:px-2">
                                             <ListOrdered className="size-3" />
                                             {tokenCount} {t("pg.tokens")}
                                         </div>
@@ -212,7 +212,7 @@ export function PasteGame() {
                                     <button
                                         type="button"
                                         onClick={handlePasteFromClipboard}
-                                        className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground active:scale-95"
+                                        className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground active:scale-95 sm:px-2.5"
                                     >
                                         <Clipboard className="size-3.5" />
                                         <span>{locale === "vi" ? "Dán" : "Paste"}</span>
@@ -221,7 +221,7 @@ export function PasteGame() {
                             </div>
 
                             {/* Textarea Area */}
-                            <div className="relative flex-1 min-h-[320px] p-1.5">
+                            <div className="relative min-h-[220px] flex-1 p-1.5 sm:min-h-[320px]">
                                 <textarea
                                     ref={textareaRef}
                                     value={rawInput}
@@ -237,7 +237,7 @@ export function PasteGame() {
                                     onKeyDown={(e) => {
                                         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleParse();
                                     }}
-                                    className="w-full h-full min-h-[320px] resize-none rounded-md bg-transparent p-4 font-mono text-sm leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40"
+                                    className="h-full min-h-[220px] w-full resize-none rounded-md bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[320px] sm:p-4 sm:text-sm"
                                     placeholder={t("pg.pastePlaceholder") || "e2e4 e7e5 g1f3 b8c6 f1c4..."}
                                 />
                                 {rawInput.length > 0 && (
@@ -253,8 +253,8 @@ export function PasteGame() {
                             </div>
 
                             {/* Card Footer */}
-                            <div className="border-t border-border bg-background-secondary px-5 py-3.5">
-                                <div className="flex items-center justify-between gap-3">
+                            <div className="border-t border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                                <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
                                     {/* Hint */}
                                     <div className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground">
                                         <FileInput className="size-3.5 shrink-0 text-primary/50" />
@@ -267,7 +267,7 @@ export function PasteGame() {
                                         disabled={rawInput.trim().length === 0 || isParsing}
                                         onClick={handleParse}
                                         className={cn(
-                                            "shrink-0 flex items-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200",
+                                            "flex w-full items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-semibold transition-all duration-200 sm:w-auto",
                                             "bg-primary text-primary-foreground shadow-sm",
                                             "hover:bg-primary-hover hover:shadow-md hover:scale-[1.01]",
                                             "active:scale-[0.98]",
@@ -295,15 +295,15 @@ export function PasteGame() {
                     </div>
 
                     {/* ── Result Panel ────────────────────────────────── */}
-                    <div className="flex flex-col gap-4">
-                        <div className="flex min-h-[458px] flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                    <div className="flex min-w-0 flex-col gap-4">
+                        <div className="flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm sm:min-h-[420px] 2xl:min-h-[458px]">
                             {/* Card Header */}
-                            <div className="flex items-center justify-between border-b border-border bg-background-secondary px-5 py-3.5">
-                                <div className="flex items-center gap-2.5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                                <div className="flex min-w-0 items-center gap-2.5">
                                     <div className="flex size-8 items-center justify-center rounded-md bg-primary/10">
                                         <GitFork className="size-3.5 text-primary" />
                                     </div>
-                                    <span className="font-semibold text-sm">{t("pg.preview")}</span>
+                                    <span className="truncate font-semibold text-sm">{t("pg.preview")}</span>
                                 </div>
                                 {result && (
                                     <div className="flex items-center gap-1.5 rounded-sm bg-success/10 px-2 py-1 text-[11px] font-semibold text-success">
@@ -313,9 +313,9 @@ export function PasteGame() {
                                 )}
                             </div>
 
-                            <div className="flex flex-1 flex-col gap-5 p-5">
+                            <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
                                 {/* Stats row */}
-                                <div className="grid grid-cols-3 gap-3">
+                                <div className="grid grid-cols-3 gap-2 sm:gap-3">
                                     {[
                                         {
                                             label: t("pg.branches"),
@@ -339,24 +339,24 @@ export function PasteGame() {
                                             icon: <AlertCircle className={cn("size-3.5", (activeBranch?.skipped.length ?? 0) > 0 ? "text-destructive" : "text-success")} />
                                         },
                                     ].map((stat, i) => (
-                                        <div key={i} className={cn("flex flex-col items-center justify-center rounded-md border border-border py-3.5 gap-1 shadow-sm", stat.bg)}>
+                                        <div key={i} className={cn("flex min-w-0 flex-col items-center justify-center gap-1 rounded-md border border-border py-2.5 shadow-sm sm:py-3.5", stat.bg)}>
                                             <div className="flex items-center gap-1 mb-0.5">{stat.icon}</div>
-                                            <span className={cn("text-xl font-bold tabular-nums", stat.color)}>
+                                            <span className={cn("text-lg font-bold tabular-nums sm:text-xl", stat.color)}>
                                                 {stat.value}
                                             </span>
-                                            <span className="text-[10px] uppercase font-semibold tracking-wider text-muted-foreground">{stat.label}</span>
+                                            <span className="truncate px-1 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground sm:text-[10px] sm:tracking-wider">{stat.label}</span>
                                         </div>
                                     ))}
                                 </div>
 
                                 {/* PGN output header + actions */}
-                                <div className="flex items-center justify-between gap-3">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
                                     <span className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
                                         <ScrollText className="size-3.5 text-primary" />
                                         {result ? t("pg.pgnPreview") : t("pg.noPreview")}
                                     </span>
                                     {activeBranch && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <button
                                                 type="button"
                                                 onClick={handleDownloadPgn}
@@ -387,15 +387,15 @@ export function PasteGame() {
                                 </div>
 
                                 {/* PGN Code block */}
-                                <div className="relative min-h-[220px] flex-1 rounded-md border border-border bg-background-secondary overflow-hidden">
+                                <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-md border border-border bg-background-secondary sm:min-h-[220px]">
                                     {activeBranch?.pgn ? (
-                                        <div className="overflow-auto max-h-[260px]">
-                                            <pre className="p-4 font-mono text-xs sm:text-sm leading-relaxed text-foreground whitespace-pre-wrap break-words select-all">
+                                            <div className="max-h-[220px] overflow-auto sm:max-h-[260px]">
+                                            <pre className="whitespace-pre-wrap break-words p-3 font-mono text-xs leading-relaxed text-foreground select-all sm:p-4 sm:text-sm">
                                                 {activeBranch.pgn}
                                             </pre>
                                         </div>
                                     ) : (
-                                        <div className="flex h-full min-h-[220px] flex-col items-center justify-center gap-3 p-6 text-center">
+                                        <div className="flex h-full min-h-[180px] flex-col items-center justify-center gap-3 p-5 text-center sm:min-h-[220px] sm:p-6">
                                             <div className="flex size-12 items-center justify-center rounded-lg border border-border bg-muted text-muted-foreground/50">
                                                 <FileSearch className="size-6" />
                                             </div>
