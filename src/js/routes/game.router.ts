@@ -6,6 +6,8 @@ import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { LogController } from "../controllers/log.controller.js";
 import { gameSeq } from "../game/game.repository.js";
+import { requireAdmin } from "../middleware/auth.middleware.js";
+import { GameIdParams, RenameBody } from "../types/game.types.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -109,7 +111,7 @@ gameRouter.post("/:id/reset", GameActionController.reset);
  * POST games/:id/rename
  * This api is used to post rename player
  */
-gameRouter.post("/:id/rename", GameActionController.rename);
+gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", requireAdmin, GameActionController.rename);
 
 /**
  * POST games/:id/endgame

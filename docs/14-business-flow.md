@@ -45,7 +45,13 @@ When the board page loads, it uses the `gameID` route parameter to load the game
 
 The board page joins a `gameID` Socket.IO room so it can receive both the authoritative `esp_move` event and room-level game lifecycle broadcasts.
 
-### 4. Move execution
+### 4. Administrator setup and clock start
+
+Only an authenticated administrator can open the physical-board setup dialog and submit player names, `initialTimeMs`, and `incrementMs`. The browser sends the JWT in an `Authorization: Bearer` header to `POST /games/:id/rename`; the backend rejects missing, invalid, or non-admin tokens.
+
+Guests and non-admin users can open an existing board URL and watch its state, but do not see the physical-board section or the name/time setup dialog on the home page. The configured clock is visible but does not begin decreasing until the first valid move is accepted.
+
+### 5. Move execution
 
 A move submission flows through the move service, which:
 
@@ -55,7 +61,9 @@ A move submission flows through the move service, which:
 - writes the projected state to persistence,
 - broadcasts the new FEN/PGN to game-room clients.
 
-### 5. Result or restart handling
+The first accepted move starts the chess clock. After each later accepted move, the clock switches to the next side and applies any configured increment to the player who moved.
+
+### 6. Result or restart handling
 
 When a game is ended, restarted, or resigned, the backend updates the board state and emits `update_all_game` and `game_restart` to notify clients to refresh their view.
 

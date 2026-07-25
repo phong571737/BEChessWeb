@@ -24,7 +24,7 @@
     "typescript": "^6.0.3"
   },
   "scripts": {
-    "dev": "nodemon --exec tsx src/js/server.ts --ext ts,js,json",
+    "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/start-dev.ps1",
     "build": "tsc",
     "start": "node dist/js/server.js"
   },

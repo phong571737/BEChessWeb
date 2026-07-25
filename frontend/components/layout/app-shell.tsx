@@ -85,18 +85,18 @@ function AppSidebar({
                                 "group flex items-center gap-2.5 rounded-md text-sm transition-colors duration-150 relative",
                                 collapsed ? "justify-center h-9 w-9 mx-auto" : "px-3 py-2 w-full",
                                 isActive
-                                    ? "bg-foreground/[0.07] text-foreground font-medium"
-                                    : "text-muted-foreground hover:text-foreground hover:bg-foreground/[0.04]"
+                                    ? "bg-accent text-accent-foreground font-medium"
+                                    : "text-muted-foreground hover:text-foreground hover:bg-surface-hover"
                             )}
                         >
                             {/* Active indicator — left bar (expanded only) */}
                             {isActive && !collapsed && (
-                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-foreground/60"/>
+                                <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-5 rounded-r-full bg-primary"/>
                             )}
                             <Icon className={cn(
                                 "shrink-0 transition-colors",
                                 collapsed ? "size-4" : "size-4",
-                                isActive ? "text-foreground" : "text-muted-foreground group-hover:text-foreground"
+                                isActive ? "text-accent-foreground" : "text-muted-foreground group-hover:text-foreground"
                             )}/>
                             {!collapsed && (
                                 <>
@@ -145,6 +145,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const { user, isAuthenticated, logout } = useAuth();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
+    const [accountMenuOpen, setAccountMenuOpen] = useState(false);
 
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
@@ -227,18 +228,36 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 <BoardLayoutHeaderControl />
 
                                 {isAuthenticated && user ? (
-                                    <div className="flex items-center gap-1">
-                                        <span className="text-xs text-muted-foreground hidden sm:inline">
-                                            {user.username}
-                                        </span>
+                                    <div className="relative">
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 px-2.5 text-xs font-medium text-destructive hover:text-destructive"
-                                            onClick={logout}
-                                            >
-                                            Đăng xuất
+                                            className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                            onClick={() => setAccountMenuOpen((open) => !open)}
+                                            aria-expanded={accountMenuOpen}
+                                            aria-haspopup="menu"
+                                        >
+                                            {user.username}
                                         </Button>
+                                        {accountMenuOpen && (
+                                            <div
+                                                role="menu"
+                                                className="absolute right-0 top-[calc(100%+0.35rem)] z-50 min-w-32 rounded-sm border border-border bg-popover p-1 shadow-lg"
+                                            >
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    className="w-full justify-start px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    onClick={() => {
+                                                        setAccountMenuOpen(false);
+                                                        logout();
+                                                    }}
+                                                    role="menuitem"
+                                                >
+                                                    Đăng xuất
+                                                </Button>
+                                            </div>
+                                        )}
                                     </div>
                                 ) : (
                                     <Button
@@ -266,9 +285,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                     size="icon"
                                     className="size-8"
                                     onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
+                                    title={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
+                                    aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
                                     >
-                                    <Sun className="size-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-                                    <Moon className="absolute size-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                                    {resolvedTheme === "dark" ? (
+                                        <Sun className="size-4 transition-transform duration-200 hover:rotate-45" />
+                                    ) : (
+                                        <Moon className="size-4 transition-transform duration-200 hover:-rotate-12" />
+                                    )}
                                 </Button>
                             </div>
 

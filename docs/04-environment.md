@@ -33,6 +33,18 @@ On backend startup, the server can ensure one administrator account exists, but 
 
 If a user with `ADMIN_EMAIL` already exists, the bootstrap keeps the existing password and only promotes that account to `role: "admin"` when needed.
 
+### Secret handling rules
+
+Do not document or commit real values for administrator credentials, MongoDB URIs, JWT signing material, or MQTT credentials. Documentation should only list variable names and behavior. Real values must stay in local `.env` files, CI/CD variables, or deployment secret stores.
+
+Example placeholders may be used when necessary, but they must not be valid project credentials:
+
+```env
+ADMIN_USERNAME=<admin-username>
+ADMIN_EMAIL=<admin-email>
+ADMIN_PASSWORD=<admin-password>
+```
+
 ## Why these values exist
 
 The system is built around infrastructure boundaries:
@@ -49,6 +61,7 @@ The frontend relies on a smaller runtime contract for browser and server-side ta
 ### Common local values
 
 - `API_URL` – backend base URL used by SSR or server-side requests
+- `NEXT_PUBLIC_API_URL` – browser-visible backend base URL override used by client-side REST calls
 - `NEXT_PUBLIC_SOCKET_URL` – browser-side Socket.IO endpoint
 
 ### Runtime URL resolution logic
@@ -60,6 +73,8 @@ The helper in [frontend/lib/api-url.ts](../frontend/lib/api-url.ts) resolves the
 3. fallback to `API_URL`
 
 This exists because the frontend can run in multiple deployment modes, including local development and remote deployment.
+
+Login and registration pages must call authentication endpoints through this helper. Calling relative paths such as `/auth/login` from the browser can route the request to the Next.js frontend server instead of the Express backend and produce a 404.
 
 ## Environment conventions
 

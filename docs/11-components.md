@@ -44,6 +44,10 @@ Displays the move sequence in PGN form with branch awareness.
 
 Shows engine or evaluation metadata when present in the board state.
 
+### `paste-game`
+
+Provides the UCI-to-PGN import workflow on `/paste`. It uses the shared page/card visual language: standard page header, token-driven surfaces and borders, compact controls, and responsive input/preview panels without page-specific hero layout. Its icon language is contextual and consistent: file/clipboard for import, scroll/file output for PGN, git-fork for branches, and swords for move counts.
+
 ## Provider components
 
 ### `SocketProvider`

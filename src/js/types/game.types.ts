@@ -26,10 +26,13 @@ export interface GameDoc extends Document {
     fenHistory?: string[];
     updateAt?: Date;
     createdAt?: Date;
-    /** Chess clock: initial time per side in seconds */
+    /** Legacy chess clock fields in seconds, retained for old documents only. */
     clockSeconds?: number;
-    /** Chess clock: increment per move in seconds */
     clockIncrement?: number;
+    /** Chess clock: initial time per side in milliseconds. */
+    initialTimeMs?: number;
+    /** Chess clock increment per move in milliseconds. */
+    incrementMs?: number;
     [key: string]: unknown;
 }
 
@@ -40,7 +43,7 @@ export interface SaveGameOptions {
     boardType?: string;
 }
 
-export interface GameIdParams {
+export interface GameIdParams extends Record<string, string> {
     id: string;
 }
 
@@ -83,6 +86,6 @@ export interface ResignBody {
 export interface RenameBody {
     color: string;
     name: string;
-    clockSeconds?: number;
-    clockIncrement?: number;
+    initialTimeMs?: number;
+    incrementMs?: number;
 }

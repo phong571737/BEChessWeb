@@ -38,7 +38,7 @@ This room-based structure gives the system three important properties:
 | `board_connected` | Server → Room | Marks a board or client session as connected |
 | `update_all_game` | Server → Room | Forces clients to invalidate caches and refresh the game view |
 | `game_restart` | Server → Room | Signals that the current game session has been restarted |
-| `game:renamed` | Server → Room | Propagates player-name changes |
+| `game:renamed` | Server → Room | Propagates administrator-authorized player-name and clock-configuration changes |
 
 ## Event details
 
@@ -91,6 +91,10 @@ This event keeps the board initialization status synchronized with the physical 
 ### `update_all_game`
 
 This is a refresh-oriented event that tells connected clients to invalidate cached game data and reload the latest view after lifecycle transitions.
+
+### `game:renamed`
+
+This event is emitted only after the administrator-protected rename endpoint has persisted the update. Its payload may include `WhiteName`, `BlackName`, `initialTimeMs`, and `incrementMs`, allowing connected board pages to refresh displayed names and clock configuration without a manual reload.
 
 ## Frontend consumers
 

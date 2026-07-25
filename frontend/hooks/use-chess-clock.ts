@@ -10,12 +10,13 @@ interface UseChessClockOptions {
   status?: string | null;
   isLoaded: boolean;
   moveCount: number;
-  initialSeconds?: number;
-  incrementSeconds?: number;
+  initialTimeMs?: number;
+  incrementMs?: number;
 }
 
-const DEFAULT_INITIAL_SECONDS = 10 * 60;
-const DEFAULT_INCREMENT_SECONDS = 0;
+// Single fallback for games created before clock fields existed.
+export const DEFAULT_INITIAL_TIME_MS = 10 * 60 * 1_000;
+const DEFAULT_INCREMENT_MS = 0;
 
 function toClockSide(fen: string): ClockSide {
   const turn = (fen?.split(" ")[1] ?? "w").toLowerCase();
@@ -43,6 +44,7 @@ interface ClockPersistData {
   activeSide: ClockSide;
   lastTickAt: number;
   moveCount: number;
+  initialTimeMs: number;
 }
 
 function loadClockData(gameID: string): ClockPersistData | null {
@@ -79,57 +81,63 @@ export function useChessClock({
   status,
   isLoaded,
   moveCount,
-  initialSeconds = DEFAULT_INITIAL_SECONDS,
-  incrementSeconds = DEFAULT_INCREMENT_SECONDS,
+  initialTimeMs = DEFAULT_INITIAL_TIME_MS,
+  incrementMs = DEFAULT_INCREMENT_MS,
 }: UseChessClockOptions) {
-  const initialMs = initialSeconds * 1000;
+  // This placeholder is never rendered: the board stays in its loading state
+  // until the game configuration has been fetched.
+  const [whiteMs, setWhiteMs] = useState(0);
+  const [blackMs, setBlackMs] = useState(0);
+  const [activeSide, setActiveSide] = useState<ClockSide>("white");
 
-  // ── Initialise from sessionStorage or fall back to default ──────
-  const [state, setState] = useState<ClockPersistData>(() => {
+  const whiteMsRef = useRef(0);
+  const blackMsRef = useRef(0);
+  const activeSideRef = useRef<ClockSide>("white");
+  const lastTickRef = useRef(Date.now());
+  const previousMoveCountRef = useRef(0);
+  const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
+  const initializedGameRef = useRef<string | null>(null);
+
+  // ── Initialize only after the persisted game configuration has loaded ──
+  useEffect(() => {
+    if (!isLoaded || initializedGameRef.current === gameID) return;
+
     const saved = loadClockData(gameID);
-    if (saved) {
-      return saved;
-    }
-    return {
-      whiteMs: initialMs,
-      blackMs: initialMs,
-      activeSide: "white",
+    const restored = saved && saved.initialTimeMs === initialTimeMs ? saved : null;
+    const next = restored ?? {
+      whiteMs: initialTimeMs,
+      blackMs: initialTimeMs,
+      activeSide: "white" as ClockSide,
       lastTickAt: Date.now(),
       moveCount: 0,
+      initialTimeMs,
     };
-  });
 
-  const [whiteMs, setWhiteMs] = useState(state.whiteMs);
-  const [blackMs, setBlackMs] = useState(state.blackMs);
-  const [activeSide, setActiveSide] = useState<ClockSide>(state.activeSide);
+    whiteMsRef.current = next.whiteMs;
+    blackMsRef.current = next.blackMs;
+    activeSideRef.current = next.activeSide;
+    lastTickRef.current = next.lastTickAt;
+    previousMoveCountRef.current = next.moveCount;
+    setWhiteMs(next.whiteMs);
+    setBlackMs(next.blackMs);
+    setActiveSide(next.activeSide);
 
-  const whiteMsRef = useRef(state.whiteMs);
-  const blackMsRef = useRef(state.blackMs);
-  const activeSideRef = useRef<ClockSide>(state.activeSide);
-  const lastTickRef = useRef(state.lastTickAt);
-  const previousMoveCountRef = useRef(state.moveCount);
-  const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
-  const restoringRef = useRef<boolean>(true);
-
-  // ── Restore persisted clock offsets when game loads ─────────────
-  useEffect(() => {
-    if (!isLoaded) return;
-    if (state.moveCount > 0) {
+    if (restored && restored.moveCount > 0) {
       // compute elapsed since last saved tick and advance the clock
-      const elapsed = Date.now() - state.lastTickAt;
+      const elapsed = Date.now() - restored.lastTickAt;
       if (elapsed > 0 && !isEnded) {
-        if (state.activeSide === "white") {
-          whiteMsRef.current = Math.max(0, state.whiteMs - elapsed);
+        if (restored.activeSide === "white") {
+          whiteMsRef.current = Math.max(0, restored.whiteMs - elapsed);
           setWhiteMs(whiteMsRef.current);
         } else {
-          blackMsRef.current = Math.max(0, state.blackMs - elapsed);
+          blackMsRef.current = Math.max(0, restored.blackMs - elapsed);
           setBlackMs(blackMsRef.current);
         }
       }
       lastTickRef.current = Date.now();
     }
-    restoringRef.current = false;
-  }, [isLoaded]); // only run once after load
+    initializedGameRef.current = gameID;
+  }, [gameID, initialTimeMs, isEnded, isLoaded]);
 
   useEffect(() => {
     if (!isLoaded || !fen) return;
@@ -139,11 +147,14 @@ export function useChessClock({
   }, [fen, isLoaded]);
 
   useEffect(() => {
-    if (!isLoaded || !pgn || isEnded) return;
+    if (!isLoaded) return;
+
+    if (!pgn || isEnded) return;
 
     if (moveCount > previousMoveCountRef.current) {
-      const movedSide = activeSideRef.current;
-      const incrementMs = incrementSeconds * 1000;
+      // After a move FEN already points to the next player; the mover is the
+      // opposite side and is the only side that receives the increment.
+      const movedSide = toClockSide(fen) === "white" ? "black" : "white";
 
       if (movedSide === "white") {
         whiteMsRef.current = whiteMsRef.current + incrementMs;
@@ -165,14 +176,17 @@ export function useChessClock({
         activeSide: nextSide,
         lastTickAt: Date.now(),
         moveCount,
+        initialTimeMs,
       });
     }
 
     previousMoveCountRef.current = moveCount;
-  }, [moveCount, pgn, isLoaded, isEnded, incrementSeconds]);
+  }, [moveCount, pgn, fen, isLoaded, isEnded, incrementMs, initialTimeMs, gameID]);
 
   useEffect(() => {
-    if (!isLoaded || isEnded) return;
+    // The selected time is displayed while the board is waiting; countdown
+    // begins only after the first valid move has been recorded.
+    if (!isLoaded || moveCount === 0 || isEnded || initializedGameRef.current !== gameID) return;
 
     const intervalId = window.setInterval(() => {
       const now = Date.now();
@@ -196,11 +210,12 @@ export function useChessClock({
         activeSide: activeSideRef.current,
         lastTickAt: Date.now(),
         moveCount,
+        initialTimeMs,
       });
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [isLoaded, isEnded, fen, status, gameID, moveCount]);
+  }, [isLoaded, isEnded, gameID, moveCount, initialTimeMs]);
 
   return {
     whiteMs,

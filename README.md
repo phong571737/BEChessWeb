@@ -221,47 +221,41 @@ docker compose exec app env
 
 ## Project Structure
 
+```text
+BEChessWeb/
+├── frontend/                    # Next.js 16 / React 19 TypeScript web client
+│   ├── app/                     # App Router pages, including the board and history views
+│   ├── components/              # UI, home, board, layout, and provider components
+│   ├── hooks/                   # Game loading, chess-clock, socket, board, and Stockfish hooks
+│   ├── lib/                     # Zustand state, API URL, Socket.IO client, and shared utilities
+│   ├── locales/                 # English and Vietnamese translations
+│   ├── public/                  # Static images and Stockfish browser assets
+│   ├── types/                   # Frontend TypeScript game and socket contracts
+│   ├── Dockerfile               # Frontend production image
+│   └── README.md                # Frontend setup and structure notes
+├── src/
+│   ├── js/                      # Express backend TypeScript source
+│   │   ├── config/              # Environment and MongoDB setup
+│   │   ├── controllers/         # HTTP request handlers
+│   │   ├── game/                # In-memory chess games, repository maps, and game state
+│   │   ├── models/              # MongoDB game, move, PGN, user, and log persistence
+│   │   ├── routes/              # REST routes for boards, games, moves, and authentication
+│   │   ├── services/            # Game, move, board, branch, resign, and MQTT logic
+│   │   ├── sockets/             # Socket.IO initialization, events, and emitters
+│   │   ├── types/               # Backend request, game, board, chess, and move types
+│   │   ├── utils/               # Chess, UCI, caching, and branch helpers
+│   │   └── server.ts            # Express, Socket.IO, and MQTT application entry point
+│   └── lib/                     # Vendored chess.js and chessboard.js libraries
+├── docs/                        # Architecture, API, environment, deployment, and UI documentation
+├── tools/                       # Local MQTT publish and Socket.IO listening scripts
+├── Dockerfile                   # Backend/container image definition
+├── docker-compose.yml           # Docker Compose deployment configuration
+├── package.json                 # Backend scripts and dependencies
+├── tsconfig.json                # Backend TypeScript configuration
+└── README.md                    # Project overview and setup guide
 ```
-src/
-├── js/                          # Backend source code
-│   ├── server.js               # Main Express server
-│   ├── config/
-│   │   ├── database.js         # MongoDB configuration
-│   │   └── environment.js      # Environment variables
-│   ├── controllers/
-│   │   └── game.controller.js  # Game request handlers
-│   ├── models/
-│   │   └── game.model.js       # Database models
-│   ├── routes/
-│   │   ├── game.route.js       # Game endpoints
-│   │   ├── move.route.js       # Move endpoints
-│   │   └── board.route.js      # Board endpoints
-│   ├── services/
-│   │   ├── board.service.js    # Board utilities
-│   │   └── game.service.js     # Game logic
-│   ├── game/
-│   │   └── game.manager.js     # Game state management
-│   ├── sockets/
-│   │   └── index.js            # WebSocket handlers
-│   └── utils/
-│       └── ucis.js             # Chess utilities
-├── lib/                         # Third-party libraries
-│   ├── chess.js/               # Chess engine library
-│   └── chessboardjs-1.0.0/     # Chessboard UI library
-└── ServerWeb/                   # Frontend assets
-    ├── app.js                  # Frontend application
-    ├── html/                   # HTML templates
-    ├── css/                    # Stylesheets
-    ├── js/                     # Client-side JavaScript
-    └── img/                    # Images
 
-Docker Files:
-├── Dockerfile                   # Container image definition
-├── docker-compose.yml          # Multi-container orchestration
-├── .env                        # Environment variables (add to .gitignore)
-└── README.md                   # This file
-
-```
+The frontend calls the backend through its `/games` and `/boards` proxies (`API_URL`) and connects directly to Socket.IO with `NEXT_PUBLIC_SOCKET_URL`. Game and clock configuration are loaded through `frontend/hooks/use-game.ts`, displayed by `frontend/hooks/use-chess-clock.ts`, and persisted by the backend game model and services under `src/js/`. MQTT integration is implemented in `src/js/services/mqtt.service.ts`; REST and Socket.IO entry points are in `src/js/routes/` and `src/js/sockets/`.
 
 ## API Endpoints
 

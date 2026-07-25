@@ -26,7 +26,7 @@ It consumes the `gameID` query parameter and loads the corresponding live data t
 
 ### `/paste`
 
-The paste page is used to import or annotate game content through a PGN or notation-based workflow.
+The paste page is used to convert UCI move input to PGN and review generated branches. Its layout follows the application page standard: a compact bordered page header, a centered `max-w-6xl` content area, responsive two-column cards, and shared background/card/border/primary tokens. The import, preset, preview, copy, download, and branch-selection behavior remains unchanged.
 
 ### `/played`
 

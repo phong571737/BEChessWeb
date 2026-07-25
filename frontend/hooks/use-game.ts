@@ -144,6 +144,10 @@ export function useGame(gameID: string) {
                     status: boardStatus,
                     lastMove: game.lastMove || null,
                     result: game.result ?? undefined,
+                    // Older documents stored clock values in seconds. Convert them once
+                    // at the API boundary; all live clock state is milliseconds.
+                    initialTimeMs: game.initialTimeMs ?? (Number.isFinite(game.clockSeconds) ? game.clockSeconds * 1_000 : undefined),
+                    incrementMs: game.incrementMs ?? (Number.isFinite(game.clockIncrement) ? game.clockIncrement * 1_000 : undefined),
                 })
                 setIsLoaded(true);
             })
@@ -300,9 +304,11 @@ export function useGame(gameID: string) {
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ WhiteName: string, BlackName: string }> = {};
+            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number }> = {};
             if (data.WhiteName !== undefined) patch.WhiteName = data.WhiteName;
             if (data.BlackName !== undefined) patch.BlackName = data.BlackName;
+            if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
+            if (data.incrementMs !== undefined) patch.incrementMs = data.incrementMs;
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
 
@@ -475,7 +481,7 @@ export function useGame(gameID: string) {
         selectBranch,
 
         // chess clock
-        clockSeconds: board?.clockSeconds,
-        clockIncrement: board?.clockIncrement,
+        initialTimeMs: board?.initialTimeMs,
+        incrementMs: board?.incrementMs,
     }
 }

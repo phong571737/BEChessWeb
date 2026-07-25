@@ -3,7 +3,7 @@
 import { useT } from "@/lib/i18n";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Flag, Loader2, Ellipse, Ellipsis } from "lucide-react";
+import { RotateCcw, Flag, Loader2, Ellipse, Ellipsis, AlertTriangle, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Branch } from "@/types/game.types";
 
@@ -50,6 +50,8 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
     const [selectedResignBranch, setSelectedResignBranch] = useState<string>(MAIN_GAME_ID);
 
     const hasBranches = branches.length > 0;
+    const isRestartPending = pending === "restart";
+    const isResignPending = pending === "resign";
 
     const openResign = () => {
         setResignSide("white");
@@ -80,36 +82,49 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
     return (
         <>
             {isAdmin && (
-                <div className="flex gap-2 p-3 border-t border-border">
+                <div className="flex gap-2 p-3 border-t border-border bg-muted/20">
                     <Button
-                        variant="outline"
+                        variant="secondary"
                         size="sm"
-                        className="flex-1 gap-1.5 text-xs"
+                        className="group flex-1 gap-1.5 border border-blue-500/30 bg-blue-500/10 text-blue-700 transition-transform hover:bg-blue-500/20 dark:text-blue-300 active:scale-[0.98]"
                         onClick={() => setPending("restart")}
+                        aria-pressed={isRestartPending}
+                        disabled={loading}
                     >
-                        <RotateCcw className="h-3.5 w-3.5" />
+                        <RotateCcw className="h-3.5 w-3.5 transition-transform group-active:-rotate-90" />
                         {t("board.restart")}
                     </Button>
                     <Button
-                        variant="outline"
+                        variant="destructive"
                         size="sm"
-                        className="flex-1 gap-1.5 text-xs text-destructive hover:text-destructive"
+                        className="group flex-1 gap-1.5 text-xs transition-transform active:scale-[0.98]"
                         onClick={openResign}
+                        aria-pressed={isResignPending}
+                        disabled={loading}
                     >
-                        <Flag className="h-3.5 w-3.5" />
+                        <Flag className="h-3.5 w-3.5 transition-transform group-active:rotate-12" />
                         {t("board.resign")}
                     </Button>
                 </div>
             )}
 
-            <Dialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
-                <DialogContent className="max-w-sm">
-                    <DialogHeader>
-                        <DialogTitle>
-                            {pending === "restart" ? t("board.restartTitle") : t("board.resignTitle")}
-                        </DialogTitle>
+            <Dialog open={pending !== null} onOpenChange={(o) => !o && !loading && setPending(null)}>
+                <DialogContent className="max-w-sm overflow-hidden p-0">
+                    <DialogHeader className="border-b border-border bg-muted/30 px-5 py-4">
+                        <div className="flex items-center gap-3">
+                            <div className={`flex size-9 shrink-0 items-center justify-center rounded-full ${isRestartPending ? "bg-blue-500/15 text-blue-600 dark:text-blue-300" : "bg-destructive/10 text-destructive"}`}>
+                                {isRestartPending ? (
+                                    <RotateCcw className={`size-4 ${loading ? "animate-spin" : "animate-[spin_0.6s_ease-in-out_1]"}`} />
+                                ) : (
+                                    <AlertTriangle className={`size-4 ${loading ? "animate-pulse" : "animate-[bounce_0.45s_ease-in-out_1]"}`} />
+                                )}
+                            </div>
+                            <DialogTitle>
+                                {isRestartPending ? t("board.restartTitle") : t("board.resignTitle")}
+                            </DialogTitle>
+                        </div>
                         <DialogDescription>
-                            {pending === "restart"
+                            {isRestartPending
                                 ? t("board.restartDesc")
                                 : resignStep === "branch"
                                     ? t("board.resignSelectBranch") ?? "Chọn nhánh game để kết thúc"
@@ -118,7 +133,8 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                     </DialogHeader>
 
                     {/* Resign: Choose branch */}
-                    {pending === "resign" && resignStep === "branch" && (
+                    <div className="space-y-4 px-5 py-4">
+                    {isResignPending && resignStep === "branch" && (
                         <div className="space-y-2 max-h-60 overflow-y-auto pr-0.5">
                             {resignOptions.map(({ id, branch }, index) => {
                                 const preview = pgnPreview(branch.pgn);
@@ -127,8 +143,9 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                                         key={id}
                                         type="button"
                                         onClick={() => setSelectedResignBranch(id)}
-                                        className={`w-full rounded-sm border px-3 py-2 text-left text-xs transition-colors ${selectedResignBranch === id
-                                            ? "border-border bg-accent text-foreground"
+                                        disabled={loading}
+                                        className={`w-full rounded-sm border px-3 py-2 text-left text-xs transition-all active:scale-[0.99] ${selectedResignBranch === id
+                                            ? "border-primary/40 bg-accent text-foreground shadow-sm"
                                             : "border-border/70 bg-background text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                                             }`}
                                     >
@@ -159,7 +176,7 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                     )}
 
                     {/* Resign: Choose side resign */}
-                    {pending === "resign" && resignStep === "side" && (
+                    {isResignPending && resignStep === "side" && (
                         <>
                             {/* Display the selected branch */}
                             {hasBranches && (
@@ -184,15 +201,21 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                                         key={side}
                                         type="button"
                                         onClick={() => setResignSide(side)}
-                                        className={`w-full rounded-sm border px-3 py-2 text-left text-xs transition-colors ${resignSide === side
-                                            ? "border-border bg-accent text-foreground"
+                                        disabled={loading}
+                                        className={`w-full rounded-sm border px-3 py-2 text-left text-xs transition-all active:scale-[0.99] ${resignSide === side
+                                            ? side === "white"
+                                                ? "border-slate-400 bg-slate-100 text-slate-950 shadow-sm dark:border-slate-400 dark:bg-slate-200 dark:text-slate-950"
+                                                : side === "black"
+                                                    ? "border-slate-700 bg-slate-900 text-white shadow-sm dark:border-slate-500 dark:bg-slate-950"
+                                                    : "border-amber-500/50 bg-amber-500/10 text-foreground shadow-sm"
                                             : "border-border/70 bg-background text-muted-foreground hover:bg-accent/60 hover:text-foreground"
                                             }`}
                                     >
-                                        <div className="font-medium">
+                                        <div className="flex items-center justify-between gap-2 font-medium">
                                             {side === "white" ? t("board.whiteResign")
                                                 : side === "black" ? t("board.blackResign")
                                                     : t("board.agreeDraw")}
+                                            {resignSide === side && <Check className={`size-3.5 ${side === "black" ? "text-white" : side === "draw" ? "text-amber-600" : "text-slate-700"}`} />}
                                         </div>
                                         <div className="text-[11px] opacity-80">
                                             {side === "white" ? t("board.whiteResignResult")
@@ -228,14 +251,15 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                         </>
                     )}
 
+                    </div>
                     {/* Button abort and confirm */}
-                    <DialogFooter>
-                        <Button variant="outline" size="sm" onClick={() => setPending(null)}>
+                    <DialogFooter className="border-t border-border bg-muted/20 px-5 py-3 sm:justify-end">
+                        <Button variant="outline" size="sm" onClick={() => setPending(null)} disabled={loading}>
                             {t("sg.cancel")}
                         </Button>
 
                         {/* Confirm after choose branch */}
-                        {pending === "resign" && resignStep === "branch" && (
+                        {isResignPending && resignStep === "branch" && (
                             <Button
                                 variant="default"
                                 size="sm"
@@ -246,24 +270,16 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
                             </Button>
                         )}
 
-                        {(pending === "restart" || resignStep === "side") && (
+                        {(isRestartPending || resignStep === "side") && (
                             <Button
-                                variant="default"
+                                variant={isResignPending && resignSide !== "draw" ? "destructive" : "default"}
                                 size="sm"
                                 onClick={confirm}
                                 disabled={loading}
-                                className={
-                                    pending !== "resign"
-                                        ? ""
-                                        : resignSide === "white"
-                                            ? "bg-state-black text-white hover:bg-state-black/90"
-                                            : resignSide === "black"
-                                                ? "bg-state-white text-white hover:bg-state-white/90"
-                                                : "bg-muted text-foreground hover:bg-muted/80"
-                                }
+                                className="min-w-24 transition-transform active:scale-[0.98]"
                             >
                                 {loading && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
-                                {pending === "restart" ? t("board.restart") : resignSide === "draw" ? t("board.confirmDraw") : t("board.confirmResult")}
+                                {isRestartPending ? t("board.restart") : resignSide === "draw" ? t("board.confirmDraw") : t("board.confirmResult")}
                             </Button>
                         )}
                     </DialogFooter>

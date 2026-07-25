@@ -16,6 +16,7 @@ import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
 import { PhysicalBoardCard } from "./physical-board-card";
 import { StartGameDialog } from "./start-game-dialog";
+import { useAuth } from "@/lib/auth-context";
 
 export function GameGrid() {
     const router = useRouter();
@@ -23,6 +24,7 @@ export function GameGrid() {
     const {boards: physicalBoards} = usePhysicalBoards();
     const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
+    const { isAdmin, isAuthenticated } = useAuth();
 
     // If the selected board goes offline/removed or becomes active, close the dialog
     useEffect(() => {
@@ -42,6 +44,12 @@ export function GameGrid() {
 
     const handleBoardClick = (board: PhysicalBoard) => {
         console.log("clicked", board);
+
+        // Guests can open an existing board, but never see the admin setup form.
+        if (!isAdmin) {
+            if (board.gameID) router.push(`/board?id=${encodeGameID(board.gameID)}`);
+            return;
+        }
 
         const isActiveBoard = board.gameID != null && board.gameStatus === GAME_STATUS.ACTIVE;
         if (isActiveBoard && board.gameID) {
@@ -72,7 +80,7 @@ export function GameGrid() {
 
             <div className="flex flex-col">
                 {/* ------------------ Physical board --------------------------*/}
-                {physicalBoards.length > 0 && (
+                {isAuthenticated && physicalBoards.length > 0 && (
                     <div className="px-4 sm:px-5 py-4 border-b border-border">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                             {t("home.physicalBoards")}
@@ -116,11 +124,13 @@ export function GameGrid() {
 
             </div>
 
-            <StartGameDialog  
-                board={selectedBoard}
-                gameID={selectedBoard?.gameID ?? null}
-                onClose={() => setselectedBoard(null)}
-            />
+            {isAdmin && (
+                <StartGameDialog
+                    board={selectedBoard}
+                    gameID={selectedBoard?.gameID ?? null}
+                    onClose={() => setselectedBoard(null)}
+                />
+            )}
         </div>
 
     );

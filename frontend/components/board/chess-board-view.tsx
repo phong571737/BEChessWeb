@@ -77,8 +77,8 @@ export function ChessBoardView({
         border: "1px solid hsl(var(--border))",
         overflow: "hidden",
       }}
-      customDarkSquareStyle={{ backgroundColor: "#7b6040" }}
-      customLightSquareStyle={{ backgroundColor: "#e8e8e8" }}
+      customDarkSquareStyle={{ backgroundColor: "var(--board-dark)" }}
+      customLightSquareStyle={{ backgroundColor: "var(--board-light)" }}
     />
   );
 }

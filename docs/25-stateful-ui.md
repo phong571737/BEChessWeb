@@ -40,6 +40,17 @@ The board and related review surfaces also encode state through control states s
 - error or warning accent borders for scan failures
 - different hover and active affordances on candidate actions
 
+## Administrator game actions
+
+The restart and resign controls in [frontend/components/board/game-actions.tsx](../frontend/components/board/game-actions.tsx) use the shared Button and Dialog primitives and expose each action's consequence before it is sent.
+
+- The compact action buttons have press-scale feedback and animated icons.
+- Restart uses a blue visual treatment; resign uses the destructive red treatment.
+- The confirmation dialog has a semantic icon surface, a bordered header/footer, and a loading state that prevents duplicate submissions or accidental dismissal.
+- Branch and resignation-side choices use selected borders, tinted backgrounds, a check indicator, and a short press-scale transition. White, black, and draw resignation choices use light, dark, and amber selected colors respectively.
+
+These controls remain visible only to administrators; the backend is still responsible for enforcing authorization on state-changing requests.
+
 ## Interaction tone
 
 The visual language emphasizes:

@@ -10,6 +10,7 @@ It is responsible for:
 - the mobile slide-over sidebar
 - the sticky top header
 - breadcrumb navigation
+- account menu and logout action
 - locale switching
 - theme toggling
 
@@ -44,6 +45,7 @@ It includes:
 - a breadcrumb trail
 - locale switch control
 - theme toggle button
+- authenticated username button; its logout action is disclosed only after the username is clicked
 
 ## Breadcrumb behavior
 
@@ -51,15 +53,11 @@ The breadcrumb trail uses dynamic path parsing to create a contextual label stac
 
 ## Theme switcher detail
 
-The theme button uses two icon layers:
+The theme button always shows one visible target-state icon: Moon while the current theme is light and Sun while it is dark. This prevents hidden or overlapping icon layers and keeps the action clear on hover.
 
-- `Sun` for the light state
-- `Moon` for the dark state
+## Account menu detail
 
-The icon transitions are driven by Tailwind dark-mode classes:
-
-- `dark:-rotate-90 dark:scale-0`
-- `dark:rotate-0 dark:scale-100`
+When authenticated, the header displays the username rather than an always-visible logout control. Clicking the username opens a small popover menu containing the logout button; the menu closes before logout clears the authentication state.
 
 ## Overlay behavior
 

@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/lib/auth-context";
 
 interface Props {
     board: PhysicalBoard | null;
@@ -17,63 +18,72 @@ interface Props {
 }
 
 const CLOCK_OPTIONS = [
-    { label: "1 phút", value: 60 },
-    { label: "3 phút", value: 180 },
-    { label: "5 phút", value: 300 },
-    { label: "10 phút", value: 600 },
-    { label: "15 phút", value: 900 },
-    { label: "30 phút", value: 1800 },
+    { label: "1 phút", value: 60_000 },
+    { label: "3 phút", value: 180_000 },
+    { label: "5 phút", value: 300_000 },
+    { label: "10 phút", value: 600_000 },
+    { label: "15 phút", value: 900_000 },
+    { label: "30 phút", value: 1_800_000 },
 ];
 
 const INCREMENT_OPTIONS = [
     { label: "0 giây", value: 0 },
-    { label: "1 giây", value: 1 },
-    { label: "2 giây", value: 2 },
-    { label: "5 giây", value: 5 },
-    { label: "10 giây", value: 10 },
+    { label: "1 giây", value: 1_000 },
+    { label: "2 giây", value: 2_000 },
+    { label: "5 giây", value: 5_000 },
+    { label: "10 giây", value: 10_000 },
 ];
 
 export function StartGameDialog({ board, gameID , onClose }: Props) {
     const router = useRouter();
     const { t } = useT();
+    const { isAdmin, token } = useAuth();
     const [white, setWhite] = useState("");
     const [black, setBlack] = useState("");
-    const [clockSeconds, setClockSeconds] = useState(600);
-    const [clockIncrement, setClockIncrement] = useState(0);
+    const [initialTimeMs, setInitialTimeMs] = useState(600_000);
+    const [incrementMs, setIncrementMs] = useState(0);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const canStart = white.trim().length > 0 && black.trim().length > 0;
 
     const handleStart = async () => {
-        if (!board || !gameID || !canStart) return;
+        if (!isAdmin || !token || !board || !gameID || !canStart) return;
         setLoading(true);
         setError(null);
 
         try {
             // Save names + clock settings in one request
-            await fetch(`/games/${gameID}/rename`, {
+            const whiteResponse = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({
                     color: "White",
                     name: white.trim(),
-                    clockSeconds,
-                    clockIncrement,
+                    initialTimeMs,
+                    incrementMs,
                 }),
             });
+            if (!whiteResponse.ok) {
+                const body = await whiteResponse.json().catch(() => null);
+                throw new Error(body?.error || "Unable to save game clock settings");
+            }
 
-            await fetch(`/games/${gameID}/rename`, {
+            const blackResponse = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "Black", name: black.trim() }),
             });
+            if (!blackResponse.ok) {
+                const body = await blackResponse.json().catch(() => null);
+                throw new Error(body?.error || "Unable to save player name");
+            }
 
             useGameStore.getState().patchBoard(gameID, {
                 WhiteName: white.trim(),
                 BlackName: black.trim(),
-                clockSeconds,
-                clockIncrement,
+                initialTimeMs,
+                incrementMs,
             });
 
             invalidateFetchCache(`/games/${gameID}`);
@@ -148,8 +158,8 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             <Label htmlFor="sg-clock">Thời gian</Label>
                             <select
                                 id="sg-clock"
-                                value={clockSeconds}
-                                onChange={(e) => setClockSeconds(Number(e.target.value))}
+                                value={initialTimeMs}
+                                onChange={(e) => setInitialTimeMs(Number(e.target.value))}
                                 disabled={loading}
                                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
@@ -162,8 +172,8 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             <Label htmlFor="sg-increment">Thêm thời gian</Label>
                             <select
                                 id="sg-increment"
-                                value={clockIncrement}
-                                onChange={(e) => setClockIncrement(Number(e.target.value))}
+                                value={incrementMs}
+                                onChange={(e) => setIncrementMs(Number(e.target.value))}
                                 disabled={loading}
                                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >

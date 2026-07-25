@@ -233,7 +233,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
               {/* BranchLine */}
               {(btnAfterW || btnAfterB || trailingInBlackSlot) && selectedBranch && (
                 <div className="ml-[26px] my-0.5 relative">
-                  <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full" style={{ background: "#AFA9EC" }} />
+                  <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-branch-border" />
                   <div className="pl-3">
                     <BranchLine
                       branch={selectedBranch}
@@ -255,7 +255,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                   </div>
                   {selectedBranch && (
                     <div className="ml-[26px] my-0.5 relative">
-                      <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full" style={{ background: "#AFA9EC" }} />
+                      <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-branch-border" />
                       <div className="pl-3">
                         <BranchLine branch={selectedBranch} isSelected={true}
                           onSelect={() => handleBranchClick(selectedBranch)} branchPly={branchPly} />
@@ -304,7 +304,7 @@ function BranchDots({
         className={cn(
           "inline-flex items-center gap-0.5 px-1.5 py-[2px] rounded text-[11px] font-medium transition-colors",
           open || selectedBranchId
-            ? "bg-[#EEEDFE] text-[#3C3489] border border-[#AFA9EC]"
+            ? "bg-branch-surface text-branch-foreground border border-branch-border"
             : "text-muted-foreground hover:text-foreground hover:bg-accent/60"
         )}
       >
@@ -317,24 +317,23 @@ function BranchDots({
       {/* Dropdown picker */}
       {open && (
         <div
-          className="absolute z-50 top-full left-0 mt-1 min-w-[140px] rounded-md shadow-lg overflow-hidden"
-          style={{ background: "#EEEDFE", border: "1px solid #AFA9EC" }}
+          className="absolute z-50 top-full left-0 mt-1 min-w-[140px] rounded-md border border-branch-border bg-branch-surface shadow-lg overflow-hidden"
         >
           {branches.map((b, i) => (
             <button
               key={b.id}
               onClick={() => { onSelect(b); setOpen(false); }}
-              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-[#CECBF6]"
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-branch-hover"
               style={{
-                borderBottom: i < branches.length - 1 ? "0.5px solid #CECBF6" : "none",
-                background: selectedBranchId === b.id ? "#CECBF6" : "transparent",
+                borderBottom: i < branches.length - 1 ? "0.5px solid hsl(var(--branch-hover))" : "none",
+                background: selectedBranchId === b.id ? "hsl(var(--branch-hover))" : "transparent",
               }}
             >
               <GitBranch className="size-3.5" />
-              <span className="font-mono font-semibold" style={{ color: "#3C3489" }}>
+              <span className="font-mono font-semibold text-branch-foreground">
                 {getBranchMoveSan(b)}
               </span>
-              <span className="text-[10px]" style={{ color: "#534AB7" }}>
+              <span className="text-[10px] text-branch-muted">
                 step {b.step}
               </span>
             </button>
@@ -396,8 +395,8 @@ function BranchLine({
               className={cn(
                 "font-mono text-xs px-1 py-[1px] rounded-sm",
                 isLastMove
-                  ? "font-semibold text-[#3C3489] bg-[#EEEDFE]"
-                  : "text-[#534AB7]"
+                  ? "font-semibold text-branch-foreground bg-branch-surface"
+                  : "text-branch-muted"
               )}
             >
               {san}

@@ -72,9 +72,20 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name, clockSeconds, clockIncrement } = req.body;
+            const { color, name, initialTimeMs, incrementMs } = req.body;
 
-            await GameActionService.rename(gameID, color, name, clockSeconds, clockIncrement);
+            const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
+            const maxIncrementMs = 60 * 60 * 1_000;
+            if (initialTimeMs !== undefined && (!Number.isFinite(initialTimeMs) || initialTimeMs <= 0 || initialTimeMs > maxInitialTimeMs)) {
+                res.status(400).json({ error: "initialTimeMs must be a positive number no greater than 24 hours" });
+                return;
+            }
+            if (incrementMs !== undefined && (!Number.isFinite(incrementMs) || incrementMs < 0 || incrementMs > maxIncrementMs)) {
+                res.status(400).json({ error: "incrementMs must be a number between 0 and 1 hour" });
+                return;
+            }
+
+            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs);
 
             res.json({
                 ok: true

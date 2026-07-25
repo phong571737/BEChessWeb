@@ -55,8 +55,8 @@ export function GameCard({ game }: Props) {
             position={game.fen || "start"}
             arePiecesDraggable={false}
             customSquareStyles={squareStyles}
-            customDarkSquareStyle={{ backgroundColor: "#7b6040" }}
-            customLightSquareStyle={{ backgroundColor: "#e8e8e8" }}
+            customDarkSquareStyle={{ backgroundColor: "var(--board-dark)" }}
+            customLightSquareStyle={{ backgroundColor: "var(--board-light)" }}
             boardWidth={boardWidth}
           />
         ) : (

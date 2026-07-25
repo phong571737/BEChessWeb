@@ -64,8 +64,11 @@ It provides:
 - `login(token, user)` — persist and set auth state
 - `logout()` — clear auth state
 - `isAuthenticated` — boolean flag
+- `isAdmin` — role-derived flag used to expose administrator-only controls
 
 The token is stored in localStorage and automatically restored on page load.
+
+Administrator-only mutations also send this JWT in the `Authorization: Bearer <token>` header. The backend verifies the token and its `admin` role; hiding a control in the browser is therefore not the only access control.
 
 ## Why Zustand is a good fit here
 
@@ -95,8 +98,8 @@ Each board entry stores:
 - `wrongPieceSquares`
 - `branches`
 - `selectedBranchId`
-- `clockSeconds` — initial clock time per side in seconds (optional)
-- `clockIncrement` — increment per move in seconds (optional)
+- `initialTimeMs` — initial clock time per side in milliseconds (optional)
+- `incrementMs` — increment per move in milliseconds (optional)
 
 This structure allows the board page to avoid repeatedly fetching everything from the API after a socket update. It is not a full normalized state graph; it is a per-game cached projection.
 
@@ -108,6 +111,12 @@ The frontend state sync pattern is:
 2. load a local `Chess` engine instance from FEN or PGN,
 3. subscribe to socket events,
 4. patch the Zustand board entry on every move or status update.
+
+### Chess clock lifecycle
+
+`use-chess-clock.ts` initializes both clocks from the persisted game configuration only after the game data is loaded. The clocks remain displayed but paused at their configured initial values until the first valid move is present. From that first move onward, only the active side decreases and the configured increment is applied to the side that completed a move.
+
+Older game documents with second-based clock fields are converted at the frontend API boundary. Games without any clock fields use the documented 10-minute compatibility fallback.
 
 This is why the game page feels live while still being resilient to network or page refresh events.
 

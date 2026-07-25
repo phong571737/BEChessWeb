@@ -33,8 +33,9 @@ The persisted game object is a MongoDB document with fields such as:
 - `status`
 - `branches`
 - `createdAt`, `updatedAt`
-- `clockSeconds` — initial clock time per side in seconds (optional)
-- `clockIncrement` — increment per move in seconds (optional)
+- `initialTimeMs` — initial clock time per side in milliseconds (optional)
+- `incrementMs` — increment per move in milliseconds (optional)
+- `clockSeconds` / `clockIncrement` — legacy second-based fields supported only while loading older game documents
 
 This is the durable projection of the current game state.
 

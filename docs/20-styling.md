@@ -8,91 +8,26 @@ The frontend styling stack is based on:
 
 - Tailwind CSS 3.4.19
 - `class-variance-authority` (CVA) for reusable component variants
-- `next-themes` for light/dark mode switching
+- `next-themes` for root theme-class management
 
 This is the actual implementation present in the repo's frontend package and the global CSS token layer.
 
 ---
 
-## Dark / light theme
+## Light and dark visual themes
 
-Theme switching is managed by `next-themes`. The theme class is applied to the root document, and the design system is driven by CSS variables declared in [frontend/app/globals.css](../frontend/app/globals.css).
+The application supports both Light Mode and Dark Mode through `next-themes`. The existing switcher changes the root `dark` class immediately; `disableTransitionOnChange` prevents an unwanted palette transition during the switch. All values are defined centrally in [frontend/app/globals.css](../frontend/app/globals.css) as HSL tokens, which preserves Tailwind opacity modifiers such as `bg-primary/10`.
 
-```css
-/* Light mode (default) */
-:root {
-  --background: 0 0% 100%;
-  --foreground: 240 10% 3.9%;
-  --card: 0 0% 100%;
-  --card-foreground: 240 10% 3.9%;
-  --popover: 0 0% 100%;
-  --popover-foreground: 240 10% 3.9%;
-  --primary: 240 5.9% 10%;
-  --primary-foreground: 0 0% 98%;
-  --secondary: 240 4.8% 95.9%;
-  --secondary-foreground: 240 5.9% 10%;
-  --muted: 240 4.8% 95.9%;
-  --muted-foreground: 240 3.8% 46.1%;
-  --accent: 240 4.8% 95.9%;
-  --accent-foreground: 240 5.9% 10%;
-  --destructive: 0 84.2% 60.2%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 5.9% 90%;
-  --input: 240 5.9% 90%;
-  --ring: 240 5.9% 10%;
-  --radius: 0.375rem;
-}
+| Token group | Light palette | Dark palette | Purpose |
+| --- | --- | --- |
+| Canvas | `#f7f8fc`, soft blue-gray | `#111111`, `#171717` | Application and secondary backgrounds |
+| Surfaces | `#ffffff`, `#f3f4f6` | `#1c1c1c`, `#242424` | Cards, popovers, hover states, and dialogs |
+| Text | `#1f2430`, `#72798b` | `#f5f5f5`, `#a3a3a3` | Primary and muted text |
+| Primary | `#6757f5` → `#5847e8` | `#f5b800` → `#d99f00` | Primary actions, focus ring, and selected emphasis |
+| Accent | `#6d5dfc` → `#5b4be8` | `#6d5dfc` → `#5b4be8` | Supporting accent states |
+| Status | green, amber, red, sky | green, amber, red, sky | Success, warning, error, and info feedback |
 
-/* Dark mode */
-.dark {
-  --background: 240 10% 3.9%;
-  --foreground: 0 0% 98%;
-  --card: 240 8% 5.5%;
-  --card-foreground: 0 0% 98%;
-  --popover: 240 8% 5.5%;
-  --popover-foreground: 0 0% 98%;
-  --primary: 0 0% 98%;
-  --primary-foreground: 240 5.9% 10%;
-  --secondary: 240 3.7% 15.9%;
-  --secondary-foreground: 0 0% 98%;
-  --muted: 240 3.7% 13%;
-  --muted-foreground: 240 5% 60%;
-  --accent: 240 3.7% 13%;
-  --accent-foreground: 0 0% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 0 0% 98%;
-  --border: 240 3.7% 13%;
-  --input: 240 3.7% 13%;
-  --ring: 240 4.9% 83.9%;
-}
-```
-
-Tailwind maps these CSS variables in [frontend/tailwind.config.ts](../frontend/tailwind.config.ts):
-
-```ts
-const config: Config = {
-  darkMode: ["class"],
-  content: [
-    "./app/**/*.{ts,tsx,js,jsx}",
-    "./components/**/*.{ts,tsx,js,jsx}",
-    "./hooks/**/*.{ts,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-      },
-    },
-  },
-  plugins: [],
-}
-```
+Tailwind exposes these central values as semantic utilities through [frontend/tailwind.config.ts](../frontend/tailwind.config.ts), including `bg-surface`, `bg-surface-hover`, `text-foreground-muted`, `bg-primary`, `bg-accent`, `bg-success`, `bg-warning`, `bg-info`, and the branch-menu tokens used by the move table. Shared Button, Card, Input, Dialog, Navbar, and Sidebar components consume these semantic tokens rather than page-specific color values. Ghost and outline button hover states retain `text-foreground`, ensuring icons remain legible over both light and dark hover surfaces.
 
 ---
 
@@ -123,52 +58,22 @@ It is consumed by UI layout and board viewport sizing logic, especially in [fron
 
 ## Chess board colors
 
-Board squares use explicit inline hex colors in the board component rather than Tailwind utility classes.
+Board squares read CSS custom properties so they adapt with the current theme without duplicating component styles.
 
 | Square type | Color |
 |---|---|
-| Light squares | `#e8e8e8` |
-| Dark squares | `#7b6040` |
-| Last move highlight | `rgba(236, 243, 116, 0.75)` |
+| Light squares | `--board-light` (`#e8e8e8` light / `#d8c8a2` dark) |
+| Dark squares | `--board-dark` (`#7b6040` light / `#6d5136` dark) |
+| Last move highlight | `rgba(245, 184, 0, 0.50)` |
 | Board border | `hsl(var(--border))` |
 
-This is visible in [frontend/components/board/chess-board-view.tsx](../frontend/components/board/chess-board-view.tsx) and [frontend/components/home/game-card.tsx](../frontend/components/home/game-card.tsx) where `react-chessboard` is handed `customDarkSquareStyle`, `customLightSquareStyle`, and `customSquareStyles`.
+This is visible in [frontend/components/board/chess-board-view.tsx](../frontend/components/board/chess-board-view.tsx) and [frontend/components/home/game-card.tsx](../frontend/components/home/game-card.tsx), where `react-chessboard` receives `var(--board-dark)` and `var(--board-light)` for its square styles.
 
 ---
 
 ## Tailwind config highlights
 
-The repo's Tailwind configuration is intentionally small:
-
-```ts
-// frontend/tailwind.config.ts
-import type { Config } from 'tailwindcss'
-
-const config: Config = {
-  darkMode: ["class"],
-  content: [
-    "./app/**/*.{ts,tsx,js,jsx}",
-    "./components/**/*.{ts,tsx,js,jsx}",
-    "./hooks/**/*.{ts,tsx}",
-  ],
-  theme: {
-    extend: {
-      colors: {
-        border: "hsl(var(--border))",
-        background: "hsl(var(--background))",
-        foreground: "hsl(var(--foreground))",
-        muted: {
-          DEFAULT: "hsl(var(--muted))",
-          foreground: "hsl(var(--muted-foreground))",
-        },
-      },
-    },
-  },
-  plugins: [],
-}
-```
-
-This means the visual system is mostly driven by the global CSS variable file rather than by a large Tailwind extension map.
+The Tailwind configuration maps the global semantic tokens for backgrounds, surfaces, foreground tiers, cards, popovers, primary/secondary/accent actions, destructive feedback, and success/warning/info status. The visual system remains token-driven: individual pages should prefer semantic utilities such as `bg-card`, `bg-surface`, `text-foreground-muted`, and `border-border` over literal colors.
 
 ---
 
@@ -184,11 +89,11 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        default: "bg-primary text-primary-foreground hover:bg-primary/90",
-        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/90",
-        outline: "border border-input bg-background hover:bg-accent hover:text-accent-foreground",
+        default: "bg-primary text-primary-foreground hover:bg-primary-hover",
+        destructive: "bg-destructive text-destructive-foreground hover:bg-destructive/85",
+        outline: "border border-input bg-background hover:bg-surface-hover hover:text-foreground",
         secondary: "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent hover:text-accent-foreground",
+        ghost: "hover:bg-surface-hover hover:text-foreground",
         link: "text-primary underline-offset-4 hover:underline",
       },
       size: {

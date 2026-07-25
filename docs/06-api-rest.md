@@ -137,16 +137,16 @@ Resets a game to the initial board state.
 
 ### `POST /games/:id/rename`
 
-Updates player names and emits the update to the socket room.
+Updates player names and emits the update to the socket room. This route requires an `Authorization: Bearer <admin JWT>` header.
 
 Request body:
 
 - `color`: `"White"` or `"Black"`
 - `name`: new player name
-- optional `clockSeconds`: initial clock time per side in seconds
-- optional `clockIncrement`: increment per move in seconds
+- optional `initialTimeMs`: initial clock time per side in milliseconds; greater than zero and no more than 24 hours
+- optional `incrementMs`: increment per move in milliseconds; between zero and one hour
 
-If `clockSeconds` or `clockIncrement` are provided, they are persisted to the game document.
+If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. Missing/invalid credentials receive `401`; non-admin credentials receive `403`.
 
 ### `POST /games/:id/endgame`
 

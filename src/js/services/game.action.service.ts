@@ -24,7 +24,15 @@ export const GameActionService = {
         const newGameID: string = crypto.randomUUID(); // create a new game id
         
         // Create a new game from the same board
-        const newGame = await GameService.create(boardID, newGameID);
+        const newGame = await GameService.create(
+            boardID,
+            newGameID,
+            (oldGame.round ?? 0) + 1,
+            oldGame.WhiteName ?? "",
+            oldGame.BlackName ?? "",
+            oldGame.initialTimeMs ?? (oldGame.clockSeconds ? oldGame.clockSeconds * 1_000 : undefined),
+            oldGame.incrementMs ?? (oldGame.clockIncrement ? oldGame.clockIncrement * 1_000 : undefined),
+        );
         await removeGame(oldGameID); // remove old game from DB
 
         // Xóa hoàn toàn game cũ khỏi RAM
@@ -57,7 +65,7 @@ export const GameActionService = {
         });
     },
 
-    async rename(gameID: string, color: string, name: string, clockSeconds?: number, clockIncrement?: number): Promise<void> {
+    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number): Promise<void> {
         if (!name.trim() || !["Black", "White"].includes(color)) {
             return;
         }
@@ -65,11 +73,13 @@ export const GameActionService = {
         const game = await getGame(gameID);
         if (!game) return;
 
-        await renamePlayer(gameID, color, name, clockSeconds, clockIncrement);
+        await renamePlayer(gameID, color, name, initialTimeMs, incrementMs);
         // Broadcast to all clients in the game room so board page can update immediately
-        const payload: Record<string, string> = { gameID };
+        const payload: Record<string, any> = { gameID };
         if (color === "White") payload.WhiteName = name;
         if (color === "Black") payload.BlackName = name;
+        if (initialTimeMs !== undefined) payload.initialTimeMs = initialTimeMs;
+        if (incrementMs !== undefined) payload.incrementMs = incrementMs;
         getIO().to(gameID).emit("game:renamed", payload);
     },
 

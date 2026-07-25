@@ -74,7 +74,10 @@ export interface BoardState {
 
     errorSquares: string[];
 
-    // Chess clock
+    /** Chess clock configuration in milliseconds. */
+    initialTimeMs?: number;
+    incrementMs?: number;
+    /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;
 }
