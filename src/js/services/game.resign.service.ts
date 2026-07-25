@@ -5,6 +5,9 @@ import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../g
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 import { GameDoc, ResignSide } from "../types/game.types.js";
+import { customPGN } from "../utils/custom.chess.js";
+import { inferMoveFromFen } from "../utils/chess.utils.js";
+import { MoveLike } from "../types/chess.types.js";
 
 interface ResignResult {
     status: "OK";
@@ -19,23 +22,35 @@ function buildResultTag(resignSide: ResignSide) {
     return resultTag;
 }
 
-function buildFinalPGN(game: GameDoc, fen: string, resultTag: string): { chess: Chess, finalPGN: string } {
-    // rebuild PGN with headers
-    // const chess = new Chess();
-    // if (pgn) chess.loadPgn(pgn);
-    const chess = new Chess();
-    try {
-        if (fen) chess.load(fen, { skipValidation: true });
-    } catch (e) {
-        console.error("[RESIGN] Failed to load fen, using default position:", e);
+function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[], resultTag: string): string {
+    const startFen = typeof game.initialFen === "string" ? game.initialFen : undefined;
+    const moves: MoveLike[] = [];
+    let previousFen = startFen || new Chess().fen();
+    const total = Math.max(uciHistory.length, fenHistory.length);
+
+    for (let index = 0; index < total; index++) {
+        const uci = uciHistory[index]?.trim();
+        const validUci = uci?.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+        const inferred = !validUci && fenHistory[index]
+            ? inferMoveFromFen(previousFen, fenHistory[index]!)
+            : null;
+        if (validUci) {
+            moves.push({ from: validUci[1] as MoveLike["from"], to: validUci[2] as MoveLike["to"], promotion: validUci[3]?.toLowerCase() as MoveLike["promotion"] });
+        } else if (inferred) {
+            moves.push({ from: inferred.from as MoveLike["from"], to: inferred.to as MoveLike["to"], promotion: inferred.promotion as MoveLike["promotion"] });
+        } else {
+            // The custom PGN renderer turns an unknown move into an explicit `x` token.
+            moves.push({ from: "--" as MoveLike["from"], to: "--" as MoveLike["to"] });
+        }
+        if (fenHistory[index]) previousFen = fenHistory[index]!;
     }
 
-    chess.setHeader("White", game.WhiteName || "White");
-    chess.setHeader("Black", game.BlackName || "Black");
-    chess.setHeader("Result", resultTag);
-    chess.setHeader("Date", new Date().toISOString().slice(0, 10).replace(/-/g, "."));
-
-    return { chess, finalPGN: chess.pgn() };
+    return customPGN(moves, startFen, {
+        White: game.WhiteName || "White",
+        Black: game.BlackName || "Black",
+        Result: resultTag,
+        Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
+    }).pgn;
 }
 
 export const GameResignService = {
@@ -51,9 +66,8 @@ export const GameResignService = {
 
         const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
         // let pgn = game.pgn ?? "";
-        let fen = game.fen ?? "";
-        let fenHistory = game.fenHistory ?? [];
-        let uciHistory = game.uciHistory ?? [];
+        let fenHistory: string[] = Array.isArray(game.fenHistory) ? game.fenHistory.filter((fen): fen is string => typeof fen === "string") : [];
+        let uciHistory: string[] = Array.isArray(game.uciHistory) ? game.uciHistory.filter((uci): uci is string => typeof uci === "string") : [];
 
         if (branchId) {
             const branch = game.branches?.find((b) => b.id === branchId);
@@ -61,13 +75,12 @@ export const GameResignService = {
                 throw new Error("Branch not found");
             }
             // pgn = branch.pgn ?? "";
-            fen = branch.fen ?? game.fen ?? "";
-            fenHistory = (branch as any).fenHistory ?? game.fenHistory ?? [];
-            uciHistory = (branch as any).uciHistory ?? game.uciHistory ?? [];
+            fenHistory = Array.isArray((branch as any).fenHistory) ? (branch as any).fenHistory : fenHistory;
+            uciHistory = Array.isArray((branch as any).uciHistory) ? (branch as any).uciHistory : uciHistory;
         }
 
         const resultTag = buildResultTag(resignSide);
-        const { chess, finalPGN } = buildFinalPGN(game, fen, resultTag);
+        const finalPGN = buildFinalPGN(game, uciHistory, fenHistory, resultTag);
         const currentRound = game.round ?? 1;
         const nextRound = currentRound + 1;
 
@@ -75,17 +88,18 @@ export const GameResignService = {
         const doc = {
             gameID,
             pgn: finalPGN,
+            initialFen: game.initialFen,
             totalMoves: fenHistory.length,
             round: currentRound,
-            uciHistory: game.uciHistory ?? [],
-            fenHistory: game.fenHistory ?? [],
+            uciHistory,
+            fenHistory,
             createdAt: new Date(),
         }
 
         await endGame(doc);
 
         resetGame(gameID);
-        // Xóa hoàn toàn game cũ khỏi RAM để GC có thể thu hồi
+        // Remove old games from RAM
         games.delete(gameID);
         gameSeq.delete(gameID);
         activeBranches.delete(gameID);

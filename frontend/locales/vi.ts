@@ -61,6 +61,10 @@ export const vi: Record<TranslationKeys, string> = {
 
     // ---- Authentication ---------------------------------------
     "login.title": "Đăng nhập",
+    "settings.language": "Ngôn ngữ",
+    "settings.theme": "Giao diện",
+    "settings.light": "Sáng",
+    "settings.dark": "Tối",
     "login.subtitle": "Đăng nhập vào tài khoản của bạn",
     "login.email": "Email",
     "login.password": "Mật khẩu",
@@ -122,6 +126,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.pieceActivity": "Hoạt động quân cờ",
     "rev.captureTimeline": "Thời gian ăn quân",
     "rev.moveTypeDist": "Phân loại nước đi",
+    "rev.noMovesAnalysis": "Chưa có nước đi để phân tích.",
     "rev.moveEBoard": "Nước đi nhận từ bàn cờ điện tử", 
 
     // ----- Played / History ---------------------------------------------

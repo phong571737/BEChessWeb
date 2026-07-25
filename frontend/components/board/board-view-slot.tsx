@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { EvalBar } from "@/components/board/eval-bar";
+import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { useChessClock } from "@/hooks/use-chess-clock";
 import { ChessClockCard } from "@/components/board/chess-clock-card";
@@ -232,10 +233,12 @@ export function BoardViewSlot({
     className,
 }: Props) {
     const { t } = useT();
+    const { showEvaluation } = useBoardDisplay();
     const { isAdmin } = useAuth();
     const router = useRouter();
     const socket = useSocket();
-    const { workerRef, onMessageRef, isReady } = useStockfish(enableEval);
+    const evaluationEnabled = enableEval && showEvaluation;
+    const { workerRef, onMessageRef, isReady } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
     const [cp, setCp] = useState<number | null>(null);
     const [mate, setMate] = useState<number | null>(null);
@@ -331,7 +334,7 @@ export function BoardViewSlot({
     }, [socket, gameID, handleUnavailable]);
 
     useEffect(() => {
-        if (!enableEval) return;
+        if (!evaluationEnabled) return;
         onMessageRef.current = (line: string) => {
             const cpMatch = line.match(/score cp (-?\d+)/);
             const isBlackToMove = currentFenRef.current?.split(" ")[1] === "b";
@@ -355,10 +358,10 @@ export function BoardViewSlot({
         return () => {
             onMessageRef.current = null;
         };
-    }, [enableEval, onMessageRef]);
+    }, [evaluationEnabled, onMessageRef]);
 
     useEffect(() => {
-        if (!enableEval || !displayFen) return;
+        if (!evaluationEnabled || !displayFen) return;
 
         currentFenRef.current = displayFen;
         pendingFenRef.current = displayFen;
@@ -369,7 +372,7 @@ export function BoardViewSlot({
         worker.postMessage("stop");
         worker.postMessage(`position fen ${displayFen}`);
         worker.postMessage("go movetime 300");
-    }, [displayFen, isReady, enableEval, workerRef]);
+    }, [displayFen, isReady, evaluationEnabled, workerRef]);
 
     useEffect(() => {
         const el = boardWrapRef.current;
@@ -520,14 +523,14 @@ export function BoardViewSlot({
                                     />
                                 </div>
 
-                                {enableEval && (
+                                {evaluationEnabled && (
                                     <div className="hidden lg:block w-[22px] shrink-0 self-stretch min-h-0">
-                                        <EvalBar cp={cp} mate={mate} />
+                        <EvalBar cp={cp} mate={mate} />
                                     </div>
                                 )}
                             </div>
 
-                            {enableEval && (
+                            {evaluationEnabled && (
                                 <div className="lg:hidden">
                                     <EvalBar cp={cp} mate={mate} orientation="horizontal" />
                                 </div>

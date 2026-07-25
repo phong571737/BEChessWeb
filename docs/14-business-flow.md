@@ -67,6 +67,8 @@ The first accepted move starts the chess clock. After each later accepted move, 
 
 When a game is ended, restarted, or resigned, the backend updates the board state and emits `update_all_game` and `game_restart` to notify clients to refresh their view.
 
+For a resignation, the history PGN is generated from the persisted UCI sequence with the custom PGN renderer, which deliberately does not reject a move for chess-rule validation. Missing UCI entries are recovered from the corresponding FEN snapshots where possible; an unrecoverable entry is stored as `x` rather than silently dropping a ply. The game-start FEN is persisted for new games so custom-start games keep the correct PGN context.
+
 ## Board-type processing behavior
 
 The system supports two board semantics:

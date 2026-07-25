@@ -2,8 +2,8 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History } from "lucide-react";
-import React, { useState, useMemo } from "react";
+import { BarChart3, Check, FlipHorizontal, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Settings, UserRound } from "lucide-react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
@@ -12,6 +12,8 @@ import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
 import { useAuth } from "@/lib/auth-context";
+import { useBoardDisplay } from "@/components/providers/board-display-provider";
+import { APP_VERSION } from "@/lib/app-version";
 
 const sectionDefs = [
     { key: "nav.home" as const, url: "/", icon: House },
@@ -140,12 +142,31 @@ function AppSidebar({
 
 export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
-    const { theme, setTheme, resolvedTheme } = useTheme();
+    const { setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
     const { user, isAuthenticated, logout } = useAuth();
+    const { flipped, showEvaluation, toggleFlipped, toggleEvaluation } = useBoardDisplay();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+    const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
+    const [themeMounted, setThemeMounted] = useState(false);
+    const accountMenuRef = useRef<HTMLDivElement>(null);
+    const settingsMenuRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setThemeMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const closeMenus = (event: MouseEvent) => {
+            const target = event.target as Node;
+            if (accountMenuRef.current && !accountMenuRef.current.contains(target)) setAccountMenuOpen(false);
+            if (settingsMenuRef.current && !settingsMenuRef.current.contains(target)) setSettingsMenuOpen(false);
+        };
+        document.addEventListener("mousedown", closeMenus);
+        return () => document.removeEventListener("mousedown", closeMenus);
+    }, []);
 
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
@@ -225,36 +246,39 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">
-                                <BoardLayoutHeaderControl />
-
                                 {isAuthenticated && user ? (
-                                    <div className="relative">
+                                    <div ref={accountMenuRef} className="relative">
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                                            className="h-8 gap-2 px-2 text-left text-xs font-medium text-muted-foreground hover:text-foreground"
                                             onClick={() => setAccountMenuOpen((open) => !open)}
                                             aria-expanded={accountMenuOpen}
                                             aria-haspopup="menu"
                                         >
-                                            {user.username}
+                                            <span className="flex size-5 items-center justify-center rounded-full bg-primary/15 text-primary"><UserRound className="size-3" /></span>
+                                            <span className="hidden sm:block max-w-24 truncate text-foreground">{user.username}</span>
                                         </Button>
                                         {accountMenuOpen && (
                                             <div
                                                 role="menu"
-                                                className="absolute right-0 top-[calc(100%+0.35rem)] z-50 min-w-32 rounded-sm border border-border bg-popover p-1 shadow-lg"
+                                                className="absolute right-0 top-[calc(100%+0.35rem)] z-50 min-w-56 rounded-md border border-border bg-popover p-1 shadow-lg"
                                             >
+                                                <div className="border-b border-border px-2.5 py-2">
+                                                    <p className="truncate text-xs font-semibold text-foreground">{user.username}</p>
+                                                    <p className="truncate text-[11px] text-muted-foreground">{user.email}</p>
+                                                </div>
                                                 <Button
                                                     variant="ghost"
                                                     size="sm"
-                                                    className="w-full justify-start px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                                    className="mt-1 w-full justify-start gap-2 px-2.5 text-xs font-medium text-destructive hover:bg-destructive/10 hover:text-destructive"
                                                     onClick={() => {
                                                         setAccountMenuOpen(false);
                                                         logout();
                                                     }}
                                                     role="menuitem"
                                                 >
-                                                    Đăng xuất
+                                                    <LogOut className="size-3.5" />Đăng xuất
                                                 </Button>
                                             </div>
                                         )}
@@ -266,34 +290,47 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                         className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
                                         asChild
                                     >
-                                        <Link href="/login">Đăng nhập</Link>
+                                        <Link href="/login">{t("login.title")}</Link>
                                     </Button>
                                 )}
 
-                                <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    className="h-8 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-                                    onClick={() => setLocale(locale === "vi" ? "en" : "vi")}
-                                    title="Switch language / Đổi ngôn ngữ"
-                                    >
-                                    {locale === "vi" ? "English" : "Tiếng Việt"}
-                                </Button>
-
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-8"
-                                    onClick={() => setTheme(resolvedTheme === "dark" ? "light" : "dark")}
-                                    title={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                                    aria-label={resolvedTheme === "dark" ? "Switch to light theme" : "Switch to dark theme"}
-                                    >
-                                    {resolvedTheme === "dark" ? (
-                                        <Sun className="size-4 transition-transform duration-200 hover:rotate-45" />
-                                    ) : (
-                                        <Moon className="size-4 transition-transform duration-200 hover:-rotate-12" />
+                                <div ref={settingsMenuRef} className="relative">
+                                    <Button variant="ghost" size="icon" className="size-8" onClick={() => setSettingsMenuOpen((open) => !open)} title="Settings" aria-label="Settings" aria-expanded={settingsMenuOpen} aria-haspopup="menu">
+                                        <Settings className="size-4" />
+                                    </Button>
+                                    {settingsMenuOpen && (
+                                        <div role="menu" className="absolute right-0 top-[calc(100%+0.35rem)] z-50 min-w-48 rounded-md border border-border bg-popover p-1 shadow-lg">
+                                            <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Languages className="size-3.5" />{t("settings.language")}</p>
+                                            {(["en", "vi"] as const).map((value) => (
+                                                <button key={value} type="button" role="menuitem" onClick={() => { setLocale(value); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                                                    <span>{value === "en" ? "English" : "Tiếng Việt"}</span>{locale === value && <Check className="size-3.5 text-primary" />}
+                                                </button>
+                                            ))}
+                                            <div className="my-1 border-t border-border" />
+                                            <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Settings className="size-3.5" />{t("settings.theme")}</p>
+                                            {(["light", "dark"] as const).map((value) => (
+                                                <button key={value} type="button" role="menuitem" onClick={() => { setTheme(value); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                                                    <span className="flex items-center gap-2">{value === "dark" ? <Moon className="size-3.5" /> : <Sun className="size-3.5" />}{value === "dark" ? t("settings.dark") : t("settings.light")}</span>{themeMounted && resolvedTheme === value && <Check className="size-3.5 text-primary" />}
+                                                </button>
+                                            ))}
+                                            <div className="my-1 border-t border-border" />
+                                            <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                Board layout
+                                            </div>
+                                            <div className="px-1 pb-1">
+                                                <BoardLayoutHeaderControl />
+                                            </div>
+                                            <div className="my-1 border-t border-border" />
+                                            <button type="button" role="menuitem" onClick={() => { toggleFlipped(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                                                <span className="flex items-center gap-2"><FlipHorizontal className="size-3.5" />Flip board</span>{flipped && <Check className="size-3.5 text-primary" />}
+                                            </button>
+                                            <button type="button" role="menuitem" onClick={() => { toggleEvaluation(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                                                <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />Evaluation bar</span>{showEvaluation && <Check className="size-3.5 text-primary" />}
+                                            </button>
+                                            <div className="mt-1 border-t border-border px-2.5 py-2 text-[10px] text-muted-foreground">Version v{APP_VERSION}</div>
+                                        </div>
                                     )}
-                                </Button>
+                                </div>
                             </div>
 
                         </div>

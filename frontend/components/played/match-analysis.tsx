@@ -1,23 +1,12 @@
 "use client";
 
 import { useMemo } from "react";
-import { Chess } from "chess.js";
 import { Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import type { HistoryGame } from "@/types/game.types";
 import { useT } from "@/lib/i18n";
-
-type MoveVerbose = {
-  color: "w" | "b";
-  piece: "p" | "n" | "b" | "r" | "q" | "k";
-  captured?: "p" | "n" | "b" | "r" | "q" | "k";
-  promotion?: "q" | "r" | "b" | "n";
-  san: string;
-  flags: string;
-  from: string;
-  to: string;
-};
+import { analyzeMatch } from "@/lib/match-analysis";
 
 export function MatchAnalysis({ game }: { game: HistoryGame }) {
   const { t } = useT();
@@ -29,134 +18,22 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
     blackCaps:  { label: t("rev.blackCaptures"), color: "hsl(var(--state-black))" },
   } satisfies ChartConfig;
 
-  const data = useMemo(() => {
-    const chess = new Chess();
-    let moves: MoveVerbose[] = [];
-
-    try {
-      chess.loadPgn(game.pgn);
-      moves = chess.history({ verbose: true }) as MoveVerbose[];
-    } catch {
-      moves = [];
-    }
-
-    if (moves.length === 0 && Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
-      const temp = new Chess();
-      const recovered: MoveVerbose[] = [];
-
-      for (const nextFen of game.fenHistory) {
-        const prevFen = temp.fen();
-        const legal = temp.moves({ verbose: true }) as MoveVerbose[];
-        let found: MoveVerbose | null = null;
-
-        for (const mv of legal) {
-          temp.load(prevFen);
-          temp.move({ from: (mv as MoveVerbose & { from: string }).from, to: (mv as MoveVerbose & { to: string }).to, promotion: mv.promotion });
-          if (temp.fen() === nextFen) {
-            found = mv;
-            break;
-          }
-        }
-
-        if (!found) {
-          recovered.length = 0;
-          break;
-        }
-
-        recovered.push(found);
-        temp.load(nextFen);
-      }
-
-      moves = recovered;
-    }
-
-    const counters = {
-      whiteCaptures: 0,
-      blackCaptures: 0,
-      whiteChecks: 0,
-      blackChecks: 0,
-      castles: 0,
-      promotions: 0,
-    };
-
-    const byPiece = {
-      p: { piece: t("piece.pawn"),   whiteMoves: 0, blackMoves: 0 },
-      n: { piece: t("piece.knight"), whiteMoves: 0, blackMoves: 0 },
-      b: { piece: t("piece.bishop"), whiteMoves: 0, blackMoves: 0 },
-      r: { piece: t("piece.rook"),   whiteMoves: 0, blackMoves: 0 },
-      q: { piece: t("piece.queen"),  whiteMoves: 0, blackMoves: 0 },
-      k: { piece: t("piece.king"),   whiteMoves: 0, blackMoves: 0 },
-    };
-
-    const timeline: Array<{ ply: number; whiteCaps: number; blackCaps: number }> = [];
-    const moveTypeDist = {
-      normal: 0,
-      capture: 0,
-      check: 0,
-      castle: 0,
-      promotion: 0,
-    };
-
-    moves.forEach((mv, i) => {
-      if (mv.color === "w") byPiece[mv.piece].whiteMoves += 1;
-      else byPiece[mv.piece].blackMoves += 1;
-
-      const isCapture = Boolean(mv.captured) || mv.flags.includes("c") || mv.flags.includes("e");
-      const isCheck = mv.san.includes("+") || mv.san.includes("#");
-      const isCastle = mv.flags.includes("k") || mv.flags.includes("q");
-      const isPromotion = Boolean(mv.promotion) || mv.flags.includes("p");
-
-      if (isCapture) {
-        moveTypeDist.capture += 1;
-        if (mv.color === "w") counters.whiteCaptures += 1;
-        else counters.blackCaptures += 1;
-      } else {
-        moveTypeDist.normal += 1;
-      }
-
-      if (isCheck) {
-        moveTypeDist.check += 1;
-        if (mv.color === "w") counters.whiteChecks += 1;
-        else counters.blackChecks += 1;
-      }
-
-      if (isCastle) {
-        moveTypeDist.castle += 1;
-        counters.castles += 1;
-      }
-      if (isPromotion) {
-        moveTypeDist.promotion += 1;
-        counters.promotions += 1;
-      }
-
-      timeline.push({
-        ply: i + 1,
-        whiteCaps: counters.whiteCaptures,
-        blackCaps: counters.blackCaptures,
-      });
-    });
-
-    const pieceActivity = Object.values(byPiece);
-    const typeDistribution = [
-      { name: t("movetype.normal"),    value: moveTypeDist.normal,    color: "hsl(var(--muted-foreground))" },
-      { name: t("movetype.capture"),   value: moveTypeDist.capture,   color: "hsl(var(--state-warning))" },
-      { name: t("movetype.check"),     value: moveTypeDist.check,     color: "hsl(var(--state-accent))" },
-      { name: t("movetype.castle"),    value: moveTypeDist.castle,    color: "hsl(var(--state-success))" },
-      { name: t("movetype.promotion"), value: moveTypeDist.promotion, color: "hsl(var(--destructive))" },
-    ].filter((x) => x.value > 0);
-
-    return {
-      moves,
-      counters,
-      pieceActivity,
-      timeline,
-      typeDistribution,
-    };
-  }, [game.pgn, t]);
+  const data = useMemo(() => analyzeMatch(game, {
+    pieces: { p: t("piece.pawn"), n: t("piece.knight"), b: t("piece.bishop"), r: t("piece.rook"), q: t("piece.queen"), k: t("piece.king") },
+    moveTypes: { normal: t("movetype.normal"), capture: t("movetype.capture"), check: t("movetype.check"), castle: t("movetype.castle"), promotion: t("movetype.promotion") },
+  }), [game, t]);
 
   return (
     <div className="space-y-3 p-4 sm:p-5">
       <h3 className="text-sm font-semibold">{t("rev.analysis")}</h3>
+
+      {data.moves.length === 0 ? (
+        <Card>
+          <CardContent className="flex min-h-36 items-center justify-center p-5 text-center text-sm text-muted-foreground">
+            {t("rev.noMovesAnalysis")}
+          </CardContent>
+        </Card>
+      ) : <>
 
       <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
         <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.totalPlies")}</p><p className="text-lg font-semibold">{data.moves.length}</p></CardContent></Card>
@@ -235,6 +112,7 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
           </div>
         </CardContent>
       </Card>
+      </>}
     </div>
   );
 }

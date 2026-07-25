@@ -10,9 +10,8 @@ It is responsible for:
 - the mobile slide-over sidebar
 - the sticky top header
 - breadcrumb navigation
-- account menu and logout action
-- locale switching
-- theme toggling
+- account menu with identity and logout action
+- settings menu for locale, theme, board-layout, orientation, and evaluation controls
 
 ## Sidebar structure
 
@@ -43,21 +42,24 @@ It includes:
 - a mobile menu button
 - a desktop collapse toggle
 - a breadcrumb trail
-- locale switch control
-- theme toggle button
-- authenticated username button; its logout action is disclosed only after the username is clicked
+- settings icon with locale, theme, and multi-board layout controls
+- authenticated identity button; its logout action is disclosed only after the identity button is clicked
 
 ## Breadcrumb behavior
 
 The breadcrumb trail uses dynamic path parsing to create a contextual label stack. It is derived from the current route and translated where the route string has a known label.
 
-## Theme switcher detail
+## Settings menu detail
 
-The theme button always shows one visible target-state icon: Moon while the current theme is light and Sun while it is dark. This prevents hidden or overlapping icon layers and keeps the action clear on hover.
+The header keeps locale and theme controls in one Settings menu. It provides explicit English and Vietnamese choices plus explicit Light and Dark choices, marking the active selection with a check icon while retaining hydration-safe theme rendering.
+
+The same menu contains the multi-board layout picker and board-display preferences. Flip board changes every rendered chessboard between White and Black orientation; Evaluation bar toggles the engine advantage bar without changing game data. Both preferences persist in browser storage.
+
+Both the Settings and account menus close after a selection and when the user clicks outside their popover.
 
 ## Account menu detail
 
-When authenticated, the header displays the username rather than an always-visible logout control. Clicking the username opens a small popover menu containing the logout button; the menu closes before logout clears the authentication state.
+When authenticated, the header displays an identity icon and username without exposing a role label. Clicking it opens a small popover showing the username, email address, and an icon-labelled logout action; the menu closes before logout clears the authentication state.
 
 ## Overlay behavior
 

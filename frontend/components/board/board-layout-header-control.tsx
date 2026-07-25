@@ -137,7 +137,7 @@ function BoardLayoutHeaderInner() {
             slotIds={slotIds}
             onLayoutChange={handleLayoutChange}
             onSlotsApply={handleSlotsApply}
-            className="hidden lg:flex mr-1"
+            className="flex w-full"
         />
     );
 }

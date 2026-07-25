@@ -29,6 +29,118 @@ function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
 }
 
+function readPgnHeaders(pgn: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  for (const line of pgn.split(/\r?\n/)) {
+    const match = line.match(/^\[([^\s]+)\s+"(.*)"\]$/);
+    if (match) headers[match[1]] = match[2];
+    else if (line.trim() && !line.startsWith("[")) break;
+  }
+  return headers;
+}
+
+const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+function fenBoard(fen: string): Record<string, string> {
+  const board: Record<string, string> = {};
+  const rows = fen.split(" ")[0]?.split("/") ?? [];
+  rows.forEach((row, rowIndex) => {
+    let file = 0;
+    for (const char of row) {
+      if (/\d/.test(char)) file += Number(char);
+      else { board[`${"abcdefgh"[file]}${8 - rowIndex}`] = char; file += 1; }
+    }
+  });
+  return board;
+}
+
+/** Best-effort FEN diff used only when an e-board omitted a UCI token. */
+function inferUciFromFen(before: string, after: string): string | null {
+  const previous = fenBoard(before);
+  const next = fenBoard(after);
+  const changed = Array.from(new Set([...Object.keys(previous), ...Object.keys(next)])).filter((square) => previous[square] !== next[square]);
+  const targets = changed.filter((square) => next[square] && (!previous[square] || next[square]?.toLowerCase() !== previous[square]?.toLowerCase()));
+  for (const to of targets) {
+    const color = next[to] === next[to]?.toUpperCase();
+    const from = changed.find((square) => previous[square] && (previous[square] === previous[square]?.toUpperCase()) === color && !next[square]);
+    if (from) return `${from}${to}${next[to]?.toLowerCase() !== "p" && previous[from]?.toLowerCase() === "p" ? next[to]?.toLowerCase() : ""}`;
+  }
+  return null;
+}
+
+function formatCustomMove(uci: string, board: Record<string, string>): string {
+  const match = uci.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+  if (!match) return "x";
+  const [, from, to, promotion] = match;
+  const piece = board[from];
+  if (!piece) return "x";
+
+  const type = piece.toLowerCase();
+  const fileDelta = Math.abs(from.charCodeAt(0) - to.charCodeAt(0));
+  if (type === "k" && fileDelta === 2) {
+    const kingSide = to.charCodeAt(0) > from.charCodeAt(0);
+    const rank = from[1];
+    const rookFrom = `${kingSide ? "h" : "a"}${rank}`;
+    const rookTo = `${kingSide ? "f" : "d"}${rank}`;
+    if (board[rookFrom]) { board[rookTo] = board[rookFrom]!; delete board[rookFrom]; }
+    board[to] = piece;
+    delete board[from];
+    return kingSide ? "O-O" : "O-O-O";
+  }
+
+  const isPawn = type === "p";
+  const capture = Boolean(board[to]) || (isPawn && from[0] !== to[0]);
+  const notation = isPawn
+    ? `${capture ? from[0] : ""}${capture ? "x" : ""}${to}${promotion ? `=${promotion.toUpperCase()}` : ""}`
+    : `${type.toUpperCase()}${capture ? "x" : ""}${to}`;
+
+  if (isPawn && capture && !board[to]) delete board[`${to[0]}${from[1]}`];
+  board[to] = promotion ? (piece === piece.toUpperCase() ? promotion.toUpperCase() : promotion.toLowerCase()) : piece;
+  delete board[from];
+  return notation;
+}
+
+function customMoveTokens(game: HistoryGame): string[] {
+  const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
+  const board = fenBoard(game.initialFen ?? DEFAULT_FEN);
+  let previousFen = game.initialFen ?? DEFAULT_FEN;
+  return Array.from({ length: count }, (_, index) => {
+    const uci = game.uciHistory?.[index]?.trim();
+    const recoveredUci = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/i.test(uci ?? "")
+      ? uci!
+      : (game.fenHistory?.[index] ? inferUciFromFen(previousFen, game.fenHistory[index]!) : null);
+    const notation = recoveredUci ? formatCustomMove(recoveredUci, board) : "x";
+    if (game.fenHistory?.[index]) previousFen = game.fenHistory[index]!;
+    return notation;
+  });
+}
+
+function customReviewPgn(game: HistoryGame): string {
+  const savedMoves = movesOnly(game.pgn ?? "");
+  if (savedMoves && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(savedMoves)) return game.pgn;
+
+  const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
+  if (!count) return game.pgn;
+  const moves = customMoveTokens(game);
+  const lines: string[] = [];
+  for (let index = 0; index < moves.length; index += 2) lines.push(`${index / 2 + 1}. ${moves[index]}${moves[index + 1] ? ` ${moves[index + 1]}` : ""}`);
+  const result = game.Result || "*";
+  const savedHeaders = readPgnHeaders(game.pgn ?? "");
+  const headers = [
+    `[Event "${savedHeaders.Event || "?"}"]`,
+    `[Site "${savedHeaders.Site || "?"}"]`,
+    `[Date "${savedHeaders.Date || game.Date || "????.??.??"}"]`,
+    `[Round "${savedHeaders.Round || "?"}"]`,
+    `[White "${game.WhiteName || savedHeaders.White || "White"}"]`,
+    `[Black "${game.BlackName || savedHeaders.Black || "Black"}"]`,
+    `[Result "${result}"]`,
+  ];
+  if (game.initialFen) {
+    headers.push(`[SetUp "1"]`, `[FEN "${game.initialFen}"]`);
+  }
+  return [...headers, "", `${lines.join(" ")} ${result}`].join("\n");
+}
+
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
@@ -36,15 +148,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
+  const reviewPgn = useMemo(() => customReviewPgn(game), [game]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null }];
+    const customMoves = customMoveTokens(game);
     try {
       const c = new Chess();
       c.loadPgn(game.pgn);
       const sans = c.history();
       const temp = new Chess();
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null }> = [
+      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
         { fen: temp.fen(), san: "start", lastMove: null },
       ];
       for (const san of sans) {
@@ -59,14 +173,14 @@ export function PGNReviewContent({ game }: ReviewProps) {
     } catch {}
 
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null }> = [
+      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
         { fen: "start", san: "start", lastMove: null },
       ];
 
       const temp = new Chess();
       for (let i = 0; i < game.fenHistory.length; i++) {
         const nextFen = game.fenHistory[i];
-        let san = `fen#${nextFen}`;
+        let san = customMoves[i] ?? "x";
         let lastMove: { from: string; to: string } | null = null;
 
         try {
@@ -76,7 +190,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
             temp.load(prevFen);
             temp.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
             if (temp.fen() === nextFen) {
-              san = mv.san;
               lastMove = { from: mv.from, to: mv.to };
               break;
             }
@@ -84,7 +197,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           temp.load(nextFen);
         } catch {}
 
-        out.push({ fen: nextFen, san, lastMove });
+        out.push({ fen: nextFen, san, lastMove, fenFallback: true });
       }
       return out;
     }
@@ -175,7 +288,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   const copyPGN = async () => {
     try {
-      await navigator.clipboard.writeText(game.pgn);
+      await navigator.clipboard.writeText(reviewPgn);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {}
@@ -248,7 +361,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 <span className="text-xs text-muted-foreground">{t("rev.moveReview")}</span>
                 <span className="text-xs font-mono text-muted-foreground">Ply {currentIndex}/{timeline.length - 1}</span>
               </div>
-              {timeline.length > 1 && timeline[1].san.startsWith("fen#") && (
+              {timeline.length > 1 && timeline[1].fenFallback && (
                 <div className="px-3 py-1 text-[10px] text-amber-600 dark:text-amber-400 border-b border-border/60">
                   PGN parse failed, using FEN timeline.
                 </div>
@@ -256,7 +369,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
               <ScrollArea className="h-[160px]">
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
                   {timeline.slice(1).map((m, i) => (
+                    m.fenFallback ? (
                     <button
+                      key={`${m.san}-${i}`}
+                      type="button"
+                      onClick={() => goTo(i + 1)}
+                      className={`col-span-full rounded-sm border px-2 py-1 text-left font-mono text-[10px] transition-colors ${
+                        currentIndex === i + 1 ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
+                      }`}
+                    >
+                      {i + 1}. {m.san}
+                    </button>
+                    ) : <button
                       key={`${m.san}-${i}`}
                       type="button"
                       onClick={() => goTo(i + 1)}
@@ -304,7 +428,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           {/* Moves only */}
           <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
             <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-              {movesOnly(game.pgn)}
+              {movesOnly(reviewPgn)}
             </pre>
           </ScrollArea>
 
@@ -315,7 +439,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
             </summary>
             <ScrollArea className="mt-2 h-44 rounded-sm border border-border bg-muted">
               <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                {game.pgn}
+                {reviewPgn}
               </pre>
             </ScrollArea>
           </details>

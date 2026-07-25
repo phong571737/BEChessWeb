@@ -95,6 +95,7 @@ export const en = {
     "rev.pieceActivity": "Piece Activity",
     "rev.captureTimeline": "Capture Timeline",
     "rev.moveTypeDist": "Move Type Distribution",
+    "rev.noMovesAnalysis": "No moves are available to analyze yet.",
     "rev.moveEBoard": "The move received from e-board.", 
 
     // -------- Played / History -------------------------------------------
@@ -172,6 +173,10 @@ export const en = {
 
     // ---- Authentication ---------------------------------------
     "login.title": "Login",
+    "settings.language": "Language",
+    "settings.theme": "Theme",
+    "settings.light": "Light",
+    "settings.dark": "Dark",
     "login.subtitle": "Sign in to your account",
     "login.email": "Email",
     "login.password": "Password",

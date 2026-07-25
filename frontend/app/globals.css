@@ -72,40 +72,51 @@
     }
 
     .dark {
-        /* Dark neutral palette. */
-        --background:               0 0% 6.7%;   /* #111111 */
-        --background-secondary:     0 0% 9.0%;   /* #171717 */
-        --surface:                  0 0% 11.0%;  /* #1c1c1c */
-        --surface-hover:            0 0% 14.1%;  /* #242424 */
-        --foreground:               0 0% 96.1%;  /* #f5f5f5 */
-        --foreground-muted:         0 0% 63.9%;  /* #a3a3a3 */
-        --foreground-subtle:        0 0% 45.1%;  /* #737373 */
-        --card:                     0 0% 11.0%;
-        --card-foreground:          0 0% 96.1%;
-        --popover:                  0 0% 11.0%;
-        --popover-foreground:       0 0% 96.1%;
-        --primary:                  44.7 100% 48.0%; /* #f5b800 */
-        --primary-hover:            44.7 100% 42.5%; /* #d99f00 */
-        --primary-foreground:       0 0% 6.7%;
-        --secondary:                0 0% 9.0%;
-        --secondary-foreground:     0 0% 96.1%;
-        --muted:                    0 0% 9.0%;
-        --muted-foreground:         0 0% 63.9%;
-        --accent:                   246 95% 67%;
-        --accent-hover:             246 77% 60%;
-        --accent-foreground:        0 0% 100%;
-        --branch-surface:           246 32% 17%;
-        --branch-hover:             246 30% 23%;
-        --branch-border:            246 26% 38%;
-        --branch-foreground:        246 95% 82%;
-        --branch-muted:             246 60% 72%;
-        --border:                   0 0% 20%;    /* #333333 */
-        --input:                    0 0% 20%;
-        --ring:                     44.7 100% 48%;
-        --sidebar:                  0 0% 9.0%;
-        --sidebar-border:           0 0% 20%;
+        /* Deep blue-black palette: paired with the light theme's violet hierarchy. */
+        --background:               231 37% 4%;    /* #06070d */
+        --background-secondary:     235 29% 7%;    /* elevated page surface */
+        --surface:                  244 24% 10%;   /* #14131f */
+        --surface-hover:            244 22% 13%;   /* #1b1a29 */
+        --foreground:               231 47% 97%;   /* #f4f5fb */
+        --foreground-muted:         226 14% 61%;   /* #8e93aa */
+        --foreground-subtle:        228 12% 47%;
+        --card:                     244 24% 10%;
+        --card-foreground:          231 47% 97%;
+        --popover:                  244 24% 10%;
+        --popover-foreground:       231 47% 97%;
+        --primary:                  252 100% 71%;  /* #8b6cff */
+        --primary-hover:            252 81% 64%;   /* #7658ee */
+        --primary-foreground:       0 0% 100%;
+        --secondary:                244 22% 13%;   /* #1b1a29 */
+        --secondary-foreground:     233 28% 88%;   /* #d9dbea */
+        --muted:                    240 20% 12%;   /* #181824 */
+        --muted-foreground:         226 14% 61%;
+        --accent:                   249 29% 18%;   /* #24203b */
+        --accent-hover:             249 27% 23%;
+        --accent-foreground:        250 100% 83%;  /* #b7a8ff */
+        --branch-surface:           249 29% 18%;
+        --branch-hover:             249 27% 23%;
+        --branch-border:            244 18% 25%;
+        --branch-foreground:        250 100% 83%;
+        --branch-muted:             246 47% 73%;
+        --destructive:              0 84% 60%;
+        --destructive-foreground:   0 0% 100%;
+        --success:                  161 65% 50%;   /* #2dd4a3 */
+        --warning:                  25 96% 61%;    /* #fb923c */
+        --info:                     202 87% 54%;   /* #22a7f0 */
+        --border:                   244 18% 19%;   /* #29283a */
+        --input:                    244 18% 19%;
+        --ring:                     252 100% 71%;
+        --sidebar:                  231 37% 4%;
+        --sidebar-border:           244 18% 19%;
         --board-light:              #d8c8a2;
         --board-dark:               #6d5136;
+        --board-move:               rgba(139, 108, 255, 0.42);
+        --state-info:               202 87% 54%;
+        --state-success:            161 65% 50%;
+        --state-warning:            25 96% 61%;
+        --state-accent:             252 100% 71%;
+        --state-neutral:            226 14% 61%;
     }
 }
 

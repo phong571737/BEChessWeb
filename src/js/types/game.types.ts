@@ -6,6 +6,8 @@ export interface GameBranch {
     id: string;
     pgn?: string;
     fen?: string;
+    /** Position at game creation; used to rebuild custom PGN without legal-move validation. */
+    initialFen?: string;
 }
 
 export interface GameDoc extends Document {

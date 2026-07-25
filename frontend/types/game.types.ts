@@ -22,6 +22,7 @@ export interface ActiveGame {
     BlackName: string;
     fen: string;
     pgn: string;
+    initialFen?: string;
     lastMove?: lastMove | null;
     lastSeq: number;
     createdAt: string;
@@ -38,6 +39,7 @@ export interface HistoryGame {
     totalMoves: number;
     totalPlies?: number;
     pgn: string;
+    initialFen?: string;
     createdAt?: string;
     endedAt?: string;
     durationSec?: number | null;

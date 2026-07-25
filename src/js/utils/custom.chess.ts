@@ -95,7 +95,7 @@ function isEnPassant(game: Chess, move: MoveLike): boolean {
 
 function moveToSanUnchecked(game: Chess, move: MoveLike): string {
   const piece = game.get(move.from);
-  if (!piece) return move.from + move.to;
+  if (!piece) return "x";
 
   // Castling
   if (piece.type === "k") {
@@ -258,6 +258,10 @@ export function customPGN(
 
   const headerLines: string[] = [];
   const gh = game.getHeaders();
+  if (startFen && startFen !== new Chess().fen()) {
+    headerLines.push(`[SetUp "1"]`);
+    headerLines.push(`[FEN "${startFen}"]`);
+  }
   for (const key in gh) {
     if (key === "SetUp" || key === "FEN") continue;
     headerLines.push(`[${key} "${gh[key]}"]`);

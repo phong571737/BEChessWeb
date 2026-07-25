@@ -26,7 +26,7 @@ It consumes the `gameID` query parameter and loads the corresponding live data t
 
 ### `/paste`
 
-The paste page is used to convert UCI move input to PGN and review generated branches. Its layout follows the application page standard: a compact bordered page header, a centered `max-w-6xl` content area, responsive two-column cards, and shared background/card/border/primary tokens. The import, preset, preview, copy, download, and branch-selection behavior remains unchanged.
+The paste page is used to convert UCI move input to PGN and review generated branches. Its layout follows the application page standard: a compact bordered page header, a centered `max-w-7xl` content area, responsive two-column cards, and shared background/card/border/primary tokens. Presets show their selected state, while matched-height input and preview panels give the import workflow a clear visual rhythm. The import, preview, copy, download, and branch-selection behavior remains unchanged.
 
 ### `/played`
 
@@ -34,7 +34,7 @@ The played page surfaces historical or previously completed game sessions.
 
 ### `/played/review`
 
-The review page is for deeper historical analysis and branch navigation.
+The review page is for deeper historical analysis and branch navigation. Its Match Analysis section recalculates when the loaded game changes and derives charts from the persisted PGN, UCI history, or FEN snapshot history. PGN notation is rebuilt from UCI for legacy header-only records, including the standard Event/Site/Date/Round/White/Black/Result headers; missing UCI tokens fall back to a FEN diff and are displayed as `x` when still unknown. FEN-only review entries render on their own row. Empty or partial histories display an empty state instead of zero-filled broken charts.
 
 ## Page layout behavior
 

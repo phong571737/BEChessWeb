@@ -20,14 +20,16 @@ The application supports both Light Mode and Dark Mode through `next-themes`. Th
 
 | Token group | Light palette | Dark palette | Purpose |
 | --- | --- | --- |
-| Canvas | `#f7f8fc`, soft blue-gray | `#111111`, `#171717` | Application and secondary backgrounds |
-| Surfaces | `#ffffff`, `#f3f4f6` | `#1c1c1c`, `#242424` | Cards, popovers, hover states, and dialogs |
-| Text | `#1f2430`, `#72798b` | `#f5f5f5`, `#a3a3a3` | Primary and muted text |
-| Primary | `#6757f5` → `#5847e8` | `#f5b800` → `#d99f00` | Primary actions, focus ring, and selected emphasis |
-| Accent | `#6d5dfc` → `#5b4be8` | `#6d5dfc` → `#5b4be8` | Supporting accent states |
+| Canvas | `#f7f8fc`, soft blue-gray | `#06070d`, deep blue-black | Application and secondary backgrounds |
+| Surfaces | `#ffffff`, `#f3f4f6` | `#14131f`, `#1b1a29` | Cards, popovers, hover states, and dialogs |
+| Text | `#1f2430`, `#72798b` | `#f4f5fb`, `#8e93aa` | Primary and muted text |
+| Primary | `#6757f5` → `#5847e8` | `#8b6cff` → `#7658ee` | Primary actions, focus ring, and selected emphasis |
+| Accent | `#e9ecff` → `#5b4be8` | `#24203b` → purple-tinted hover | Supporting accent and selected states |
 | Status | green, amber, red, sky | green, amber, red, sky | Success, warning, error, and info feedback |
 
 Tailwind exposes these central values as semantic utilities through [frontend/tailwind.config.ts](../frontend/tailwind.config.ts), including `bg-surface`, `bg-surface-hover`, `text-foreground-muted`, `bg-primary`, `bg-accent`, `bg-success`, `bg-warning`, `bg-info`, and the branch-menu tokens used by the move table. Shared Button, Card, Input, Dialog, Navbar, and Sidebar components consume these semantic tokens rather than page-specific color values. Ghost and outline button hover states retain `text-foreground`, ensuring icons remain legible over both light and dark hover surfaces.
+
+Dark Mode intentionally uses blue-black canvas and purple-tinted surfaces instead of neutral or pure black. The sidebar uses the darkest canvas token; selected navigation uses `accent`, `accent-foreground`, and the `primary` indicator so it stays visible through long chess sessions without overpowering the board.
 
 ---
 

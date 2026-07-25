@@ -39,7 +39,7 @@ Dark mode is enabled through Tailwind class mode:
 - `darkMode: ["class"]` in [frontend/tailwind.config.ts](../frontend/tailwind.config.ts)
 - `.dark` variable overrides in [frontend/app/globals.css](../frontend/app/globals.css)
 
-The app shell theme toggle in [frontend/components/layout/app-shell.tsx](../frontend/components/layout/app-shell.tsx) switches between light and dark using `resolvedTheme` from `next-themes`. It always renders one visible target-state icon: Moon in Light Mode and Sun in Dark Mode. This avoids a hidden or overlapping icon while retaining a small hover rotation and accessible label.
+The app shell theme toggle in [frontend/components/layout/app-shell.tsx](../frontend/components/layout/app-shell.tsx) switches between light and dark using `resolvedTheme` from `next-themes`. It renders stable Moon markup during SSR and the initial client hydration, then renders the target-state icon after mount: Moon in Light Mode and Sun in Dark Mode. This avoids hidden/overlapping icons and prevents a system-theme hydration mismatch while retaining a small hover rotation and accessible label.
 
 ## Sidebar and board tokens
 

@@ -27,6 +27,7 @@ export const GameService = {
       gameID,
       boardID,
       fen: chess.fen(),
+      initialFen: chess.fen(),
       pgn: "",
       lastMove: null,
       round,

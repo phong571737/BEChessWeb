@@ -1,10 +1,11 @@
 {
   "name": "frontend",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "test:analysis": "node --experimental-strip-types scripts/verify-match-analysis.ts",
     "start": "next start",
     "lint": "eslint",
     "lint:fix": "eslint --fix"

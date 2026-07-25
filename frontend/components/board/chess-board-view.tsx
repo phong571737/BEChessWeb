@@ -1,6 +1,7 @@
 "use client";
 
 import { Chessboard } from "react-chessboard";
+import { useBoardDisplay } from "@/components/providers/board-display-provider";
 
 interface Props {
   fen:              string;
@@ -25,6 +26,7 @@ export function ChessBoardView({
   extraSquares,
   wrongPieceSquares,
 }: Props) {
+  const { flipped } = useBoardDisplay();
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
 
   // ================ Initcheck =========================
@@ -72,6 +74,7 @@ export function ChessBoardView({
       arePiecesDraggable={false}
       customSquareStyles={squareStyles}
       boardWidth={boardWidth}
+      boardOrientation={flipped ? "black" : "white"}
       customBoardStyle={{
         borderRadius: "3px",
         border: "1px solid hsl(var(--border))",
