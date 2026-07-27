@@ -37,6 +37,7 @@ interface Props {
     blackClockMs?: number;
     activeClockSide?: ClockSide;
     isAdmin?: boolean;
+    flipped?: boolean;
 }
 
 export interface GamePanelHandle {
@@ -49,7 +50,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAdmin = false,
+    whiteClockMs, blackClockMs, activeClockSide, isAdmin = false, flipped = false,
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
@@ -64,6 +65,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     const [notationMode, setNotationMove] = useState<"pgn" | "fen">("pgn");
 
     const hasBranches = branches.length > 0;
+    const firstPlayer = flipped
+        ? { name: WhiteName, side: "white" as const, clockMs: whiteClockMs }
+        : { name: BlackName, side: "black" as const, clockMs: blackClockMs };
+    const secondPlayer = flipped
+        ? { name: BlackName, side: "black" as const, clockMs: blackClockMs }
+        : { name: WhiteName, side: "white" as const, clockMs: whiteClockMs };
 
     // Build FEN history from the active PGN view shown on the board
     const {fenHistory, moveHistory} = useMemo(() => {
@@ -169,22 +176,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     return (
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
-            {/* The two clocks intentionally live in separate player sections. */}
-            <div className={cn(
-                "flex items-center gap-3 px-4 py-3 border-l-[3px] border-b border-border transition-all duration-200",
-                !isWhiteTurn ? "border-l-red-500 bg-red-500/10" : "border-l-transparent"
-            )}>
-                <div className="size-4 rounded-full bg-[#1a1a1a] border border-white/20 shrink-0 dark:border-white/10" />
-                <span className={cn("min-w-0 truncate text-sm font-semibold transition-colors", !isWhiteTurn && "text-red-600 dark:text-red-400")}>
-                    {BlackName}
-                </span>
-                {!isWhiteTurn && <span className="size-2 rounded-full bg-red-500 animate-pulse shrink-0" />}
-                {blackClockMs !== undefined && (
-                    <span className={cn("ml-auto shrink-0 font-mono text-lg font-semibold tabular-nums", activeClockSide === "black" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-                        {formatClockMs(blackClockMs)}
-                    </span>
-                )}
-            </div>
+            <PlayerRow player={firstPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 
             {/* ── Navigation controls ── */}
             <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/20">
@@ -221,21 +213,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 />
             </div>
 
-            <div className={cn(
-                "flex items-center gap-3 px-4 py-3 border-l-[3px] border-b border-border transition-all duration-200",
-                isWhiteTurn ? "border-l-green-500 bg-green-500/10" : "border-l-transparent"
-            )}>
-                <div className="size-4 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
-                <span className={cn("min-w-0 truncate text-sm font-semibold transition-colors", isWhiteTurn && "text-green-700 dark:text-green-400")}>
-                    {WhiteName}
-                </span>
-                {isWhiteTurn && <span className="size-2 rounded-full bg-green-500 animate-pulse shrink-0" />}
-                {whiteClockMs !== undefined && (
-                    <span className={cn("ml-auto shrink-0 font-mono text-lg font-semibold tabular-nums", activeClockSide === "white" ? "text-green-700 dark:text-green-400" : "text-muted-foreground")}>
-                        {formatClockMs(whiteClockMs)}
-                    </span>
-                )}
-            </div>
+            <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 
             {/* ── Game actions ── */}
             <GameActions
@@ -248,3 +226,39 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         </div >
     );
 });
+
+function PlayerRow({
+    player,
+    isWhiteTurn,
+    activeClockSide,
+}: {
+    player: { name: string; side: "white" | "black"; clockMs?: number };
+    isWhiteTurn: boolean;
+    activeClockSide?: ClockSide;
+}) {
+    const isWhite = player.side === "white";
+    const isActive = isWhite === isWhiteTurn;
+    const activeClass = isWhite ? "border-l-green-500 bg-green-500/10" : "border-l-red-500 bg-red-500/10";
+    const textClass = isWhite ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400";
+
+    return (
+        <div className={cn(
+            "flex items-center gap-3 px-4 py-3 border-l-[3px] border-b border-border transition-all duration-200",
+            isActive ? activeClass : "border-l-transparent"
+        )}>
+            <div className={cn(
+                "size-4 rounded-full shrink-0",
+                isWhite ? "bg-[#f0f0f0] border border-black/15" : "bg-[#1a1a1a] border border-white/20 dark:border-white/10"
+            )} />
+            <span className={cn("min-w-0 truncate text-sm font-semibold transition-colors", isActive && textClass)}>
+                {player.name}
+            </span>
+            {isActive && <span className={cn("size-2 rounded-full animate-pulse shrink-0", isWhite ? "bg-green-500" : "bg-red-500")} />}
+            {player.clockMs !== undefined && (
+                <span className={cn("ml-auto shrink-0 font-mono text-lg font-semibold tabular-nums", activeClockSide === player.side ? textClass : "text-muted-foreground")}>
+                    {formatClockMs(player.clockMs)}
+                </span>
+            )}
+        </div>
+    );
+}

@@ -34,7 +34,7 @@ This is the primary chessboard display slot component. It is responsible for ren
 
 ### `game-panel`
 
-Provides the interaction and control panel for game activities such as restart, resign, and branch actions. Its vertical order is the first player/clock, wide move-navigation controls, PGN move list, second player/clock, then restart and resign actions. Player sections are deliberately separated so the two clocks are never adjacent; player names and clock values use enlarged, readable type.
+Provides the interaction and control panel for game activities such as restart, resign, and branch actions. Its vertical order is the first player/clock, wide move-navigation controls, PGN move list, second player/clock, then restart and resign actions. Player sections are deliberately separated so the two clocks are never adjacent; player names and clock values use enlarged, readable type. Flipping the board also swaps the player/clock sections, matching the board orientation; the PGN table uses a larger move font for readability.
 
 ### `pgn-table`
 

@@ -151,7 +151,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   if (pairs.length === 0) {
     return (
       <ScrollArea className="flex-1 min-h-0 h-full">
-        <div className="min-h-full flex items-center justify-center text-xs text-muted-foreground py-6">
+        <div className="min-h-full flex items-center justify-center text-sm text-muted-foreground py-6">
           {t("board.noMoves")}
         </div>
       </ScrollArea>
@@ -173,7 +173,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
           return (
             <div key={num}>
-              <div className="grid grid-cols-[26px_1fr_1fr] items-center text-xs gap-x-0.5 leading-none">
+              <div className="grid grid-cols-[30px_1fr_1fr] items-center text-sm gap-x-0.5 leading-none">
                 {/* Move number */}
                 <span className="text-right text-muted-foreground pr-1 select-none tabular-nums font-mono py-[3px]">
                   {num}.
@@ -194,7 +194,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                     >
                       <span className="font-mono truncate flex-1 text-left">{white}</span>
                       {wTime != null && (
-                        <span className="text-[10px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
+                        <span className="text-[11px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
                           {fmtMoveTime(wTime)}
                         </span>
                       )}
@@ -219,7 +219,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                     >
                       <span className="font-mono truncate flex-1 text-left">{black}</span>
                       {bTime != null && (
-                        <span className="text-[10px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
+                        <span className="text-[11px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
                           {fmtMoveTime(bTime)}
                         </span>
                       )}
@@ -232,7 +232,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
               {/* BranchLine */}
               {(btnAfterW || btnAfterB || trailingInBlackSlot) && selectedBranch && (
-                <div className="ml-[26px] my-0.5 relative">
+                <div className="ml-[30px] my-0.5 relative">
                   <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-branch-border" />
                   <div className="pl-3">
                     <BranchLine
@@ -247,14 +247,14 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
               {trailingInNewRow && (
                 <div>
-                  <div className="grid grid-cols-[26px_1fr_1fr] items-center text-xs gap-x-0.5 leading-none">
+                  <div className="grid grid-cols-[30px_1fr_1fr] items-center text-sm gap-x-0.5 leading-none">
                     <span />
                     <div className="col-span-2 flex items-center">
                       <BranchDots branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchClick} />
                     </div>
                   </div>
                   {selectedBranch && (
-                    <div className="ml-[26px] my-0.5 relative">
+                    <div className="ml-[30px] my-0.5 relative">
                       <div className="absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-branch-border" />
                       <div className="pl-3">
                         <BranchLine branch={selectedBranch} isSelected={true}

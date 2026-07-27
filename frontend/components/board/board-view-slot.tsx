@@ -576,6 +576,7 @@ export function BoardViewSlot({
                                 blackClockMs={blackMs}
                                 activeClockSide={activeSide}
                                 isAdmin={isAdmin}
+                                flipped={flipped}
                             />
                         </div>
                     </div>
