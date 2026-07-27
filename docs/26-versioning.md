@@ -2,7 +2,7 @@
 
 ## Release version
 
-The current application release is `v1.1.1-change4`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
+The current application release is `v1.1.1-change5`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
 
 ## Push and tag workflow
 
@@ -28,7 +28,7 @@ When a base version is confirmed, reset the suffix and publish the next semantic
 To return to a known release, deploy the matching Git tag or inspect it locally:
 
 ```powershell
-git checkout v1.1.1-change4
+git checkout v1.1.1-change5
 ```
 
 For a shared branch, prefer reverting the release commit with `git revert` instead of rewriting published history.

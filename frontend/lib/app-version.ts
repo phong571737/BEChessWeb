@@ -1,4 +1,4 @@
 /** Keep this value aligned with the root and frontend package versions. */
-export const APP_VERSION = "1.1.1-change4";
+export const APP_VERSION = "1.1.1-change5";
 /** Internal change suffixes are used for Git tags only, not shown in the product UI. */
 export const APP_RELEASE_VERSION = APP_VERSION.replace(/-change\d+$/, "");

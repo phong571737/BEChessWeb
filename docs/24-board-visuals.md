@@ -38,6 +38,8 @@ The evaluation display in [frontend/components/board/eval-bar.tsx](../frontend/c
 
 The bar uses `transition-[width] duration-500 ease-out` or `transition-[height] duration-500` depending on orientation.
 
+When Flip board is enabled, both vertical and horizontal evaluation bars mirror their black/white segments and label placement to match the board orientation.
+
 ## Game card mini-board
 
 The home dashboard card in [frontend/components/home/game-card.tsx](../frontend/components/home/game-card.tsx) renders a responsive mini-board that resizes using a `ResizeObserver`.

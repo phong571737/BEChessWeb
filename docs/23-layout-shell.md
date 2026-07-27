@@ -55,6 +55,8 @@ The header keeps locale and theme controls in one Settings menu. It provides exp
 
 The same menu contains the multi-board layout picker and board-display preferences. Flip board/Lật bàn cờ changes every rendered chessboard between White and Black orientation; Evaluation bar/Thanh đánh giá toggles the engine advantage bar without changing game data. Both preferences persist in browser storage.
 
+The Settings menu includes a Mobile app section with a direct Android APK download and a link to the board setup guide.
+
 ## Board color picker
 
 The Settings menu also provides shared chessboard colors. Users can pick one of the Classic, Ocean, Forest, Royal, Slate, or Rosewood palettes, or select any two custom colors for light and dark squares. The selected palette is stored in browser storage and is applied consistently to the full-size board, PGN/review board, and home-page mini boards.

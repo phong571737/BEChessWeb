@@ -6,6 +6,8 @@ interface Props {
     /** Mate in N from White's perspective (+ = White mates, − = Black mates). */
     mate?: number | null;
     orientation?: "vertical" | "horizontal";
+    /** Mirrors the evaluation bar with the board orientation. */
+    flipped?: boolean;
 }
 
 /** Lichess winning-chances → [0, 1] share for White (see lichess-org/lila). */
@@ -39,7 +41,7 @@ function formatEval(cp: number | null | undefined, mate: number | null | undefin
     return "0.0";
 }
 
-export function EvalBar({ cp = null, mate = null, orientation = "vertical" }: Props) {
+export function EvalBar({ cp = null, mate = null, orientation = "vertical", flipped = false }: Props) {
     const hasEval = mate != null || (cp != null && !Number.isNaN(cp));
     const whitePct = whiteWinShare(cp, mate) * 100;
     const blackPct = 100 - whitePct;
@@ -50,18 +52,18 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical" }: Pr
         return (
             <div className="eval-bar eval-bar--horizontal relative w-full h-5 overflow-hidden border border-border">
                 <div
-                    className="absolute inset-y-0 left-0 bg-[#403d39] transition-[width] duration-500 ease-out"
-                    style={{ width: `${blackPct}%` }}
+                    className="absolute inset-y-0 bg-[#403d39] transition-[width] duration-500 ease-out"
+                    style={{ width: `${blackPct}%`, left: flipped ? "auto" : 0, right: flipped ? 0 : "auto" }}
                 />
                 <div
-                    className="absolute inset-y-0 right-0 bg-[#f0f0f0] transition-[width] duration-500 ease-out"
-                    style={{ width: `${whitePct}%` }}
+                    className="absolute inset-y-0 bg-[#f0f0f0] transition-[width] duration-500 ease-out"
+                    style={{ width: `${whitePct}%`, left: flipped ? 0 : "auto", right: flipped ? "auto" : 0 }}
                 />
                 <div
                     className="absolute inset-y-0 flex items-center px-1.5 pointer-events-none"
                     style={{
-                        left: whiteAhead ? "auto" : 0,
-                        right: whiteAhead ? 0 : "auto",
+                        left: whiteAhead === flipped ? 0 : "auto",
+                        right: whiteAhead === flipped ? "auto" : 0,
                     }}
                 >
                     <span
@@ -75,12 +77,12 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical" }: Pr
         );
     }
 
-    // Vertical — black on top, white on bottom (Lichess / Chess.com)
+    // Vertical bar follows the rendered board orientation.
     return (
         <div className="eval-bar eval-bar--vertical relative h-full w-full overflow-hidden border border-border bg-[#f0f0f0]">
             <div
-                className="absolute inset-x-0 top-0 bg-[#403d39] transition-[height] duration-500 ease-out"
-                style={{ height: `${blackPct}%` }}
+                className="absolute inset-x-0 bg-[#403d39] transition-[height] duration-500 ease-out"
+                style={{ height: `${blackPct}%`, top: flipped ? "auto" : 0, bottom: flipped ? 0 : "auto" }}
             />
             {/* Midline tick (equal position) */}
             <div className="absolute inset-x-0 top-1/2 h-px -translate-y-px bg-black/25 pointer-events-none" />
@@ -88,8 +90,8 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical" }: Pr
             <div
                 className="absolute inset-x-0 flex justify-center pointer-events-none"
                 style={{
-                    top: whiteAhead ? "auto" : 4,
-                    bottom: whiteAhead ? 4 : "auto",
+                    top: whiteAhead === flipped ? 4 : "auto",
+                    bottom: whiteAhead === flipped ? "auto" : 4,
                 }}
             >
                 <span

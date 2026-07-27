@@ -28,6 +28,8 @@ It consumes the `gameID` query parameter and loads the corresponding live data t
 
 The paste page is used to convert UCI move input to PGN and review generated branches. Its layout follows the application page standard: a compact bordered page header, a centered `max-w-7xl` content area, and shared background/card/border/primary tokens. The input and preview cards stack through phone, tablet, and standard desktop widths, then become matched-height columns only on wide screens where the app sidebar still leaves adequate room. Every container, grid item, and card is explicitly shrinkable (`min-w-0`) so long controls cannot force content beneath the shell's clipped edge. Compact controls, shorter mobile input/output areas, wrapping actions, and adaptive preset cards prevent horizontal overflow. The import, preview, copy, download, and branch-selection behavior remains unchanged.
 
+The guide page at `/guide` gives the physical-board onboarding sequence: open the website, download the Android companion APK, connect the app and board to Wi-Fi, then verify the starting pieces and physical button. The board-status/button setup details are shown only to authenticated users.
+
 ### `/played`
 
 The played page surfaces historical or previously completed game sessions.

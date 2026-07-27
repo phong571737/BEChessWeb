@@ -233,7 +233,7 @@ export function BoardViewSlot({
     className,
 }: Props) {
     const { t } = useT();
-    const { showEvaluation } = useBoardDisplay();
+    const { showEvaluation, flipped } = useBoardDisplay();
     const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
@@ -543,14 +543,14 @@ export function BoardViewSlot({
 
                                 {evaluationEnabled && (
                                     <div className="hidden lg:block w-[22px] shrink-0 self-stretch min-h-0">
-                        <EvalBar cp={cp} mate={mate} />
+                        <EvalBar cp={cp} mate={mate} flipped={flipped} />
                                     </div>
                                 )}
                             </div>
 
                             {evaluationEnabled && (
                                 <div className="lg:hidden">
-                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" />
+                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} />
                                 </div>
                             )}
                         </div>
