@@ -85,6 +85,11 @@ export const GameResignService = {
         const nextRound = currentRound + 1;
 
         // Save to game played
+        const endedAt = new Date();
+        const startedAt = game.startedAt ?? game.createdAt ?? endedAt;
+        const durationSec = game.startedAt
+            ? Math.max(0, Math.floor((endedAt.getTime() - new Date(game.startedAt).getTime()) / 1_000))
+            : game.durationSec ?? null;
         const doc = {
             gameID,
             pgn: finalPGN,
@@ -93,7 +98,10 @@ export const GameResignService = {
             round: currentRound,
             uciHistory,
             fenHistory,
-            createdAt: new Date(),
+            createdAt: startedAt,
+            startedAt,
+            endedAt,
+            durationSec,
         }
 
         await endGame(doc);

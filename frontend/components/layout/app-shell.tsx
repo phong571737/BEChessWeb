@@ -13,7 +13,7 @@ import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
 import { useAuth } from "@/lib/auth-context";
 import { BOARD_COLOR_PRESETS, useBoardDisplay } from "@/components/providers/board-display-provider";
-import { APP_VERSION } from "@/lib/app-version";
+import { APP_RELEASE_VERSION } from "@/lib/app-version";
 
 const sectionDefs = [
     { key: "nav.home" as const, url: "/", icon: House },
@@ -345,7 +345,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                 </div>
                                                 <button type="button" onClick={() => setSettingsMenuOpen(false)} className="mt-2 w-full rounded-sm bg-secondary px-2 py-1 text-[11px] font-medium text-secondary-foreground hover:bg-surface-hover">{t("settings.done")}</button>
                                             </details>
-                                            <div className="mt-1 border-t border-border px-2.5 py-2 text-[10px] text-muted-foreground">Version v{APP_VERSION}</div>
+                                            <div className="mt-1 border-t border-border px-2.5 py-2 text-[10px] text-muted-foreground">Version v{APP_RELEASE_VERSION}</div>
                                         </div>
                                     )}
                                 </div>

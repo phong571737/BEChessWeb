@@ -28,6 +28,11 @@ export interface GameDoc extends Document {
     fenHistory?: string[];
     updateAt?: Date;
     createdAt?: Date;
+    /** Set when the first accepted move is saved; reset clears this timestamp. */
+    startedAt?: Date | null;
+    /** Updated for each accepted move so active and completed game duration can be calculated. */
+    lastMoveAt?: Date | null;
+    durationSec?: number;
     /** Legacy chess clock fields in seconds, retained for old documents only. */
     clockSeconds?: number;
     clockIncrement?: number;

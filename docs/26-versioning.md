@@ -2,7 +2,7 @@
 
 ## Release version
 
-The current application release is `v1.1.1-change3`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
+The current application release is `v1.1.1-change4`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
 
 ## Push and tag workflow
 
@@ -19,6 +19,8 @@ Use a patch increment for fixes, a minor increment for backward-compatible featu
 
 Until a base-version increase is explicitly confirmed, every code push increments the `change` suffix while retaining the current base version: `v1.1.1-change1`, `v1.1.1-change2`, and so on. The same full value is written to both package manifests and `frontend/lib/app-version.ts`, then used for the commit and annotated Git tag.
 
+The Settings UI deliberately displays only the base version (for example, `v1.1.1`) so internal `change` suffixes do not appear to end users.
+
 When a base version is confirmed, reset the suffix and publish the next semantic version, for example `v1.1.2`; the next unconfirmed code push becomes `v1.1.2-change1`.
 
 ## Rollback
@@ -26,7 +28,7 @@ When a base version is confirmed, reset the suffix and publish the next semantic
 To return to a known release, deploy the matching Git tag or inspect it locally:
 
 ```powershell
-git checkout v1.1.1-change3
+git checkout v1.1.1-change4
 ```
 
 For a shared branch, prefer reverting the release commit with `git revert` instead of rewriting published history.

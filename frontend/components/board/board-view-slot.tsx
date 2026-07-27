@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -234,7 +234,7 @@ export function BoardViewSlot({
 }: Props) {
     const { t } = useT();
     const { showEvaluation } = useBoardDisplay();
-    const { isAdmin } = useAuth();
+    const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
     const evaluationEnabled = enableEval && showEvaluation;
@@ -251,7 +251,7 @@ export function BoardViewSlot({
 
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
-        missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves,
+        missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
         initialTimeMs, incrementMs, resetRevision,
     } = useGame(gameID);
 
@@ -275,6 +275,17 @@ export function BoardViewSlot({
 
     const displayFen = navigationState.fen ?? fen;
     const displayLastMove = navigationState.fen ? navigationState.lastMove : lastMove;
+    const initNotice = !compact && isAuthenticated
+        ? initStatus === GAME_STATUS.READY
+            ? { icon: CircleCheckBig, className: "border-success/35 bg-success/10 text-success", text: t("board.initReady") }
+            : initStatus === "waiting_button"
+                ? { icon: CircleAlert, className: "border-warning/35 bg-warning/10 text-warning", text: t("board.initButton") }
+                : initStatus === "missing_piece" || initStatus === "wrong_piece"
+                    ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: t("board.initPieces") }
+                    : initStatus === GAME_STATUS.CHECK_INIT
+                        ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initChecking") }
+                        : null
+        : null;
 
     const handleUnavailable = useCallback(() => {
         if (unavailableHandled.current) return;
@@ -498,6 +509,12 @@ export function BoardViewSlot({
 
     return (
         <div className={cn("flex flex-col h-full min-h-0", className)}>
+            {initNotice && (
+                <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", initNotice.className)} role="status">
+                    <initNotice.icon className="size-4 shrink-0" />
+                    <span>{initNotice.text}</span>
+                </div>
+            )}
             <div className="flex-1 min-h-0 p-2 sm:p-3">
                 <div className="max-w-[1600px] mx-auto h-full">
                     <div className="grid grid-cols-1 gap-2 items-start

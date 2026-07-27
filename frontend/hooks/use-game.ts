@@ -14,7 +14,7 @@ export interface boardAlert {
 }
 
 export function useGame(gameID: string) {
-    const { patchBoard, boards } = useGameStore();
+    const { patchBoard, boards, patchPhysicalBoard } = useGameStore();
     const socket = useSocket();
     const chessRef = useRef<Chess>(new Chess());
     const initialMoveCountRef = useRef<number>(0);
@@ -181,6 +181,7 @@ export function useGame(gameID: string) {
                 const initStatus = data.status === "checkinit" ? GAME_STATUS.CHECK_INIT : data.status;
                 patchBoard(gameID, {
                     initStatus,
+                    buttonReady: data.buttonReady === true,
                     missingSquares: data.missingSquares || [],
                     extraSquares: data.extraSquares || [],
                     wrongPieceSquares: data.wrongPieceSquares || [],
@@ -205,7 +206,7 @@ export function useGame(gameID: string) {
         return () => clearInterval(interval);
     }, [gameID, isLoaded, resetRevision]);
 
-    const applyGameReset = useCallback((data: { resetAt?: number; initialTimeMs?: number; incrementMs?: number } = {}) => {
+    const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number } = {}) => {
         const resetAt = data.resetAt ?? Date.now();
         chessRef.current.reset();
         initialMoveCountRef.current = 0;
@@ -230,6 +231,7 @@ export function useGame(gameID: string) {
             branches: [],
             selectedBranchId: null,
             initStatus: GAME_STATUS.CHECK_INIT,
+            buttonReady: false,
             missingSquares: [],
             extraSquares: [],
             wrongPieceSquares: [],
@@ -237,7 +239,10 @@ export function useGame(gameID: string) {
             ...(data.incrementMs !== undefined ? { incrementMs: data.incrementMs } : {}),
             resetRevision: resetAt,
         });
-    }, [gameID, patchBoard, storageKey]);
+        if (data.boardID) {
+            patchPhysicalBoard({ boardID: data.boardID, gameID, gameStatus: "waiting", online: true });
+        }
+    }, [gameID, patchBoard, patchPhysicalBoard, storageKey]);
 
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
@@ -522,6 +527,7 @@ export function useGame(gameID: string) {
 
         // initcheck
         initStatus: board?.initStatus ?? GAME_STATUS.WAITING,
+        buttonReady: board?.buttonReady ?? false,
         missingSquares: board?.missingSquares ?? [],
         extraSquares: board?.extraSquares ?? [],
         wrongPieceSquares: board?.wrongPieceSquares ?? [],

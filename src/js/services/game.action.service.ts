@@ -9,7 +9,7 @@ import { getBoardIDByGame } from "../game/game.manager.js";
 
 export const GameActionService = {
     // Restart keeps the existing game/session identity so clients and board mapping stay connected.
-    async restart(gameID: string): Promise<GameIDPayload & { initialTimeMs?: number; incrementMs?: number }> {
+    async restart(gameID: string): Promise<GameIDPayload & { boardID: string; initialTimeMs?: number; incrementMs?: number }> {
         const game = await getGame(gameID);
         if (!game) {
             throw new Error(ERROR_STATUS.NOTFOUND);
@@ -32,12 +32,15 @@ export const GameActionService = {
             totalMoves: 0,
             result: "*",
             status: "waiting",
+            startedAt: null,
+            lastMoveAt: null,
+            durationSec: 0,
             branches: [],
             uciHistory: [],
             fenHistory: [],
         });
         // A physical-board scan must validate the reset position before a new game can start.
-        gameState.set(boardID, { gameID, gameStatus: "checkinit", wrongSquares: [], missingSquares: [] });
+        gameState.set(boardID, { gameID, gameStatus: "checkinit", initResultStatus: "checkinit", buttonReady: false, wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);
         // Home-page physical-board cards are not members of the game room.
         // Broadcast the retained board/game association so the card remains visible after restart.
@@ -53,6 +56,7 @@ export const GameActionService = {
 
         return {
             gameID,
+            boardID,
             initialTimeMs,
             incrementMs,
         }

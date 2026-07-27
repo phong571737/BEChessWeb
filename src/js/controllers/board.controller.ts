@@ -136,6 +136,8 @@ export const BoardController = {
             const wrongPieceSquares = "wrongPieceSquares" in result ? result.wrongPieceSquares : [];
             gameState.set(boardID, {
                 gameStatus: finalStatus === BOARD_STATUS.READY ? BOARD_STATUS.READY : BOARD_STATUS.CHECK_INIT,
+                initResultStatus: finalStatus,
+                buttonReady: buttonState === true,
                 missingSquares: result.missingSquares || [],
                 extraSquares,
                 wrongPieceSquares,

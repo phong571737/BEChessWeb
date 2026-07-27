@@ -1,5 +1,5 @@
 import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
-import { saveGame } from "../models/game.model.js";
+import { getGame, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
@@ -92,9 +92,13 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, departur
 async function afterMove(
     gameID: string, state: MoveState, uci: string | undefined, seq: number, boardType: string, fen?: string 
 ): Promise<void> {
+    const now = new Date();
+    const persistedGame = await getGame(gameID);
+    const startedAt = persistedGame?.startedAt ?? now;
+    const durationSec = Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 1_000));
     await saveGame(
         gameID, 
-        { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove}, 
+        { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove, startedAt, lastMoveAt: now, durationSec },
         { uci, fen, seq, boardType }
     ); // save db
     const roomSize = getIO().sockets.adapter.rooms.get(gameID)?.size ?? 0;

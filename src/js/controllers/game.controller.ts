@@ -58,6 +58,7 @@ export const GameController = {
                 return res.status(200).json({
                     gameID,
                     status: GAME_STATUS.WAITING,
+                    buttonReady: false,
                     missingSquares: [],
                     extraSquares: [],
                     wrongPieceSquares: [],
@@ -67,7 +68,8 @@ export const GameController = {
             // current initcheck state
             return res.status(200).json({
                 gameID,
-                status: state.gameStatus,
+                status: state.initResultStatus ?? state.gameStatus,
+                buttonReady: state.buttonReady === true,
                 missingSquares: state.missingSquares || [],
                 extraSquares: state.extraSquares || [],
                 wrongPieceSquares: state.wrongPieceSquares || [],

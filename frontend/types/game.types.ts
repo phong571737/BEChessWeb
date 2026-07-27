@@ -65,7 +65,8 @@ export interface BoardState {
     scanReason: "MISSING" | "DUPLICATE" | null;
 
     // Check init state
-    initStatus: "waiting" | "ready" | "check_init";
+    initStatus: "waiting" | "ready" | "check_init" | "waiting_button" | "wrong_piece" | "missing_piece";
+    buttonReady?: boolean;
     missingSquares: string[];
     extraSquares: string[];
     wrongPieceSquares: string[];

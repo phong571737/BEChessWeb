@@ -92,3 +92,6 @@ The data model assumes:
 - [06-api-rest.md](06-api-rest.md) explains which REST routes read and write these collections.
 - [08-domain-model.md](08-domain-model.md) describes the game document shape in domain terms.
 - [09-services.md](09-services.md) explains how the service layer uses the DB wrappers.
+## Game duration fields
+
+Live game documents store `startedAt` when the first accepted move is processed, `lastMoveAt` after every accepted move, and `durationSec` as the elapsed number of seconds. Restart clears these values. Completed-history documents retain `startedAt`, `endedAt`, and `durationSec` so the Played and Move Review pages can display the actual game duration.

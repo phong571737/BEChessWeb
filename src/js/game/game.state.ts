@@ -8,6 +8,8 @@ export interface GameStateData {
     gameStatus: GameStatus;
     wrongSquares: string[];
     missingSquares: string[];
+    initResultStatus?: string;
+    buttonReady?: boolean;
     [key: string]: unknown;
 }
 
