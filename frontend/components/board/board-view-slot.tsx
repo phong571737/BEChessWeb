@@ -52,8 +52,8 @@ function SlotSkeleton({ compact }: { compact?: boolean }) {
                 <div className="
           grid grid-cols-1 gap-2 items-start
           sm:gap-3 sm:h-full sm:items-stretch
-          sm:grid-cols-[minmax(0,1fr)_clamp(200px,28vw,260px)]
-          lg:grid-cols-[minmax(0,1fr)_clamp(260px,22vw,320px)]
+          sm:grid-cols-[minmax(0,1fr)_clamp(240px,30vw,310px)]
+          lg:grid-cols-[minmax(0,1fr)_clamp(300px,24vw,380px)]
         ">
                     <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
                         <div className="flex gap-1.5 sm:flex-1 sm:min-h-0">
@@ -519,8 +519,8 @@ export function BoardViewSlot({
                 <div className="max-w-[1600px] mx-auto h-full">
                     <div className="grid grid-cols-1 gap-2 items-start
                      sm:gap-3 h-full sm:items-stretch
-                    sm:grid-cols-[minmax(0,1fr)_clamp(200px,28vw,260px)]
-                    lg:grid-cols-[minmax(0,1fr)_clamp(260px,22vw,320px)]
+                    sm:grid-cols-[minmax(0,1fr)_clamp(240px,30vw,310px)]
+                    lg:grid-cols-[minmax(0,1fr)_clamp(300px,24vw,380px)]
                     ">
                         <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
                             <div className="flex gap-1.5 min-w-0 sm:flex-1 sm:min-h-0 items-stretch">

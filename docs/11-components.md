@@ -26,7 +26,7 @@ The app shell is the global layout wrapper. It provides:
 
 ### `game-grid`
 
-The game grid shows current game cards. It is driven by `useActiveGames` and the Zustand `activeGames` collection.
+The game grid shows current game cards. It is driven by `useActiveGames` and the Zustand `activeGames` collection. A physical board with an existing active, waiting, or initialization session opens that same game; it does not reopen the start-game dialog after an ESP restart.
 
 ### `board-view-slot`
 
@@ -34,7 +34,7 @@ This is the primary chessboard display slot component. It is responsible for ren
 
 ### `game-panel`
 
-Provides the interaction and control panel for game activities such as restart, resign, and branch actions.
+Provides the interaction and control panel for game activities such as restart, resign, and branch actions. Its vertical order is the first player/clock, wide move-navigation controls, PGN move list, second player/clock, then restart and resign actions. Player sections are deliberately separated so the two clocks are never adjacent; player names and clock values use enlarged, readable type.
 
 ### `pgn-table`
 

@@ -51,8 +51,14 @@ export function GameGrid() {
             return;
         }
 
-        const isActiveBoard = board.gameID != null && board.gameStatus === GAME_STATUS.ACTIVE;
-        if (isActiveBoard && board.gameID) {
+        // A restarted ESP board keeps its game session while it waits for initialization.
+        // Open that session instead of presenting the start-game dialog again.
+        const hasOpenSession = board.gameID != null && [
+            GAME_STATUS.ACTIVE,
+            GAME_STATUS.WAITING,
+            "checkinit",
+        ].includes(board.gameStatus ?? "");
+        if (hasOpenSession && board.gameID) {
             router.push(`/board?id=${encodeGameID(board.gameID)}`);
             return;
         }

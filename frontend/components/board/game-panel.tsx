@@ -169,103 +169,72 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     return (
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
-            <div className="flex items-center gap-2 px-3 py-2 border-b border-border">
-
+            {/* The two clocks intentionally live in separate player sections. */}
+            <div className={cn(
+                "flex items-center gap-3 px-4 py-3 border-l-[3px] border-b border-border transition-all duration-200",
+                !isWhiteTurn ? "border-l-red-500 bg-red-500/10" : "border-l-transparent"
+            )}>
+                <div className="size-4 rounded-full bg-[#1a1a1a] border border-white/20 shrink-0 dark:border-white/10" />
+                <span className={cn("min-w-0 truncate text-sm font-semibold transition-colors", !isWhiteTurn && "text-red-600 dark:text-red-400")}>
+                    {BlackName}
+                </span>
+                {!isWhiteTurn && <span className="size-2 rounded-full bg-red-500 animate-pulse shrink-0" />}
+                {blackClockMs !== undefined && (
+                    <span className={cn("ml-auto shrink-0 font-mono text-lg font-semibold tabular-nums", activeClockSide === "black" ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
+                        {formatClockMs(blackClockMs)}
+                    </span>
+                )}
             </div>
 
-            {/* Player with turn indicator + inline clock */}
-            <div className="border-b border-border">
-                {/* Black player — red border + bg when it's black's turn */}
-                <div className={cn(
-                    "flex items-center gap-2.5 px-3 py-[7px] transition-all duration-200 border-l-[3px]",
-                    !isWhiteTurn
-                        ? "border-red-500 bg-red-500/10"
-                        : "border-transparent"
-                )}>
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#1a1a1a] border border-white/20 shrink-0 dark:border-white/10" />
-                    <span className={cn(
-                        "text-xs font-medium min-w-0 transition-colors",
-                        !isWhiteTurn ? "text-red-600 dark:text-red-400" : ""
-                    )}>
-                        {BlackName}
-                    </span>
-                    {!isWhiteTurn && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse shrink-0" />
-                    )}
-                    {/* Clock on the right side */}
-                    {blackClockMs !== undefined && (
-                        <span className={cn(
-                            "ml-auto font-mono text-xs tabular-nums",
-                            activeClockSide === "black" ? "text-red-600 dark:text-red-400 font-semibold" : "text-muted-foreground"
-                        )}>
-                            {formatClockMs(blackClockMs)}
-                        </span>
-                    )}
+            {/* ── Navigation controls ── */}
+            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/20">
+                <div className="grid flex-1 grid-cols-4 gap-1">
+                    <Button variant="ghost" size="icon" className="h-9 w-full" onClick={goStart} disabled={activeCursor === 0}>
+                        <ChevronsLeft className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-full" onClick={goBack} disabled={activeCursor === 0}>
+                        <ChevronLeft className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-full" onClick={goNext} disabled={activeCursor === totalMoves}>
+                        <ChevronRight className="size-4" />
+                    </Button>
+                    <Button variant="ghost" size="icon" className="h-9 w-full" onClick={goEnd} disabled={activeCursor === totalMoves}>
+                        <ChevronsRight className="size-4" />
+                    </Button>
                 </div>
-
-                {/* White player — green border + bg when it's white's turn */}
-                <div className={cn(
-                    "flex items-center gap-2.5 px-3 py-[7px] transition-all duration-200 border-l-[3px]",
-                    isWhiteTurn
-                        ? "border-green-500 bg-green-500/10"
-                        : "border-transparent"
-                )}>
-                    <div className="w-3.5 h-3.5 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
-                    <span className={cn(
-                        "text-xs font-medium min-w-0 transition-colors",
-                        isWhiteTurn ? "text-green-700 dark:text-green-400" : ""
-                    )}>
-                        {WhiteName}
-                    </span>
-                    {isWhiteTurn && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse shrink-0" />
-                    )}
-                    {/* Clock on the right side */}
-                    {whiteClockMs !== undefined && (
-                        <span className={cn(
-                            "ml-auto font-mono text-xs tabular-nums",
-                            activeClockSide === "white" ? "text-green-700 dark:text-green-400 font-semibold" : "text-muted-foreground"
-                        )}>
-                            {formatClockMs(whiteClockMs)}
-                        </span>
-                    )}
-                </div>
+                <span className="shrink-0 text-xs text-muted-foreground font-mono tabular-nums select-none">
+                    {activeCursor}/{totalMoves}
+                </span>
             </div>
 
             {/* ── PGN move list ── */}
-            <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0">
+            <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0 border-b border-border">
                 <PGNTable
-                pgn={activePGN}
-                mainPgn={mainPgnBeforeBranch || pgn}
-                // cursor={cursor === -1 ? totalMoves : cursor}
-                cursor={activeCursor}
-                moveTimesMap={moveTimesMap}
-                onGoTo={(idx) => goTo(idx)}
-                branches={branches}
-                selectedBranchId={selectedBranchId}
-                onBranchSelect={handleBranchSelect}
+                    pgn={activePGN}
+                    mainPgn={mainPgnBeforeBranch || pgn}
+                    cursor={activeCursor}
+                    moveTimesMap={moveTimesMap}
+                    onGoTo={(idx) => goTo(idx)}
+                    branches={branches}
+                    selectedBranchId={selectedBranchId}
+                    onBranchSelect={handleBranchSelect}
                 />
             </div>
-                    
-            {/* ── Navigation controls ── */}
-            <div className="flex items-center justify-between px-2 py-1.5 border-t border-border">
-                <div className="flex items-center gap-0.5">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goStart} disabled={activeCursor === 0}>
-                    <ChevronsLeft  className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goBack}  disabled={activeCursor === 0}>
-                    <ChevronLeft   className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goNext}  disabled={activeCursor === totalMoves}>
-                    <ChevronRight  className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={goEnd}   disabled={activeCursor === totalMoves}>
-                    <ChevronsRight className="h-3.5 w-3.5" />
-                </Button>
-                </div>
-                <span className="text-xs text-muted-foreground font-mono tabular-nums pr-1 select-none">
-                {activeCursor}/{totalMoves}
+
+            <div className={cn(
+                "flex items-center gap-3 px-4 py-3 border-l-[3px] border-b border-border transition-all duration-200",
+                isWhiteTurn ? "border-l-green-500 bg-green-500/10" : "border-l-transparent"
+            )}>
+                <div className="size-4 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
+                <span className={cn("min-w-0 truncate text-sm font-semibold transition-colors", isWhiteTurn && "text-green-700 dark:text-green-400")}>
+                    {WhiteName}
                 </span>
+                {isWhiteTurn && <span className="size-2 rounded-full bg-green-500 animate-pulse shrink-0" />}
+                {whiteClockMs !== undefined && (
+                    <span className={cn("ml-auto shrink-0 font-mono text-lg font-semibold tabular-nums", activeClockSide === "white" ? "text-green-700 dark:text-green-400" : "text-muted-foreground")}>
+                        {formatClockMs(whiteClockMs)}
+                    </span>
+                )}
             </div>
 
             {/* ── Game actions ── */}
