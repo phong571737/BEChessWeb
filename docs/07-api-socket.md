@@ -37,7 +37,7 @@ This room-based structure gives the system three important properties:
 | `initcheck` | Server → Room | Broadcasts board initialization readiness information |
 | `board_connected` | Server → Room | Marks a board or client session as connected |
 | `update_all_game` | Server → Room | Forces clients to invalidate caches and refresh the game view |
-| `game_restart` | Server → Room | Signals that the current game session has been restarted |
+| `game:reset` | Server → Room | Resets the current game in place while retaining its `gameID` |
 | `game:renamed` | Server → Room | Propagates administrator-authorized player-name and clock-configuration changes |
 
 ## Event details
@@ -91,6 +91,10 @@ This event keeps the board initialization status synchronized with the physical 
 ### `update_all_game`
 
 This is a refresh-oriented event that tells connected clients to invalidate cached game data and reload the latest view after lifecycle transitions.
+
+### `game:reset`
+
+This room-scoped event carries `gameID`, `boardID`, the standard starting `fen`, and `resetAt`. The browser clears local move, branch, and clock state and returns to the starting position without changing the URL or game identity.
 
 ### `game:renamed`
 

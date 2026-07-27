@@ -121,7 +121,7 @@ Updates PGN content and restores engine state from the updated document.
 
 ### `POST /games/:id/restart`
 
-Creates a brand-new game alongside the same board identity.
+Resets the existing game in place. The `gameID` and board association are retained; FEN returns to the standard start position, PGN/moves/branches/results are cleared, and connected clients receive a `game:reset` event.
 
 ### `POST /games/:id/destroy`
 
@@ -175,7 +175,7 @@ The REST routes rely on several domain rules:
 - `boardID` is required to create a game.
 - `boardType` determines whether the move validator processes NFC or HALL input.
 - `gameID` is the canonical route identifier for game-specific actions.
-- A game can be restarted only if the old game still has a valid board association.
+- A game can be restarted only if it still has a valid board association; restart never creates a replacement `gameID`.
 - A resignation requests a result tag and may create a new game session after persisting the old result.
 
 ## Cross references

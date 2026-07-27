@@ -1,68 +1,51 @@
 import { resetGame } from "../game/game.manager.js";
 import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
+import { gameState, emitGameState } from "../game/game.state.js";
 import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
-import { GameService } from "./game.service.js";
 import { GameIDPayload } from "../types/game.types.js";
 import { getBoardIDByGame } from "../game/game.manager.js";
 
 export const GameActionService = {
-    // restart game when the restart button is pressed
-    async restart(oldGameID: string): Promise<GameIDPayload> {
-        // close the old game
-        const oldGame = await getGame(oldGameID);
-
-        if (!oldGame) {
+    // Restart keeps the existing game/session identity so clients and board mapping stay connected.
+    async restart(gameID: string): Promise<GameIDPayload> {
+        const game = await getGame(gameID);
+        if (!game) {
             throw new Error(ERROR_STATUS.NOTFOUND);
         }
-        const boardID = oldGame.boardID ?? getBoardIDByGame(oldGameID);
+        const boardID = game.boardID ?? getBoardIDByGame(gameID);
         if (!boardID) {
-            throw new Error(`Game ${oldGameID} is missing boardID`);
+            throw new Error(`Game ${gameID} is missing boardID`);
         }
-        
-        const newGameID: string = crypto.randomUUID(); // create a new game id
-        
-        // Create a new game from the same board
-        const newGame = await GameService.create(
-            boardID,
-            newGameID,
-            (oldGame.round ?? 0) + 1,
-            oldGame.WhiteName ?? "",
-            oldGame.BlackName ?? "",
-            oldGame.initialTimeMs ?? (oldGame.clockSeconds ? oldGame.clockSeconds * 1_000 : undefined),
-            oldGame.incrementMs ?? (oldGame.clockIncrement ? oldGame.clockIncrement * 1_000 : undefined),
-        );
-        await removeGame(oldGameID); // remove old game from DB
 
-        // Xóa hoàn toàn game cũ khỏi RAM
-        games.delete(oldGameID);
-        gameSeq.delete(oldGameID);
-        activeBranches.delete(oldGameID);
-        rawMoveHistory.delete(oldGameID);
-        pgnBaseFen.delete(oldGameID);
-
-        getIO().emit("game_restart", {
-            oldGameID,
-            gameID: newGameID,
-            boardID: oldGame.boardID,
-        });
-
-        return {
-            gameID: newGameID
-        }
-    },
-
-    // reset game 
-    async reset(gameID: string): Promise<void> {
-        // Reset server 
-        resetGame(gameID);
+        const reset = resetGame(gameID);
+        const resetAt = Date.now();
         await saveGame(gameID, {
-            fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+            fen: reset.fen(),
+            initialFen: reset.fen(),
             pgn: "",
             lastMove: null,
             lastSeq: 0,
+            totalMoves: 0,
+            result: "*",
+            status: "waiting",
+            branches: [],
+            uciHistory: [],
+            fenHistory: [],
         });
+        gameState.set(boardID, { gameID, gameStatus: "ready", wrongSquares: [], missingSquares: [] });
+        emitGameState(boardID);
+        getIO().to(gameID).emit("game:reset", { gameID, boardID, fen: reset.fen(), resetAt });
+
+        return {
+            gameID
+        }
+    },
+
+    // Kept for the reset endpoint; it uses the same in-place restart behavior.
+    async reset(gameID: string): Promise<void> {
+        await GameActionService.restart(gameID);
     },
 
     async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number): Promise<void> {

@@ -75,6 +75,8 @@ export interface BoardState {
     selectedBranchId: string | null;
 
     errorSquares: string[];
+    /** Changes on an in-place restart so local UI state, including clocks, can reset. */
+    resetRevision?: number;
 
     /** Chess clock configuration in milliseconds. */
     initialTimeMs?: number;

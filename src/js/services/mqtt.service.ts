@@ -4,7 +4,8 @@ import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
-import { removeCurrenGame } from "../game/game.manager.js";
+import { getCurrentGame, removeCurrenGame } from "../game/game.manager.js";
+import { GameActionService } from "./game.action.service.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -66,6 +67,26 @@ async function cleanupBoard(boardID: string) {
 // This function is used to handle message
 async function handleMessage(topic: string, message: Buffer) {
     const parts = topic.split('/');
+
+    if (parts.length === 3 && parts[0] === "chess" && parts[2] === "command") {
+        const boardID = parts[1];
+        if (!boardID) return;
+        try {
+            const payload = JSON.parse(message.toString()) as { command?: string };
+            if (payload.command !== "restart_game_esp" && payload.command !== "restart_game") return;
+
+            const gameID = getCurrentGame(boardID);
+            if (!gameID) {
+                console.warn(`[MQTT] Ignoring ${payload.command}: no active game for board ${boardID}`);
+                return;
+            }
+            console.log(`[MQTT] ${payload.command} received for board ${boardID}, game ${gameID}`);
+            await GameActionService.restart(gameID);
+        } catch (e) {
+            console.log("[MQTT] Command parse or restart error: ", e);
+        }
+        return;
+    }
 
     if (parts.length === 3 && parts[0] === 'chess' && parts[2] === 'status') {
         const boardID = parts[1];
@@ -139,7 +160,14 @@ export function initMqtt() {
             } else {
                 console.log(`[MQTT] Subscribed to chess/+/status`);
             }
-        })
+        });
+        mqttClient!.subscribe("chess/+/command", { qos: 1 }, (err) => {
+            if (err) {
+                console.error("[MQTT] Command subscribe failed:", err);
+            } else {
+                console.log("[MQTT] Subscribed to chess/+/command");
+            }
+        });
     })
 
     mqttClient.on('message', handleMessage); // handle message on and off

@@ -2,11 +2,11 @@
 
 ## Release version
 
-The current application release is `v1.1.1`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
+The current application release is `v1.1.1-change1`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
 
 ## Push and tag workflow
 
-Each GitHub release should use a semantic version tag after the commit is pushed:
+Each confirmed GitHub version release uses a semantic version tag after the commit is pushed:
 
 ```powershell
 git tag -a v1.1.1 -m "Release v1.1.1"
@@ -15,12 +15,18 @@ git push origin v1.1.1
 
 Use a patch increment for fixes, a minor increment for backward-compatible features, and a major increment for breaking changes.
 
+## Change releases
+
+Until a base-version increase is explicitly confirmed, every code push increments the `change` suffix while retaining the current base version: `v1.1.1-change1`, `v1.1.1-change2`, and so on. The same full value is written to both package manifests and `frontend/lib/app-version.ts`, then used for the commit and annotated Git tag.
+
+When a base version is confirmed, reset the suffix and publish the next semantic version, for example `v1.1.2`; the next unconfirmed code push becomes `v1.1.2-change1`.
+
 ## Rollback
 
 To return to a known release, deploy the matching Git tag or inspect it locally:
 
 ```powershell
-git checkout v1.1.1
+git checkout v1.1.1-change1
 ```
 
 For a shared branch, prefer reverting the release commit with `git revert` instead of rewriting published history.

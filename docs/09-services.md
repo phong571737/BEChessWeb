@@ -61,6 +61,7 @@ Responsibilities:
 - monitor board online/offline topics,
 - notify the application when board connectivity changes,
 - support board cleanup after offline or destroyed states.
+- subscribe to `chess/+/command` and process `restart_game_esp` or `restart_game` by resetting the active board game in place.
 
 ### [src/js/services/log.service.ts](../src/js/services/log.service.ts)
 

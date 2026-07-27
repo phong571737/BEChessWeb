@@ -118,6 +118,16 @@ docker compose up -d
 docker compose ps
 ```
 
+## Local development
+
+Start the backend with automatic TypeScript reload:
+
+```powershell
+npm run dev
+```
+
+The development launcher reads `PORT` from `.env` (default `8080`). If a stale Node.js development process is already listening on that port, it stops that process before starting Nodemon. If a different application owns the port, it exits with the process details instead of stopping an unrelated program.
+
 ### Step 4: Verify Deployment
 
 ```bash

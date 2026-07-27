@@ -12,6 +12,7 @@ interface UseChessClockOptions {
   moveCount: number;
   initialTimeMs?: number;
   incrementMs?: number;
+  resetRevision?: number;
 }
 
 // Single fallback for games created before clock fields existed.
@@ -83,6 +84,7 @@ export function useChessClock({
   moveCount,
   initialTimeMs = DEFAULT_INITIAL_TIME_MS,
   incrementMs = DEFAULT_INCREMENT_MS,
+  resetRevision,
 }: UseChessClockOptions) {
   // This placeholder is never rendered: the board stays in its loading state
   // until the game configuration has been fetched.
@@ -97,6 +99,7 @@ export function useChessClock({
   const previousMoveCountRef = useRef(0);
   const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
   const initializedGameRef = useRef<string | null>(null);
+  const appliedResetRevisionRef = useRef<number | undefined>(undefined);
 
   // ── Initialize only after the persisted game configuration has loaded ──
   useEffect(() => {
@@ -138,6 +141,21 @@ export function useChessClock({
     }
     initializedGameRef.current = gameID;
   }, [gameID, initialTimeMs, isEnded, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || resetRevision === undefined || appliedResetRevisionRef.current === resetRevision) return;
+    appliedResetRevisionRef.current = resetRevision;
+    const now = Date.now();
+    clearClockData(gameID);
+    whiteMsRef.current = initialTimeMs;
+    blackMsRef.current = initialTimeMs;
+    activeSideRef.current = "white";
+    lastTickRef.current = now;
+    previousMoveCountRef.current = 0;
+    setWhiteMs(initialTimeMs);
+    setBlackMs(initialTimeMs);
+    setActiveSide("white");
+  }, [gameID, initialTimeMs, isLoaded, resetRevision]);
 
   useEffect(() => {
     if (!isLoaded || !fen) return;

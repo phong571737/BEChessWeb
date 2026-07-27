@@ -30,8 +30,8 @@ export const GameActionController = {
         try {
             const gameID = req.params.id;
             console.log("Restart game:", gameID);
-            await GameActionService.restart(gameID);
-            res.json({ ok: true });
+            const result = await GameActionService.restart(gameID);
+            res.json({ ok: true, ...result });
         } catch (e) {
             console.log("Restart error: ", e);
             const message = e instanceof Error ? e.message : String(e);

@@ -252,7 +252,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves,
-        initialTimeMs, incrementMs,
+        initialTimeMs, incrementMs, resetRevision,
     } = useGame(gameID);
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
@@ -264,6 +264,7 @@ export function BoardViewSlot({
         moveCount: moves.length,
         initialTimeMs,
         incrementMs,
+        resetRevision,
     });
 
     const prevFenRef = useRef<string>(fen);

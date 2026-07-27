@@ -77,3 +77,6 @@ If any of these are missing or unreachable, the app may start partially but real
 - [04-environment.md](04-environment.md) explains the required runtime variables.
 - [05-database.md](05-database.md) explains the persistence layer after connection.
 - [07-api-socket.md](07-api-socket.md) explains what the socket layer becomes available for after boot.
+## Development boot sequence
+
+`npm run dev` calls [tools/start-dev.ps1](../tools/start-dev.ps1). The launcher reads the backend port from `.env`, stops only a stale Node.js process that is already listening on that port, and then starts `nodemon --exec "tsx src/js/server.ts" --ext ts,js,json`. A non-Node process is never stopped automatically; the command reports its PID and asks the operator to free the port or change `PORT`.

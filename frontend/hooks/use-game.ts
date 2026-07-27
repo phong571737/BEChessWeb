@@ -203,6 +203,33 @@ export function useGame(gameID: string) {
         return () => clearInterval(interval);
     }, [gameID, isLoaded]);
 
+    const applyGameReset = useCallback((resetAt = Date.now()) => {
+        chessRef.current.reset();
+        initialMoveCountRef.current = 0;
+        sessionTs.current = [];
+        mainPgnAtBranchRef.current = "";
+        selectedBranchIdRef.current = null;
+        setMoveTimesMap({});
+        setLastMoveAt(resetAt);
+        try {
+            sessionStorage.removeItem(storageKey);
+            sessionStorage.removeItem(`chess:clock:${gameID}`);
+            sessionStorage.removeItem(`chess:branch:${gameID}`);
+        } catch {
+            // Browser storage can be unavailable; the in-memory reset is still authoritative.
+        }
+        patchBoard(gameID, {
+            fen: chessRef.current.fen(),
+            pgn: "",
+            lastMove: null,
+            result: undefined,
+            status: GAME_STATUS.WAITING,
+            branches: [],
+            selectedBranchId: null,
+            resetRevision: resetAt,
+        });
+    }, [gameID, patchBoard, storageKey]);
+
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
         if (!socket || !gameID || !isLoaded) return;
@@ -327,6 +354,10 @@ export function useGame(gameID: string) {
 
         const onGameRestart = (data: any) => {
             if (data?.oldGameID && data.oldGameID !== gameID) return;
+            if (data?.gameID === gameID && data?.oldGameID === gameID) {
+                applyGameReset(data.resetAt);
+                return;
+            }
             console.log("[SOCKET] game_restart received for game:", gameID);
             patchBoard(gameID, { status: GAME_STATUS.ENDED });
             invalidateFetchCache(`/games/${gameID}`);
@@ -334,8 +365,18 @@ export function useGame(gameID: string) {
             invalidateFetchCache("/games/history");
         };
 
+        const onGameReset = (data: any) => {
+            if (data?.gameID !== gameID) return;
+            console.log("[SOCKET] game:reset received for game:", gameID);
+            applyGameReset(data.resetAt);
+            invalidateFetchCache(`/games/${gameID}`);
+            invalidateFetchCache("/games/current");
+            invalidateFetchCache("/games/history");
+        };
+
         socket.on("update_all_game", onUpdateAllGame);
         socket.on("game_restart", onGameRestart);
+        socket.on("game:reset", onGameReset);
 
         return () => {
             socket.off(SERVER_EVENT.ESP_MOVE, onMove);
@@ -343,8 +384,9 @@ export function useGame(gameID: string) {
             socket.off(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
             socket.off("update_all_game", onUpdateAllGame);
             socket.off("game_restart", onGameRestart);
+            socket.off("game:reset", onGameReset);
         }
-    }, [socket, gameID, isLoaded]);
+    }, [socket, gameID, isLoaded, applyGameReset]);
 
     
 
@@ -378,8 +420,9 @@ export function useGame(gameID: string) {
     // ----- Game actions ---------------------------------------
     const restart = async () => {
         try {
-            await fetch(`/games/${gameID}/restart`, { method: "POST" });
-            patchBoard(gameID, { status: GAME_STATUS.ENDED });
+            const response = await fetch(`/games/${gameID}/restart`, { method: "POST" });
+            if (!response.ok) throw new Error(`Restart failed with ${response.status}`);
+            applyGameReset();
         } catch (e) {
             console.error("Restart error:", e);
         }
@@ -483,5 +526,6 @@ export function useGame(gameID: string) {
         // chess clock
         initialTimeMs: board?.initialTimeMs,
         incrementMs: board?.incrementMs,
+        resetRevision: board?.resetRevision,
     }
 }
