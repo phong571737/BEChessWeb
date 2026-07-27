@@ -121,7 +121,7 @@ Updates PGN content and restores engine state from the updated document.
 
 ### `POST /games/:id/restart`
 
-Resets the existing game in place. The `gameID` and board association are retained; FEN returns to the standard start position, PGN/moves/branches/results are cleared, and connected clients receive a `game:reset` event.
+Resets the existing game in place. The `gameID`, board association, player names, and persisted clock configuration are retained; FEN returns to the standard start position and PGN/moves/branches/results are cleared. The board returns to `checkinit` and must pass a fresh physical-board initialization check before play resumes. Connected clients receive a `game:reset` event with the retained clock configuration.
 
 ### `POST /games/:id/destroy`
 

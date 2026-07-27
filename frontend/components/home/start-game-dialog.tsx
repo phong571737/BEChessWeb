@@ -24,6 +24,7 @@ const CLOCK_OPTIONS = [
     { label: "10 phút", value: 600_000 },
     { label: "15 phút", value: 900_000 },
     { label: "30 phút", value: 1_800_000 },
+    { label: "1 giờ", value: 3_600_000 },
 ];
 
 const INCREMENT_OPTIONS = [

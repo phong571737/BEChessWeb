@@ -24,6 +24,7 @@ export function useGame(gameID: string) {
     const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
 
     const cachedBoard = boards[gameID];
+    const resetRevision = cachedBoard?.resetRevision;
 
     // ------- Branch state ----------------------------------------
     const mainPgnAtBranchRef = useRef<string>("");
@@ -177,8 +178,9 @@ export function useGame(gameID: string) {
                 if (!res.ok) return;
                 const data = await res.json();
 
+                const initStatus = data.status === "checkinit" ? GAME_STATUS.CHECK_INIT : data.status;
                 patchBoard(gameID, {
-                    initStatus: data.status,
+                    initStatus,
                     missingSquares: data.missingSquares || [],
                     extraSquares: data.extraSquares || [],
                     wrongPieceSquares: data.wrongPieceSquares || [],
@@ -201,9 +203,10 @@ export function useGame(gameID: string) {
             }
         }, 1000);
         return () => clearInterval(interval);
-    }, [gameID, isLoaded]);
+    }, [gameID, isLoaded, resetRevision]);
 
-    const applyGameReset = useCallback((resetAt = Date.now()) => {
+    const applyGameReset = useCallback((data: { resetAt?: number; initialTimeMs?: number; incrementMs?: number } = {}) => {
+        const resetAt = data.resetAt ?? Date.now();
         chessRef.current.reset();
         initialMoveCountRef.current = 0;
         sessionTs.current = [];
@@ -226,6 +229,12 @@ export function useGame(gameID: string) {
             status: GAME_STATUS.WAITING,
             branches: [],
             selectedBranchId: null,
+            initStatus: GAME_STATUS.CHECK_INIT,
+            missingSquares: [],
+            extraSquares: [],
+            wrongPieceSquares: [],
+            ...(data.initialTimeMs !== undefined ? { initialTimeMs: data.initialTimeMs } : {}),
+            ...(data.incrementMs !== undefined ? { incrementMs: data.incrementMs } : {}),
             resetRevision: resetAt,
         });
     }, [gameID, patchBoard, storageKey]);
@@ -355,7 +364,7 @@ export function useGame(gameID: string) {
         const onGameRestart = (data: any) => {
             if (data?.oldGameID && data.oldGameID !== gameID) return;
             if (data?.gameID === gameID && data?.oldGameID === gameID) {
-                applyGameReset(data.resetAt);
+                applyGameReset(data);
                 return;
             }
             console.log("[SOCKET] game_restart received for game:", gameID);
@@ -368,7 +377,7 @@ export function useGame(gameID: string) {
         const onGameReset = (data: any) => {
             if (data?.gameID !== gameID) return;
             console.log("[SOCKET] game:reset received for game:", gameID);
-            applyGameReset(data.resetAt);
+            applyGameReset(data);
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
             invalidateFetchCache("/games/history");
@@ -422,7 +431,8 @@ export function useGame(gameID: string) {
         try {
             const response = await fetch(`/games/${gameID}/restart`, { method: "POST" });
             if (!response.ok) throw new Error(`Restart failed with ${response.status}`);
-            applyGameReset();
+            const data = await response.json().catch(() => ({}));
+            applyGameReset(data);
         } catch (e) {
             console.error("Restart error:", e);
         }

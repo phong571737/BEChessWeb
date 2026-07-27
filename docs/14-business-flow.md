@@ -65,7 +65,7 @@ The first accepted move starts the chess clock. After each later accepted move, 
 
 ### 6. Result or restart handling
 
-When a game is ended or resigned, the backend updates the board state and emits lifecycle updates. A restart is an in-place reset: HTTP or MQTT commands (`chess/<board-name>/command` with `restart_game_esp` or `restart_game`) clear the game to the standard starting position, retain the same `gameID`, and emit `game:reset` to its Socket.IO room so browser board and clocks reset immediately.
+When a game is ended or resigned, the backend updates the board state and emits lifecycle updates. A restart is an in-place reset: HTTP or MQTT commands (`chess/<board-name>/command` with `restart_game_esp` or `restart_game`) clear the game to the standard starting position, retain the same `gameID`, player names, and clock settings, and return the physical board to `checkinit`. The next board scan must pass initialization before play resumes; `game:reset` resets the browser board and clocks to the retained configuration immediately.
 
 For a resignation, the history PGN is generated from the persisted UCI sequence with the custom PGN renderer, which deliberately does not reject a move for chess-rule validation. Missing UCI entries are recovered from the corresponding FEN snapshots where possible; an unrecoverable entry is stored as `x` rather than silently dropping a ply. The game-start FEN is persisted for new games so custom-start games keep the correct PGN context.
 

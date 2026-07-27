@@ -9,7 +9,7 @@ import { getBoardIDByGame } from "../game/game.manager.js";
 
 export const GameActionService = {
     // Restart keeps the existing game/session identity so clients and board mapping stay connected.
-    async restart(gameID: string): Promise<GameIDPayload> {
+    async restart(gameID: string): Promise<GameIDPayload & { initialTimeMs?: number; incrementMs?: number }> {
         const game = await getGame(gameID);
         if (!game) {
             throw new Error(ERROR_STATUS.NOTFOUND);
@@ -21,6 +21,8 @@ export const GameActionService = {
 
         const reset = resetGame(gameID);
         const resetAt = Date.now();
+        const initialTimeMs = game.initialTimeMs ?? (game.clockSeconds ? game.clockSeconds * 1_000 : undefined);
+        const incrementMs = game.incrementMs ?? (game.clockIncrement ? game.clockIncrement * 1_000 : undefined);
         await saveGame(gameID, {
             fen: reset.fen(),
             initialFen: reset.fen(),
@@ -34,12 +36,22 @@ export const GameActionService = {
             uciHistory: [],
             fenHistory: [],
         });
-        gameState.set(boardID, { gameID, gameStatus: "ready", wrongSquares: [], missingSquares: [] });
+        // A physical-board scan must validate the reset position before a new game can start.
+        gameState.set(boardID, { gameID, gameStatus: "checkinit", wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);
-        getIO().to(gameID).emit("game:reset", { gameID, boardID, fen: reset.fen(), resetAt });
+        getIO().to(gameID).emit("game:reset", {
+            gameID,
+            boardID,
+            fen: reset.fen(),
+            resetAt,
+            initialTimeMs,
+            incrementMs,
+        });
 
         return {
-            gameID
+            gameID,
+            initialTimeMs,
+            incrementMs,
         }
     },
 

@@ -70,3 +70,6 @@ A common lifecycle is:
 - [10-state-management.md](10-state-management.md) explains which store shapes these hooks patch.
 - [11-components.md](11-components.md) describes the components that consume these hooks.
 - [07-api-socket.md](07-api-socket.md) describes the socket events these hooks subscribe to.
+## Restart and clock reset
+
+`useGame` handles the room-scoped `game:reset` event by clearing browser move and branch data, returning the board to the starting FEN, and restarting init-check polling. The event carries the saved `initialTimeMs` and `incrementMs`, which `useChessClock` uses to reset both clocks without falling back to the default duration.
