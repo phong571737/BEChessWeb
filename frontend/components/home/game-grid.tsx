@@ -35,10 +35,10 @@ export function GameGrid() {
         }
     }, [physicalBoards, selectedBoard]);
 
-    // Hide scan-flow games (shown as PhysicalBoardCard) and finished games
+    // Keep a restarted game visible while its physical board is being initialized.
+    // This preserves the mini chessboard card and lets the user reopen its session.
     const cardGames = activeGames.filter(
-        (g) => g.status !== GAME_STATUS.WAITING
-            && g.status !== SOCKET_CONSTANTS.BOARD_SCAN_FAIL
+        (g) => g.status !== SOCKET_CONSTANTS.BOARD_SCAN_FAIL
             && g.status !== GAME_STATUS.FINISHED
     );
 
