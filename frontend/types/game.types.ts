@@ -10,7 +10,7 @@ export interface lastMove {
 export interface PhysicalBoard {
     boardID: string;
     gameID: string | null;
-    gameStatus: "waiting_scan" | "scan_failed" | "active" | "finished" | null;
+    gameStatus: "waiting" | "checkinit" | "waiting_scan" | "scan_failed" | "active" | "finished" | null;
     online: boolean;
     ip?: string | null;
 }

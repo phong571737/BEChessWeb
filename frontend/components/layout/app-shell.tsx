@@ -322,10 +322,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                             </div>
                                             <div className="my-1 border-t border-border" />
                                             <button type="button" role="menuitem" onClick={() => { toggleFlipped(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-                                                <span className="flex items-center gap-2"><FlipHorizontal className="size-3.5" />Flip board</span>{flipped && <Check className="size-3.5 text-primary" />}
+                                                <span className="flex items-center gap-2"><FlipHorizontal className="size-3.5" />{t("settings.flipBoard")}</span>{flipped && <Check className="size-3.5 text-primary" />}
                                             </button>
                                             <button type="button" role="menuitem" onClick={() => { toggleEvaluation(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-                                                <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />Evaluation bar</span>{showEvaluation && <Check className="size-3.5 text-primary" />}
+                                                <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />{t("settings.evaluationBar")}</span>{showEvaluation && <Check className="size-3.5 text-primary" />}
                                             </button>
                                             <div className="my-1 border-t border-border" />
                                             <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Palette className="size-3.5" />{t("settings.boardColors")}</p>

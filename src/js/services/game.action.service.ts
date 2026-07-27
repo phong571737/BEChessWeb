@@ -39,6 +39,9 @@ export const GameActionService = {
         // A physical-board scan must validate the reset position before a new game can start.
         gameState.set(boardID, { gameID, gameStatus: "checkinit", wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);
+        // Home-page physical-board cards are not members of the game room.
+        // Broadcast the retained board/game association so the card remains visible after restart.
+        getIO().emit("game_status_update", { gameID, boardID, status: "waiting" });
         getIO().to(gameID).emit("game:reset", {
             gameID,
             boardID,

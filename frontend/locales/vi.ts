@@ -65,6 +65,8 @@ export const vi: Record<TranslationKeys, string> = {
     "settings.theme": "Giao diện",
     "settings.light": "Sáng",
     "settings.dark": "Tối",
+    "settings.flipBoard": "Lật bàn cờ",
+    "settings.evaluationBar": "Thanh đánh giá",
     "settings.boardColors": "Màu bàn cờ",
     "settings.customBoardColors": "Tùy chỉnh màu",
     "settings.lightSquare": "Ô sáng",

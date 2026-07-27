@@ -53,7 +53,7 @@ The breadcrumb trail uses dynamic path parsing to create a contextual label stac
 
 The header keeps locale and theme controls in one Settings menu. It provides explicit English and Vietnamese choices plus explicit Light and Dark choices, marking the active selection with a check icon while retaining hydration-safe theme rendering.
 
-The same menu contains the multi-board layout picker and board-display preferences. Flip board changes every rendered chessboard between White and Black orientation; Evaluation bar toggles the engine advantage bar without changing game data. Both preferences persist in browser storage.
+The same menu contains the multi-board layout picker and board-display preferences. Flip board/Lật bàn cờ changes every rendered chessboard between White and Black orientation; Evaluation bar/Thanh đánh giá toggles the engine advantage bar without changing game data. Both preferences persist in browser storage.
 
 ## Board color picker
 

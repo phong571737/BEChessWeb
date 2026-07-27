@@ -177,6 +177,8 @@ export const en = {
     "settings.theme": "Theme",
     "settings.light": "Light",
     "settings.dark": "Dark",
+    "settings.flipBoard": "Flip board",
+    "settings.evaluationBar": "Evaluation bar",
     "settings.boardColors": "Board colors",
     "settings.customBoardColors": "Custom colors",
     "settings.lightSquare": "Light",
