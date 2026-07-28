@@ -53,7 +53,7 @@ export default function GuidePage() {
                                         {step === "step3" && (
                                             <div className="mt-4 flex flex-col items-center gap-4 rounded-md border border-border bg-muted/30 p-4 sm:flex-row sm:items-start">
                                                 <Image
-                                                    src="/images/qr-code-json.png"
+                                                    src={publicPath("/images/qr-code-json.png")}
                                                     alt={t("guide.qrAlt")}
                                                     width={176}
                                                     height={176}

@@ -61,7 +61,6 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
     // Dev: log socket presence so we can see when client connects
     try {
       // eslint-disable-next-line no-console
-      console.debug("[usePhysicalBoards] socket present?", !!socket);
     } catch (e) {}
     if (!socket) return;
 
@@ -74,12 +73,10 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       // Dev: log offline events
       try {
         // eslint-disable-next-line no-console
-        console.debug("[usePhysicalBoards] BOARD_OFFLINE", boardID);
       } catch (e) {}
       removePhysicalBoard(boardID);
       try {
         // eslint-disable-next-line no-console
-        console.debug("[usePhysicalBoards] physicalBoards after remove", useGameStore.getState().physicalBoards.map(b=>b.boardID));
       } catch (e) {}
     };
 

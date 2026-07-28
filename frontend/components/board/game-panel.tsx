@@ -157,10 +157,8 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     }, [goBack, goNext, goStart, goEnd]);
 
     function handleBranchSelect(branchId: string | null) {
-        console.log("GamePanel handleBranchSelect called with:", branchId);
         if (branchId) {
             const branch = branches.find(b => b.id === branchId);
-            console.log("Branch ID: ", branch);
             if (branch) {
                 onBranchSelect(branchId);
                 try {
@@ -168,7 +166,6 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                     c.loadPgn(branch.pgn);
                     const hist = c.history({ verbose: true });
                     const lastMove = hist[hist.length - 1];
-                    console.log("Branch lastMove:", lastMove);
                     onNavigate(branch.fen, lastMove ? { from: lastMove.from, to: lastMove.to } : null);  
                 } catch {
                     onNavigate(branch.fen, null);

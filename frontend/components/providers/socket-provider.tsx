@@ -22,7 +22,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       try {
         sock.on("connect", () => {
           // eslint-disable-next-line no-console
-          console.debug("[socket] connected", sock.id, "to", url);
         });
         sock.on("connect_error", (err: any) => {
           // eslint-disable-next-line no-console
@@ -31,7 +30,6 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         // @ts-ignore
         sock.onAny((event: string, ...args: any[]) => {
           // eslint-disable-next-line no-console
-          console.debug("[socket] recv", event, args);
         });
       } catch (e) {
         // ignore in prod if onAny not available

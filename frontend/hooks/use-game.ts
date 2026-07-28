@@ -98,7 +98,6 @@ export function useGame(gameID: string) {
 
         fetchJSONCached<any>(`/games/${gameID}`, 1_500)
             .then((game) => {
-                console.log("current chessref", chessRef.current);
                 try {
                     // if (game.pgn) chessRef.current.loadPgn(game.pgn);
                     if (game.fen) {
@@ -188,14 +187,13 @@ export function useGame(gameID: string) {
                     extraSquares: data.extraSquares || [],
                     wrongPieceSquares: data.wrongPieceSquares || [],
                 })
-                console.log("game status: ", data.status);
                 // stop polling when board is ready
                 if (data.status === GAME_STATUS.READY) {
                     stopped = true;
                     clearInterval(interval);
                 }
-            } catch (e) {
-                console.log("Init check error", e);
+            } catch {
+                // Polling failures are transient and will be retried on the next interval.
             }
         };
 
@@ -253,7 +251,6 @@ export function useGame(gameID: string) {
         // onMove event 
         const onMove = (data: any) => {
             if (data.gameID !== gameID) return;
-            // console.log("Receive move", data);
 
             // if (data.isError) {
             //     try {
@@ -363,7 +360,6 @@ export function useGame(gameID: string) {
 
         const onUpdateAllGame = (data: any) => {
             if (data?.gameID && data.gameID !== gameID) return;
-            console.log("[SOCKET] update_all_game received for game:", gameID);
             patchBoard(gameID, { status: GAME_STATUS.ENDED });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
@@ -376,7 +372,6 @@ export function useGame(gameID: string) {
                 applyGameReset(data);
                 return;
             }
-            console.log("[SOCKET] game_restart received for game:", gameID);
             patchBoard(gameID, { status: GAME_STATUS.ENDED });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
@@ -385,7 +380,6 @@ export function useGame(gameID: string) {
 
         const onGameReset = (data: any) => {
             if (data?.gameID !== gameID) return;
-            console.log("[SOCKET] game:reset received for game:", gameID);
             applyGameReset(data);
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
@@ -452,7 +446,6 @@ export function useGame(gameID: string) {
 
     // Resign
     const resign = async (resignSide: "white" | "black" | "draw" = "white", branchId?: string | null) => {
-        console.log("RESIGN CLICKED", resignSide);
         const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
         try {
             const res = await fetch(`/games/${gameID}/resign`, {

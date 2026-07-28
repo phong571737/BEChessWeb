@@ -61,7 +61,6 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAuth
     };
 
     const confirm = async () => {
-        console.log("confirm() called, pending:", pending, "resignSide:", resignSide);
         if (!pending) return;
         setLoading(true);
         try {

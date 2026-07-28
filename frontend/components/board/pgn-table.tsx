@@ -138,12 +138,9 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   }, [pairs.length, cursor]);
 
   function handleBranchClick(b: Branch) {
-    console.log("PGNTable click", b.id);
     if (selectedBranchId === b.id) {
-      console.log("Deselecting branch");
       onBranchSelect?.(null); // deselect
     } else {
-      console.log("Selecting branch:", b.id);
       onBranchSelect?.(b.id);
     }
   }

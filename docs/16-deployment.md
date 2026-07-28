@@ -111,7 +111,7 @@ location /socket.io/ {
 }
 ```
 
-Do not add a separate `/images/` proxy location. The Next.js app now serves its public images, Stockfish worker, and APK under `/chess`; image optimization is disabled so public asset paths do not trigger the failing `/_next/image` request.
+Do not add a separate `/images/` proxy location. The Next.js app now serves its public images, Stockfish worker, and APK under `/chess`; shared public-asset paths include the configured base path, and image optimization is disabled so public asset paths do not trigger the failing `/_next/image` request.
 
 ## Cross references
 

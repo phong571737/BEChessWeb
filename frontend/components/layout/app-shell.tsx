@@ -47,7 +47,7 @@ function AppSidebar({
                 collapsed ? "px-0 justify-center" : "px-4"
             )}>
                 <Image
-                    src="/images/logo.jpg"
+                    src={publicPath("/images/logo.jpg")}
                     alt="TTLab"
                     width={28}
                     height={28}

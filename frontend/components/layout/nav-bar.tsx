@@ -8,6 +8,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { publicPath } from "@/lib/public-path";
 
 const links = [
     {href: "/",         label: "HOME"},
@@ -54,7 +55,7 @@ export function Navbar() {
                 className="flex items-center ml-auto md:ml-0 md:absolute md:left-1/2 md:-translate-x-1/2"
                 >
                 <Image
-                    src="/images/logo.jpg"
+                    src={publicPath("/images/logo.jpg")}
                     alt="TTLab Logo"
                     width={36}
                     height={36}

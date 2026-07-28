@@ -49,7 +49,6 @@ export function GameGrid() {
     );
 
     const handleBoardClick = (board: PhysicalBoard) => {
-        console.log("clicked", board);
 
         // Guests can open an existing board, but never see the setup form.
         if (!isAuthenticated) {
