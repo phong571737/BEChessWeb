@@ -65,12 +65,12 @@ The backend process is expected to stay alive and maintain the active game state
 
 ## VPS deployment at `/chess`
 
-For `http://ttlab.uit.edu.vn/chess`, create the ignored file `frontend/.env.production` on the VPS with the following build-time values. Never commit this environment file. `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root.
+For `https://ttlab.uit.edu.vn/chess`, create the ignored file `frontend/.env.production` on the VPS with the following build-time values. Never commit this environment file. `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root. The browser-facing URL protocol must match the page protocol: use `https://` for an HTTPS site so REST calls use HTTPS and Socket.IO upgrades to WSS.
 
 ```env
 API_URL=http://127.0.0.1:8080
-NEXT_PUBLIC_API_URL=http://ttlab.uit.edu.vn
-NEXT_PUBLIC_SOCKET_URL=http://ttlab.uit.edu.vn
+NEXT_PUBLIC_API_URL=https://ttlab.uit.edu.vn
+NEXT_PUBLIC_SOCKET_URL=https://ttlab.uit.edu.vn
 NEXT_PUBLIC_BASE_PATH=/chess
 ```
 
