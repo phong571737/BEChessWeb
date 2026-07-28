@@ -69,6 +69,8 @@ When a game is ended or resigned, the backend updates the board state and emits 
 
 While this retained session is waiting after restart, an administrator can update its names, time control, increment, game number, and playing location. The protected rename endpoint validates the selected game number from 1 through 99 and the location length, then broadcasts the updated setup to connected board views.
 
+MQTT restart commands are resilient to backend reloads. If the in-memory board-to-game map is unavailable when `restart_game` or `restart_game_esp` arrives, the backend resolves the most recent non-finished game for that `boardID` from MongoDB, rebuilds the map, and performs the same in-place reset.
+
 The duration timer starts at the first accepted move. Each later accepted move persists `lastMoveAt` and recalculates `durationSec`; when a game is resigned, the completed history record retains the calculated start time, end time, and duration.
 
 For a resignation, the history PGN is generated from the persisted UCI sequence with the custom PGN renderer, which deliberately does not reject a move for chess-rule validation. Missing UCI entries are recovered from the corresponding FEN snapshots where possible; an unrecoverable entry is stored as `x` rather than silently dropping a ply. The game-start FEN is persisted for new games so custom-start games keep the correct PGN context.

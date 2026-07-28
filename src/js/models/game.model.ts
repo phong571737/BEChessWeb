@@ -66,6 +66,18 @@ export async function getGame(gameID: string): Promise<GameDoc | null> {
     return games().findOne({ gameID } as Filter<GameDoc>);
 }
 
+/**
+ * Resolves the retained live session for a physical board after a backend
+ * reload, when the in-memory board-to-game map has not been rebuilt yet.
+ */
+export async function getLatestGameByBoardID(boardID: string): Promise<GameDoc | null> {
+    return games()
+        .find({ boardID, status: { $ne: "finished" } } as Filter<GameDoc>)
+        .sort({ updateAt: -1, createdAt: -1 })
+        .limit(1)
+        .next();
+}
+
 /**This function is used to remove the game */
 export async function removeGame(gameID: string) {
     await games().deleteOne({ gameID });
