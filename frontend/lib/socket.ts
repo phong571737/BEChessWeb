@@ -4,7 +4,7 @@
  * Server Components — only use inside useEffect / 'use client' files.
  */
 import type { Socket } from "socket.io-client";
-import { getApiUrl } from "./api-url";
+import { getApiUrl, getBrowserServiceUrl } from "./api-url";
 
 let _socket: Socket | null = null;
 let _connecting: Promise<Socket> | null = null;
@@ -17,10 +17,7 @@ export async function getSocket(): Promise<Socket> {
     const { io } = await import("socket.io-client");
     // If NEXT_PUBLIC_SOCKET_URL is set at build time, use it.
     // Otherwise fallback to getApiUrl() which handles local vs deployed Render backend.
-    const configuredSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
-    const url = configuredSocketUrl && (!configuredSocketUrl.includes("localhost") || window.location.hostname === "localhost")
-      ? configuredSocketUrl
-      : getApiUrl();
+    const url = getBrowserServiceUrl(process.env.NEXT_PUBLIC_SOCKET_URL) ?? getApiUrl();
 
     _socket = io(url, {
       // Start with HTTP polling so TLS-terminating tunnels that only expose
