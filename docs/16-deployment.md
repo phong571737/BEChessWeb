@@ -113,6 +113,10 @@ location /socket.io/ {
 
 Do not add a separate `/images/` proxy location. The Next.js app now serves its public images, Stockfish worker, and APK under `/chess`; shared public-asset paths include the configured base path, and image optimization is disabled so public asset paths do not trigger the failing `/_next/image` request.
 
+### TLS terminated before the VPS
+
+When a tunnel or edge proxy owns HTTPS while the VPS accepts only port `80`, keep the API and `/socket.io/` proxy locations in the Nginx `listen 80` server. The edge proxy must forward `/chess/`, the API routes, and `/socket.io/` to that server and allow HTTP long-polling. The frontend starts Socket.IO with polling and upgrades to WSS only when the edge proxy supports WebSocket upgrades.
+
 ## Cross references
 
 - [04-environment.md](04-environment.md) describes the environment variables used by Compose.

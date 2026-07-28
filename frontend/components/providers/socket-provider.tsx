@@ -17,23 +17,9 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
       const url = configuredSocketUrl && (!configuredSocketUrl.includes("localhost") || window.location.hostname === "localhost")
         ? configuredSocketUrl
         : getApiUrl();
-      sock = io(url, { transports: ["websocket", "polling"] });
-      // Dev: log connection state and incoming socket events to help debugging
-      try {
-        sock.on("connect", () => {
-          // eslint-disable-next-line no-console
-        });
-        sock.on("connect_error", (err: any) => {
-          // eslint-disable-next-line no-console
-          console.error("[socket] connect_error", err);
-        });
-        // @ts-ignore
-        sock.onAny((event: string, ...args: any[]) => {
-          // eslint-disable-next-line no-console
-        });
-      } catch (e) {
-        // ignore in prod if onAny not available
-      }
+      // Polling works through an HTTPS tunnel that forwards to Nginx on port 80.
+      // Socket.IO upgrades to WebSocket automatically when the tunnel supports it.
+      sock = io(url, { transports: ["polling", "websocket"] });
       setSocket(sock);
     });
 

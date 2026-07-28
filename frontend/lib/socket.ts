@@ -23,7 +23,9 @@ export async function getSocket(): Promise<Socket> {
       : getApiUrl();
 
     _socket = io(url, {
-      transports: ["websocket", "polling"],
+      // Start with HTTP polling so TLS-terminating tunnels that only expose
+      // port 80 upstream can connect before attempting a WebSocket upgrade.
+      transports: ["polling", "websocket"],
       autoConnect: true,
     });
 
