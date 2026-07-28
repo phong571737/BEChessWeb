@@ -67,7 +67,7 @@ The first accepted move starts the chess clock. After each later accepted move, 
 
 When a game is ended or resigned, the backend updates the board state and emits lifecycle updates. A restart is an in-place reset: HTTP or MQTT commands (`chess/<board-name>/command` with `restart_game_esp` or `restart_game`) clear the game to the standard starting position, retain the same `gameID`, player names, and clock settings, and return the physical board to `checkinit`. The next board scan must pass initialization before play resumes; `game:reset` resets the browser board and clocks to the retained configuration immediately. A global `game_status_update` also preserves the physical-board card and the mini chessboard game card on the homepage while the board waits for initialization. Selecting that waiting/initializing physical-board card opens its retained board session rather than the admin start-game dialog.
 
-While this retained session is waiting after restart, an administrator can update its names, time control, increment, and game number. The protected rename endpoint validates the selected game number from 1 through 99 and broadcasts the updated setup to connected board views.
+While this retained session is waiting after restart, an administrator can update its names, time control, increment, game number, and playing location. The protected rename endpoint validates the selected game number from 1 through 99 and the location length, then broadcasts the updated setup to connected board views.
 
 The duration timer starts at the first accepted move. Each later accepted move persists `lastMoveAt` and recalculates `durationSec`; when a game is resigned, the completed history record retains the calculated start time, end time, and duration.
 

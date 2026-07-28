@@ -36,9 +36,10 @@ interface Props {
     initialTimeMs?: number;
     incrementMs?: number;
     round: number;
+    location: string;
 }
 
-export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 600_000, incrementMs = 0, round }: Props) {
+export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 600_000, incrementMs = 0, round, location }: Props) {
     const { t } = useT();
     const { token } = useAuth();
     const [open, setOpen] = useState(false);
@@ -47,6 +48,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
     const [time, setTime] = useState(initialTimeMs);
     const [increment, setIncrement] = useState(incrementMs);
     const [selectedRound, setSelectedRound] = useState(round);
+    const [gameLocation, setGameLocation] = useState(location);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -57,8 +59,9 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         setTime(initialTimeMs);
         setIncrement(incrementMs);
         setSelectedRound(round);
+        setGameLocation(location);
         setError(null);
-    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round]);
+    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location]);
 
     const save = async () => {
         if (!token || !white.trim() || !black.trim()) return;
@@ -68,7 +71,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const first = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound }),
+                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim() }),
             });
             if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? "Unable to save game setup");
 
@@ -85,6 +88,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 initialTimeMs: time,
                 incrementMs: increment,
                 round: selectedRound,
+                location: gameLocation.trim(),
             });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
@@ -116,6 +120,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                         <div className="space-y-2"><Label htmlFor="board-setup-increment">{t("sg.increment")}</Label><select id="board-setup-increment" value={increment} onChange={(event) => setIncrement(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{INCREMENT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select></div>
                     </div>
                     <div className="space-y-2"><Label htmlFor="board-setup-round">{t("sg.round")}</Label><select id="board-setup-round" value={selectedRound} onChange={(event) => setSelectedRound(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{t("sg.roundOption", { n: value })}</option>)}</select></div>
+                    <div className="space-y-2"><Label htmlFor="board-setup-location">{t("sg.location")}</Label><Input id="board-setup-location" value={gameLocation} onChange={(event) => setGameLocation(event.target.value)} disabled={loading} maxLength={160} placeholder={t("sg.locationPlaceholder")} /></div>
                     {error && <p className="text-xs text-destructive">{error}</p>}
                 </div>
                 <DialogFooter><Button variant="outline" size="sm" onClick={() => setOpen(false)} disabled={loading}>{t("sg.cancel")}</Button><Button size="sm" onClick={save} disabled={loading || !white.trim() || !black.trim()}>{loading ? t("sg.starting") : t("sg.save")}</Button></DialogFooter>

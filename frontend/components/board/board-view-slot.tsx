@@ -252,7 +252,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, resetRevision, round,
+        initialTimeMs, incrementMs, resetRevision, round, location,
     } = useGame(gameID);
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
@@ -581,6 +581,7 @@ export function BoardViewSlot({
                                 initialTimeMs={initialTimeMs}
                                 incrementMs={incrementMs}
                                 round={round}
+                                location={location}
                             />
                         </div>
                     </div>

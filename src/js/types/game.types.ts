@@ -15,6 +15,7 @@ export interface GameDoc extends Document {
     boardID?: string;
     BlackName?: string;
     WhiteName?: string;
+    location?: string;
     fen?: string;
     pgn?: string;
     lastMove?: unknown;
@@ -96,4 +97,5 @@ export interface RenameBody {
     initialTimeMs?: number;
     incrementMs?: number;
     round?: number;
+    location?: string;
 }

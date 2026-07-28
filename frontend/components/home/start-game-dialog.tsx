@@ -44,6 +44,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const [initialTimeMs, setInitialTimeMs] = useState(600_000);
     const [incrementMs, setIncrementMs] = useState(0);
     const [round, setRound] = useState(1);
+    const [location, setLocation] = useState("");
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -65,6 +66,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     initialTimeMs,
                     incrementMs,
                     round,
+                    location: location.trim(),
                 }),
             });
             if (!whiteResponse.ok) {
@@ -88,6 +90,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 initialTimeMs,
                 incrementMs,
                 round,
+                location: location.trim(),
             });
 
             invalidateFetchCache(`/games/${gameID}`);
@@ -201,6 +204,11 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                                 <option key={value} value={value}>{t("sg.roundOption", { n: value })}</option>
                             ))}
                         </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="sg-location">{t("sg.location")}</Label>
+                        <Input id="sg-location" placeholder={t("sg.locationPlaceholder")} value={location} onChange={(e) => setLocation(e.target.value)} disabled={loading} maxLength={160} />
                     </div>
 
                     {/* Error */}

@@ -72,7 +72,7 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name, initialTimeMs, incrementMs, round } = req.body;
+            const { color, name, initialTimeMs, incrementMs, round, location } = req.body;
 
             const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
             const maxIncrementMs = 60 * 60 * 1_000;
@@ -88,8 +88,12 @@ export const GameActionController = {
                 res.status(400).json({ error: "round must be an integer between 1 and 99" });
                 return;
             }
+            if (location !== undefined && (typeof location !== "string" || location.trim().length > 160)) {
+                res.status(400).json({ error: "location must be a string no longer than 160 characters" });
+                return;
+            }
 
-            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round);
+            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim());
 
             res.json({
                 ok: true

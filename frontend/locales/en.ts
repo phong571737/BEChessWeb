@@ -37,6 +37,8 @@ export const en = {
     "sg.configure": "Set game",
     "sg.configureHint": "Set player names, time control, and game number before play resumes.",
     "sg.save": "Save",
+    "sg.location": "Playing location",
+    "sg.locationPlaceholder": "e.g. Chess club, room, or venue",
 
     // ------ In-game alert codes --------------------
     "board.noMoves": "No moves yet",

@@ -20,6 +20,7 @@ export interface ActiveGame {
     gameID: string;
     WhiteName: string;
     BlackName: string;
+    location?: string;
     fen: string;
     pgn: string;
     initialFen?: string;
@@ -84,6 +85,7 @@ export interface BoardState {
     initialTimeMs?: number;
     incrementMs?: number;
     round?: number;
+    location?: string;
     /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;

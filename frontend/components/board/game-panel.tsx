@@ -43,6 +43,7 @@ interface Props {
     initialTimeMs?: number;
     incrementMs?: number;
     round: number;
+    location: string;
 }
 
 export interface GamePanelHandle {
@@ -55,7 +56,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location,
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
@@ -229,6 +230,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                         initialTimeMs={initialTimeMs}
                         incrementMs={incrementMs}
                         round={round}
+                        location={location}
                     />
                 </div>
             )}

@@ -39,6 +39,8 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.configure": "Cài đặt trận",
     "sg.configureHint": "Đặt tên, thời gian và chọn trận trước khi tiếp tục chơi.",
     "sg.save": "Lưu",
+    "sg.location": "Địa điểm chơi",
+    "sg.locationPlaceholder": "Ví dụ: Câu lạc bộ, phòng hoặc địa điểm",
 
     // ------------- In-game alert codes --------------------
     "board.noMoves": "Chưa có nước đi",

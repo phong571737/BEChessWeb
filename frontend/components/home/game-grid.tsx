@@ -26,12 +26,18 @@ export function GameGrid() {
     const { t } = useT();
     const { isAuthenticated } = useAuth();
 
-    // If the selected board goes offline/removed or becomes active, close the dialog
+    // Keep the setup dialog attached when a newly detected board receives its gameID.
+    // Closing it here caused the first setup attempt to navigate away before names
+    // and time controls could be saved.
     useEffect(() => {
         if (!selectedBoard) return;
         const current = physicalBoards.find((b) => b.boardID === selectedBoard.boardID);
-        if (!current || !current.online || (selectedBoard.gameID === null && current.gameID !== null)) {
+        if (!current || !current.online) {
             setselectedBoard(null);
+            return;
+        }
+        if (current.gameID !== selectedBoard.gameID || current.gameStatus !== selectedBoard.gameStatus) {
+            setselectedBoard(current);
         }
     }, [physicalBoards, selectedBoard]);
 
