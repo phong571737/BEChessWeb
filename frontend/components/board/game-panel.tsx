@@ -9,6 +9,7 @@ import { PGNTable } from "./pgn-table";
 import { Button } from "@/components/ui/button";
 import { ChevronsLeft, ChevronRight, ChevronLeft, ChevronsRight } from "lucide-react";
 import { GameActions } from "./game-actions";
+import { GameSetupDialog } from "./game-setup-dialog";
 import { Branch } from "@/types/game.types";
 import type { ClockSide } from "@/hooks/use-chess-clock";
 import { formatClockMs } from "@/hooks/use-chess-clock";
@@ -37,7 +38,11 @@ interface Props {
     blackClockMs?: number;
     activeClockSide?: ClockSide;
     isAuthenticated?: boolean;
+    isAdmin?: boolean;
     flipped?: boolean;
+    initialTimeMs?: number;
+    incrementMs?: number;
+    round: number;
 }
 
 export interface GamePanelHandle {
@@ -50,7 +55,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round,
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
@@ -214,6 +219,19 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             </div>
 
             <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
+
+            {isAdmin && status === GAME_STATUS.WAITING && (
+                <div className="flex justify-end border-b border-border bg-muted/20 px-3 py-1.5">
+                    <GameSetupDialog
+                        gameID={gameID}
+                        whiteName={WhiteName}
+                        blackName={BlackName}
+                        initialTimeMs={initialTimeMs}
+                        incrementMs={incrementMs}
+                        round={round}
+                    />
+                </div>
+            )}
 
             {/* ── Game actions ── */}
             <GameActions

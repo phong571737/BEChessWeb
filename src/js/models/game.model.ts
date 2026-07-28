@@ -112,12 +112,14 @@ export async function renamePlayer(
     color: string,
     name: string,
     initialTimeMs?: number,
-    incrementMs?: number
+    incrementMs?: number,
+    round?: number,
 ) {
     const field = color === "Black" ? "BlackName" : "WhiteName";
     const update: Record<string, unknown> = { [field]: name, updateAt: new Date() };
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
+    if (round !== undefined) update.round = round;
     return games().updateOne({ gameID } as Filter<GameDoc>, {
         $set: update,
     } as UpdateFilter<GameDoc>);

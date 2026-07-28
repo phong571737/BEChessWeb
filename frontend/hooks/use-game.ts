@@ -149,6 +149,7 @@ export function useGame(gameID: string) {
                     // at the API boundary; all live clock state is milliseconds.
                     initialTimeMs: game.initialTimeMs ?? (Number.isFinite(game.clockSeconds) ? game.clockSeconds * 1_000 : undefined),
                     incrementMs: game.incrementMs ?? (Number.isFinite(game.clockIncrement) ? game.clockIncrement * 1_000 : undefined),
+                    round: game.round ?? 1,
                 })
                 setIsLoaded(true);
             })
@@ -345,11 +346,12 @@ export function useGame(gameID: string) {
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number }> = {};
+            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number, round: number }> = {};
             if (data.WhiteName !== undefined) patch.WhiteName = data.WhiteName;
             if (data.BlackName !== undefined) patch.BlackName = data.BlackName;
             if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
             if (data.incrementMs !== undefined) patch.incrementMs = data.incrementMs;
+            if (data.round !== undefined) patch.round = data.round;
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
 
@@ -542,6 +544,7 @@ export function useGame(gameID: string) {
         // chess clock
         initialTimeMs: board?.initialTimeMs,
         incrementMs: board?.incrementMs,
+        round: board?.round ?? 1,
         resetRevision: board?.resetRevision,
     }
 }

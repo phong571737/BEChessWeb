@@ -30,6 +30,13 @@ export const en = {
     "sg.branch": "Branch",
     "sg.mainBranch": "Main branch", 
     "sg.changeBranch": "Select another branch",
+    "sg.round": "Game number",
+    "sg.roundOption": "Game {n}",
+    "sg.time": "Time",
+    "sg.increment": "Increment",
+    "sg.configure": "Set game",
+    "sg.configureHint": "Set player names, time control, and game number before play resumes.",
+    "sg.save": "Save",
 
     // ------ In-game alert codes --------------------
     "board.noMoves": "No moves yet",

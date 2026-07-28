@@ -72,7 +72,7 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name, initialTimeMs, incrementMs } = req.body;
+            const { color, name, initialTimeMs, incrementMs, round } = req.body;
 
             const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
             const maxIncrementMs = 60 * 60 * 1_000;
@@ -84,8 +84,12 @@ export const GameActionController = {
                 res.status(400).json({ error: "incrementMs must be a number between 0 and 1 hour" });
                 return;
             }
+            if (round !== undefined && (!Number.isInteger(round) || round < 1 || round > 99)) {
+                res.status(400).json({ error: "round must be an integer between 1 and 99" });
+                return;
+            }
 
-            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs);
+            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round);
 
             res.json({
                 ok: true

@@ -95,4 +95,5 @@ export interface RenameBody {
     name: string;
     initialTimeMs?: number;
     incrementMs?: number;
+    round?: number;
 }

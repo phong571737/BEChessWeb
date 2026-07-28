@@ -32,6 +32,13 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.branch": "Nhánh",
     "sg.mainBranch": "Nhánh chính", 
     "sg.changeBranch": "Chọn lại nhánh",
+    "sg.round": "Chọn trận",
+    "sg.roundOption": "Trận {n}",
+    "sg.time": "Thời gian",
+    "sg.increment": "Thời gian cộng",
+    "sg.configure": "Cài đặt trận",
+    "sg.configureHint": "Đặt tên, thời gian và chọn trận trước khi tiếp tục chơi.",
+    "sg.save": "Lưu",
 
     // ------------- In-game alert codes --------------------
     "board.noMoves": "Chưa có nước đi",

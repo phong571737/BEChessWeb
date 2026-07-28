@@ -67,7 +67,7 @@ export const GameActionService = {
         await GameActionService.restart(gameID);
     },
 
-    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number): Promise<void> {
+    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number, round?: number): Promise<void> {
         if (!name.trim() || !["Black", "White"].includes(color)) {
             return;
         }
@@ -75,13 +75,14 @@ export const GameActionService = {
         const game = await getGame(gameID);
         if (!game) return;
 
-        await renamePlayer(gameID, color, name, initialTimeMs, incrementMs);
+        await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round);
         // Broadcast to all clients in the game room so board page can update immediately
         const payload: Record<string, any> = { gameID };
         if (color === "White") payload.WhiteName = name;
         if (color === "Black") payload.BlackName = name;
         if (initialTimeMs !== undefined) payload.initialTimeMs = initialTimeMs;
         if (incrementMs !== undefined) payload.incrementMs = incrementMs;
+        if (round !== undefined) payload.round = round;
         getIO().to(gameID).emit("game:renamed", payload);
     },
 

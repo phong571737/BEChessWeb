@@ -234,7 +234,7 @@ export function BoardViewSlot({
 }: Props) {
     const { t } = useT();
     const { showEvaluation, flipped } = useBoardDisplay();
-    const { isAuthenticated } = useAuth();
+    const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
     const evaluationEnabled = enableEval && showEvaluation;
@@ -252,7 +252,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, resetRevision,
+        initialTimeMs, incrementMs, resetRevision, round,
     } = useGame(gameID);
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
@@ -576,7 +576,11 @@ export function BoardViewSlot({
                                 blackClockMs={blackMs}
                                 activeClockSide={activeSide}
                                 isAuthenticated={isAuthenticated}
+                                isAdmin={isAdmin}
                                 flipped={flipped}
+                                initialTimeMs={initialTimeMs}
+                                incrementMs={incrementMs}
+                                round={round}
                             />
                         </div>
                     </div>

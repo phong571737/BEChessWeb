@@ -25,6 +25,7 @@ export interface ActiveGame {
     initialFen?: string;
     lastMove?: lastMove | null;
     lastSeq: number;
+    round?: number;
     createdAt: string;
     status?: string | null;
 }
@@ -82,6 +83,7 @@ export interface BoardState {
     /** Chess clock configuration in milliseconds. */
     initialTimeMs?: number;
     incrementMs?: number;
+    round?: number;
     /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;

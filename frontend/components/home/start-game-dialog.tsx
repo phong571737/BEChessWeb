@@ -43,6 +43,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const [black, setBlack] = useState("");
     const [initialTimeMs, setInitialTimeMs] = useState(600_000);
     const [incrementMs, setIncrementMs] = useState(0);
+    const [round, setRound] = useState(1);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -63,6 +64,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     name: white.trim(),
                     initialTimeMs,
                     incrementMs,
+                    round,
                 }),
             });
             if (!whiteResponse.ok) {
@@ -85,6 +87,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 BlackName: black.trim(),
                 initialTimeMs,
                 incrementMs,
+                round,
             });
 
             invalidateFetchCache(`/games/${gameID}`);
@@ -183,6 +186,21 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                                 ))}
                             </select>
                         </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="sg-round">{t("sg.round")}</Label>
+                        <select
+                            id="sg-round"
+                            value={round}
+                            onChange={(e) => setRound(Number(e.target.value))}
+                            disabled={loading}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                        >
+                            {Array.from({ length: 10 }, (_, index) => index + 1).map((value) => (
+                                <option key={value} value={value}>{t("sg.roundOption", { n: value })}</option>
+                            ))}
+                        </select>
                     </div>
 
                     {/* Error */}
