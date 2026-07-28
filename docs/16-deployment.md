@@ -65,7 +65,14 @@ The backend process is expected to stay alive and maintain the active game state
 
 ## VPS deployment at `/chess`
 
-For `http://ttlab.uit.edu.vn/chess`, build the frontend with the values in [frontend/.env.vps.example](../frontend/.env.vps.example). `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root.
+For `http://ttlab.uit.edu.vn/chess`, create the ignored file `frontend/.env.production` on the VPS with the following build-time values. Never commit this environment file. `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root.
+
+```env
+API_URL=http://127.0.0.1:8080
+NEXT_PUBLIC_API_URL=http://ttlab.uit.edu.vn
+NEXT_PUBLIC_SOCKET_URL=http://ttlab.uit.edu.vn
+NEXT_PUBLIC_BASE_PATH=/chess
+```
 
 Use this Nginx shape (adjust the backend port if the service does not run on `8080`):
 
