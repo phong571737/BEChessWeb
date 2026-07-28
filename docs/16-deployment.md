@@ -44,7 +44,7 @@ In practice, the backend is the process that connects to MongoDB and MQTT, while
 
 The deployment setup depends on environment variables described in [04-environment.md](04-environment.md). The most important are:
 
-- `PORT`
+- `PORT` (default `80`)
 - `MONGO_URI`
 - `BACKEND_PUBLIC_URL`
 - `FRONTEND_PUBLIC_URL`

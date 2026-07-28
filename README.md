@@ -67,7 +67,7 @@ MONGO_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/?appNam
 MONGO_LOCAL=mongodb://localhost:27017
 VERCEL_WEB=https://<your-vercel-app>.vercel.app
 AUTHOR=<your-name>
-PORT=8080
+PORT=80
 SERVER_NAME=<your-server-name>
 
 # Public hostnames fronted by Pangolin (Newt tunnel), used only at
@@ -85,15 +85,15 @@ MQTT_TOPIC_GET_IP=<your/mqtt/topic>
 Create a `frontend/.env.local` file (local, non-Docker `npm run dev` only — Docker Compose bakes the equivalent values in at build time instead):
 
 ```bash
-API_URL=http://localhost:8080          # HTTP proxy target (server-side)
-NEXT_PUBLIC_SOCKET_URL=http://localhost:8080   # Socket.io URL (browser-side)
+API_URL=http://localhost:80          # HTTP proxy target (server-side)
+NEXT_PUBLIC_SOCKET_URL=http://localhost:80   # Socket.io URL (browser-side)
 ```
 
 **Configuration Details:**
 - `MONGO_URI` - MongoDB Atlas connection string
 - `MONGO_LOCAL` - Local MongoDB fallback URI
 - `VERCEL_WEB` - URL of the Vercel-hosted frontend deployment
-- `PORT` - Application port (default: 8080)
+- `PORT` - Application port (default: 80)
 - `SERVER_NAME` - Identifier for this server instance
 - `AUTHOR` - Server author/maintainer name
 - `FRONTEND_PUBLIC_URL` / `BACKEND_PUBLIC_URL` - Public hostnames (fronted by Pangolin/Newt) baked into the frontend build for browser-facing API/socket calls
@@ -126,7 +126,7 @@ Start the backend with automatic TypeScript reload:
 npm run dev
 ```
 
-The development launcher reads `PORT` from `.env` (default `8080`). If a stale Node.js development process is already listening on that port, it stops that process before starting Nodemon. If a different application owns the port, it exits with the process details instead of stopping an unrelated program.
+The development launcher reads `PORT` from `.env` (default `80`). If a stale Node.js development process is already listening on that port, it stops that process before starting Nodemon. If a different application owns the port, it exits with the process details instead of stopping an unrelated program. On Windows, use an Administrator PowerShell session if HTTP.sys or another protected service owns port 80.
 
 ### Step 4: Verify Deployment
 
@@ -350,7 +350,7 @@ docker compose exec app mongosh mongodb://mongodb:27017
 
 ```bash
 # Change PORT in .env file
-PORT=8081
+PORT=80
 
 # Restart services
 docker compose restart

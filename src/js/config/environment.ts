@@ -34,7 +34,7 @@ export interface Env {
 export const env: Env = {
   MONGO_URI: requireEnv("MONGO_URI"),
   AUTHOR: optionalEnv("AUTHOR"),
-  PORT: Number(requireEnv("PORT")),
+  PORT: Number(optionalEnv("PORT") ?? "80"),
   SERVER_NAME: optionalEnv("SERVER_NAME"),
   URL_HIVEMQTT: requireEnv("URL_HIVEMQTT"),
   MQTT_USER: optionalEnv("MQTT_USER"),

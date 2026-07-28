@@ -11,7 +11,7 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 ### Required values
 
 - `MONGO_URI` – primary MongoDB connection string
-- `PORT` – HTTP server port
+- `PORT` – HTTP server port (defaults to `80` when omitted)
 - `URL_HIVEMQTT` – MQTT broker URL
 - `MQTT_PORT` – MQTT broker port
 - `MQTT_USER` – broker username

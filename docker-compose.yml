@@ -3,7 +3,7 @@ services:
     build: .
     container_name: ttlab-chess-app
     ports:
-      - "${PORT:-8080}:${PORT:-8080}"
+      - "${PORT:-80}:${PORT:-80}"
     env_file:
       - .env
 
@@ -11,14 +11,14 @@ services:
     build:
       context: ./frontend
       args:
-        API_URL: http://ttlab-chess-app:${PORT:-8080}
+        API_URL: http://ttlab-chess-app:${PORT:-80}
         NEXT_PUBLIC_API_URL: ${BACKEND_PUBLIC_URL}
         NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL}
     container_name: chess-frontend
     ports:
       - "4000:3000"
     environment:
-      - API_URL=http://ttlab-chess-app:${PORT:-8080}
+      - API_URL=http://ttlab-chess-app:${PORT:-80}
     depends_on:
       - ttlab-chess-app
 
