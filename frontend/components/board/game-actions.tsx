@@ -12,7 +12,7 @@ interface Props {
     onRestart: () => Promise<void>;
     onResign: (resignSide: "white" | "black" | "draw", branchId: string | null) => Promise<void>;
     branches?: Branch[];
-    isAdmin?: boolean;
+    isAuthenticated?: boolean;
 }
 
 type PendingAction = "restart" | "resign" | null;
@@ -40,7 +40,7 @@ function pgnPreview(pgn: string | undefined | null, maxTokens = 10): { text: str
 }
 
 
-export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmin = false }: Props) {
+export function GameActions({ gameID, onRestart, onResign, branches = [], isAuthenticated = false }: Props) {
     void gameID;
     const { t } = useT();
     const [pending, setPending] = useState<PendingAction>(null);
@@ -81,7 +81,7 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAdmi
 
     return (
         <>
-            {isAdmin && (
+            {isAuthenticated && (
                 <div className="flex gap-2 p-3 border-t border-border bg-muted/20">
                     <Button
                         variant="secondary"

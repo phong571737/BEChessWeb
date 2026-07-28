@@ -234,7 +234,7 @@ export function BoardViewSlot({
 }: Props) {
     const { t } = useT();
     const { showEvaluation, flipped } = useBoardDisplay();
-    const { isAdmin, isAuthenticated } = useAuth();
+    const { isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
     const evaluationEnabled = enableEval && showEvaluation;
@@ -575,7 +575,7 @@ export function BoardViewSlot({
                                 whiteClockMs={whiteMs}
                                 blackClockMs={blackMs}
                                 activeClockSide={activeSide}
-                                isAdmin={isAdmin}
+                                isAuthenticated={isAuthenticated}
                                 flipped={flipped}
                             />
                         </div>

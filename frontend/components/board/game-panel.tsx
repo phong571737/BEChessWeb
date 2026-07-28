@@ -36,7 +36,7 @@ interface Props {
     whiteClockMs?: number;
     blackClockMs?: number;
     activeClockSide?: ClockSide;
-    isAdmin?: boolean;
+    isAuthenticated?: boolean;
     flipped?: boolean;
 }
 
@@ -50,7 +50,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAdmin = false, flipped = false,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false,
 }, ref) {
     const { t } = useT();
     const [cursor, setCursor] = useState(-1);
@@ -221,7 +221,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 branches={branches}
                 onRestart={onRestart}
                 onResign={onResign}
-                isAdmin={isAdmin}
+                isAuthenticated={isAuthenticated}
             />
         </div >
     );

@@ -5,7 +5,7 @@ export const vi: Record<TranslationKeys, string> = {
     "nav.home": "Trang chủ",
     "nav.played": "Lịch sử",
     "nav.device": "Thiết bị",
-    "nav.import": "Nhập ván cờ", 
+    "nav.import": "Dán",
     "nav.guide": "Hướng dẫn",
 
     // ----- Home ----------------------------------------------------------
@@ -83,6 +83,9 @@ export const vi: Record<TranslationKeys, string> = {
     "guide.step2.body": "Tải và cài đặt ứng dụng TTLab Android, sau đó bật và kết nối bàn cờ điện tử.",
     "guide.step3.title": "Kết nối bàn cờ với Wi-Fi",
     "guide.step3.body": "Mở ứng dụng, kết nối bàn cờ vào cùng mạng Wi-Fi, sau đó chọn bàn cờ vật lý.",
+    "guide.qrTitle": "Quét mã QR để kết nối bàn cờ",
+    "guide.qrBody": "Chỉ dùng ứng dụng TTLab đã tải ở Bước 2 để quét mã QR này. Sau đó nhập mật khẩu Wi-Fi trong ứng dụng để bàn cờ vật lý tham gia mạng của bạn.",
+    "guide.qrAlt": "Mã QR kết nối bàn cờ vật lý",
     "guide.step4.title": "Kiểm tra quân cờ và nút bắt đầu",
     "guide.step4.body": "Đặt bàn cờ về vị trí ban đầu và xác nhận nút bắt đầu vật lý. Website sẽ báo khi khởi tạo thành công; sau đó bạn có thể bắt đầu chơi.",
     "guide.loginRequired": "Hãy đăng nhập để xem bước cài đặt trạng thái bàn cờ và nút nhấn vật lý.",

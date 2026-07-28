@@ -52,4 +52,4 @@ This is a small but important UX decision because the app supports both active p
 - [12-hooks.md](12-hooks.md) shows how the hooks and store drive the navigation experience.
 ## Guide navigation
 
-The sidebar includes `/guide`, and the Settings menu links to both the guide and `/downloads/TTLab_v1.1.apk`. The APK is a frontend static asset so users can download it without an API request.
+The sidebar includes `/guide`, and the Settings menu links to both the guide and `/downloads/TTLab_v1.1.apk`. The APK is a frontend static asset so users can download it without an API request. Vietnamese navigation uses short labels: `Dán` for `/paste` and `Hướng dẫn` for `/guide`; breadcrumbs use the same localized labels.

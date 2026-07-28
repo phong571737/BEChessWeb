@@ -3,7 +3,7 @@ export const en = {
     "nav.home": "Home",
     "nav.played": "Played",
     "nav.device": "Device",
-    "nav.import": "Import game", 
+    "nav.import": "Paste",
     "nav.guide": "Guide",
 
     // -----Home --------------------------------------------------------
@@ -195,6 +195,9 @@ export const en = {
     "guide.step2.body": "Download and install the TTLab Android app, then power on and connect the electronic chessboard.",
     "guide.step3.title": "Connect the board to Wi-Fi",
     "guide.step3.body": "Open the app, connect it to the same Wi-Fi network, then select the physical board.",
+    "guide.qrTitle": "Scan the board connection QR code",
+    "guide.qrBody": "Use only the TTLab companion app downloaded in step 2 to scan this QR code. Then enter the Wi-Fi password in the app so the physical board can join your network.",
+    "guide.qrAlt": "QR code for connecting the physical chessboard",
     "guide.step4.title": "Verify the board and start button",
     "guide.step4.body": "Set the board to its starting position and confirm the physical start button. The website will show when initialization is successful; you can then start playing.",
     "guide.loginRequired": "Sign in to view the board-status and physical-button setup step.",

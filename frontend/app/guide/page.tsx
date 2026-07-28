@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { CheckCircle2, Download, LogIn, Smartphone, Wifi } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
@@ -47,6 +48,21 @@ export default function GuidePage() {
                                             <Button className="mt-3" size="sm" asChild>
                                                 <a href="/downloads/TTLab_v1.1.apk" download><Download className="size-3.5" />{t("settings.downloadApk")}</a>
                                             </Button>
+                                        )}
+                                        {step === "step3" && (
+                                            <div className="mt-4 flex flex-col items-center gap-4 rounded-md border border-border bg-muted/30 p-4 sm:flex-row sm:items-start">
+                                                <Image
+                                                    src="/images/qr-code-json.png"
+                                                    alt={t("guide.qrAlt")}
+                                                    width={176}
+                                                    height={176}
+                                                    className="size-40 rounded-md bg-white p-2 shadow-sm sm:size-44"
+                                                />
+                                                <div className="min-w-0 text-center sm:text-left">
+                                                    <h3 className="font-medium text-foreground">{t("guide.qrTitle")}</h3>
+                                                    <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">{t("guide.qrBody")}</p>
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>

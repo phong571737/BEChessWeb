@@ -172,6 +172,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
         played: t("nav.played"),
+        paste: t("nav.import"),
+        guide: t("nav.guide"),
         // device: t("nav.device"),
         board:  "Board",
         review: t("rev.moveReview"),

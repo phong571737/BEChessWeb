@@ -24,7 +24,7 @@ export function GameGrid() {
     const {boards: physicalBoards} = usePhysicalBoards();
     const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
-    const { isAdmin, isAuthenticated } = useAuth();
+    const { isAuthenticated } = useAuth();
 
     // If the selected board goes offline/removed or becomes active, close the dialog
     useEffect(() => {
@@ -45,8 +45,8 @@ export function GameGrid() {
     const handleBoardClick = (board: PhysicalBoard) => {
         console.log("clicked", board);
 
-        // Guests can open an existing board, but never see the admin setup form.
-        if (!isAdmin) {
+        // Guests can open an existing board, but never see the setup form.
+        if (!isAuthenticated) {
             if (board.gameID) router.push(`/board?id=${encodeGameID(board.gameID)}`);
             return;
         }
@@ -130,7 +130,7 @@ export function GameGrid() {
 
             </div>
 
-            {isAdmin && (
+            {isAuthenticated && (
                 <StartGameDialog
                     board={selectedBoard}
                     gameID={selectedBoard?.gameID ?? null}
