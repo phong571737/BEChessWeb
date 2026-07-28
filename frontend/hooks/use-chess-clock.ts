@@ -170,9 +170,10 @@ export function useChessClock({
     if (!pgn || isEnded) return;
 
     if (moveCount > previousMoveCountRef.current) {
-      // After a move FEN already points to the next player; the mover is the
-      // opposite side and is the only side that receives the increment.
-      const movedSide = toClockSide(fen) === "white" ? "black" : "white";
+      // The authoritative post-move FEN identifies the player whose clock
+      // must run now. For example, after White's first move it is Black.
+      const nextSide = toClockSide(fen);
+      const movedSide = nextSide === "white" ? "black" : "white";
 
       if (movedSide === "white") {
         whiteMsRef.current = whiteMsRef.current + incrementMs;
@@ -182,7 +183,6 @@ export function useChessClock({
         setBlackMs(blackMsRef.current);
       }
 
-      const nextSide = movedSide === "white" ? "black" : "white";
       activeSideRef.current = nextSide;
       setActiveSide(nextSide);
       lastTickRef.current = Date.now();

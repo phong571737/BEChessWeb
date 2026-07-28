@@ -113,6 +113,18 @@ export async function makeMove(
   return { status: ERROR_STATUS.INVALID };
 }
 
+/**
+ * ESP board snapshots may contain a stale FEN active-color field. When a UCI
+ * move is available, the in-memory game is the source of truth for whose turn
+ * it was before that move, so the next side is always the opposite color.
+ */
+function withExpectedTurn(fen: string, expectedTurn: "w" | "b"): string {
+  const fields = fen.trim().split(/\s+/);
+  if (fields.length < 2) return fen;
+  fields[1] = expectedTurn;
+  return fields.join(" ");
+}
+
 // This function is used to for NFC
 function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], seq: number, fen?: string): MoveState {
   const uci = candidates[0];
@@ -128,10 +140,12 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     if (fen) {
       // Board provided a complete FEN — the position is already correct.
       // Load it directly so the engine matches the physical board.
-      // The UCI describes what *was* played; record it for PGN but do
-      // NOT call applyRawMove (the piece is already at the target).
+      // The UCI describes what was played; do not apply it a second time.
+      // Normalize its turn field because some ESP snapshots retain the
+      // pre-move active color, which would make the web clock run backwards.
+      const expectedTurn = mainGame.turn() === "w" ? "b" : "w";
       try {
-        mainGame.load(fen, { skipValidation: true });
+        mainGame.load(withExpectedTurn(fen, expectedTurn), { skipValidation: true });
       } catch (e) {
         console.error("[NFC MOVE] Failed to load fen:", fen, e);
       }
