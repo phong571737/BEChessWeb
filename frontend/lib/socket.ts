@@ -17,7 +17,10 @@ export async function getSocket(): Promise<Socket> {
     const { io } = await import("socket.io-client");
     // If NEXT_PUBLIC_SOCKET_URL is set at build time, use it.
     // Otherwise fallback to getApiUrl() which handles local vs deployed Render backend.
-    const url = process.env.NEXT_PUBLIC_SOCKET_URL || getApiUrl();
+    const configuredSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+    const url = configuredSocketUrl && (!configuredSocketUrl.includes("localhost") || window.location.hostname === "localhost")
+      ? configuredSocketUrl
+      : getApiUrl();
 
     _socket = io(url, {
       transports: ["websocket", "polling"],

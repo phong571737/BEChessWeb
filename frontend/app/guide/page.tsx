@@ -6,6 +6,7 @@ import { CheckCircle2, Download, LogIn, Smartphone, Wifi } from "lucide-react";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
+import { publicPath } from "@/lib/public-path";
 
 const stepIcons = [LogIn, Smartphone, Wifi, CheckCircle2];
 
@@ -46,7 +47,7 @@ export default function GuidePage() {
                                         )}
                                         {step === "step2" && (
                                             <Button className="mt-3" size="sm" asChild>
-                                                <a href="/downloads/TTLab_v1.1.apk" download><Download className="size-3.5" />{t("settings.downloadApk")}</a>
+                                                <a href={publicPath("/downloads/TTLab_v1.1.apk")} download><Download className="size-3.5" />{t("settings.downloadApk")}</a>
                                             </Button>
                                         )}
                                         {step === "step3" && (

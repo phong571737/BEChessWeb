@@ -63,6 +63,49 @@ The frontend is expected to know its public-facing API and socket URLs at build 
 
 The backend process is expected to stay alive and maintain the active game state map through the app lifecycle. This is why the runtime is designed around in-memory state plus durable persistence rather than fully stateless HTTP requests.
 
+## VPS deployment at `/chess`
+
+For `http://ttlab.uit.edu.vn/chess`, build the frontend with the values in [frontend/.env.vps.example](../frontend/.env.vps.example). `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root.
+
+Use this Nginx shape (adjust the backend port if the service does not run on `8080`):
+
+```nginx
+location = /chess { return 301 /chess/; }
+
+location ^~ /chess/ {
+    proxy_pass http://127.0.0.1:4000;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+}
+
+location ~ ^/(auth|games|moves|boards|eval)(/|$) {
+    proxy_pass http://127.0.0.1:8080;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location /socket.io/ {
+    proxy_pass http://127.0.0.1:8080/socket.io/;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+```
+
+Do not add a separate `/images/` proxy location. The Next.js app now serves its public images, Stockfish worker, and APK under `/chess`; image optimization is disabled so public asset paths do not trigger the failing `/_next/image` request.
+
 ## Cross references
 
 - [04-environment.md](04-environment.md) describes the environment variables used by Compose.

@@ -63,6 +63,7 @@ The frontend relies on a smaller runtime contract for browser and server-side ta
 - `API_URL` – backend base URL used by SSR or server-side requests
 - `NEXT_PUBLIC_API_URL` – browser-visible backend base URL override used by client-side REST calls
 - `NEXT_PUBLIC_SOCKET_URL` – browser-side Socket.IO endpoint
+- `NEXT_PUBLIC_BASE_PATH` – optional frontend build-time subpath, such as `/chess`
 
 ### Runtime URL resolution logic
 

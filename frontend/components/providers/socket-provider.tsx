@@ -13,7 +13,10 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
     let sock: Socket;
 
     import("socket.io-client").then(({ io }) => {
-      const url = process.env.NEXT_PUBLIC_SOCKET_URL ?? getApiUrl();
+      const configuredSocketUrl = process.env.NEXT_PUBLIC_SOCKET_URL;
+      const url = configuredSocketUrl && (!configuredSocketUrl.includes("localhost") || window.location.hostname === "localhost")
+        ? configuredSocketUrl
+        : getApiUrl();
       sock = io(url, { transports: ["websocket", "polling"] });
       // Dev: log connection state and incoming socket events to help debugging
       try {

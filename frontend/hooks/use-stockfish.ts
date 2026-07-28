@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react";
+import { publicPath } from "@/lib/public-path";
 
 export function useStockfish(enabled = true) {
     const workerRef = useRef<Worker | null>(null);
@@ -13,7 +14,7 @@ export function useStockfish(enabled = true) {
             return;
         }
 
-        const worker = new Worker("/stockfish/stockfish-18-lite-single.js");
+        const worker = new Worker(publicPath("/stockfish/stockfish-18-lite-single.js"));
         workerRef.current = worker;
         setIsReady(false);
 
