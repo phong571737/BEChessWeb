@@ -7,6 +7,7 @@ import { GameController } from "../controllers/game.controller.js";
 import { LogController } from "../controllers/log.controller.js";
 import { gameSeq } from "../game/game.repository.js";
 import { requireAdmin } from "../middleware/auth.middleware.js";
+import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
 
 export const gameRouter: Router = express.Router();
@@ -15,32 +16,32 @@ export const gameRouter: Router = express.Router();
  * POST /games/current
  * This api used to get current game(F5)
  */
-gameRouter.get("/current", GameController.getCurrent);
+gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
 
 /**
  * GET /games/history 
  * This api is used to get game played
 */
-gameRouter.get("/history", GameController.getHistory);
+gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
 
 /**GET  games/log
  * This api is used to get all log is saved
  */
-gameRouter.get("/log", LogController.getLog);
+gameRouter.get("/log", gameReadRateLimit, LogController.getLog);
 
 /**
  * DELETE /games/history/:id 
  * This api is used to delete game played
 */
-gameRouter.delete("/history/:id", GameController.deleteHistory);
+gameRouter.delete("/history/:id", gameDestructiveRateLimit, GameController.deleteHistory);
 
 /**
  * GET games/:id
  * This api is used to get single game by id
  */
-gameRouter.get("/:id", async (req, res) => {
+gameRouter.get("/:id", gameReadRateLimit, async (req, res) => {
     try {
-        const { id } = req.params;
+        const id = String(req.params.id ?? "");
         const game = await getGame(id);
         if (!game) {
             return res.status(404).json({ error: "Game not found" });
@@ -56,10 +57,10 @@ gameRouter.get("/:id", async (req, res) => {
  * POST games/:id/pgn
  * This api is used to post edit pgn to server
  */
-gameRouter.post("/:id/pgn", async (req, res) => {
+gameRouter.post("/:id/pgn", gameMutationRateLimit, async (req, res) => {
     try {
         const { pgn, fen, lastMove } = req.body;
-        const gameID = req.params.id;
+        const gameID = String(req.params.id ?? "");
 
         //update lastSeq
         const chess = new Chess();
@@ -84,13 +85,13 @@ gameRouter.post("/:id/pgn", async (req, res) => {
  * POST games/:id/restart
  * This api is used to post restart game
  */
-gameRouter.post("/:id/restart", GameActionController.restart);
+gameRouter.post("/:id/restart", gameMutationRateLimit, GameActionController.restart);
 
 /**
  * POST games/:id/destroy
  * This api is used to post destroy game
  */
-gameRouter.post("/:id/destroy", GameActionController.destroy);
+gameRouter.post("/:id/destroy", gameDestructiveRateLimit, GameActionController.destroy);
 
 /**
  * POST games/:id/resign
@@ -99,25 +100,25 @@ gameRouter.post("/:id/destroy", GameActionController.destroy);
  * Response 200: { status: OK, oldGameID, newGameID, loser, winner }
  * Response 400, 404, 500: { error};
  */
-gameRouter.post("/:id/resign", GameActionController.resign);
+gameRouter.post("/:id/resign", gameMutationRateLimit, GameActionController.resign);
 
 /**
  * POST games/:id/reset
  * This api is used to post reset board when the game end 
  */
-gameRouter.post("/:id/reset", GameActionController.reset);
+gameRouter.post("/:id/reset", gameMutationRateLimit, GameActionController.reset);
 
 /**
  * POST games/:id/rename
  * This api is used to post rename player
  */
-gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", requireAdmin, GameActionController.rename);
+gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRateLimit, requireAdmin, GameActionController.rename);
 
 /**
  * POST games/:id/endgame
  * This api is used to post endgame 
  */
-gameRouter.post("/:id/endgame", async (req, res) => {
+gameRouter.post("/:id/endgame", gameMutationRateLimit, async (req, res) => {
     try {
         const gameID = req.params.id;
         const { pgn } = req.body;
@@ -165,14 +166,14 @@ gameRouter.post("/:id/endgame", async (req, res) => {
  *   error: string
  * }
  */
-gameRouter.get("/:id/initcheck", GameController.initcheck);
+gameRouter.get("/:id/initcheck", gameInitCheckRateLimit, GameController.initcheck);
 
 /**PUT  games/:id/update
  * This api is used to update data
  */
-gameRouter.put("/:id/update", async (req, res) => {
+gameRouter.put("/:id/update", gameMutationRateLimit, async (req, res) => {
     try {
-        const id = req.params.id;
+        const id = String(req.params.id ?? "");
         const { date, result, pgn } = req.body;
         if (!pgn) {
             return res.status(400).json({ error: "PGN required" });

@@ -159,6 +159,8 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.pgnNotation": "Ký hiệu PGN",
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Đã copy!",
+    "rev.copyFenTimeline": "Copy FEN timeline",
+    "rev.copiedFenTimeline": "Đã copy!",
     "rev.showFullPgn": "Xem đầy đủ PGN",
     "rev.analysis": "Phân tích ván cờ",
     "rev.totalPlies": "Tổng số nước đi",

@@ -1,5 +1,6 @@
 import express, { Router } from "express";
 import { MoveController } from "../controllers/move.controller.js";
+import { moveRateLimit } from "../middleware/rate-limit.middleware.js";
 
 export const moveRouter: Router = express.Router();
 
@@ -7,7 +8,7 @@ export const moveRouter: Router = express.Router();
  * POST /moves
  * This api is used to send move
 */
-moveRouter.post("/", MoveController.handleMove);
+moveRouter.post("/", moveRateLimit, MoveController.handleMove);
 
 // Simple health/read endpoint for quick browser checks (GET /moves)
 moveRouter.get("/", (req, res) => {

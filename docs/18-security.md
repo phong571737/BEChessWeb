@@ -40,7 +40,6 @@ From the repository structure alone, the app does not appear to include:
 
 - role-based access control,
 - explicit API authorization middleware,
-- rate limiting,
 - CSRF protection,
 - strict input validation beyond the local controller and service checks.
 
@@ -98,6 +97,20 @@ The following information is considered sensitive and must not be exposed:
 - JWT tokens are signed and verified
 - User lookup by email/username for authentication
 - No password plaintext storage
+
+### Rate limiting
+
+The backend applies an in-memory, IP-based rate limit at public route boundaries. Express trusts the single Nginx reverse proxy so the limiter can use the forwarded client IP.
+
+- Login: 5 requests per minute per IP
+- Registration: 5 requests per hour per IP
+- Move submission: 120 requests per minute per IP
+- ESP and browser initialization checks: 240 requests per minute per IP
+- Game reads: 120 requests per minute per IP
+- Game mutations: 20 requests per minute per IP
+- Destructive game actions and history deletion: 5 requests per minute per IP
+
+When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header. The limiter protects against bursts and brute-force attempts; it does not replace authentication or authorization.
 
 ## Operational recommendations
 

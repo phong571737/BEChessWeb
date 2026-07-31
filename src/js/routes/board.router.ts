@@ -1,5 +1,6 @@
 import express from "express";
 import { BoardController } from "../controllers/board.controller.js";
+import { boardCreateRateLimit, boardInitCheckRateLimit } from "../middleware/rate-limit.middleware.js";
 
 export const boardRouter = express.Router();
 
@@ -11,7 +12,7 @@ export const boardRouter = express.Router();
  * Response 400: { status: INVALID, MISSBOARD}
  * 500: {SERVER_ERROR}
  */
-boardRouter.post("/", BoardController.create);
+boardRouter.post("/", boardCreateRateLimit, BoardController.create);
 
 /**
  * POST /boards/current
@@ -32,4 +33,4 @@ boardRouter.get("/", BoardController.getCurrent);
  * Response 400: { status: INVALID, error}
  * Response 500: { status: SERVER ERROR, error} 
  */
-boardRouter.post("/:id/initcheck", BoardController.initCheck);
+boardRouter.post("/:id/initcheck", boardInitCheckRateLimit, BoardController.initCheck);

@@ -144,6 +144,7 @@ function customReviewPgn(game: HistoryGame): string {
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
+  const [fenCopied, setFenCopied] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
@@ -291,6 +292,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
       await navigator.clipboard.writeText(reviewPgn);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    } catch {}
+  };
+
+  const copyFenTimeline = async () => {
+    if (!game.fenHistory?.length) return;
+    try {
+      await navigator.clipboard.writeText(game.fenHistory.map((fen, index) => `${index + 1}. ${fen}`).join("\n"));
+      setFenCopied(true);
+      setTimeout(() => setFenCopied(false), 2000);
     } catch {}
   };
 
@@ -449,15 +459,25 @@ export function PGNReviewContent({ game }: ReviewProps) {
               <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
                 FEN Timeline ({game.fenHistory.length})
               </summary>
-              <ScrollArea className="mt-2 h-44 rounded-sm border border-border bg-muted">
-                <div className="p-2 space-y-1">
-                  {game.fenHistory.map((f, i) => (
-                    <div key={`fh-${i}`} className="font-mono text-[10px] border border-border/60 rounded-sm px-2 py-1">
-                      <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
-                    </div>
-                  ))}
+              <div className="mt-2 space-y-2">
+                <div className="flex justify-end">
+                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyFenTimeline}>
+                    {fenCopied
+                      ? <><Check className="h-3 w-3" />{t("rev.copiedFenTimeline")}</>
+                      : <><Copy className="h-3 w-3" />{t("rev.copyFenTimeline")}</>
+                    }
+                  </Button>
                 </div>
-              </ScrollArea>
+                <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
+                  <div className="p-2 space-y-1">
+                    {game.fenHistory.map((f, i) => (
+                      <div key={`fh-${i}`} className="font-mono text-[10px] border border-border/60 rounded-sm px-2 py-1">
+                        <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              </div>
             </details>
           )}
 

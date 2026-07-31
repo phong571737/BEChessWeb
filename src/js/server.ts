@@ -19,6 +19,8 @@ async function StartServer() {
   const app = express();
   const server = createServer(app);
 
+  // Nginx is the single reverse proxy in front of this service.
+  app.set("trust proxy", 1);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
   app.use(cors({
