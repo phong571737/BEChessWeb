@@ -145,7 +145,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [fenCopied, setFenCopied] = useState(false);
-  const [fenTimelineOpen, setFenTimelineOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
@@ -456,24 +455,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
           </details>
 
           {!!game.fenHistory?.length && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  className="min-w-0 flex-1 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
-                  onClick={() => setFenTimelineOpen((open) => !open)}
-                  aria-expanded={fenTimelineOpen}
-                >
-                  {fenTimelineOpen ? "▼" : "▶"} FEN Timeline ({game.fenHistory.length})
-                </button>
-                <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs gap-1.5" onClick={copyFenTimeline}>
-                  {fenCopied
-                    ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFenTimeline")}</>
-                    : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFenTimeline")}</>
-                  }
-                </Button>
-              </div>
-              {fenTimelineOpen && (
+            <details className="relative text-sm">
+              <summary className="cursor-pointer pr-28 font-semibold text-muted-foreground hover:text-foreground select-none">
+                FEN Timeline ({game.fenHistory.length})
+              </summary>
+              <Button variant="outline" size="sm" className="absolute right-0 top-[-4px] h-8 text-xs gap-1.5" onClick={copyFenTimeline}>
+                {fenCopied
+                  ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFen")}</>
+                  : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFen")}</>
+                }
+              </Button>
+              <div className="mt-2">
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
                   <div className="p-3 space-y-1.5">
                     {game.fenHistory.map((f, i) => (
@@ -483,8 +475,8 @@ export function PGNReviewContent({ game }: ReviewProps) {
                     ))}
                   </div>
                 </ScrollArea>
-              )}
-            </div>
+              </div>
+            </details>
           )}
 
           {/* Display move from esp32 */}

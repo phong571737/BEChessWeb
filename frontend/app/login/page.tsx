@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/auth-context";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function LoginPage() {
     const router = useRouter();
@@ -16,6 +17,7 @@ export default function LoginPage() {
     const { login } = useAuth();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const [showPassword, setShowPassword] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
 
@@ -80,15 +82,30 @@ export default function LoginPage() {
 
                     <div className="space-y-2">
                         <Label htmlFor="password">{t("login.password")}</Label>
-                        <Input
-                            id="password"
-                            type="password"
-                            placeholder="••••••••"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            required
-                            disabled={loading}
-                        />
+                        <div className="relative">
+                            <Input
+                                id="password"
+                                type={showPassword ? "text" : "password"}
+                                placeholder="••••••••"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                required
+                                disabled={loading}
+                                className="pr-10"
+                            />
+                            <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="absolute right-1 top-1/2 size-8 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                                onClick={() => setShowPassword((visible) => !visible)}
+                                title={showPassword ? t("login.hidePassword") : t("login.showPassword")}
+                                aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
+                                disabled={loading}
+                            >
+                                {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                            </Button>
+                        </div>
                     </div>
 
                     <Button type="submit" className="w-full" disabled={loading}>
