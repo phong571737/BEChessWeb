@@ -22,6 +22,8 @@ export interface GameDoc extends Document {
     lastSeq?: number;
     round?: number;
     status?: string;
+    /** Temporary atomic state used while a resignation is being finalized. */
+    resigningAt?: Date | null;
     result?: string;
     totalMoves?: number;
     branches?: GameBranch[];

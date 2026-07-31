@@ -20,6 +20,7 @@ export const GameActionController = {
             const message = e instanceof Error ? e.message : String(e);
             const status = message === "Game not found" ? 404
                 : message === "resignSide error" ? 400
+                    : message === "RESIGN_IN_PROGRESS" || message === "RESIGN_ALREADY_PROCESSED" ? 409
                     : 500;
             res.status(status).json({ error: message });
         }

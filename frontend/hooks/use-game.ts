@@ -19,6 +19,7 @@ export function useGame(gameID: string) {
     const chessRef = useRef<Chess>(new Chess());
     const initialMoveCountRef = useRef<number>(0);
     const sessionTs = useRef<number[]>([]);
+    const resignRequestRef = useRef(false);
     const [isLoaded, setIsLoaded] = useState(false);
     const [moveTimesMap, setMoveTimesMap] = useState<Record<number, number>>({});
     const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
@@ -446,6 +447,8 @@ export function useGame(gameID: string) {
 
     // Resign
     const resign = async (resignSide: "white" | "black" | "draw" = "white", branchId?: string | null) => {
+        if (resignRequestRef.current) return;
+        resignRequestRef.current = true;
         const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
         try {
             const res = await fetch(`/games/${gameID}/resign`, {
@@ -454,23 +457,15 @@ export function useGame(gameID: string) {
                 body: JSON.stringify({ resignSide, branchId: branchId ?? null }),
             });
             if (res.ok) {
-                const data = await res.json();
-                patchBoard(gameID, {
-                    status: GAME_STATUS.ENDED,
-                    result: resultTag,
-                });
-            } else {
                 patchBoard(gameID, {
                     status: GAME_STATUS.ENDED,
                     result: resultTag,
                 });
             }
-        } catch (e) {
-            console.error("Resign error:", e);
-            patchBoard(gameID, {
-                status: GAME_STATUS.ENDED,
-                result: resultTag,
-            });
+        } catch {
+            // Keep the current board state when the request did not reach the server.
+        } finally {
+            resignRequestRef.current = false;
         }
         invalidateFetchCache(`/games/${gameID}`);
         invalidateFetchCache("/games/current");

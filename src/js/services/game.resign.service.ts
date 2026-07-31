@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { endGame, getGame, saveGame } from "../models/game.model.js";
+import { claimGameResignation, endGame, getGame, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
@@ -16,6 +16,9 @@ interface ResignResult {
     loser: ResignSide;
     winner: "white" | "black" | null;
 }
+
+const RESIGN_IN_PROGRESS = "RESIGN_IN_PROGRESS";
+const RESIGN_ALREADY_PROCESSED = "RESIGN_ALREADY_PROCESSED";
 
 function buildResultTag(resignSide: ResignSide) {
     const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
@@ -60,9 +63,17 @@ export const GameResignService = {
             throw new Error(ERROR_STATUS.RESIGN_ERROR);
         }
 
-        // get current game
-        const game = await getGame(gameID);
-        if (!game) throw new Error(ERROR_STATUS.NOTFOUND);
+        // Atomically claim the game before doing any write. This prevents two
+        // clients (or a network retry) from recording the same resignation.
+        const game = await claimGameResignation(gameID);
+        if (!game) {
+            const current = await getGame(gameID);
+            if (current?.status === GAME_STATUS.FINISHED) throw new Error(RESIGN_ALREADY_PROCESSED);
+            if (current?.status === "resigning") throw new Error(RESIGN_IN_PROGRESS);
+            throw new Error(ERROR_STATUS.NOTFOUND);
+        }
+
+        try {
 
         const winner = resignSide === "draw" ? null : resignSide === "white" ? "black" : "white";
         // let pgn = game.pgn ?? "";
@@ -124,6 +135,7 @@ export const GameResignService = {
             round: nextRound,
             uciHistory: [], // reset
             fenHistory: [],
+            resigningAt: null,
         }, { boardType });
 
         const newGameID = crypto.randomUUID();
@@ -134,5 +146,9 @@ export const GameResignService = {
         console.log("saveGame result =", updateResult);
 
         return { status: "OK", oldGameID: gameID, newGameID, loser: resignSide, winner };
+        } catch (error) {
+            await releaseGameResignationClaim(gameID, game.status);
+            throw error;
+        }
     }
 }

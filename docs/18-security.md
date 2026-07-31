@@ -112,6 +112,10 @@ The backend applies an in-memory, IP-based rate limit at public route boundaries
 
 When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-After` header. The limiter protects against bursts and brute-force attempts; it does not replace authentication or authorization.
 
+### Idempotent resignation
+
+`POST /games/:id/resign` first performs an atomic MongoDB state transition from a live status to `resigning`. Only the request that successfully claims that transition may write the history entry, reset the live state, and create the next game. Concurrent clicks and network retries receive `409 Conflict` while the resignation is in progress, rather than creating another history entry or next-game record. History records use the game ID as their deterministic MongoDB `_id`, making a repeated final-history write an idempotent no-op.
+
 ## Operational recommendations
 
 For any production deployment, the team should consider adding:

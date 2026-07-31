@@ -100,7 +100,50 @@ export async function removeGameByBoardID(boardID: string) {
  * This function is used to save pgn into database
  * when the game ended */
 export async function endGame(doc: Document) {
-    return getPGNCollections().insertOne(doc);
+    const gameID = doc.gameID;
+    if (typeof gameID !== "string" || !gameID) {
+        return getPGNCollections().insertOne(doc);
+    }
+
+    // A game ID can be finalized once only. A deterministic history _id makes
+    // a repeated request/retry an idempotent no-op instead of a second record.
+    return getPGNCollections().updateOne(
+        { _id: gameID } as unknown as Filter<Document>,
+        { $setOnInsert: { ...doc, _id: gameID } },
+        { upsert: true },
+    );
+}
+
+/** Atomically reserves a live game for one resignation operation. */
+export async function claimGameResignation(gameID: string): Promise<GameDoc | null> {
+    return games().findOneAndUpdate(
+        {
+            gameID,
+            status: { $nin: ["finished", "resigning"] },
+        } as Filter<GameDoc>,
+        {
+            $set: {
+                status: "resigning",
+                resigningAt: new Date(),
+                updateAt: new Date(),
+            },
+        } as UpdateFilter<GameDoc>,
+        { returnDocument: "before" },
+    );
+}
+
+/** Releases a failed resignation reservation so a later retry can proceed. */
+export async function releaseGameResignationClaim(gameID: string, previousStatus?: string): Promise<void> {
+    await games().updateOne(
+        { gameID, status: "resigning" } as Filter<GameDoc>,
+        {
+            $set: {
+                status: previousStatus ?? "waiting",
+                resigningAt: null,
+                updateAt: new Date(),
+            },
+        } as UpdateFilter<GameDoc>,
+    );
 }
 
 /**This function is used to modify PGN */
