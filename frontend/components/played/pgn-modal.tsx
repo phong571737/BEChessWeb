@@ -145,6 +145,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
   const [copied, setCopied] = useState(false);
   const [fenCopied, setFenCopied] = useState(false);
+  const [fenTimelineOpen, setFenTimelineOpen] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
@@ -455,30 +456,35 @@ export function PGNReviewContent({ game }: ReviewProps) {
           </details>
 
           {!!game.fenHistory?.length && (
-            <details className="text-xs">
-              <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
-                FEN Timeline ({game.fenHistory.length})
-              </summary>
-              <div className="mt-2 space-y-2">
-                <div className="flex justify-end">
-                  <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyFenTimeline}>
-                    {fenCopied
-                      ? <><Check className="h-3 w-3" />{t("rev.copiedFenTimeline")}</>
-                      : <><Copy className="h-3 w-3" />{t("rev.copyFenTimeline")}</>
-                    }
-                  </Button>
-                </div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-3">
+                <button
+                  type="button"
+                  className="min-w-0 flex-1 text-left text-sm font-semibold text-muted-foreground hover:text-foreground"
+                  onClick={() => setFenTimelineOpen((open) => !open)}
+                  aria-expanded={fenTimelineOpen}
+                >
+                  {fenTimelineOpen ? "▼" : "▶"} FEN Timeline ({game.fenHistory.length})
+                </button>
+                <Button variant="outline" size="sm" className="h-8 shrink-0 text-xs gap-1.5" onClick={copyFenTimeline}>
+                  {fenCopied
+                    ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFenTimeline")}</>
+                    : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFenTimeline")}</>
+                  }
+                </Button>
+              </div>
+              {fenTimelineOpen && (
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
-                  <div className="p-2 space-y-1">
+                  <div className="p-3 space-y-1.5">
                     {game.fenHistory.map((f, i) => (
-                      <div key={`fh-${i}`} className="font-mono text-[10px] border border-border/60 rounded-sm px-2 py-1">
+                      <div key={`fh-${i}`} className="font-mono text-xs border border-border/60 rounded-sm px-2.5 py-1.5">
                         <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
                       </div>
                     ))}
                   </div>
                 </ScrollArea>
-              </div>
-            </details>
+              )}
+            </div>
           )}
 
           {/* Display move from esp32 */}
