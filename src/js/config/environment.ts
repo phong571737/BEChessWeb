@@ -17,6 +17,11 @@ function optionalEnv(key: string): string | undefined {
 
 export interface Env {
   MONGO_URI: string;
+  /** Mandatory signing key for authentication tokens. */
+  JWT_SECRET: string;
+  /** Comma-separated browser origins permitted for cross-origin API requests. */
+  CORS_ORIGINS?: string;
+  VERCEL_WEB?: string;
   AUTHOR?: string;
   PORT: number;
   SERVER_NAME?: string;
@@ -33,6 +38,9 @@ export interface Env {
 
 export const env: Env = {
   MONGO_URI: requireEnv("MONGO_URI"),
+  JWT_SECRET: requireEnv("JWT_SECRET"),
+  CORS_ORIGINS: optionalEnv("CORS_ORIGINS"),
+  VERCEL_WEB: optionalEnv("VERCEL_WEB"),
   AUTHOR: optionalEnv("AUTHOR"),
   PORT: Number(optionalEnv("PORT") ?? "80"),
   SERVER_NAME: optionalEnv("SERVER_NAME"),

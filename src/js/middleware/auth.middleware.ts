@@ -1,11 +1,10 @@
 import { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { env } from "../config/environment.js";
 
 interface AuthPayload extends jwt.JwtPayload {
     role?: string;
 }
-
-const getJwtSecret = () => process.env.JWT_SECRET || "your-secret-key";
 
 /** Restricts state-changing administrator operations to a valid admin JWT. */
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
@@ -18,7 +17,7 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
     }
 
     try {
-        const payload = jwt.verify(token, getJwtSecret()) as AuthPayload;
+        const payload = jwt.verify(token, env.JWT_SECRET) as AuthPayload;
         if (payload.role !== "admin") {
             res.status(403).json({ error: "Administrator access required" });
             return;

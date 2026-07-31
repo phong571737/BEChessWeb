@@ -1,46 +1,53 @@
 import { Chess } from "chess.js";
-import { createGame, getCurrentGame, setCurrentGame } from "../game/game.manager.js";
-import { saveGame, removeGameByBoardID } from "../models/game.model.js";
+import { createGame, setCurrentGame } from "../game/game.manager.js";
+import { acquireBoardCreationLock, getLatestGameByBoardID, releaseBoardCreationLock, saveGame } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
 import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
 import { MoveLike, Branch } from "../types/chess.types.js";
 
 export const GameService = {
-  // create game
+  // Only one creator may initialize a physical board at a time. A second
+  // request returns the retained active game instead of deleting it.
   async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "", initialTimeMs?: number, incrementMs?: number) {
-    // Clean up ALL old game records (active or finished) for this boardID from DB & RAM
-    const result = await removeGameByBoardID(boardID);
-    if (result?.gameIDs?.length) {
-      for (const oldId of result.gameIDs) {
-        games.delete(oldId);
-        gameSeq.delete(oldId);
-        activeBranches.delete(oldId);
-        rawMoveHistory.delete(oldId);
-        pgnBaseFen.delete(oldId);
+    if (!await acquireBoardCreationLock(boardID, gameID)) {
+      const existing = await getLatestGameByBoardID(boardID);
+      if (existing?.gameID) {
+        setCurrentGame(boardID, existing.gameID);
+        return { boardID, gameID: existing.gameID, fen: existing.fen ?? new Chess().fen(), round: existing.round ?? round, reused: true };
       }
-      console.log(`[GameService] Cleaned ${result.gameIDs.length} old game(s) for board ${boardID} from DB & RAM`);
+      throw new Error("BOARD_CREATION_IN_PROGRESS");
     }
+    try {
+      const existing = await getLatestGameByBoardID(boardID);
+      if (existing?.gameID) {
+        setCurrentGame(boardID, existing.gameID);
+        return { boardID, gameID: existing.gameID, fen: existing.fen ?? new Chess().fen(), round: existing.round ?? round, reused: true };
+      }
 
-    const chess: Chess = createGame(gameID);
-    await saveGame(gameID, {
-      gameID,
-      boardID,
-      fen: chess.fen(),
-      initialFen: chess.fen(),
-      pgn: "",
-      lastMove: null,
-      round,
-      WhiteName: WhiteName,
-      BlackName: BlackName,
-      initialTimeMs,
-      incrementMs,
-    });
+      const chess: Chess = createGame(gameID);
+      await saveGame(gameID, {
+        gameID,
+        boardID,
+        fen: chess.fen(),
+        initialFen: chess.fen(),
+        pgn: "",
+        lastMove: null,
+        round,
+        status: "waiting",
+        version: 0,
+        WhiteName,
+        BlackName,
+        initialTimeMs,
+        incrementMs,
+      });
 
-    setCurrentGame(boardID, gameID);
-    gameState.set(boardID, {gameID, gameStatus: "idle"})
-
-    return { boardID, gameID, fen: chess.fen(), round};
+      setCurrentGame(boardID, gameID);
+      gameState.set(boardID, {gameID, gameStatus: "idle"});
+      return { boardID, gameID, fen: chess.fen(), round, reused: false };
+    } finally {
+      await releaseBoardCreationLock(boardID, gameID);
+    }
   },
 }
 

@@ -58,8 +58,6 @@ async function processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, depa
     const state = await makeMove(gameID, candidates, seq, moveType ?? "", boardType, fen); // handle move game
 
     if (state.status != MOVE_STATUS.OK) return state;
-    await afterMove(gameID, state, uci, state.lastSeq ?? seq ?? 0, boardType, fen);
-
     return state;
 }
 
@@ -75,7 +73,6 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, departur
     if (state.status != MOVE_STATUS.OK) return state;
     const uciToSave = isError ? `dep:${departures ?? ""} arr:${arrivals ?? ""}` : uci; 
 
-    await afterMove(gameID, state, uciToSave, state.lastSeq ?? seq ?? 0, boardType);
     return {
         status: state.status,
         fen: state.fen,
@@ -90,19 +87,21 @@ async function processMoveHall({ boardType, gameID, seq, moveType, uci, departur
  * Shared post-move logic: stockfish eval, DB save, socket broadcast.
  */
 async function afterMove(
-    gameID: string, state: MoveState, uci: string | undefined, seq: number, boardType: string, fen?: string 
+    gameID: string, state: MoveState, uci: string | undefined, seq: number, boardType: string, fen: string | undefined, expectedVersion: number
 ): Promise<void> {
     const now = new Date();
     const persistedGame = await getGame(gameID);
     const startedAt = persistedGame?.startedAt ?? now;
     const durationSec = Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 1_000));
-    await saveGame(
+    const write = await saveGame(
         gameID, 
         { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove, startedAt, lastMoveAt: now, durationSec },
-        { uci, fen, seq, boardType }
+        { uci, fen, seq, boardType, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
     ); // save db
-    const roomSize = getIO().sockets.adapter.rooms.get(gameID)?.size ?? 0;
-    console.log(`[SOCKET DEBUG] Room ${gameID} has ${roomSize} client(s)`);
+    if (!write?.modifiedCount) {
+        await restorefromDB(gameID);
+        throw new Error("GAME_STATE_CONFLICT");
+    }
 
     getIO().to(gameID).emit("esp_move", state);// broadcast move
 }
@@ -110,7 +109,6 @@ async function afterMove(
 export const MoveService = {
     async processMove({ boardType, uci, fen, boardID, seq, moveType, departures, arrivals }: ProcessMoveInput) {
         const gameID = getCurrentGame(boardID);
-        console.log(`boardID: ${boardID} and gameID: ${gameID} and boardType: ${boardType}`);
 
         if (!gameID) {
             return {
@@ -118,6 +116,12 @@ export const MoveService = {
                 message: "No active game for this board",
             }
         }
+
+        const persistedGame = await getGame(gameID);
+        if (!persistedGame || ["finished", "resigning"].includes(persistedGame.status ?? "")) {
+            return { error: true, message: "GAME_STATE_CONFLICT" };
+        }
+        const expectedVersion = persistedGame.version ?? 0;
 
         // Ensure game is loaded into memory
         if (!games.has(gameID)) {
@@ -131,10 +135,19 @@ export const MoveService = {
         }
 
         switch (boardType) {
-            case BOARD_TYPE.NFC:
-                return processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals });
-            case BOARD_TYPE.HALL:
-                return processMoveHall({boardType, gameID, seq, moveType, uci, departures, arrivals });
+            case BOARD_TYPE.NFC: {
+                const moveState = await processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals }) as MoveState;
+                if (moveState.status === MOVE_STATUS.OK) await afterMove(gameID, moveState, uci, moveState.lastSeq ?? seq ?? 0, boardType, fen, expectedVersion);
+                return moveState;
+            }
+            case BOARD_TYPE.HALL: {
+                const moveState = await processMoveHall({boardType, gameID, seq, moveType, uci, departures, arrivals }) as MoveState;
+                if (moveState.status === MOVE_STATUS.OK) {
+                    const persistedUci = moveState.isError ? `dep:${departures ?? ""} arr:${arrivals ?? ""}` : uci;
+                    await afterMove(gameID, moveState, persistedUci, moveState.lastSeq ?? seq ?? 0, boardType, undefined, expectedVersion);
+                }
+                return moveState;
+            }
             default:
                 console.error("Unknown boardType: ", boardType);
                 return { error: true, message: `Unknown boardType: ${boardType}` };

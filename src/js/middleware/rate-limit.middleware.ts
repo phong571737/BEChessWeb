@@ -12,6 +12,17 @@ type RateLimitBucket = {
 };
 
 const buckets = new Map<string, RateLimitBucket>();
+const MAX_BUCKETS = 10_000;
+
+function pruneExpiredBuckets(now = Date.now()): void {
+    for (const [key, bucket] of buckets) {
+        if (bucket.resetAt <= now) buckets.delete(key);
+    }
+}
+
+// Do not retain a key forever after an IP stops making requests.
+const cleanupTimer = setInterval(() => pruneExpiredBuckets(), 60_000);
+cleanupTimer.unref();
 
 function getClientAddress(req: Request): string {
     return req.ip || req.socket.remoteAddress || "unknown";
@@ -26,6 +37,7 @@ export function rateLimit({ key, max, windowMs }: RateLimitOptions): RequestHand
     return (req: Request, res: Response, next: NextFunction): void => {
         const now = Date.now();
         const bucketKey = `${key}:${getClientAddress(req)}`;
+        if (buckets.size >= MAX_BUCKETS) pruneExpiredBuckets(now);
         const current = buckets.get(bucketKey);
 
         if (!current || now >= current.resetAt) {

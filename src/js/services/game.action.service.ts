@@ -1,4 +1,5 @@
 import { resetGame } from "../game/game.manager.js";
+import { Chess } from "chess.js";
 import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState, emitGameState } from "../game/game.state.js";
@@ -19,13 +20,13 @@ export const GameActionService = {
             throw new Error(`Game ${gameID} is missing boardID`);
         }
 
-        const reset = resetGame(gameID);
         const resetAt = Date.now();
         const initialTimeMs = game.initialTimeMs ?? (game.clockSeconds ? game.clockSeconds * 1_000 : undefined);
         const incrementMs = game.incrementMs ?? (game.clockIncrement ? game.clockIncrement * 1_000 : undefined);
-        await saveGame(gameID, {
-            fen: reset.fen(),
-            initialFen: reset.fen(),
+        const initialFen = new Chess().fen();
+        const transition = await saveGame(gameID, {
+            fen: initialFen,
+            initialFen,
             pgn: "",
             lastMove: null,
             lastSeq: 0,
@@ -38,7 +39,11 @@ export const GameActionService = {
             branches: [],
             uciHistory: [],
             fenHistory: [],
-        });
+        }, { expectedVersion: game.version ?? 0, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] });
+        if (!transition?.modifiedCount) {
+            throw new Error("GAME_STATE_CONFLICT");
+        }
+        const reset = resetGame(gameID);
         // A physical-board scan must validate the reset position before a new game can start.
         gameState.set(boardID, { gameID, gameStatus: "checkinit", initResultStatus: "checkinit", buttonReady: false, wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);

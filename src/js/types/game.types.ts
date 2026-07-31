@@ -22,6 +22,8 @@ export interface GameDoc extends Document {
     lastSeq?: number;
     round?: number;
     status?: string;
+    /** Optimistic-concurrency revision; incremented by every guarded game transition. */
+    version?: number;
     /** Temporary atomic state used while a resignation is being finalized. */
     resigningAt?: Date | null;
     result?: string;
@@ -51,6 +53,10 @@ export interface SaveGameOptions {
     fen?: string;
     seq?: number;
     boardType?: string;
+    /** Only update when the persisted game still has this revision. */
+    expectedVersion?: number;
+    /** Optional persisted status precondition for a state transition. */
+    expectedStatus?: string | string[];
 }
 
 export interface GameIdParams extends Record<string, string> {

@@ -1,16 +1,13 @@
 import { Server } from "socket.io";
 import { Server as HTTPServer } from "http";
 import { initGameSocket } from "./game.socket.js";
+import { socketCorsOptions } from "../config/cors.js";
 
 let io: Server | undefined;
 
 export function initSocket(server: HTTPServer): void{
     io = new Server(server, {
-        cors:{
-            origin: "*",
-            methods: ['GET', 'POST'],
-            credentials: false
-        }
+        cors: socketCorsOptions,
     });
 
     initGameSocket(io);

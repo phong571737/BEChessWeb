@@ -12,6 +12,7 @@ import { moveRouter } from "./routes/move.router.js";
 import authRouter from "./routes/auth.router.js";
 import { env } from "./config/environment.js";
 import { ensureDefaultAdmin } from "./models/user.model.js";
+import { corsOptions } from "./config/cors.js";
 
 dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
@@ -23,11 +24,7 @@ async function StartServer() {
   app.set("trust proxy", 1);
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
-  app.use(cors({
-    origin: "*",
-    methods: ['GET', 'POST'],
-    credentials: true
-  }));
+  app.use(cors(corsOptions));
   
     // Simple health endpoint: GET /
     app.get("/", (req, res) => {

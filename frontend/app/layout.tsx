@@ -12,11 +12,11 @@ export default function RootLayout({
     return (
         <html lang="en" suppressHydrationWarning>
             <body >
-                <Providers>
-                    <AuthProvider>
+                <AuthProvider>
+                    <Providers>
                         <AppShell>{children}</AppShell>
-                    </AuthProvider>
-                </Providers>
+                    </Providers>
+                </AuthProvider>
             </body>
         </html>
     )

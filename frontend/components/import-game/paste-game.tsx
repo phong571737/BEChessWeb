@@ -55,6 +55,20 @@ export function PasteGame() {
     const [isFocused, setIsFocused] = useState(false);
     const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+    useEffect(() => () => {
+        timeoutRefs.current.forEach(clearTimeout);
+        timeoutRefs.current = [];
+    }, []);
+
+    function schedule(callback: () => void, delay: number) {
+        const timeout = setTimeout(() => {
+            timeoutRefs.current = timeoutRefs.current.filter((item) => item !== timeout);
+            callback();
+        }, delay);
+        timeoutRefs.current.push(timeout);
+    }
 
     const activeBranch = useMemo(() => result?.branches[selectedBranch], [result, selectedBranch]);
 
@@ -74,7 +88,7 @@ export function PasteGame() {
     function handleParse() {
         if (!rawInput.trim()) return;
         setIsParsing(true);
-        setTimeout(() => {
+        schedule(() => {
             const parsed = parseUciBranches(rawInput);
             setSelectedBranch(0);
             setResult(parsed);
@@ -87,7 +101,7 @@ export function PasteGame() {
         setRawInput(uci);
         setSelectedPreset(presetIndex);
         setIsParsing(true);
-        setTimeout(() => {
+        schedule(() => {
             const parsed = parseUciBranches(uci);
             setSelectedBranch(0);
             setResult(parsed);
@@ -108,7 +122,7 @@ export function PasteGame() {
     async function handleCopy(idx: number, pgn: string) {
         await navigator.clipboard.writeText(pgn);
         setCopiedBranch(idx);
-        setTimeout(() => {
+        schedule(() => {
             setCopiedBranch((current) => (current === idx ? null : current));
         }, 1500);
     }

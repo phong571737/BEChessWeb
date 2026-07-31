@@ -136,18 +136,23 @@ export const GameResignService = {
             uciHistory: [], // reset
             fenHistory: [],
             resigningAt: null,
-        }, { boardType });
+        }, {
+            boardType,
+            expectedVersion: (game.version ?? 0) + 1,
+            expectedStatus: "resigning",
+        });
+        if (!updateResult?.modifiedCount) {
+            throw new Error("GAME_STATE_CONFLICT");
+        }
 
         const newGameID = crypto.randomUUID();
         if (!game.boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);
         }
         await GameService.create(game.boardID, newGameID, nextRound);
-        console.log("saveGame result =", updateResult);
-
         return { status: "OK", oldGameID: gameID, newGameID, loser: resignSide, winner };
         } catch (error) {
-            await releaseGameResignationClaim(gameID, game.status);
+            await releaseGameResignationClaim(gameID, game.status === "resigning" ? "waiting" : game.status);
             throw error;
         }
     }

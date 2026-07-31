@@ -11,6 +11,8 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 ### Required values
 
 - `MONGO_URI` – primary MongoDB connection string
+- `JWT_SECRET` – JWT signing secret; must be random, private, and at least 32 characters
+- `CORS_ORIGINS` – optional comma-separated browser origins allowed to call the API, for example `http://localhost:3000,http://ttlab.uit.edu.vn`
 - `PORT` – HTTP server port (defaults to `80` when omitted)
 - `URL_HIVEMQTT` – MQTT broker URL
 - `MQTT_PORT` – MQTT broker port
@@ -43,6 +45,7 @@ Example placeholders may be used when necessary, but they must not be valid proj
 ADMIN_USERNAME=<admin-username>
 ADMIN_EMAIL=<admin-email>
 ADMIN_PASSWORD=<admin-password>
+JWT_SECRET=<long-random-private-signing-secret>
 ```
 
 ## Why these values exist

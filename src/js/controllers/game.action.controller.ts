@@ -30,11 +30,10 @@ export const GameActionController = {
     async restart(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
             const gameID = req.params.id;
-            console.log("Restart game:", gameID);
             const result = await GameActionService.restart(gameID);
             res.json({ ok: true, ...result });
         } catch (e) {
-            console.log("Restart error: ", e);
+            console.error("Restart error:", e);
             const message = e instanceof Error ? e.message : String(e);
             if (message === ERROR_STATUS.NOTFOUND) {
                 res.status(404).json({ error: true, message: "Game not found" });
@@ -47,6 +46,10 @@ export const GameActionController = {
                 });
                 return;
             }
+            if (message === "GAME_STATE_CONFLICT") {
+                res.status(409).json({ error: true, message: "Game state changed. Reload and try again." });
+                return;
+            }
             res.status(500).json({ error: message });
         }
     },
@@ -55,13 +58,12 @@ export const GameActionController = {
     async destroy(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
             const gameID = req.params.id;
-            console.log("Destroy request: ", gameID);
             const result = await GameActionService.destroy(gameID);
             res.json({
                 result
             });
         } catch (e) {
-            console.log("Remove game", e);
+            console.error("Destroy game error:", e);
             const message = e instanceof Error ? e.message : String(e);
             res.status(500).json({ error: message });
         }
@@ -100,7 +102,7 @@ export const GameActionController = {
                 ok: true
             });
         } catch (e) {
-            console.log("Rename failed", e);
+            console.error("Rename failed:", e);
             const message = e instanceof Error ? e.message : String(e);
             res.status(500).json({ error: message });
         }

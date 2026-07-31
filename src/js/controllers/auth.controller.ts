@@ -1,8 +1,7 @@
 import { Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { createUser, findUserByEmail, validatePassword } from "../models/user.model.js";
-
-const getJwtSecret = () => process.env.JWT_SECRET || "your-secret-key";
+import { env } from "../config/environment.js";
 
 export const AuthController = {
     async register(req: Request, res: Response): Promise<void> {
@@ -28,7 +27,7 @@ export const AuthController = {
 
             const token = jwt.sign(
                 { userId: user._id, email: user.email, role: user.role ?? "user" },
-                getJwtSecret(),
+                env.JWT_SECRET,
                 { expiresIn: "7d" }
             );
 
@@ -71,7 +70,7 @@ export const AuthController = {
 
             const token = jwt.sign(
                 { userId: user._id, email: user.email, role: user.role ?? "user" },
-                getJwtSecret(),
+                env.JWT_SECRET,
                 { expiresIn: "7d" }
             );
 

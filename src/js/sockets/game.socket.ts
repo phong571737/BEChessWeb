@@ -1,6 +1,8 @@
-import { Server } from "socket.io";
+import { Server, Socket } from "socket.io";
+import jwt from "jsonwebtoken";
 import { getCurrentState } from "../game/game.manager.js";
 import { GameIDPayload, ResignPayload } from "../types/game.types.js";
+import { env } from "../config/environment.js";
 
 type RequestCurrentGamePayload = Partial<GameIDPayload>;
 interface MatchStatus {
@@ -10,13 +12,34 @@ interface MatchStatus {
 
 const gameStatus = new Map<string, MatchStatus>();
 
+interface SocketAuthPayload extends jwt.JwtPayload {
+    role?: string;
+}
+
+function requireAdminSocket(socket: Socket): boolean {
+    const token = typeof socket.handshake.auth?.token === "string" ? socket.handshake.auth.token : null;
+    if (!token) {
+        socket.emit("action_error", { error: "Administrator authentication required" });
+        return false;
+    }
+
+    try {
+        const payload = jwt.verify(token, env.JWT_SECRET) as SocketAuthPayload;
+        if (payload.role === "admin") return true;
+    } catch {
+        // Treat malformed and expired tokens identically.
+    }
+
+    socket.emit("action_error", { error: "Administrator authentication required" });
+    return false;
+}
+
 export function initGameSocket(io: Server): void {
     io.on("connection", (socket) =>{
 
         // join room
         socket.on("join", ({gameID}) =>{
             socket.join(gameID);
-            console.log(`${socket.id} joined room: ${gameID}`);
         });
 
         // Save data to currentGameState
@@ -28,7 +51,7 @@ export function initGameSocket(io: Server): void {
 
             const gameID = data.gameID;
             const currentstate = await getCurrentState(gameID);
-            
+
             if(currentstate){
                 socket.emit("restore_game", {
                     gameID: currentstate.gameID,
@@ -41,6 +64,7 @@ export function initGameSocket(io: Server): void {
         });
 
         socket.on("resign", async ({gameID, resignSide}: ResignPayload) => {
+            if (!requireAdminSocket(socket)) return;
             const current = gameStatus.get(gameID) ?? { status: "ongoing" as const, winner: null };
 
             // anti double click
@@ -63,8 +87,9 @@ export function initGameSocket(io: Server): void {
 
         // Receiv restart from client and emit update board
         socket.on("restart", ({gameID}) => {
+            if (!requireAdminSocket(socket)) return;
             if (!gameID) return;
-            
+
             io.to(gameID).emit("update_all_game", {
                 gameID
             });
@@ -72,7 +97,6 @@ export function initGameSocket(io: Server): void {
 
         // Cleanup khi client ngắt kết nối
         socket.on("disconnect", () => {
-            console.log(`Socket ${socket.id} disconnected`);
         });
     })
-}
+}

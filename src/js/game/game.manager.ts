@@ -472,9 +472,6 @@ export function destroyBoard(gameID: string): void {
 
 // Map boarid to gameid
 export function setCurrentGame(boardID: string, gameID: string): void {
-  console.log("SET CURRENT GAME");
-  console.log(boardID, gameID);
-
   // clean up old game
   const oldGameID = currentGameByBoard.get(boardID);
   if (oldGameID && oldGameID !== gameID) {
@@ -484,7 +481,6 @@ export function setCurrentGame(boardID: string, gameID: string): void {
   currentGameByBoard.set(boardID, gameID);
   boardIDByGame.set(gameID, boardID);
 
-  console.log(currentGameByBoard);
 }
 
 // Get gameID from boardID

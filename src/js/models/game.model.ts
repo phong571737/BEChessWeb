@@ -15,7 +15,7 @@ export function getPGNCollections(): Collection<Document> { return pgnGames(); }
 export async function saveGame(
     gameID: string,
     state: Partial<GameDoc>,
-    { uci, fen, seq, boardType }: SaveGameOptions = {}) {
+    { uci, fen, seq, boardType, expectedVersion, expectedStatus }: SaveGameOptions = {}) {
     try {
         // remove fen history
         const { fenHistory, uciHistory, ...safeState } = state;
@@ -46,10 +46,28 @@ export async function saveGame(
             updateOp.$push = pushFeilds as UpdateFilter<GameDoc>["push"];
         }
 
+        if (expectedVersion !== undefined) {
+            updateOp.$inc = { version: 1 } as unknown as UpdateFilter<GameDoc>["$inc"];
+        }
+
+        const filter: Filter<GameDoc> = { gameID } as Filter<GameDoc>;
+        // Older game documents predate the version field; treat a missing
+        // revision as version 0 for their first guarded transition.
+        if (expectedVersion !== undefined) {
+            filter.version = expectedVersion === 0
+                ? { $in: [0, null] } as unknown as Filter<GameDoc>["version"]
+                : expectedVersion;
+        }
+        if (expectedStatus !== undefined) {
+            filter.status = Array.isArray(expectedStatus)
+                ? { $in: expectedStatus }
+                : expectedStatus;
+        }
+
         return games().updateOne(
-            { gameID },
+            filter,
             updateOp,
-            { upsert: true }
+            { upsert: expectedVersion === undefined }
         );
     } catch (e) {
         console.log(e);
@@ -58,7 +76,7 @@ export async function saveGame(
 }
 
 export async function getAllGame(limit = 200) {
-    return games().find({}).limit(limit).toArray();
+    return games().find({ status: { $ne: "finished" } } as Filter<GameDoc>).limit(limit).toArray();
 }
 
 /**This function is used to load game by id */
@@ -116,20 +134,58 @@ export async function endGame(doc: Document) {
 
 /** Atomically reserves a live game for one resignation operation. */
 export async function claimGameResignation(gameID: string): Promise<GameDoc | null> {
+    const now = new Date();
+    const leaseExpiredAt = new Date(now.getTime() - 30_000);
     return games().findOneAndUpdate(
         {
             gameID,
-            status: { $nin: ["finished", "resigning"] },
+            $or: [
+                { status: { $nin: ["finished", "resigning"] } },
+                { status: "resigning", resigningAt: { $lt: leaseExpiredAt } },
+                { status: "resigning", resigningAt: null },
+            ],
         } as Filter<GameDoc>,
         {
             $set: {
                 status: "resigning",
-                resigningAt: new Date(),
-                updateAt: new Date(),
+                resigningAt: now,
+                updateAt: now,
             },
-        } as UpdateFilter<GameDoc>,
+            $inc: { version: 1 },
+        } as unknown as UpdateFilter<GameDoc>,
         { returnDocument: "before" },
     );
+}
+
+/** A short-lived MongoDB lease serializes game creation for one physical board. */
+interface BoardLock extends Document {
+    _id: string;
+    owner: string;
+    leaseUntil: Date;
+    updatedAt: Date;
+}
+
+const boardLocks = (): Collection<BoardLock> => getDB().collection<BoardLock>("board_game_locks");
+
+export async function acquireBoardCreationLock(boardID: string, owner: string): Promise<boolean> {
+    const now = new Date();
+    const leaseUntil = new Date(now.getTime() + 15_000);
+    try {
+        const result = await boardLocks().findOneAndUpdate(
+            { _id: boardID, $or: [{ leaseUntil: { $lte: now } }, { owner }] },
+            { $set: { owner, leaseUntil, updatedAt: now } },
+            { returnDocument: "after", upsert: true },
+        );
+        return result?.owner === owner;
+    } catch {
+        // A concurrent upsert can briefly raise a duplicate-key error; caller
+        // treats it as a busy board instead of creating a second game.
+        return false;
+    }
+}
+
+export async function releaseBoardCreationLock(boardID: string, owner: string): Promise<void> {
+    await boardLocks().deleteOne({ _id: boardID, owner });
 }
 
 /** Releases a failed resignation reservation so a later retry can proceed. */

@@ -24,6 +24,9 @@ export async function getSocket(): Promise<Socket> {
       // port 80 upstream can connect before attempting a WebSocket upgrade.
       transports: ["polling", "websocket"],
       autoConnect: true,
+      auth: typeof window !== "undefined" && localStorage.getItem("token")
+        ? { token: localStorage.getItem("token") }
+        : undefined,
     });
 
     await new Promise<void>((resolve, reject) => {

@@ -35,21 +35,21 @@ export const BoardController = {
 
             const gameID = crypto.randomUUID();
 
-            await GameService.create(boardID, gameID);
+            const created = await GameService.create(boardID, gameID);
 
             // Notify frontend clients that a board was scanned/created so UI updates immediately
             try {
                 const io = getIO();
-                io.emit("board_scan_ok", { boardID, gameID, status: "ok" });
+                io.emit("board_scan_ok", { boardID, gameID: created.gameID, status: "ok" });
             } catch (err) {
                 // socket may not be initialized in some environments; ignore if so
                 // console.warn("Socket not initialized, cannot emit board_scan_ok", err);
             }
             // Return 201 (create successfully)
-            return res.status(201).json({
+            return res.status(created.reused ? 200 : 201).json({
                 status: "OK",
                 boardID,
-                gameID
+                gameID: created.gameID
             });
         } catch (e) {
             console.error(e);

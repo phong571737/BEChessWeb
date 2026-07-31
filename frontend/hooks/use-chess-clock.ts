@@ -100,6 +100,20 @@ export function useChessClock({
   const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
   const initializedGameRef = useRef<string | null>(null);
   const appliedResetRevisionRef = useRef<number | undefined>(undefined);
+  const lastPersistRef = useRef(0);
+
+  const persistClock = (moveCountToPersist: number) => {
+    const now = Date.now();
+    saveClockData(gameID, {
+      whiteMs: whiteMsRef.current,
+      blackMs: blackMsRef.current,
+      activeSide: activeSideRef.current,
+      lastTickAt: now,
+      moveCount: moveCountToPersist,
+      initialTimeMs,
+    });
+    lastPersistRef.current = now;
+  };
 
   // ── Initialize only after the persisted game configuration has loaded ──
   useEffect(() => {
@@ -188,14 +202,7 @@ export function useChessClock({
       lastTickRef.current = Date.now();
 
       // Persist after a move — update the moveCount so reloads pick up the correct baseline
-      saveClockData(gameID, {
-        whiteMs: whiteMsRef.current,
-        blackMs: blackMsRef.current,
-        activeSide: nextSide,
-        lastTickAt: Date.now(),
-        moveCount,
-        initialTimeMs,
-      });
+      persistClock(moveCount);
     }
 
     previousMoveCountRef.current = moveCount;
@@ -221,18 +228,14 @@ export function useChessClock({
         setBlackMs(nextBlackMs);
       }
 
-      // Persist every tick so mid-turn time survives page reload
-      saveClockData(gameID, {
-        whiteMs: whiteMsRef.current,
-        blackMs: blackMsRef.current,
-        activeSide: activeSideRef.current,
-        lastTickAt: Date.now(),
-        moveCount,
-        initialTimeMs,
-      });
+      // Persist periodically; rendering still updates every second.
+      if (now - lastPersistRef.current >= 10_000) persistClock(moveCount);
     }, 1000);
 
-    return () => window.clearInterval(intervalId);
+    return () => {
+      window.clearInterval(intervalId);
+      persistClock(moveCount);
+    };
   }, [isLoaded, isEnded, gameID, moveCount, initialTimeMs]);
 
   return {
