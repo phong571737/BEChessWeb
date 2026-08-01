@@ -289,7 +289,6 @@ export function GameHistory() {
                           {t("played.colMoves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      {isAdmin && <th className="w-[76px] px-4 py-2.5" aria-label={locale === "vi" ? "Thao tác" : "Actions"} />}
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         <button type="button" onClick={() => toggleSort("date")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "date" && "text-foreground")}>
                           {t("played.colDate")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "date" ? "opacity-100" : "opacity-40")} />
@@ -300,6 +299,7 @@ export function GameHistory() {
                           {t("played.colDuration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
+                      {isAdmin && <th className="w-[76px] px-4 py-2.5" aria-label={locale === "vi" ? "Thao tác" : "Actions"} />}
                     </tr>
                   </thead>
                   <tbody>

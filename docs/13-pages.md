@@ -1,5 +1,9 @@
 # 13. Pages
 
+## Played history alignment
+
+The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers.
+
 ## Page model
 
 The frontend uses the Next.js App Router. Page entry points live under [frontend/app](../frontend/app).
