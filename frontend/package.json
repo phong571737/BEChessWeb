@@ -1,6 +1,6 @@
 {
   "name": "frontend",
-  "version": "1.1.1-change28",
+  "version": "1.1.1-change29",
   "main": "index.js",
   "scripts": {
     "dev": "next dev",

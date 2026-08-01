@@ -4,6 +4,8 @@
 
 The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers.
 
+When the administrator opens the recycle bin, an API/authentication failure is displayed explicitly. The UI must never represent an unavailable recycle bin as an empty one.
+
 ## Page model
 
 The frontend uses the Next.js App Router. Page entry points live under [frontend/app](../frontend/app).

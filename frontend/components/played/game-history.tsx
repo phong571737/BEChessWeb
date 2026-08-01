@@ -27,6 +27,7 @@ export function GameHistory() {
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [trash, setTrash] = useState<HistoryGame[]>([]);
   const [showTrash, setShowTrash] = useState(false);
+  const [trashError, setTrashError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
   const router = useRouter();
   const { t, locale } = useT();
@@ -51,18 +52,22 @@ export function GameHistory() {
   }, [normalizeGame]);
 
   const loadTrash = useCallback(async () => {
-    if (!token) return;
+    if (!token) throw new Error(locale === "vi" ? "Phiên đăng nhập đã hết hạn." : "Your login session has expired.");
     const response = await fetch("/games/history/trash", { headers: { Authorization: `Bearer ${token}` } });
-    if (!response.ok) throw new Error("Unable to load history trash");
+    if (!response.ok) throw new Error(locale === "vi" ? "Không thể tải thùng rác. Hãy kiểm tra backend đã được cập nhật." : "Unable to load the recycle bin. Check that the backend is updated.");
     const data = await response.json() as HistoryGame[];
     setTrash(data.map(normalizeGame));
-  }, [normalizeGame, token]);
+    setTrashError(null);
+  }, [locale, normalizeGame, token]);
 
   const toggleTrash = async () => {
     const next = !showTrash;
     setShowTrash(next);
+    setTrashError(null);
     if (next) {
-      try { await loadTrash(); } catch { setTrash([]); }
+      try { await loadTrash(); } catch (error) {
+        setTrashError(error instanceof Error ? error.message : "Unable to load the recycle bin.");
+      }
     }
   };
 
@@ -188,7 +193,9 @@ export function GameHistory() {
                   </div>
                   <span className="text-xs text-muted-foreground">{trash.length}</span>
                 </div>
-                {trash.length === 0 ? (
+                {trashError ? (
+                  <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2.5 text-sm text-destructive">{trashError}</p>
+                ) : trash.length === 0 ? (
                   <p className="py-3 text-center text-sm text-muted-foreground">{locale === "vi" ? "Thùng rác trống" : "Trash is empty"}</p>
                 ) : (
                   <div className="space-y-2">
