@@ -43,7 +43,13 @@ export interface HistoryGame {
     pgn: string;
     initialFen?: string;
     createdAt?: string;
+    /** First accepted move time, used to calculate elapsed game duration. */
+    startedAt?: string;
     endedAt?: string;
+    lastMoveAt?: string;
+    updatedAt?: string;
+    /** Legacy spelling retained for records created by the former endgame API. */
+    createAt?: string;
     durationSec?: number | null;
     fenHistory?: string [];
     uciHistory?: string [];

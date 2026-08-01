@@ -10,7 +10,7 @@ import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, RotateCcw, Trash,
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
-import { resultVariant, formatDateTime, formatDuration, parsePgnHeader } from "@/lib/game-utils";
+import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveDurationSeconds } from "@/lib/game-utils";
 import { useAuth } from "@/lib/auth-context";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
@@ -45,6 +45,7 @@ export function GameHistory() {
       BlackName: g.BlackName || headers["Black"] || "?",
       Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
       Date: g.Date || headers["Date"] || g.createdAt || "",
+      createdAt: g.createdAt || g.startedAt || g.createAt,
     };
   }, []);
 
@@ -393,7 +394,7 @@ export function GameHistory() {
                           {formatDateTime(game.createdAt || game.endedAt || game.Date)}
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
-                          {formatDuration(game.durationSec)}
+                          {formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}
                         </td>
                         {isAdmin && (
                           <td className="px-4 py-3 text-right">

@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ChessBoardView } from "@/components/board/chess-board-view";
-import { resultVariant, formatDateTime, formatDuration } from "@/lib/game-utils";
+import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 
@@ -100,6 +100,16 @@ function formatCustomMove(uci: string, board: Record<string, string>): string {
   return notation;
 }
 
+function checkSuffix(fen: string | undefined): string {
+  if (!fen) return "";
+  try {
+    const game = new Chess(fen, { skipValidation: true });
+    return game.isCheckmate() ? "#" : game.isCheck() ? "+" : "";
+  } catch {
+    return "";
+  }
+}
+
 function customMoveTokens(game: HistoryGame): string[] {
   const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
   const board = fenBoard(game.initialFen ?? DEFAULT_FEN);
@@ -110,16 +120,16 @@ function customMoveTokens(game: HistoryGame): string[] {
       ? uci!
       : (game.fenHistory?.[index] ? inferUciFromFen(previousFen, game.fenHistory[index]!) : null);
     const notation = recoveredUci ? formatCustomMove(recoveredUci, board) : "x";
-    if (game.fenHistory?.[index]) previousFen = game.fenHistory[index]!;
-    return notation;
+    const nextFen = game.fenHistory?.[index];
+    if (nextFen) previousFen = nextFen;
+    return `${notation}${checkSuffix(nextFen)}`;
   });
 }
 
 function customReviewPgn(game: HistoryGame): string {
-  const savedMoves = movesOnly(game.pgn ?? "");
-  if (savedMoves && !/^(1-0|0-1|1\/2-1\/2|\*)$/.test(savedMoves)) return game.pgn;
-
   const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
+  // UCI/FEN are the durable source for e-board games. Rebuilding from them
+  // repairs older custom PGN records that omitted check/checkmate suffixes.
   if (!count) return game.pgn;
   const moves = customMoveTokens(game);
   const lines: string[] = [];
@@ -149,6 +159,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
+  const activeMoveRef = useRef<HTMLButtonElement | null>(null);
   const reviewPgn = useMemo(() => customReviewPgn(game), [game]);
 
   const timeline = useMemo(() => {
@@ -211,6 +222,10 @@ export function PGNReviewContent({ game }: ReviewProps) {
   useEffect(() => {
     setCursor(-1);
   }, [game?._id]);
+
+  useEffect(() => {
+    activeMoveRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [currentIndex]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -327,7 +342,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
               <Clock className="h-3 w-3" />
               {t("rev.duration")}
             </div>
-            <span className="text-sm font-medium font-mono">{formatDuration(game.durationSec)}</span>
+            <span className="text-sm font-medium font-mono">{formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}</span>
           </div>
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
@@ -348,7 +363,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
               <Calendar className="h-3 w-3" />
               {t("rev.started")}
             </div>
-            <span className="text-sm font-medium">{formatDateTime(game.createdAt || game.Date)}</span>
+            <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date)}</span>
           </div>
         </div>
 
@@ -371,17 +386,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 <span className="text-xs text-muted-foreground">{t("rev.moveReview")}</span>
                 <span className="text-xs font-mono text-muted-foreground">Ply {currentIndex}/{timeline.length - 1}</span>
               </div>
-              {timeline.length > 1 && timeline[1].fenFallback && (
-                <div className="px-3 py-1 text-[10px] text-amber-600 dark:text-amber-400 border-b border-border/60">
-                  PGN parse failed, using FEN timeline.
-                </div>
-              )}
               <ScrollArea className="h-[160px]">
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
                   {timeline.slice(1).map((m, i) => (
                     m.fenFallback ? (
                     <button
                       key={`${m.san}-${i}`}
+                      ref={currentIndex === i + 1 ? activeMoveRef : undefined}
                       type="button"
                       onClick={() => goTo(i + 1)}
                       className={`col-span-full rounded-sm border px-2 py-1 text-left font-mono text-[10px] transition-colors ${
@@ -392,6 +403,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                     </button>
                     ) : <button
                       key={`${m.san}-${i}`}
+                      ref={currentIndex === i + 1 ? activeMoveRef : undefined}
                       type="button"
                       onClick={() => goTo(i + 1)}
                       className={`text-left px-2 py-1 rounded-sm text-xs border ${

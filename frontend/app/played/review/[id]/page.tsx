@@ -86,6 +86,7 @@ export default function PlayedReviewPage() {
           BlackName: raws?.BlackName || headers["Black"] || "?",
           Result: (raws.Result || headers["Result"] || "*") as HistoryGame["Result"],
           Date: raws.Date || headers["Date"] || raws.createdAt || "",
+          createdAt: raws.createdAt || raws.startedAt || raws.createAt,
         });
       })
       .catch(() => setGame(null))

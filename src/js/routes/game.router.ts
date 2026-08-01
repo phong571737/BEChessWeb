@@ -127,7 +127,7 @@ gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRa
  */
 gameRouter.post("/:id/endgame", gameMutationRateLimit, requireAdmin, async (req, res) => {
     try {
-        const gameID = req.params.id;
+        const gameID = String(req.params.id ?? "");
         const { pgn } = req.body;
 
         if (!pgn) {
@@ -136,6 +136,12 @@ gameRouter.post("/:id/endgame", gameMutationRateLimit, requireAdmin, async (req,
         const chess = new Chess();
         chess.loadPgn(pgn);
         const header = chess.getHeaders();
+        const currentGame = await getGame(gameID);
+        const endedAt = new Date();
+        const startedAt = currentGame?.startedAt ?? currentGame?.createdAt ?? endedAt;
+        const durationSec = currentGame?.startedAt
+            ? Math.max(0, Math.floor((endedAt.getTime() - new Date(currentGame.startedAt).getTime()) / 1_000))
+            : currentGame?.durationSec ?? 0;
 
         const doc = {
             gameID,
@@ -145,7 +151,10 @@ gameRouter.post("/:id/endgame", gameMutationRateLimit, requireAdmin, async (req,
             Black: header.Black || "Black",
             Date: header.Date || "",
             totalMoves: chess.history().length,
-            createAt: new Date()
+            createdAt: startedAt,
+            startedAt,
+            endedAt,
+            durationSec,
         }
 
         await endGame(doc);

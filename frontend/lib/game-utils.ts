@@ -38,6 +38,20 @@ export function formatDuration(sec?: number | null): string {
   return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
+/** Uses persisted elapsed seconds first, with timestamp recovery for legacy records. */
+export function resolveDurationSeconds(
+  durationSec?: number | null,
+  startedAt?: string | null,
+  endedAt?: string | null,
+): number | null {
+  if (typeof durationSec === "number" && Number.isFinite(durationSec)) return Math.max(0, Math.floor(durationSec));
+  if (!startedAt || !endedAt) return null;
+  const start = new Date(startedAt).getTime();
+  const end = new Date(endedAt).getTime();
+  if (Number.isNaN(start) || Number.isNaN(end)) return null;
+  return Math.max(0, Math.floor((end - start) / 1_000));
+}
+
 // parse header of pgn
 export function parsePgnHeader(pgn: string): Record<string, string> {
   const headers: Record<string, string> = {};

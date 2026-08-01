@@ -154,9 +154,16 @@ function moveToSanUnchecked(game: Chess, move: MoveLike): string {
       tmp.remove(move.from);
       tmp.remove(move.to);
       tmp.put({ type: move.promotion ?? tmpPiece.type, color: tmpPiece.color }, move.to);
-      if (tmp.isCheckmate()) {
+
+      // chess.js evaluates check against the side to move. Raw custom moves
+      // intentionally do not validate or advance its turn, so reconstruct the
+      // resulting position with the opponent to move before testing + / #.
+      const fields = tmp.fen().split(" ");
+      fields[1] = tmpPiece.color === "w" ? "b" : "w";
+      const afterMove = new Chess(fields.join(" "), { skipValidation: true });
+      if (afterMove.isCheckmate()) {
         san += "#";
-      } else if (tmp.isCheck()) {
+      } else if (afterMove.isCheck()) {
         san += "+";
       }
     }

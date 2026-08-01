@@ -123,6 +123,10 @@ Administrator-only. Restores a history record from the recycle bin before its TT
 
 Administrator-only. Permanently deletes a history record, but only if it is already in the recycle bin. The action cannot be restored.
 
+### History timing
+
+The first accepted move records `startedAt`. Each subsequent accepted move updates `lastMoveAt` and `durationSec`, and game finalization stores `endedAt` and the final duration in the same history document.
+
 ### `GET /games/:id`
 
 Returns a single game snapshot.
