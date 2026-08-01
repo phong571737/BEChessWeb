@@ -180,6 +180,12 @@ export async function restoreHistoryFromTrash(id: string): Promise<boolean> {
     return result.modifiedCount === 1;
 }
 
+/** Permanently deletes only a record that has already been moved to trash. */
+export async function permanentlyDeleteHistoryFromTrash(id: string): Promise<boolean> {
+    const result = await pgnGames().deleteOne(historyIdFilter(id, true));
+    return result.deletedCount === 1;
+}
+
 /** MongoDB TTL removes trashed records after the configured retention period. */
 export async function ensureHistoryIndexes(): Promise<void> {
     await pgnGames().createIndex({ deleteAfter: 1 }, { expireAfterSeconds: 0, name: "history_trash_expiry" });

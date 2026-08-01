@@ -67,6 +67,7 @@ The frontend relies on a smaller runtime contract for browser and server-side ta
 - `NEXT_PUBLIC_API_URL` – browser-visible backend base URL override used by client-side REST calls
 - `NEXT_PUBLIC_SOCKET_URL` – browser-side Socket.IO endpoint
 - `NEXT_PUBLIC_BASE_PATH` – optional frontend build-time subpath, such as `/chess`
+- `BACKEND_PROXY_URL` – server-only backend origin used by Next.js rewrites, for example `https://<render-service>.onrender.com`.
 
 ### Runtime URL resolution logic
 
@@ -79,6 +80,10 @@ The helper in [frontend/lib/api-url.ts](../frontend/lib/api-url.ts) resolves the
 This exists because the frontend can run in multiple deployment modes, including local development and remote deployment.
 
 Login and registration pages must call authentication endpoints through this helper. Calling relative paths such as `/auth/login` from the browser can route the request to the Next.js frontend server instead of the Express backend and produce a 404.
+
+### Vercel frontend with an external backend
+
+Set `BACKEND_PROXY_URL` in Vercel Project Settings → Environment Variables (Production, and Preview when required). For a Render backend, use its HTTPS service origin, for example `https://<render-service>.onrender.com`. The Next.js rewrite forwards `/auth`, `/games`, `/moves`, `/boards`, and `/eval` server-side to this origin. Do not expose this value as `NEXT_PUBLIC_BACKEND_PROXY_URL`.
 
 ## Environment conventions
 

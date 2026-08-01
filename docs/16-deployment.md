@@ -49,6 +49,7 @@ The deployment setup depends on environment variables described in [04-environme
 - `BACKEND_PUBLIC_URL`
 - `FRONTEND_PUBLIC_URL`
 - `NEXT_PUBLIC_SOCKET_URL`
+- `BACKEND_PROXY_URL`
 - `URL_HIVEMQTT`
 - `MQTT_USER`
 - `MQTT_PASSWORD`
@@ -62,6 +63,26 @@ The frontend is expected to know its public-facing API and socket URLs at build 
 ### Runtime
 
 The backend process is expected to stay alive and maintain the active game state map through the app lifecycle. This is why the runtime is designed around in-memory state plus durable persistence rather than fully stateless HTTP requests.
+
+## Vercel frontend with a Render backend
+
+When the frontend is deployed at `https://be-chess-web.vercel.app` and the backend runs on Render, configure this Vercel **server-side** environment variable with the HTTPS Render service origin, then redeploy:
+
+```env
+BACKEND_PROXY_URL=https://<render-service>.onrender.com
+```
+
+Next.js forwards REST routes such as `/games/history/trash` through a server-side rewrite. Therefore DevTools can still show a request to `https://be-chess-web.vercel.app/games/history/trash`; that is correct—the Vercel server proxies it to Render. The backend must still have the corresponding route deployed; an unauthenticated request to the trash endpoint should return `401`, while `404` from the backend means the backend release is outdated.
+
+In the **Render backend** service, configure these environment variables as well, then redeploy the service:
+
+```env
+JWT_SECRET=<long-random-private-signing-secret>
+CORS_ORIGINS=https://be-chess-web.vercel.app
+VERCEL_WEB=https://be-chess-web.vercel.app
+```
+
+`CORS_ORIGINS` is used by both Express REST endpoints and Socket.IO polling/WebSocket connections. For extra frontend domains, append exact origins separated by commas; do not use a wildcard and do not add a trailing slash.
 
 ## VPS deployment at `/chess`
 

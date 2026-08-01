@@ -6,12 +6,13 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, RotateCcw, Trash2 } from "lucide-react";
+import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, RotateCcw, Trash, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader } from "@/lib/game-utils";
 import { useAuth } from "@/lib/auth-context";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
 const INPUT_CLS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground " +
@@ -29,6 +30,9 @@ export function GameHistory() {
   const [showTrash, setShowTrash] = useState(false);
   const [trashError, setTrashError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [pendingTrashGame, setPendingTrashGame] = useState<HistoryGame | null>(null);
+  const [pendingPermanentDeleteGame, setPendingPermanentDeleteGame] = useState<HistoryGame | null>(null);
+  const [trashActionError, setTrashActionError] = useState<string | null>(null);
   const router = useRouter();
   const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
@@ -71,9 +75,10 @@ export function GameHistory() {
     }
   };
 
-  const moveToTrash = async (id: string) => {
-    if (!token || busyId) return;
+  const moveToTrash = async (id: string): Promise<boolean> => {
+    if (!token || busyId) return false;
     setBusyId(id);
+    setTrashActionError(null);
     try {
       const response = await fetch(`/games/history/${encodeURIComponent(id)}`, {
         method: "DELETE",
@@ -83,9 +88,18 @@ export function GameHistory() {
       setGames((current) => current.filter((game) => game._id !== id));
       invalidateFetchCache("/games/history");
       if (showTrash) await loadTrash();
+      return true;
+    } catch (error) {
+      setTrashActionError(error instanceof Error ? error.message : "Unable to move history to trash");
+      return false;
     } finally {
       setBusyId(null);
     }
+  };
+
+  const confirmMoveToTrash = async () => {
+    if (!pendingTrashGame) return;
+    if (await moveToTrash(pendingTrashGame._id)) setPendingTrashGame(null);
   };
 
   const restoreFromTrash = async (id: string) => {
@@ -104,6 +118,31 @@ export function GameHistory() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const permanentlyDeleteFromTrash = async (id: string): Promise<boolean> => {
+    if (!token || busyId) return false;
+    setBusyId(id);
+    setTrashActionError(null);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(id)}/permanent`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Unable to permanently delete history");
+      setTrash((current) => current.filter((game) => game._id !== id));
+      return true;
+    } catch (error) {
+      setTrashActionError(error instanceof Error ? error.message : "Unable to permanently delete history");
+      return false;
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const confirmPermanentDelete = async () => {
+    if (!pendingPermanentDeleteGame) return;
+    if (await permanentlyDeleteFromTrash(pendingPermanentDeleteGame._id)) setPendingPermanentDeleteGame(null);
   };
 
   const filteredGames = games
@@ -200,11 +239,22 @@ export function GameHistory() {
                 ) : (
                   <div className="space-y-2">
                     {trash.map((game) => (
-                      <div key={game._id} className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
-                        <div className="min-w-0 text-sm"><span className="font-medium">{game.WhiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.BlackName}</span></div>
-                        <button type="button" disabled={busyId === game._id} onClick={() => restoreFromTrash(game._id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">
-                          <RotateCcw className="size-3.5" />{locale === "vi" ? "Khôi phục" : "Restore"}
-                        </button>
+                      <div key={game._id} className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2.5">
+                        <div className="min-w-0">
+                          <div className="truncate text-sm"><span className="font-medium">{game.WhiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.BlackName}</span></div>
+                          <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                            <span>{locale === "vi" ? "Ngày:" : "Date:"} {formatDateTime(game.createdAt || game.endedAt || game.Date)}</span>
+                            <span>{locale === "vi" ? "Số nước đi:" : "Moves:"} {game.totalMoves}</span>
+                          </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          <button type="button" disabled={busyId === game._id} onClick={() => restoreFromTrash(game._id)} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">
+                            <RotateCcw className="size-3.5" />{locale === "vi" ? "Khôi phục" : "Restore"}
+                          </button>
+                          <button type="button" disabled={busyId === game._id} onClick={() => { setTrashActionError(null); setPendingPermanentDeleteGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={locale === "vi" ? "Xóa vĩnh viễn" : "Delete permanently"}>
+                            <Trash className="size-3.5" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -347,7 +397,7 @@ export function GameHistory() {
                         </td>
                         {isAdmin && (
                           <td className="px-4 py-3 text-right">
-                            <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); void moveToTrash(game._id); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={locale === "vi" ? "Đưa vào thùng rác" : "Move to trash"}>
+                            <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={locale === "vi" ? "Đưa vào thùng rác" : "Move to trash"}>
                               <Trash2 className="size-3.5" />
                             </button>
                           </td>
@@ -368,6 +418,48 @@ export function GameHistory() {
           </>
         )}
       </div>
+      <Dialog open={Boolean(pendingTrashGame)} onOpenChange={(open) => { if (!open && !busyId) setPendingTrashGame(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{locale === "vi" ? "Chuyển ván cờ vào thùng rác?" : "Move this game to trash?"}</DialogTitle>
+            <DialogDescription>
+              {locale === "vi"
+                ? `Ván ${pendingTrashGame?.WhiteName ?? ""} vs ${pendingTrashGame?.BlackName ?? ""} sẽ bị ẩn khỏi lịch sử. Bạn có thể khôi phục ván này trong vòng 30 ngày.`
+                : `The game ${pendingTrashGame?.WhiteName ?? ""} vs ${pendingTrashGame?.BlackName ?? ""} will be hidden from history. You can restore it within 30 days.`}
+            </DialogDescription>
+          </DialogHeader>
+          {trashActionError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{trashActionError}</p>}
+          <DialogFooter>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingTrashGame(null)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+              {locale === "vi" ? "Hủy" : "Cancel"}
+            </button>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmMoveToTrash()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
+              {busyId ? (locale === "vi" ? "Đang chuyển..." : "Moving...") : (locale === "vi" ? "Chuyển vào thùng rác" : "Move to trash")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(pendingPermanentDeleteGame)} onOpenChange={(open) => { if (!open && !busyId) setPendingPermanentDeleteGame(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{locale === "vi" ? "Xóa vĩnh viễn ván cờ này?" : "Delete this game permanently?"}</DialogTitle>
+            <DialogDescription>
+              {locale === "vi"
+                ? `Ván ${pendingPermanentDeleteGame?.WhiteName ?? ""} vs ${pendingPermanentDeleteGame?.BlackName ?? ""} sẽ bị xóa hoàn toàn và không thể khôi phục.`
+                : `The game ${pendingPermanentDeleteGame?.WhiteName ?? ""} vs ${pendingPermanentDeleteGame?.BlackName ?? ""} will be deleted permanently and cannot be restored.`}
+            </DialogDescription>
+          </DialogHeader>
+          {trashActionError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{trashActionError}</p>}
+          <DialogFooter>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingPermanentDeleteGame(null)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">
+              {locale === "vi" ? "Hủy" : "Cancel"}
+            </button>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmPermanentDelete()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
+              {busyId ? (locale === "vi" ? "Đang xóa..." : "Deleting...") : (locale === "vi" ? "Xóa vĩnh viễn" : "Delete permanently")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

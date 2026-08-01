@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, moveHistoryToTrash, restoreHistoryFromTrash } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, moveHistoryToTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -74,6 +74,20 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to restore history" });
+        }
+    },
+
+    async permanentlyDeleteHistory(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            const deleted = await permanentlyDeleteHistoryFromTrash(req.params.id);
+            if (!deleted) {
+                res.status(404).json({ error: "Trashed history record not found" });
+                return;
+            }
+            res.json({ success: true });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to permanently delete history" });
         }
     },
 

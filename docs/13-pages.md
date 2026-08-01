@@ -6,6 +6,9 @@ The Played history table keeps the optional administrator action column after th
 
 When the administrator opens the recycle bin, an API/authentication failure is displayed explicitly. The UI must never represent an unavailable recycle bin as an empty one.
 
+Moving a game to the recycle bin requires an explicit confirmation dialog. Recycle-bin rows retain and display both player names, the game date, and the move count so an administrator can identify and restore the intended game.
+The recycle bin also provides a separately confirmed permanent-delete action; it applies only to records already in the bin and cannot be undone.
+
 ## Page model
 
 The frontend uses the Next.js App Router. Page entry points live under [frontend/app](../frontend/app).

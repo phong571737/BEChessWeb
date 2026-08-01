@@ -119,6 +119,10 @@ Administrator-only. Moves a history record to the recycle bin for 30 days instea
 
 Administrator-only. Restores a history record from the recycle bin before its TTL expiry.
 
+### `DELETE /games/history/:id/permanent`
+
+Administrator-only. Permanently deletes a history record, but only if it is already in the recycle bin. The action cannot be restored.
+
 ### `GET /games/:id`
 
 Returns a single game snapshot.
