@@ -129,6 +129,10 @@ The resignation claim is a 30-second lease. If a process dies after claiming a r
 
 Game creation takes a short MongoDB lease keyed by physical `boardID`. Concurrent scans for the same board reuse the active game when one exists; they never delete the retained live game. A lock left by a crashed process expires automatically after 15 seconds.
 
+### History recycle bin
+
+Only administrators may move history entries to the recycle bin or restore them. Deletion is a soft-delete operation; a MongoDB TTL index permanently removes records 30 days after `deleteAfter`. Public history queries exclude trashed entries.
+
 ## Operational recommendations
 
 For any production deployment, the team should consider adding:

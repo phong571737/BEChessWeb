@@ -1,4 +1,4 @@
-import { Collection, Filter, UpdateFilter, Document } from "mongodb";
+import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
 import { BOARD_TYPE } from "../constant.js";
 import { GameDoc, SaveGameOptions } from "../types/game.types.js"
@@ -6,10 +6,38 @@ import { GameDoc, SaveGameOptions } from "../types/game.types.js"
 
 const games = (): Collection<GameDoc> => getDB().collection<GameDoc>("games");
 const pgnGames = (): Collection<Document> => getDB().collection("game_history");
+const HISTORY_RETENTION_DAYS = 30;
+
+function historyIdFilter(id: string, deleted: boolean): Filter<Document> {
+    const ids: unknown[] = [id];
+    if (ObjectId.isValid(id)) ids.push(new ObjectId(id));
+    return {
+        $and: [
+            { $or: ids.map((_id) => ({ _id })) },
+            deleted ? { deletedAt: { $exists: true } } : { deletedAt: { $exists: false } },
+        ],
+    } as unknown as Filter<Document>;
+}
 
 // Get data from database
 export function getGameCollections(): Collection<GameDoc> { return games(); }
 export function getPGNCollections(): Collection<Document> { return pgnGames(); }
+
+/** Keeps an up-to-date review snapshot while a game is in progress. */
+export async function saveHistorySnapshot(doc: Document): Promise<void> {
+    const gameID = doc.gameID;
+    if (typeof gameID !== "string" || !gameID) return;
+
+    const now = new Date();
+    await pgnGames().updateOne(
+        { _id: gameID, deletedAt: { $exists: false } } as unknown as Filter<Document>,
+        {
+            $set: { ...doc, _id: gameID, historyStatus: "active", updatedAt: now },
+            $setOnInsert: { createdAt: doc.createdAt ?? now },
+        },
+        { upsert: true },
+    );
+}
 
 // Save game state
 export async function saveGame(
@@ -123,13 +151,38 @@ export async function endGame(doc: Document) {
         return getPGNCollections().insertOne(doc);
     }
 
-    // A game ID can be finalized once only. A deterministic history _id makes
-    // a repeated request/retry an idempotent no-op instead of a second record.
+    // A move may already have created a live snapshot. Finalization updates
+    // that same deterministic record instead of creating another history row.
     return getPGNCollections().updateOne(
         { _id: gameID } as unknown as Filter<Document>,
-        { $setOnInsert: { ...doc, _id: gameID } },
+        {
+            $set: { ...doc, _id: gameID, historyStatus: "finished", updatedAt: new Date() },
+            $setOnInsert: { createdAt: doc.createdAt ?? new Date() },
+        },
         { upsert: true },
     );
+}
+
+export async function moveHistoryToTrash(id: string): Promise<boolean> {
+    const now = new Date();
+    const result = await pgnGames().updateOne(
+        historyIdFilter(id, false),
+        { $set: { deletedAt: now, deleteAfter: new Date(now.getTime() + HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1_000) } },
+    );
+    return result.modifiedCount === 1;
+}
+
+export async function restoreHistoryFromTrash(id: string): Promise<boolean> {
+    const result = await pgnGames().updateOne(
+        historyIdFilter(id, true),
+        { $unset: { deletedAt: "", deleteAfter: "" }, $set: { updatedAt: new Date() } },
+    );
+    return result.modifiedCount === 1;
+}
+
+/** MongoDB TTL removes trashed records after the configured retention period. */
+export async function ensureHistoryIndexes(): Promise<void> {
+    await pgnGames().createIndex({ deleteAfter: 1 }, { expireAfterSeconds: 0, name: "history_trash_expiry" });
 }
 
 /** Atomically reserves a live game for one resignation operation. */

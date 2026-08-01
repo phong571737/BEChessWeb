@@ -24,6 +24,10 @@ export async function connectDB(): Promise<Db | undefined> {
     console.log("Connected to MongoDB!");
 
     database = client.db("chess");
+    await database.collection("game_history").createIndex(
+      { deleteAfter: 1 },
+      { expireAfterSeconds: 0, name: "history_trash_expiry" },
+    );
     return database;
   } catch (err) {
     console.log(err);

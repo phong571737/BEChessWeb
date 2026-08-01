@@ -101,7 +101,11 @@ Returns active games used by the homepage grid.
 
 ### `GET /games/history`
 
-Returns completed or archived PGN records.
+Returns active and finished PGN review snapshots that are not in the recycle bin.
+
+### `GET /games/history/trash`
+
+Administrator-only. Returns soft-deleted history records that can still be restored.
 
 ### `GET /games/log`
 
@@ -109,7 +113,11 @@ Returns saved log data.
 
 ### `DELETE /games/history/:id`
 
-Deletes a history record by document ID.
+Administrator-only. Moves a history record to the recycle bin for 30 days instead of deleting it immediately.
+
+### `POST /games/history/:id/restore`
+
+Administrator-only. Restores a history record from the recycle bin before its TTL expiry.
 
 ### `GET /games/:id`
 

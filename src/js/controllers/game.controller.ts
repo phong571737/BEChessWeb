@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, moveHistoryToTrash, restoreHistoryFromTrash } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -25,7 +25,7 @@ export const GameController = {
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
             const games = await getPGNCollections()
-                .find({})
+                .find({ deletedAt: { $exists: false } })
                 .sort({ createdAt: -1 }) // newest
                 .toArray();
 
@@ -38,11 +38,42 @@ export const GameController = {
     // delete history of game
     async deleteHistory(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
-            await getPGNCollections()
-                .deleteOne({ _id: new ObjectId(req.params.id) });
+            const moved = await moveHistoryToTrash(req.params.id);
+            if (!moved) {
+                res.status(404).json({ error: "History record not found or already in trash" });
+                return;
+            }
+            res.json({ success: true, retentionDays: 30 });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to move history to trash" });
+        }
+    },
+
+    async getHistoryTrash(_req: Request, res: Response): Promise<void> {
+        try {
+            const games = await getPGNCollections()
+                .find({ deletedAt: { $exists: true } })
+                .sort({ deletedAt: -1 })
+                .toArray();
+            res.json(games);
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to load history trash" });
+        }
+    },
+
+    async restoreHistory(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            const restored = await restoreHistoryFromTrash(req.params.id);
+            if (!restored) {
+                res.status(404).json({ error: "Trashed history record not found" });
+                return;
+            }
             res.json({ success: true });
         } catch (e) {
             console.error(e);
+            res.status(500).json({ error: "Unable to restore history" });
         }
     },
 

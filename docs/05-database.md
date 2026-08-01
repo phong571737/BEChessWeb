@@ -46,7 +46,7 @@ This collection backs the active game retrieval path and supports game restore f
 
 ### `game_history`
 
-The finished-history collection. It records completed or resigned games as PGN history entries with headers and move counts.
+The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Resignation finalizes that same record rather than creating a duplicate.
 
 This collection is used by the history review UI.
 
@@ -85,7 +85,9 @@ The data model assumes:
 - `boardID` links a physical board to a game.
 - `lastSeq` tracks sequence position to avoid out-of-order move application.
 - `uciHistory` and `fenHistory` are kept as trace structures for replay and branch reconstruction.
-- `game_history` is a finalization product, not the execution source of truth.
+- `game_history` is a review snapshot, not the execution source of truth.
+- History deletion is a soft delete: records move to the recycle bin with `deletedAt` and `deleteAfter` fields.
+- A MongoDB TTL index permanently removes trashed records after 30 days; administrators can restore them before expiry.
 
 ## Cross references
 

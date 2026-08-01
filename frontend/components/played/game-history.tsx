@@ -1,16 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { HistoryGame } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
-import { fetchJSONCached } from "@/lib/fetch-cache";
+import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash } from "lucide-react";
+import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, RotateCcw, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader } from "@/lib/game-utils";
+import { useAuth } from "@/lib/auth-context";
 
 const INPUT_CLS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground " +
@@ -24,27 +25,81 @@ export function GameHistory() {
   const [search, setSearch] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "result" | "players" | "moves" | "duration">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [trash, setTrash] = useState<HistoryGame[]>([]);
+  const [showTrash, setShowTrash] = useState(false);
+  const [busyId, setBusyId] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
+  const { isAdmin, token } = useAuth();
+
+  const normalizeGame = useCallback((g: HistoryGame): HistoryGame => {
+    const headers = parsePgnHeader(g.pgn ?? "");
+    return {
+      ...g,
+      WhiteName: g.WhiteName || headers["White"] || "?",
+      BlackName: g.BlackName || headers["Black"] || "?",
+      Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
+      Date: g.Date || headers["Date"] || g.createdAt || "",
+    };
+  }, []);
 
   useEffect(() => {
     fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
-      .then((data: HistoryGame[]) => {
-        const normalized = data.map((g) => {
-          const headers = parsePgnHeader(g.pgn ?? "");
-          return {
-            ...g,
-            WhiteName: g.WhiteName || headers["White"] || "?",
-            BlackName: g.BlackName || headers["Black"] || "?",
-            Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
-            Date: g.Date || headers["Date"] || g.createdAt || "",
-          }
-        });
-        setGames(normalized);
-      })
+      .then((data: HistoryGame[]) => setGames(data.map(normalizeGame)))
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
-  }, []);
+  }, [normalizeGame]);
+
+  const loadTrash = useCallback(async () => {
+    if (!token) return;
+    const response = await fetch("/games/history/trash", { headers: { Authorization: `Bearer ${token}` } });
+    if (!response.ok) throw new Error("Unable to load history trash");
+    const data = await response.json() as HistoryGame[];
+    setTrash(data.map(normalizeGame));
+  }, [normalizeGame, token]);
+
+  const toggleTrash = async () => {
+    const next = !showTrash;
+    setShowTrash(next);
+    if (next) {
+      try { await loadTrash(); } catch { setTrash([]); }
+    }
+  };
+
+  const moveToTrash = async (id: string) => {
+    if (!token || busyId) return;
+    setBusyId(id);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Unable to move history to trash");
+      setGames((current) => current.filter((game) => game._id !== id));
+      invalidateFetchCache("/games/history");
+      if (showTrash) await loadTrash();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const restoreFromTrash = async (id: string) => {
+    if (!token || busyId) return;
+    setBusyId(id);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(id)}/restore`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error("Unable to restore history");
+      const restored = trash.find((game) => game._id === id);
+      setTrash((current) => current.filter((game) => game._id !== id));
+      if (restored) setGames((current) => [restored, ...current]);
+      invalidateFetchCache("/games/history");
+    } finally {
+      setBusyId(null);
+    }
+  };
 
   const filteredGames = games
     .filter((g) => (resultFilter === "all" ? true : g.Result === resultFilter))
@@ -91,6 +146,12 @@ export function GameHistory() {
             {t("played.gamesPlayed", { n: games.length })}
           </p>
         </div>
+        {isAdmin && (
+          <button type="button" onClick={toggleTrash} className="inline-flex items-center gap-1.5 rounded-md border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+            <Trash2 className="size-3.5" />
+            {showTrash ? (locale === "vi" ? "Đóng thùng rác" : "Close trash") : (locale === "vi" ? "Thùng rác" : "Trash")}
+          </button>
+        )}
       </div>
 
       <div className="px-4 sm:px-5 py-4 sm:py-5 space-y-4">
@@ -111,13 +172,38 @@ export function GameHistory() {
               </div>
             </div>
           </div>
-        ) : games.length === 0 ? (
+        ) : games.length === 0 && !(isAdmin && showTrash) ? (
           <div className="flex flex-col items-center justify-center py-24 gap-3 text-muted-foreground">
             <Castle className="h-12 w-12 opacity-20" />
             <p className="text-sm">{t("played.noGames")}</p>
           </div>
         ) : (
           <>
+            {isAdmin && showTrash && (
+              <div className="rounded-lg border border-border bg-card p-3 sm:p-4">
+                <div className="mb-3 flex items-center justify-between gap-3">
+                  <div>
+                    <h2 className="text-sm font-semibold">{locale === "vi" ? "Thùng rác lịch sử" : "History trash"}</h2>
+                    <p className="mt-0.5 text-xs text-muted-foreground">{locale === "vi" ? "Bản ghi sẽ bị xóa vĩnh viễn sau 30 ngày." : "Records are permanently deleted after 30 days."}</p>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{trash.length}</span>
+                </div>
+                {trash.length === 0 ? (
+                  <p className="py-3 text-center text-sm text-muted-foreground">{locale === "vi" ? "Thùng rác trống" : "Trash is empty"}</p>
+                ) : (
+                  <div className="space-y-2">
+                    {trash.map((game) => (
+                      <div key={game._id} className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2">
+                        <div className="min-w-0 text-sm"><span className="font-medium">{game.WhiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.BlackName}</span></div>
+                        <button type="button" disabled={busyId === game._id} onClick={() => restoreFromTrash(game._id)} className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border px-2 py-1.5 text-xs font-medium hover:bg-muted disabled:opacity-50">
+                          <RotateCcw className="size-3.5" />{locale === "vi" ? "Khôi phục" : "Restore"}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
             <StatCards games={games} />
 
             {/* Filter bar */}
@@ -203,6 +289,7 @@ export function GameHistory() {
                           {t("played.colMoves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
+                      {isAdmin && <th className="w-[76px] px-4 py-2.5" aria-label={locale === "vi" ? "Thao tác" : "Actions"} />}
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         <button type="button" onClick={() => toggleSort("date")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "date" && "text-foreground")}>
                           {t("played.colDate")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "date" ? "opacity-100" : "opacity-40")} />
@@ -251,11 +338,18 @@ export function GameHistory() {
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
                           {formatDuration(game.durationSec)}
                         </td>
+                        {isAdmin && (
+                          <td className="px-4 py-3 text-right">
+                            <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); void moveToTrash(game._id); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={locale === "vi" ? "Đưa vào thùng rác" : "Move to trash"}>
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </td>
+                        )}
                       </tr>
                     ))}
                     {filteredGames.length === 0 && (
                       <tr>
-                        <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        <td colSpan={isAdmin ? 7 : 6} className="px-4 py-10 text-center text-sm text-muted-foreground">
                           {t("played.noMatch")}
                         </td>
                       </tr>

@@ -1,5 +1,5 @@
 import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
-import { getGame, saveGame } from "../models/game.model.js";
+import { getGame, saveGame, saveHistorySnapshot } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
@@ -102,6 +102,26 @@ async function afterMove(
         await restorefromDB(gameID);
         throw new Error("GAME_STATE_CONFLICT");
     }
+
+    await saveHistorySnapshot({
+        gameID,
+        boardID: persistedGame?.boardID,
+        pgn: state.pgn ?? "",
+        fen: state.fen,
+        initialFen: persistedGame?.initialFen,
+        lastMove: state.lastMove ?? null,
+        lastSeq: state.lastSeq ?? seq,
+        totalMoves: state.lastSeq ?? seq,
+        totalPlies: state.lastSeq ?? seq,
+        WhiteName: persistedGame?.WhiteName ?? "White",
+        BlackName: persistedGame?.BlackName ?? "Black",
+        Result: "*",
+        Date: now.toISOString().slice(0, 10).replace(/-/g, "."),
+        round: persistedGame?.round ?? 1,
+        startedAt,
+        lastMoveAt: now,
+        durationSec,
+    });
 
     getIO().to(gameID).emit("esp_move", state);// broadcast move
 }
