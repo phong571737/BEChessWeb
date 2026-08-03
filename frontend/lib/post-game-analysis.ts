@@ -175,7 +175,7 @@ export async function analyzePgnMoves(
         evaluationAfterCp: afterCp,
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
-        depth: Math.min(before.depth, after.depth),
+        depth: Math.max(1, Math.min(before.depth, after.depth)),
       });
       before = after;
       onProgress(index + 1, moves.length);
@@ -236,7 +236,7 @@ export async function analyzeHistoryMoves(
         evaluationAfterCp: afterCp,
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
-        depth: Math.min(before.depth, after.depth),
+        depth: Math.max(1, Math.min(before.depth, after.depth)),
       });
       beforeFen = afterFen;
       before = after;

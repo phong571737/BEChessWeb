@@ -39,7 +39,10 @@ export function MoveAnalysisPanel({ game }: Props) {
         body: JSON.stringify({ moves: result, depth: 14 }),
       });
       if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
-      if (!response.ok) throw new Error("Unable to save game analysis");
+      if (response.status === 401 || response.status === 403) throw new Error(t("analysis.authRequired"));
+      if (response.status === 429) throw new Error(t("analysis.rateLimited"));
+      if (response.status === 400) throw new Error(t("analysis.invalidData"));
+      if (!response.ok) throw new Error(t("analysis.error"));
       setMoves(result);
     } catch (reason) { setError(reason instanceof Error ? reason.message : t("analysis.error")); } finally { setRunning(false); }
   };

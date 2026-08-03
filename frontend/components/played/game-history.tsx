@@ -224,6 +224,9 @@ export function GameHistory() {
         body: JSON.stringify({ moves, depth: 14 }),
       });
       if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
+      if (response.status === 401 || response.status === 403) throw new Error(t("analysis.authRequired"));
+      if (response.status === 429) throw new Error(t("analysis.rateLimited"));
+      if (response.status === 400) throw new Error(t("analysis.invalidData"));
       if (!response.ok) throw new Error(t("analysis.error"));
       const analysis = { engine: "Stockfish 18 Lite", depth: 14, updatedAt: new Date().toISOString(), moves };
       setGames((current) => current.map((item) => item._id === game._id ? { ...item, analysis } : item));
