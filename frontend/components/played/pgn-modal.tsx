@@ -153,6 +153,14 @@ function customReviewPgn(game: HistoryGame): string {
 
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
+  const isFinishedResult = game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
+  const resultText = game.Result === "1-0"
+    ? t("result.whiteWin")
+    : game.Result === "0-1"
+      ? t("result.blackWin")
+      : game.Result === "1/2-1/2"
+        ? t("result.draw")
+        : t("played.unfinished");
   const [copied, setCopied] = useState(false);
   const [fenCopied, setFenCopied] = useState(false);
   const [cursor, setCursor] = useState(-1);
@@ -326,8 +334,8 @@ export function PGNReviewContent({ game }: ReviewProps) {
             <h2 className="text-base sm:text-lg font-semibold leading-none tracking-tight">
               {game.WhiteName} vs {game.BlackName}
             </h2>
-            <Badge variant={resultVariant(game.Result)} className="w-24 justify-center shrink-0">
-              {game.Result === "1-0" ? t("result.whiteWin") : game.Result === "0-1" ? t("result.blackWin") : game.Result === "1/2-1/2" ? t("result.draw") : game.Result}
+            <Badge variant={isFinishedResult ? resultVariant(game.Result) : "secondary"} className={`w-28 justify-center shrink-0${isFinishedResult ? "" : " border border-primary/25 bg-primary/10 text-primary"}`}>
+              {resultText}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -356,7 +364,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
               <Trophy className="h-3 w-3" />
               {t("rev.result")}
             </div>
-            <span className="text-sm font-medium">{game.Result}</span>
+            <span className="text-sm font-medium">{resultText}</span>
           </div>
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">

@@ -101,6 +101,7 @@ export function useChessClock({
   const initializedGameRef = useRef<string | null>(null);
   const appliedResetRevisionRef = useRef<number | undefined>(undefined);
   const lastPersistRef = useRef(0);
+  const configuredInitialTimeRef = useRef(initialTimeMs);
 
   const persistClock = (moveCountToPersist: number) => {
     const now = Date.now();
@@ -120,7 +121,17 @@ export function useChessClock({
     if (!isLoaded || initializedGameRef.current === gameID) return;
 
     const saved = loadClockData(gameID);
-    const restored = saved && saved.initialTimeMs === initialTimeMs ? saved : null;
+    // Preserve elapsed time when an administrator changes the configured time
+    // while a session is open. For example: 10:00 with 4:00 elapsed becomes
+    // 30:00 with 4:00 elapsed, so the clock continues at 26:00.
+    const restored = saved
+      ? {
+          ...saved,
+          whiteMs: Math.max(0, saved.whiteMs + initialTimeMs - saved.initialTimeMs),
+          blackMs: Math.max(0, saved.blackMs + initialTimeMs - saved.initialTimeMs),
+          initialTimeMs,
+        }
+      : null;
     const next = restored ?? {
       whiteMs: initialTimeMs,
       blackMs: initialTimeMs,
@@ -153,8 +164,45 @@ export function useChessClock({
       }
       lastTickRef.current = Date.now();
     }
+    configuredInitialTimeRef.current = initialTimeMs;
     initializedGameRef.current = gameID;
   }, [gameID, initialTimeMs, isEnded, isLoaded]);
+
+  useEffect(() => {
+    if (!isLoaded || initializedGameRef.current !== gameID) return;
+
+    const previousInitialTimeMs = configuredInitialTimeRef.current;
+    if (previousInitialTimeMs === initialTimeMs) return;
+
+    const now = Date.now();
+    // Apply the time that elapsed since the last UI tick before changing the
+    // base clock, so the administrator never grants an accidental extra tick.
+    if (moveCount > 0 && !isEnded) {
+      const elapsed = Math.max(0, now - lastTickRef.current);
+      if (activeSideRef.current === "white") {
+        whiteMsRef.current = Math.max(0, whiteMsRef.current - elapsed);
+      } else {
+        blackMsRef.current = Math.max(0, blackMsRef.current - elapsed);
+      }
+    }
+
+    const adjustment = initialTimeMs - previousInitialTimeMs;
+    whiteMsRef.current = Math.max(0, whiteMsRef.current + adjustment);
+    blackMsRef.current = Math.max(0, blackMsRef.current + adjustment);
+    lastTickRef.current = now;
+    configuredInitialTimeRef.current = initialTimeMs;
+    setWhiteMs(whiteMsRef.current);
+    setBlackMs(blackMsRef.current);
+    saveClockData(gameID, {
+      whiteMs: whiteMsRef.current,
+      blackMs: blackMsRef.current,
+      activeSide: activeSideRef.current,
+      lastTickAt: now,
+      moveCount,
+      initialTimeMs,
+    });
+    lastPersistRef.current = now;
+  }, [gameID, initialTimeMs, isEnded, isLoaded, moveCount]);
 
   useEffect(() => {
     if (!isLoaded || resetRevision === undefined || appliedResetRevisionRef.current === resetRevision) return;
@@ -166,6 +214,7 @@ export function useChessClock({
     activeSideRef.current = "white";
     lastTickRef.current = now;
     previousMoveCountRef.current = 0;
+    configuredInitialTimeRef.current = initialTimeMs;
     setWhiteMs(initialTimeMs);
     setBlackMs(initialTimeMs);
     setActiveSide("white");

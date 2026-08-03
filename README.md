@@ -70,10 +70,11 @@ AUTHOR=<your-name>
 PORT=80
 SERVER_NAME=<your-server-name>
 
-# Public hostnames fronted by Pangolin (Newt tunnel), used only at
-# `docker compose build` time to bake the frontend's browser-facing API/socket URLs.
-FRONTEND_PUBLIC_URL=https://<your-frontend-domain>
-BACKEND_PUBLIC_URL=https://<your-backend-domain>
+# Docker Compose frontend settings. BACKEND_PUBLIC_URL is used only at build
+# time and is compiled into both the browser REST and Socket.IO URLs.
+# Use the same protocol that users use to open the site.
+FRONTEND_BASE_PATH=/chess
+BACKEND_PUBLIC_URL=http://<your-domain>
 # MQTT
 URL_HIVEMQTT=mqtts://<your-broker-url>.hivemq.cloud
 MQTT_USER=<your-mqtt-username>
@@ -96,7 +97,8 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:80   # Socket.io URL (browser-side)
 - `PORT` - Application port (default: 80)
 - `SERVER_NAME` - Identifier for this server instance
 - `AUTHOR` - Server author/maintainer name
-- `FRONTEND_PUBLIC_URL` / `BACKEND_PUBLIC_URL` - Public hostnames (fronted by Pangolin/Newt) baked into the frontend build for browser-facing API/socket calls
+- `FRONTEND_BASE_PATH` - Optional public frontend path, such as `/chess`
+- `BACKEND_PUBLIC_URL` - One public browser origin compiled into both API and Socket.IO URLs during the Docker frontend build
 - `URL_HIVEMQTT` - MQTT broker URL
 - `MQTT_USER` / `MQTT_PASSWORD` - MQTT authentication credentials
 - `MQTT_PORT` - MQTT broker port (8883 for secure)

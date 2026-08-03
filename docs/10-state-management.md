@@ -114,7 +114,7 @@ The frontend state sync pattern is:
 
 ### Chess clock lifecycle
 
-`use-chess-clock.ts` initializes both clocks from the persisted game configuration only after the game data is loaded. The clocks remain displayed but paused at their configured initial values until the first valid move is present. From that first move onward, only the active side decreases and the configured increment is applied to the side that completed a move.
+`use-chess-clock.ts` initializes both clocks from the persisted game configuration only after the game data is loaded. The clocks remain displayed but paused at their configured initial values until the first valid move is present. From that first move onward, only the active side decreases and the configured increment is applied to the side that completed a move. If an administrator changes the base time mid-game, the hook applies only the base-time difference to each remaining clock, preserving elapsed play time instead of resetting either clock.
 
 Older game documents with second-based clock fields are converted at the frontend API boundary. Games without any clock fields use the documented 10-minute compatibility fallback.
 

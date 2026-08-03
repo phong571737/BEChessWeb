@@ -186,6 +186,7 @@ export const vi: Record<TranslationKeys, string> = {
     "played.whiteWin": "Trắng thắng",
     "played.blackWin": "Đen thắng",
     "played.draw": "Hoà",
+    "played.unfinished": "Chưa hoàn thành",
     "played.dateNewest": "Ngày: mới nhất",
     "played.dateOldest": "Ngày: cũ nhất",
     "played.movesHL": "Số nước: cao → thấp",

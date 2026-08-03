@@ -47,8 +47,7 @@ The deployment setup depends on environment variables described in [04-environme
 - `PORT` (default `80`)
 - `MONGO_URI`
 - `BACKEND_PUBLIC_URL`
-- `FRONTEND_PUBLIC_URL`
-- `NEXT_PUBLIC_SOCKET_URL`
+- `FRONTEND_BASE_PATH`
 - `BACKEND_PROXY_URL`
 - `URL_HIVEMQTT`
 - `MQTT_USER`
@@ -63,6 +62,8 @@ The frontend is expected to know its public-facing API and socket URLs at build 
 ### Runtime
 
 The backend process is expected to stay alive and maintain the active game state map through the app lifecycle. This is why the runtime is designed around in-memory state plus durable persistence rather than fully stateless HTTP requests.
+
+MongoDB Atlas `mongodb+srv://` connections use SRV DNS records. The backend uses the operating system DNS resolver so it works with institutional networks and VPN DNS policies; ensure the host can resolve `_mongodb._tcp.<cluster-host>` and reach the Atlas cluster.
 
 ## Vercel frontend with a Render backend
 
@@ -86,14 +87,14 @@ VERCEL_WEB=https://be-chess-web.vercel.app
 
 ## VPS deployment at `/chess`
 
-For `https://ttlab.uit.edu.vn/chess`, create the ignored file `frontend/.env.production` on the VPS with the following build-time values. Never commit this environment file. `NEXT_PUBLIC_BASE_PATH=/chess` is a build-time value, so rebuild/restart the Next.js frontend after changing it. `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_SOCKET_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root. The browser-facing URL protocol must match the page protocol: use `https://` for an HTTPS site so REST calls use HTTPS and Socket.IO upgrades to WSS.
+For a VPS deployment at `/chess`, set only the following frontend values in the root ignored `.env` file next to `docker-compose.yml`. Do not add `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SOCKET_URL`, or `NEXT_PUBLIC_BASE_PATH` there: Docker Compose derives those build arguments from these two values. `BACKEND_PUBLIC_URL` must be the domain origin without `/chess`, because Nginx proxies backend routes and Socket.IO at the root. Its protocol must match the protocol users use to open the site.
 
 ```env
-API_URL=http://127.0.0.1:8080
-NEXT_PUBLIC_API_URL=https://ttlab.uit.edu.vn
-NEXT_PUBLIC_SOCKET_URL=https://ttlab.uit.edu.vn
-NEXT_PUBLIC_BASE_PATH=/chess
+FRONTEND_BASE_PATH=/chess
+BACKEND_PUBLIC_URL=http://ttlab.uit.edu.vn
 ```
+
+For HTTPS, replace `http://` with `https://` only after the HTTPS gateway/proxy is correctly configured. Rebuild the frontend after changing either value.
 
 Use this Nginx shape (adjust the backend port if the service does not run on `8080`):
 

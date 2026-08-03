@@ -14,6 +14,17 @@ import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveD
 import { useAuth } from "@/lib/auth-context";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
+type LegacyHistoryGame = HistoryGame & {
+  White?: string;
+  Black?: string;
+  whiteName?: string;
+  blackName?: string;
+  lastSeq?: number;
+};
+
+const isFinishedResult = (result?: string | null) =>
+  result === "1-0" || result === "0-1" || result === "1/2-1/2";
+
 const INPUT_CLS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground " +
   "outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring/50 transition-shadow " +
@@ -38,16 +49,27 @@ export function GameHistory() {
   const { isAdmin, token } = useAuth();
 
   const normalizeGame = useCallback((g: HistoryGame): HistoryGame => {
+    const legacy = g as LegacyHistoryGame;
     const headers = parsePgnHeader(g.pgn ?? "");
     return {
       ...g,
-      WhiteName: g.WhiteName || headers["White"] || "?",
-      BlackName: g.BlackName || headers["Black"] || "?",
+      // Older endgame records used White/Black while live snapshots use
+      // WhiteName/BlackName. Keep both formats readable in the same table.
+      WhiteName: g.WhiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
+      BlackName: g.BlackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
       Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
       Date: g.Date || headers["Date"] || g.createdAt || "",
       createdAt: g.createdAt || g.startedAt || g.createAt,
+      totalMoves: g.totalMoves ?? legacy.lastSeq ?? g.totalPlies ?? g.uciHistory?.length ?? g.fenHistory?.length ?? 0,
     };
   }, []);
+
+  const resultText = (result: HistoryGame["Result"]) => {
+    if (result === "1-0") return t("result.whiteWin");
+    if (result === "0-1") return t("result.blackWin");
+    if (result === "1/2-1/2") return t("result.draw");
+    return t("played.unfinished");
+  };
 
   useEffect(() => {
     fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
@@ -371,8 +393,11 @@ export function GameHistory() {
                           {i + 1}
                         </td>
                         <td className="px-4 py-3">
-                          <Badge variant={resultVariant(game.Result)} className="w-[88px] justify-center text-[11px]">
-                            {game.Result === "1-0" ? t("result.whiteWin") : game.Result === "0-1" ? t("result.blackWin") : game.Result === "1/2-1/2" ? t("result.draw") : game.Result}
+                          <Badge
+                            variant={isFinishedResult(game.Result) ? resultVariant(game.Result) : "secondary"}
+                            className={cn("w-[118px] justify-center text-[11px]", !isFinishedResult(game.Result) && "border border-primary/25 bg-primary/10 text-primary")}
+                          >
+                            {resultText(game.Result)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">

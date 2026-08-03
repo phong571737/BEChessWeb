@@ -162,7 +162,7 @@ Request body:
 - optional `initialTimeMs`: initial clock time per side in milliseconds; greater than zero and no more than 24 hours
 - optional `incrementMs`: increment per move in milliseconds; between zero and one hour
 
-If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. Missing/invalid credentials receive `401`; non-admin credentials receive `403`.
+If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. When the base time changes during an active game, connected clients preserve each side's elapsed time by applying the difference between the old and new base time; for example, a 10-minute clock with 4 minutes elapsed becomes 26 minutes when changed to 30 minutes. Missing/invalid credentials receive `401`; non-admin credentials receive `403`.
 
 ### `POST /games/:id/endgame`
 

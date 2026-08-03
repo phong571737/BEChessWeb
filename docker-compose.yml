@@ -12,6 +12,7 @@ services:
       context: ./frontend
       args:
         API_URL: http://ttlab-chess-app:${PORT:-80}
+        # One public origin is compiled into both browser REST and Socket.IO URLs.
         NEXT_PUBLIC_API_URL: ${BACKEND_PUBLIC_URL}
         NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL}
         NEXT_PUBLIC_BASE_PATH: ${FRONTEND_BASE_PATH:-}

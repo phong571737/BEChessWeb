@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import { initSocket } from "./sockets/index.js";
 import { connectDB } from "./config/database.js";
-import dns from "node:dns/promises";
 // import { evalRouter } from "./routes/eval.router.js";
 import { initMqtt } from "./services/mqtt.service.js";
 import { boardRouter } from "./routes/board.router.js";
@@ -13,8 +12,6 @@ import authRouter from "./routes/auth.router.js";
 import { env } from "./config/environment.js";
 import { ensureDefaultAdmin } from "./models/user.model.js";
 import { corsOptions } from "./config/cors.js";
-
-dns.setServers(["1.1.1.1", "8.8.8.8"]);
 
 async function StartServer() {
   const app = express();

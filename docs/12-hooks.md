@@ -75,3 +75,5 @@ A common lifecycle is:
 `useGame` handles the room-scoped `game:reset` event by clearing browser move and branch data, returning the board to the starting FEN, and restarting init-check polling. The event carries the saved `initialTimeMs` and `incrementMs`, which `useChessClock` uses to reset both clocks without falling back to the default duration.
 
 For every accepted move, `useChessClock` reads the active-color field of the authoritative post-move FEN. That side owns the running clock: after White's first move, the FEN turn is Black and only Black's clock starts. NFC/ESP snapshots are normalized server-side when a UCI move is present so a stale device-side FEN turn cannot reverse the active player or clock.
+
+When the administrator updates `initialTimeMs` during a live game, `useChessClock` retains each clock's consumed time and adds or removes only the configured time difference. This update is persisted in session storage so a reload does not turn a partially used clock back into a full clock.

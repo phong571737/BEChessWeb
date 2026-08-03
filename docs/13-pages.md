@@ -2,7 +2,7 @@
 
 ## Played history alignment
 
-The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers.
+The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers. Live snapshots with no final PGN result are retained in history and shown as **In progress** / **Chưa hoàn thành**; completed results remain White win, Black win, or Draw. The view accepts both current `WhiteName`/`BlackName` records and legacy `White`/`Black` name fields.
 
 When the administrator opens the recycle bin, an API/authentication failure is displayed explicitly. The UI must never represent an unavailable recycle bin as an empty one.
 
@@ -43,7 +43,7 @@ The guide page at `/guide` gives the physical-board onboarding sequence: open th
 
 ### `/played`
 
-The played page surfaces historical or previously completed game sessions.
+The played page surfaces historical game sessions, including live snapshots that have moves but are not yet completed.
 
 ### `/played/review`
 

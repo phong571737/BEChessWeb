@@ -123,6 +123,7 @@ export const en = {
     "played.whiteWin": "White win",
     "played.blackWin": "Black win",
     "played.draw": "Draw",
+    "played.unfinished": "In progress",
     "played.dateNewest": "Date: newest",
     "played.dateOldest": "Date: oldest",
     "played.movesHL": "Moves: high to low",

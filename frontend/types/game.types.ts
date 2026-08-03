@@ -53,6 +53,8 @@ export interface HistoryGame {
     durationSec?: number | null;
     fenHistory?: string [];
     uciHistory?: string [];
+    /** A live snapshot is saved while the game is still in progress. */
+    historyStatus?: "active" | "finished";
 }
 
 /** Per-game live state stored in Zustand */
