@@ -31,8 +31,10 @@ gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
 
 /** Administrator-only recycle bin for recoverable history deletion. */
 gameRouter.get("/history/trash", gameReadRateLimit, requireAdmin, GameController.getHistoryTrash);
+gameRouter.delete("/history/trash/permanent", gameDestructiveRateLimit, requireAdmin, GameController.permanentlyDeleteAllHistory);
 gameRouter.post("/history/:id/restore", gameMutationRateLimit, requireAdmin, GameController.restoreHistory);
 gameRouter.delete("/history/:id/permanent", gameDestructiveRateLimit, requireAdmin, GameController.permanentlyDeleteHistory);
+gameRouter.delete("/history", gameDestructiveRateLimit, requireAdmin, GameController.deleteAllHistory);
 
 /**GET  games/log
  * This api is used to get all log is saved

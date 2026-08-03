@@ -166,6 +166,8 @@ If clock fields are provided, they are persisted to the game document and includ
 
 `GET /games/history` enriches incomplete legacy snapshots from the matching live game document by `gameID`. This restores available names, PGN, UCI/FEN move history, and clock metadata without rewriting completed history. A record that retains only a move count has no move sequence and cannot be converted into an exact PGN.
 
+Administrators can move all visible history into the recoverable recycle bin with `DELETE /games/history`. The recycle bin can be emptied permanently with `DELETE /games/history/trash/permanent`. Both operations require an administrator bearer token and are intentionally subject to the destructive-operation rate limit.
+
 ### `POST /games/:id/endgame`
 
 Completes the final PGN entry in `game_history`.

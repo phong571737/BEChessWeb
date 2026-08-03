@@ -1,10 +1,17 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, getGameCollections, moveAllHistoryToTrash, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
-import { ObjectId } from "mongodb";
+import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
+
+function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
+    return {
+        ...record,
+        _id: typeof record._id === "string" ? record._id : record._id?.toString?.() ?? "",
+    };
+}
 
 export const GameController = {
     // Get current state
@@ -61,7 +68,7 @@ export const GameController = {
                 };
             });
 
-            res.json(games);
+            res.json(games.map(serializeHistoryRecord));
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load game history" });
@@ -83,13 +90,23 @@ export const GameController = {
         }
     },
 
+    async deleteAllHistory(_req: Request, res: Response): Promise<void> {
+        try {
+            const deletedCount = await moveAllHistoryToTrash();
+            res.json({ success: true, deletedCount, retentionDays: 30 });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to move all history to trash" });
+        }
+    },
+
     async getHistoryTrash(_req: Request, res: Response): Promise<void> {
         try {
             const games = await getPGNCollections()
                 .find({ deletedAt: { $exists: true } })
                 .sort({ deletedAt: -1 })
                 .toArray();
-            res.json(games);
+            res.json(games.map(serializeHistoryRecord));
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load history trash" });
@@ -121,6 +138,16 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to permanently delete history" });
+        }
+    },
+
+    async permanentlyDeleteAllHistory(_req: Request, res: Response): Promise<void> {
+        try {
+            const deletedCount = await permanentlyDeleteAllHistoryFromTrash();
+            res.json({ success: true, deletedCount });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to permanently delete history trash" });
         }
     },
 

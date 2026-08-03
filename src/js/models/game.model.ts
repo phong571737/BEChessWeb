@@ -174,6 +174,16 @@ export async function moveHistoryToTrash(id: string): Promise<boolean> {
     return result.modifiedCount === 1;
 }
 
+/** Moves every visible history record into the recoverable recycle bin. */
+export async function moveAllHistoryToTrash(): Promise<number> {
+    const now = new Date();
+    const result = await pgnGames().updateMany(
+        { deletedAt: { $exists: false } },
+        { $set: { deletedAt: now, deleteAfter: new Date(now.getTime() + HISTORY_RETENTION_DAYS * 24 * 60 * 60 * 1_000) } },
+    );
+    return result.modifiedCount;
+}
+
 export async function restoreHistoryFromTrash(id: string): Promise<boolean> {
     const result = await pgnGames().updateOne(
         historyIdFilter(id, true),
@@ -186,6 +196,12 @@ export async function restoreHistoryFromTrash(id: string): Promise<boolean> {
 export async function permanentlyDeleteHistoryFromTrash(id: string): Promise<boolean> {
     const result = await pgnGames().deleteOne(historyIdFilter(id, true));
     return result.deletedCount === 1;
+}
+
+/** Permanently empties only records that are already in the recycle bin. */
+export async function permanentlyDeleteAllHistoryFromTrash(): Promise<number> {
+    const result = await pgnGames().deleteMany({ deletedAt: { $exists: true } });
+    return result.deletedCount;
 }
 
 /** MongoDB TTL removes trashed records after the configured retention period. */
