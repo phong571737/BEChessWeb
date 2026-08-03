@@ -87,7 +87,7 @@ export const GameController = {
                 if (!move || typeof move !== "object") return false;
                 const record = move as Record<string, unknown>;
                 return Number.isInteger(record.ply) && typeof record.san === "string" && record.san.length <= 32
-                    && typeof record.uci === "string" && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(record.uci)
+                    && typeof record.uci === "string" && (record.uci === "?" || /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(record.uci))
                     && typeof record.bestMove === "string" && record.bestMove.length <= 8
                     && typeof record.classification === "string" && validClasses.has(record.classification)
                     && Number.isInteger(record.depth) && Number(record.depth) >= 1 && Number(record.depth) <= 30;

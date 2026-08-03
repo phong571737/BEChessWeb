@@ -44,7 +44,7 @@ With normal orientation, vertical mode places Black at the top and White at the 
 
 ## Saved move analysis
 
-The Move Review page provides an administrator-only **Analyze game** action. It replays the saved, legal PGN in a separate browser Stockfish worker at depth 14, evaluates the initial position and each position after a ply, then stores one compact analysis record on the matching `game_history` document. Other visitors can view a stored result but cannot overwrite it.
+The Move Review page and each administrator History row provide an **Analyze game** action. It uses the durable `fenHistory` and `uciHistory` snapshots first, falling back to legal PGN only when FEN history is absent. A separate browser Stockfish worker evaluates the initial position and each position after a ply at depth 14, then stores one compact analysis record on the matching `game_history` document. This allows older records with incomplete PGN notation to be analyzed directly from their saved board history. Other visitors can view a stored result but cannot overwrite it.
 
 Each record contains the ply number, SAN and UCI move, engine best move, scores before/after from White's perspective, centipawn loss, classification, and search depth. The backend validates the bounded payload and requires an admin bearer token before saving it through `POST /games/history/:id/analysis`.
 

@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
-import { analyzePgnMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
+import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
 import type { HistoryGame } from "@/types/game.types";
 
-interface Props { game: HistoryGame; pgn: string; }
+interface Props { game: HistoryGame; }
 
 const tone: Record<MoveAnalysis["classification"], string> = {
   brilliant: "border-accent/40 bg-accent text-accent-foreground", best: "border-success/40 bg-success/10 text-success",
@@ -18,29 +18,30 @@ const tone: Record<MoveAnalysis["classification"], string> = {
   blunder: "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
-export function MoveAnalysisPanel({ game, pgn }: Props) {
+export function MoveAnalysisPanel({ game }: Props) {
   const { t } = useT();
   const { isAdmin, token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
-  const [failed, setFailed] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setFailed(false); }, [game._id, game.analysis]);
+  useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setError(null); }, [game._id, game.analysis]);
 
   const runAnalysis = async () => {
     if (!token || running) return;
-    setRunning(true); setFailed(false);
+    setRunning(true); setError(null);
     try {
-      const result = await analyzePgnMoves(pgn, (completed, total) => setProgress({ completed, total }));
+      const result = await analyzeHistoryMoves(game, (completed, total) => setProgress({ completed, total }));
       if (!result.length) return;
       const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ moves: result, depth: 14 }),
       });
+      if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
       if (!response.ok) throw new Error("Unable to save game analysis");
       setMoves(result);
-    } catch { setFailed(true); } finally { setRunning(false); }
+    } catch (reason) { setError(reason instanceof Error ? reason.message : t("analysis.error")); } finally { setRunning(false); }
   };
 
   return (
@@ -53,7 +54,7 @@ export function MoveAnalysisPanel({ game, pgn }: Props) {
         </Button>}
       </div>
       {running && <p className="text-xs text-muted-foreground">{t("analysis.progress", { completed: progress.completed, total: progress.total })}</p>}
-      {failed && <p className="text-xs text-destructive">{t("analysis.error")}</p>}
+      {error && <p className="text-xs text-destructive">{error}</p>}
       {!running && !moves.length && <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-xs text-muted-foreground">{t("analysis.empty")}</div>}
       {!!moves.length && <ScrollArea className="h-56 rounded-sm border border-border bg-muted/40"><div className="divide-y divide-border">
         {moves.map((move) => <div key={move.ply} className="grid grid-cols-[3rem_minmax(4rem,1fr)_minmax(5rem,auto)] items-center gap-2 px-3 py-2 text-xs">

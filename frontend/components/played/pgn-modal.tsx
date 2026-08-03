@@ -513,7 +513,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} pgn={reviewPgn} />
+        <MoveAnalysisPanel game={game} />
     </>
   );
 }

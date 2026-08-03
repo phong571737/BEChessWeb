@@ -353,6 +353,8 @@ export const en = {
     "analysis.progress": "Analyzing {completed}/{total} moves...",
     "analysis.empty": "No saved move analysis yet.",
     "analysis.error": "Unable to analyze or save this game.",
+    "analysis.noMoves": "This game has no recorded moves to analyze.",
+    "analysis.backendOutdated": "The backend has not been updated with the analysis endpoint.",
     "analysis.best": "Best",
     "analysis.brilliant": "Brilliant",
     "analysis.excellent": "Excellent",

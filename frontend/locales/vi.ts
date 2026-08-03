@@ -356,6 +356,8 @@ export const vi: Record<TranslationKeys, string> = {
     "analysis.progress": "Đang phân tích {completed}/{total} nước đi...",
     "analysis.empty": "Chưa có phân tích nước đi được lưu.",
     "analysis.error": "Không thể phân tích hoặc lưu ván cờ này.",
+    "analysis.noMoves": "Ván cờ này chưa có nước đi được lưu để phân tích.",
+    "analysis.backendOutdated": "Backend chưa được cập nhật endpoint phân tích.",
     "analysis.best": "Tốt nhất",
     "analysis.brilliant": "Thiên tài",
     "analysis.excellent": "Xuất sắc",

@@ -15,6 +15,13 @@ export interface MoveAnalysis {
   depth: number;
 }
 
+interface HistoryAnalysisSource {
+  pgn?: string;
+  initialFen?: string;
+  fenHistory?: string[];
+  uciHistory?: string[];
+}
+
 interface EngineScore {
   cp: number | null;
   mate: number | null;
@@ -69,7 +76,8 @@ class PostGameEngine {
 
   private handleLine(line: string) {
     const info = line.match(/\binfo\b.*\bdepth (\d+).*\bscore (cp|mate) (-?\d+)/);
-    if (info && /\bmultipv 1\b/.test(line)) {
+    const multiPv = line.match(/\bmultipv (\d+)/);
+    if (info && (!multiPv || Number(multiPv[1]) === 1)) {
       const depth = Number(info[1]);
       if (depth >= this.current.depth) {
         const score = Number(info[3]);
@@ -173,6 +181,68 @@ export async function analyzePgnMoves(
       onProgress(index + 1, moves.length);
     }
     return analysis;
+  } finally {
+    engine.dispose();
+  }
+}
+
+const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+
+function parseUci(token: string | undefined): { from: string; to: string; promotion?: "q" | "r" | "b" | "n" } | null {
+  const match = token?.trim().match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+  if (!match) return null;
+  return { from: match[1].toLowerCase(), to: match[2].toLowerCase(), promotion: match[3]?.toLowerCase() as "q" | "r" | "b" | "n" | undefined };
+}
+
+/**
+ * Analyzes the durable e-board history directly. FEN snapshots take priority
+ * over PGN because older devices may have stored incomplete PGN notation.
+ */
+export async function analyzeHistoryMoves(
+  game: HistoryAnalysisSource,
+  onProgress: (completed: number, total: number) => void,
+  depth = 14,
+): Promise<MoveAnalysis[]> {
+  const fens = game.fenHistory?.filter((fen) => typeof fen === "string" && fen.trim()) ?? [];
+  if (!fens.length) return analyzePgnMoves(game.pgn ?? "", onProgress, depth);
+
+  const engine = new PostGameEngine();
+  const output: MoveAnalysis[] = [];
+  try {
+    let beforeFen = game.initialFen || DEFAULT_FEN;
+    let before = await engine.evaluate(beforeFen, depth);
+    for (const [index, afterFen] of fens.entries()) {
+      const token = parseUci(game.uciHistory?.[index]);
+      const position = new Chess(beforeFen, { skipValidation: true });
+      let move: Move | null = null;
+      if (token) {
+        try { move = position.move(token); } catch { move = null; }
+      }
+      const played = token ? `${token.from}${token.to}${token.promotion ?? ""}` : "";
+      const after = await engine.evaluate(afterFen, depth);
+      const beforeCp = scoreAsCentipawns(before);
+      const afterCp = scoreAsCentipawns(after);
+      const side = beforeFen.split(" ")[1] ?? "w";
+      const loss = beforeCp === null || afterCp === null ? null : Math.max(0, side === "w" ? beforeCp - afterCp : afterCp - beforeCp);
+      const pieceValue = move ? ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 } as Record<string, number>)[move.piece] ?? 0 : 0;
+      const opponentCanCaptureMovedPiece = Boolean(move) && position.moves({ verbose: true }).some((candidate) => candidate.to === move!.to && Boolean(candidate.captured));
+      const brilliant = played === before.bestMove && pieceValue >= 3 && opponentCanCaptureMovedPiece && Math.abs(afterCp ?? 0) >= 80;
+      output.push({
+        ply: index + 1,
+        san: move?.san ?? (played || "?"),
+        uci: played || "?",
+        bestMove: before.bestMove,
+        evaluationBeforeCp: beforeCp,
+        evaluationAfterCp: afterCp,
+        centipawnLoss: loss,
+        classification: classify(loss, played, before.bestMove, brilliant),
+        depth: Math.min(before.depth, after.depth),
+      });
+      beforeFen = afterFen;
+      before = after;
+      onProgress(index + 1, fens.length);
+    }
+    return output;
   } finally {
     engine.dispose();
   }

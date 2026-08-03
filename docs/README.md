@@ -35,10 +35,11 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 | [18-security.md](18-security.md) | Deployment and secret-handling posture |
 | [19-glossary.md](19-glossary.md) | Shared terminology |
 | [20-styling.md](20-styling.md) | Frontend design system: tokens, themes, primitives, typography, and motion |
-| [23-layout-shell.md](23-layout-shell.md) | App shell and navigation layout |
-| [24-board-visuals.md](24-board-visuals.md) | Chessboard and evaluation visual treatment |
-| [25-stateful-ui.md](25-stateful-ui.md) | State-driven UI patterns |
-| [28-stockfish-evaluation.md](28-stockfish-evaluation.md) | Browser Stockfish lifecycle and evaluation-bar behavior |
+| [21-layout-shell.md](21-layout-shell.md) | App shell and navigation layout |
+| [22-board-visuals.md](22-board-visuals.md) | Chessboard and evaluation visual treatment |
+| [23-stateful-ui.md](23-stateful-ui.md) | State-driven UI patterns |
+| [24-versioning.md](24-versioning.md) | Release and GitHub versioning policy |
+| [25-stockfish-evaluation.md](25-stockfish-evaluation.md) | Browser Stockfish lifecycle and evaluation-bar behavior |
 
 ## Runtime flow
 

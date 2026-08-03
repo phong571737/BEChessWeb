@@ -40,7 +40,7 @@ The bar uses `transition-[width] duration-500 ease-out` or `transition-[height] 
 
 When Flip board is enabled, both vertical and horizontal evaluation bars mirror their black/white segments and label placement to match the board orientation.
 
-The evaluation lifecycle, UCI score perspective, mate behavior, stale-result protection, and search depth are documented in [28-stockfish-evaluation.md](28-stockfish-evaluation.md).
+The evaluation lifecycle, UCI score perspective, mate behavior, stale-result protection, and search depth are documented in [25-stockfish-evaluation.md](25-stockfish-evaluation.md).
 
 ## Game card mini-board
 

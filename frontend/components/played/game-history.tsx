@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, RotateCcw, Trash, Trash2 } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveDurationSeconds } from "@/lib/game-utils";
 import { useAuth } from "@/lib/auth-context";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { analyzeHistoryMoves } from "@/lib/post-game-analysis";
 
 type LegacyHistoryGame = HistoryGame & {
   White?: string;
@@ -50,6 +51,8 @@ export function GameHistory() {
   const [showTrash, setShowTrash] = useState(false);
   const [trashError, setTrashError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [pendingTrashGame, setPendingTrashGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteGame, setPendingPermanentDeleteGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteAll, setPendingPermanentDeleteAll] = useState(false);
@@ -208,6 +211,30 @@ export function GameHistory() {
     if (await permanentlyDeleteAllFromTrash()) setPendingPermanentDeleteAll(false);
   };
 
+  const analyzeFromHistory = async (game: HistoryGame) => {
+    if (!token || analysisId) return;
+    setAnalysisId(game._id);
+    setAnalysisError(null);
+    try {
+      const moves = await analyzeHistoryMoves(game, () => {});
+      if (!moves.length) throw new Error(t("analysis.noMoves"));
+      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ moves, depth: 14 }),
+      });
+      if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
+      if (!response.ok) throw new Error(t("analysis.error"));
+      const analysis = { engine: "Stockfish 18 Lite", depth: 14, updatedAt: new Date().toISOString(), moves };
+      setGames((current) => current.map((item) => item._id === game._id ? { ...item, analysis } : item));
+      invalidateFetchCache("/games/history");
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : t("analysis.error"));
+    } finally {
+      setAnalysisId(null);
+    }
+  };
+
   const filteredGames = games
     .filter((g) => (resultFilter === "all" ? true : g.Result === resultFilter))
     .filter((g) => {
@@ -329,6 +356,8 @@ export function GameHistory() {
             )}
             <StatCards games={games} />
 
+            {analysisError && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{analysisError}</p>}
+
             {/* Filter bar */}
             <div className="rounded-lg border border-border bg-card p-3">
               <div className="flex items-center gap-2 mb-2.5">
@@ -422,7 +451,7 @@ export function GameHistory() {
                           {t("played.colDuration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      {isAdmin && <th className="w-[76px] px-4 py-2.5" aria-label={t("played.actions")} />}
+                      {isAdmin && <th className="w-[116px] px-4 py-2.5" aria-label={t("played.actions")} />}
                     </tr>
                   </thead>
                   <tbody>
@@ -467,6 +496,9 @@ export function GameHistory() {
                         </td>
                         {isAdmin && (
                           <td className="px-4 py-3 text-right">
+                            <button type="button" disabled={Boolean(analysisId)} onClick={(event) => { event.stopPropagation(); void analyzeFromHistory(game); }} className="mr-1 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={game.analysis?.moves.length ? t("analysis.reanalyze") : t("analysis.run")}>
+                              {analysisId === game._id ? <LoaderCircle className="size-3.5 animate-spin" /> : <BrainCircuit className="size-3.5" />}
+                            </button>
                             <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>
