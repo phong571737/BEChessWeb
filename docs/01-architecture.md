@@ -109,6 +109,7 @@ The frontend is a client-side dashboard and review surface. It consumes REST and
 - Shared UI is placed in `frontend/components/ui`.
 - Hooks encapsulate data fetching and socket listener behavior.
 - Zustand is the single client-side state container.
+- All user-facing text is localized through `useT()` and paired English/Vietnamese dictionaries; frontend components must not hard-code visible strings.
 
 ## Cross references
 

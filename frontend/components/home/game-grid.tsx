@@ -83,7 +83,7 @@ export function GameGrid() {
                     </p>
                 </div>
 
-                <button type="button" onClick={refresh} disabled={loading} title="Refresh"
+                <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
                     className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
                     <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                 </button>

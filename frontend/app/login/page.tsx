@@ -36,7 +36,7 @@ export default function LoginPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Login failed");
+                setError(data.error || t("login.error"));
                 return;
             }
 
@@ -44,7 +44,7 @@ export default function LoginPage() {
 
             router.push("/");
         } catch (err) {
-            setError("Network error");
+            setError(t("auth.networkError"));
         } finally {
             setLoading(false);
         }
@@ -72,7 +72,7 @@ export default function LoginPage() {
                         <Input
                             id="email"
                             type="email"
-                            placeholder="your@email.com"
+                            placeholder={t("auth.emailPlaceholder")}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

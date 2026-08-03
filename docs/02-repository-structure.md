@@ -101,6 +101,8 @@ Contains utilities and shared runtime configuration, including URL resolution, c
 
 Contains translation dictionaries for English and Vietnamese.
 
+Every user-facing frontend string must have the same key in both `en.ts` and `vi.ts`, then be rendered with `useT()` / `t("key")`. Do not hard-code visible UI text in pages or components.
+
 ### [frontend/types](../frontend/types)
 
 Contains frontend-facing domain types used by hooks and components.

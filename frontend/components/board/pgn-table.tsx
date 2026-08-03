@@ -280,6 +280,7 @@ function BranchDots({
   selectedBranchId: string | null;
   onSelect: (b: Branch) => void;
 }) {
+  const { t } = useT();
   const [open, setOpen] = useState(false);
 
   // Closes when clicked outside
@@ -297,7 +298,7 @@ function BranchDots({
     <div ref={ref} className="relative shrink-0 ml-0.5">
       <button
         onClick={() => setOpen(v => !v)}
-        title={`${branches.length} alternative move${branches.length > 1 ? "s" : ""}`}
+        title={t(branches.length === 1 ? "pgn.alternativeMoves" : "pgn.alternativeMovesPlural", { n: branches.length })}
         className={cn(
           "inline-flex items-center gap-0.5 px-1.5 py-[2px] rounded text-[11px] font-medium transition-colors",
           open || selectedBranchId
@@ -331,7 +332,7 @@ function BranchDots({
                 {getBranchMoveSan(b)}
               </span>
               <span className="text-[10px] text-branch-muted">
-                step {b.step}
+                {t("pgn.step", { n: b.step })}
               </span>
             </button>
           ))}
@@ -353,6 +354,7 @@ function BranchLine({
   onSelect: () => void;
   branchPly: number;
 }) {
+  const { t } = useT();
   const branchMoves = useMemo(() => {
     try {
       const c = new Chess();
@@ -371,7 +373,7 @@ function BranchLine({
     <div
       className="flex flex-wrap items-center gap-x-0.5 gap-y-0.5 py-1 pr-1 cursor-pointer group"
       onClick={onSelect}
-      title="Click to deselect branch"
+      title={t("pgn.deselectBranch")}
     >
       {branchMoves.map((san, idx) => {
         const ply = branchPly + idx;
@@ -405,7 +407,7 @@ function BranchLine({
       <button
         onClick={(e) => { e.stopPropagation(); onSelect(); }}
         className="ml-1 text-[10px] text-muted-foreground hover:text-foreground transition-colors opacity-0 group-hover:opacity-100"
-        title="Close branch"
+        title={t("pgn.closeBranch")}
       >
         <X className="size-3" />
       </button>

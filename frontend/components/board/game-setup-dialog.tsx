@@ -73,14 +73,14 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim() }),
             });
-            if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? "Unable to save game setup");
+            if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? t("sg.saveClockError"));
 
             const second = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "Black", name: black.trim() }),
             });
-            if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? "Unable to save player name");
+            if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));
 
             useGameStore.getState().patchBoard(gameID, {
                 WhiteName: white.trim(),

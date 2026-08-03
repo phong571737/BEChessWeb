@@ -17,23 +17,8 @@ interface Props {
     onClose: () => void;
 }
 
-const CLOCK_OPTIONS = [
-    { label: "1 phút", value: 60_000 },
-    { label: "3 phút", value: 180_000 },
-    { label: "5 phút", value: 300_000 },
-    { label: "10 phút", value: 600_000 },
-    { label: "15 phút", value: 900_000 },
-    { label: "30 phút", value: 1_800_000 },
-    { label: "1 giờ", value: 3_600_000 },
-];
-
-const INCREMENT_OPTIONS = [
-    { label: "0 giây", value: 0 },
-    { label: "1 giây", value: 1_000 },
-    { label: "2 giây", value: 2_000 },
-    { label: "5 giây", value: 5_000 },
-    { label: "10 giây", value: 10_000 },
-];
+const CLOCK_OPTIONS = [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000];
+const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000];
 
 export function StartGameDialog({ board, gameID , onClose }: Props) {
     const router = useRouter();
@@ -71,7 +56,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
             });
             if (!whiteResponse.ok) {
                 const body = await whiteResponse.json().catch(() => null);
-                throw new Error(body?.error || "Unable to save game clock settings");
+                throw new Error(body?.error || t("sg.saveClockError"));
             }
 
             const blackResponse = await fetch(`/games/${gameID}/rename`, {
@@ -81,7 +66,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
             });
             if (!blackResponse.ok) {
                 const body = await blackResponse.json().catch(() => null);
-                throw new Error(body?.error || "Unable to save player name");
+                throw new Error(body?.error || t("sg.savePlayerError"));
             }
 
             useGameStore.getState().patchBoard(gameID, {
@@ -162,7 +147,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     {/* Clock settings */}
                     <div className="grid grid-cols-2 gap-3">
                         <div className="space-y-2">
-                            <Label htmlFor="sg-clock">Thời gian</Label>
+                            <Label htmlFor="sg-clock">{t("sg.clock")}</Label>
                             <select
                                 id="sg-clock"
                                 value={initialTimeMs}
@@ -170,13 +155,13 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                                 disabled={loading}
                                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                {CLOCK_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                {CLOCK_OPTIONS.map(value => (
+                                    <option key={value} value={value}>{value === 3_600_000 ? t("sg.hourOption", { n: 1 }) : t(value === 60_000 ? "sg.minuteOption" : "sg.minutesOption", { n: value / 60_000 })}</option>
                                 ))}
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sg-increment">Thêm thời gian</Label>
+                            <Label htmlFor="sg-increment">{t("sg.addTime")}</Label>
                             <select
                                 id="sg-increment"
                                 value={incrementMs}
@@ -184,8 +169,8 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                                 disabled={loading}
                                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                {INCREMENT_OPTIONS.map(opt => (
-                                    <option key={opt.value} value={opt.value}>{opt.label}</option>
+                                {INCREMENT_OPTIONS.map(value => (
+                                    <option key={value} value={value}>{t(value === 1_000 ? "sg.secondOption" : "sg.secondsOption", { n: value / 1_000 })}</option>
                                 ))}
                             </select>
                         </div>

@@ -27,7 +27,7 @@ export default function RegisterPage() {
         setError(null);
 
         if (password !== confirmPassword) {
-            setError("Mật khẩu không khớp");
+            setError(t("register.passwordMismatch"));
             setLoading(false);
             return;
         }
@@ -42,7 +42,7 @@ export default function RegisterPage() {
             const data = await res.json();
 
             if (!res.ok) {
-                setError(data.error || "Registration failed");
+                setError(data.error || t("register.error"));
                 return;
             }
 
@@ -50,7 +50,7 @@ export default function RegisterPage() {
 
             router.push("/");
         } catch (err) {
-            setError("Network error");
+            setError(t("auth.networkError"));
         } finally {
             setLoading(false);
         }
@@ -78,7 +78,7 @@ export default function RegisterPage() {
                         <Input
                             id="username"
                             type="text"
-                            placeholder="username"
+                            placeholder={t("auth.usernamePlaceholder")}
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
                             required
@@ -91,7 +91,7 @@ export default function RegisterPage() {
                         <Input
                             id="email"
                             type="email"
-                            placeholder="your@email.com"
+                            placeholder={t("auth.emailPlaceholder")}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                             required

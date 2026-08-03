@@ -385,7 +385,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
             <div
               ref={boardWrapRef}
               className="w-full max-w-[560px] select-none overscroll-contain"
-              title="Mouse wheel: scroll up/down to navigate moves"
+              title={t("rev.wheelNavigation")}
             >
               <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} />
             </div>
@@ -511,9 +511,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
             </div>
           )}
 
-          {!game.pgn?.trim() && !!game.fenHistory?.length && (
-            <div className="text-[11px] text-amber-600 dark:text-amber-400">Using FEN fallback (PGN missing).</div>
-          )}
         </div>
     </>
   );

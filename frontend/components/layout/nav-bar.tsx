@@ -9,17 +9,17 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { publicPath } from "@/lib/public-path";
-
-const links = [
-    {href: "/",         label: "HOME"},
-    {href: "/played",   label: "PLAYED"},
-    {href: "/log",      label: "LOG"},
-];
+import { useT } from "@/lib/i18n";
 
 export function Navbar() {
     const pathname = usePathname();
     const { resolvedTheme, setTheme } = useTheme();
     const [open, setOpen] = useState(false);
+    const { t } = useT();
+    const links = [
+        { href: "/", label: t("nav.home") },
+        { href: "/played", label: t("nav.played") },
+    ];
     const toggle = () => setTheme(resolvedTheme === "dark" ? "light" : "dark");
 
     return (
@@ -56,7 +56,7 @@ export function Navbar() {
                 >
                 <Image
                     src={publicPath("/images/logo.jpg")}
-                    alt="TTLab Logo"
+                    alt={t("app.logoAlt")}
                     width={36}
                     height={36}
                     className="rounded-sm"
@@ -68,10 +68,10 @@ export function Navbar() {
                     size="icon"
                     className="ml-auto"
                     onClick={toggle}
-                    title="Toggle theme">
+                    title={t("settings.toggleTheme")}>
                     <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                     <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-                    <span className="sr-only">Toggle theme</span>
+                    <span className="sr-only">{t("settings.toggleTheme")}</span>
                 </Button>
             </nav>
         </header>

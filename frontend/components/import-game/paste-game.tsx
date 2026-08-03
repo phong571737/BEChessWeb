@@ -46,7 +46,7 @@ const SAMPLES = [
 ];
 
 export function PasteGame() {
-    const { t, locale } = useT();
+    const { t } = useT();
     const [rawInput, setRawInput] = useState("");
     const [result, setResult] = useState<ParseUciResult | null>(null);
     const [selectedBranch, setSelectedBranch] = useState(0);
@@ -156,7 +156,7 @@ export function PasteGame() {
                                         {t("nav.import")}
                                     </h1>
                                     <p className="text-xs text-muted-foreground mt-0.5 font-medium tracking-wide uppercase">
-                                        UCI → PGN Converter
+                                        {t("pg.converter")}
                                     </p>
                                 </div>
                             </div>
@@ -169,7 +169,7 @@ export function PasteGame() {
                         <div className="flex flex-col gap-2 2xl:items-end">
                             <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
                                 <Library className="size-3" />
-                                {locale === "vi" ? "Ví dụ mẫu" : "Quick Presets"}
+                                {t("pg.quickPresets")}
                             </span>
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:flex 2xl:flex-wrap 2xl:justify-end">
                                 {SAMPLES.map((sample, idx) => (
@@ -229,7 +229,7 @@ export function PasteGame() {
                                         className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground active:scale-95 sm:px-2.5"
                                     >
                                         <Clipboard className="size-3.5" />
-                                        <span>{locale === "vi" ? "Dán" : "Paste"}</span>
+                                        <span>{t("pg.paste")}</span>
                                     </button>
                                 </div>
                             </div>
@@ -252,7 +252,7 @@ export function PasteGame() {
                                         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleParse();
                                     }}
                                     className="h-full min-h-[220px] w-full resize-none rounded-md bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[320px] sm:p-4 sm:text-sm"
-                                    placeholder={t("pg.pastePlaceholder") || "e2e4 e7e5 g1f3 b8c6 f1c4..."}
+                                    placeholder={t("pg.pastePlaceholder")}
                                 />
                                 {rawInput.length > 0 && (
                                     <button
@@ -304,7 +304,7 @@ export function PasteGame() {
                             <kbd className="rounded border border-border/60 bg-muted/60 px-1.5 py-0.5 font-mono text-[10px]">
                                 Ctrl+Enter
                             </kbd>
-                            {" "}{locale === "vi" ? "để tạo PGN" : "to generate PGN"}
+                            {" "}{t("pg.shortcutGenerate")}
                         </p>
                     </div>
 
@@ -322,7 +322,7 @@ export function PasteGame() {
                                 {result && (
                                     <div className="flex items-center gap-1.5 rounded-sm bg-success/10 px-2 py-1 text-[11px] font-semibold text-success">
                                         <CheckCircle2 className="size-3" />
-                                        {result.branches.length} {result.branches.length > 1 ? t("pg.branches") : (locale === "vi" ? "nhánh" : "branch")}
+                                        {result.branches.length} {result.branches.length > 1 ? t("pg.branches") : t("pg.branch")}
                                     </div>
                                 )}
                             </div>
@@ -339,14 +339,14 @@ export function PasteGame() {
                                             icon: <GitFork className="size-3.5 text-muted-foreground" />
                                         },
                                         {
-                                            label: locale === "vi" ? "Nước đi" : "Moves",
+                                            label: t("pg.moves"),
                                             value: activeBranch?.appliedCount ?? 0,
                                             color: "text-primary",
                                             bg: "bg-primary/5",
                                             icon: <Swords className="size-3.5 text-primary" />
                                         },
                                         {
-                                            label: locale === "vi" ? "Bỏ qua" : "Skipped",
+                                            label: t("pg.skipped"),
                                             value: activeBranch?.skipped.length ?? 0,
                                             color: (activeBranch?.skipped.length ?? 0) > 0 ? "text-destructive" : "text-success",
                                             bg: (activeBranch?.skipped.length ?? 0) > 0 ? "bg-destructive/5" : "bg-success/5",
@@ -375,7 +375,7 @@ export function PasteGame() {
                                                 type="button"
                                                 onClick={handleDownloadPgn}
                                                 className="flex items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground active:scale-95"
-                                                title="Download .pgn file"
+                                                title={t("pg.downloadPgn")}
                                             >
                                                 <Download className="size-3.5" />
                                                 <span>.pgn</span>

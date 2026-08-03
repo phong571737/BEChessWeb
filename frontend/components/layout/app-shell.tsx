@@ -48,7 +48,7 @@ function AppSidebar({
             )}>
                 <Image
                     src={publicPath("/images/logo.jpg")}
-                    alt="TTLab"
+                    alt={t("app.logoAlt")}
                     width={28}
                     height={28}
                     className="rounded-md shrink-0"
@@ -56,8 +56,8 @@ function AppSidebar({
                 />
                 {!collapsed && (
                     <div className="min-w-0 flex-1">
-                        <p className="text-sm font-semibold truncate leading-tight">TTLab Chess</p>
-                        <p className="text-[10px] text-muted-foreground truncate leading-tight tracking-wide">Lab Management</p>
+                        <p className="text-sm font-semibold truncate leading-tight">{t("app.name")}</p>
+                        <p className="text-[10px] text-muted-foreground truncate leading-tight tracking-wide">{t("app.subtitle")}</p>
                     </div>
                 )}
 
@@ -120,7 +120,7 @@ function AppSidebar({
             {!collapsed && (
                 <div className="px-3 py-3 border-t border-[hsl(var(--sidebar-border))]">
                 <p className="text-[10px] text-muted-foreground/60 text-center tracking-wide">
-                    TTLab · Chess System
+                    {t("app.footer")}
                 </p>
                 </div>
             )}
@@ -176,7 +176,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         paste: t("nav.import"),
         guide: t("nav.guide"),
         // device: t("nav.device"),
-        board:  "Board",
+        board: t("app.board"),
         review: t("rev.moveReview"),
         };
         const segs = pathname.split("/").filter(Boolean);
@@ -246,7 +246,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             </div>
 
                             {/* Mobile title */}
-                            <div className="md:hidden text-sm font-semibold truncate">TTLab Chess</div>
+                            <div className="md:hidden text-sm font-semibold truncate">{t("app.name")}</div>
 
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">
@@ -282,7 +282,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                     }}
                                                     role="menuitem"
                                                 >
-                                                    <LogOut className="size-3.5" />Đăng xuất
+                                                    <LogOut className="size-3.5" />{t("app.logout")}
                                                 </Button>
                                             </div>
                                         )}
@@ -299,7 +299,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 )}
 
                                 <div ref={settingsMenuRef} className="relative">
-                                    <Button variant="ghost" size="icon" className="size-8" onClick={() => setSettingsMenuOpen((open) => !open)} title="Settings" aria-label="Settings" aria-expanded={settingsMenuOpen} aria-haspopup="menu">
+                                    <Button variant="ghost" size="icon" className="size-8" onClick={() => setSettingsMenuOpen((open) => !open)} title={t("settings.open")} aria-label={t("settings.open")} aria-expanded={settingsMenuOpen} aria-haspopup="menu">
                                         <Settings className="size-4" />
                                     </Button>
                                     {settingsMenuOpen && (
@@ -307,7 +307,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                             <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Languages className="size-3.5" />{t("settings.language")}</p>
                                             {(["en", "vi"] as const).map((value) => (
                                                 <button key={value} type="button" role="menuitem" onClick={() => { setLocale(value); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-                                                    <span>{value === "en" ? "English" : "Tiếng Việt"}</span>{locale === value && <Check className="size-3.5 text-primary" />}
+                                                    <span>{value === "en" ? t("settings.english") : t("settings.vietnamese")}</span>{locale === value && <Check className="size-3.5 text-primary" />}
                                                 </button>
                                             ))}
                                             <div className="my-1 border-t border-border" />
@@ -319,7 +319,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                             ))}
                                             <div className="my-1 border-t border-border" />
                                             <div className="px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                                Board layout
+                                                {t("settings.boardLayout")}
                                             </div>
                                             <div className="px-1 pb-1">
                                                 <BoardLayoutHeaderControl />

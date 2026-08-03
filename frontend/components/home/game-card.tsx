@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useRef, useState, useEffect, useMemo } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
+import { useT } from "@/lib/i18n";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -23,6 +24,7 @@ export function GameCard({ game }: Props) {
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors } = useBoardDisplay();
+  const { t } = useT();
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -48,7 +50,7 @@ export function GameCard({ game }: Props) {
       className="group flex flex-col bg-card rounded-lg border border-border overflow-hidden cursor-pointer transition-all duration-150 hover:border-border/80 hover:shadow-md hover:-translate-y-px"
       onMouseEnter={() => router.prefetch(boardUrl)}
       onFocus={() => router.prefetch(boardUrl)}
-      aria-label={`Open game ${game.WhiteName} vs ${game.BlackName}`}
+      aria-label={t("home.openGame", { players: `${game.WhiteName} vs ${game.BlackName}` })}
     >
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">

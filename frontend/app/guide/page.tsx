@@ -19,7 +19,7 @@ export default function GuidePage() {
         <div className="min-h-full bg-background">
             <div className="border-b border-border bg-card/60">
                 <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:px-6 sm:py-8">
-                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">TTLab Chess</p>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-primary">{t("app.name")}</p>
                     <h1 className="mt-2 text-2xl font-bold tracking-tight sm:text-3xl">{t("guide.title")}</h1>
                     <p className="mt-2 max-w-2xl text-sm text-muted-foreground">{t("guide.description")}</p>
                 </div>
