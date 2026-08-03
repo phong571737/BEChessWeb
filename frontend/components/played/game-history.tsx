@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { HistoryGame } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
@@ -44,7 +44,14 @@ export function GameHistory() {
   const [games, setGames]     = useState<HistoryGame[]>([]);
   const [loading, setLoading] = useState(true);
   const [resultFilter, setResultFilter] = useState<"all" | "1-0" | "0-1" | "1/2-1/2">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "finished" | "unfinished">("all");
   const [search, setSearch] = useState("");
+  const [boardFilter, setBoardFilter] = useState("");
+  const [locationFilter, setLocationFilter] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minMoves, setMinMoves] = useState("");
+  const [maxMoves, setMaxMoves] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "result" | "players" | "moves" | "duration">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [trash, setTrash] = useState<HistoryGame[]>([]);
@@ -238,8 +245,33 @@ export function GameHistory() {
     }
   };
 
+  const boardOptions = useMemo(() => Array.from(new Set(games.map((game) => game.boardID).filter((value): value is string => Boolean(value)))).sort(), [games]);
+  const locationOptions = useMemo(() => Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(), [games]);
+  const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || minMoves || maxMoves || statusFilter !== "all");
+
+  const clearFilters = () => {
+    setResultFilter("all"); setStatusFilter("all"); setSearch(""); setBoardFilter(""); setLocationFilter("");
+    setDateFrom(""); setDateTo(""); setMinMoves(""); setMaxMoves("");
+  };
+
   const filteredGames = games
     .filter((g) => (resultFilter === "all" ? true : g.Result === resultFilter))
+    .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g.Result) : isFinishedResult(g.Result))
+    .filter((g) => !boardFilter || g.boardID === boardFilter)
+    .filter((g) => !locationFilter || g.location?.trim() === locationFilter)
+    .filter((g) => {
+      const date = new Date(g.createdAt || g.startedAt || g.endedAt || g.Date);
+      if (Number.isNaN(date.getTime())) return !dateFrom && !dateTo;
+      if (dateFrom && date < new Date(`${dateFrom}T00:00:00`)) return false;
+      if (dateTo && date > new Date(`${dateTo}T23:59:59.999`)) return false;
+      return true;
+    })
+    .filter((g) => {
+      const lower = Number(minMoves); const upper = Number(maxMoves);
+      if (minMoves && (!Number.isFinite(lower) || g.totalMoves < lower)) return false;
+      if (maxMoves && (!Number.isFinite(upper) || g.totalMoves > upper)) return false;
+      return true;
+    })
     .filter((g) => {
       const q = search.trim().toLowerCase();
       if (!q) return true;
@@ -367,7 +399,7 @@ export function GameHistory() {
                 <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("played.filters")}</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
                 {/* Search */}
                 <div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -389,6 +421,23 @@ export function GameHistory() {
                   <option value="0-1">{t("played.blackWin")}</option>
                   <option value="1/2-1/2">{t("played.draw")}</option>
                 </select>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "finished" | "unfinished")} className={cn(INPUT_CLS, "cursor-pointer")}>
+                  <option value="all">{t("played.allStatuses")}</option>
+                  <option value="finished">{t("played.finished")}</option>
+                  <option value="unfinished">{t("played.unfinished")}</option>
+                </select>
+                <select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                  <option value="">{t("played.allBoards")}</option>
+                  {boardOptions.map((board) => <option key={board} value={board}>{board}</option>)}
+                </select>
+                <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                  <option value="">{t("played.allLocations")}</option>
+                  {locationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
+                </select>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateFrom")}</span><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={INPUT_CLS} /></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateTo")}</span><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={INPUT_CLS} /></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.minMoves")}</span><input type="number" min="0" inputMode="numeric" value={minMoves} onChange={(e) => setMinMoves(e.target.value)} className={INPUT_CLS} /></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.maxMoves")}</span><input type="number" min="0" inputMode="numeric" value={maxMoves} onChange={(e) => setMaxMoves(e.target.value)} className={INPUT_CLS} /></label>
                 {/* Sort */}
                 <select
                   value={`${sortBy}:${sortDir}`}
@@ -409,13 +458,14 @@ export function GameHistory() {
                   <option value="duration:desc">{t("played.durLS")}</option>
                   <option value="duration:asc">{t("played.durSL")}</option>
                 </select>
+                {(search || resultFilter !== "all" || hasAdvancedFilters) && <button type="button" onClick={clearFilters} className="h-9 rounded-md border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">{t("played.clearFilters")}</button>}
               </div>
             </div>
 
             {/* Table */}
             <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
               {/* Results count */}
-              {search || resultFilter !== "all" ? (
+              {search || resultFilter !== "all" || hasAdvancedFilters ? (
                 <div className="px-4 py-2 border-b border-border bg-muted/40">
                   <p className="text-xs text-muted-foreground">
                     {t("played.showing", { n: filteredGames.length, total: games.length })}

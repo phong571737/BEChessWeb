@@ -178,6 +178,15 @@ export const en = {
     "played.rateLimitError": "Too many requests. Retry after {seconds}s.",
     "played.moveToTrashGameDescription": "The game {players} will be hidden from history. You can restore it within 30 days.",
     "played.deletePermanentlyGameDescription": "The game {players} will be deleted permanently and cannot be restored.",
+    "played.allStatuses": "All statuses",
+    "played.finished": "Finished",
+    "played.allBoards": "All boards",
+    "played.allLocations": "All locations",
+    "played.dateFrom": "From date",
+    "played.dateTo": "To date",
+    "played.minMoves": "Minimum moves",
+    "played.maxMoves": "Maximum moves",
+    "played.clearFilters": "Clear filters",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Paste the moves text here",

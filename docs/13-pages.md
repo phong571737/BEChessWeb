@@ -47,7 +47,7 @@ The guide page at `/guide` gives the physical-board onboarding sequence: open th
 
 ### `/played`
 
-The played page surfaces historical game sessions, including live snapshots that have moves but are not yet completed.
+The played page surfaces historical game sessions, including live snapshots that have moves but are not yet completed. Its client-side filters cover player name, physical board, location, inclusive date range, result, completed/unfinished status, and minimum/maximum ply count.
 
 The review index route (`/played/review`) is a guard for malformed or legacy links without a game ID and redirects back to `/played`; individual reviews always use `/played/review/[id]`.
 

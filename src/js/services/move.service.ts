@@ -110,6 +110,7 @@ async function afterMove(
     await saveHistorySnapshot({
         gameID,
         boardID: updatedGame?.boardID ?? persistedGame?.boardID,
+        location: updatedGame?.location ?? persistedGame?.location,
         pgn: updatedGame?.pgn ?? state.pgn ?? "",
         fen: updatedGame?.fen ?? state.fen,
         initialFen: updatedGame?.initialFen ?? persistedGame?.initialFen,

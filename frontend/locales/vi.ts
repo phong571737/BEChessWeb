@@ -299,6 +299,15 @@ export const vi: Record<TranslationKeys, string> = {
     "played.rateLimitError": "Có quá nhiều yêu cầu. Hãy thử lại sau {seconds} giây.",
     "played.moveToTrashGameDescription": "Ván {players} sẽ bị ẩn khỏi lịch sử. Bạn có thể khôi phục ván này trong vòng 30 ngày.",
     "played.deletePermanentlyGameDescription": "Ván {players} sẽ bị xóa hoàn toàn và không thể khôi phục.",
+    "played.allStatuses": "Tất cả trạng thái",
+    "played.finished": "Đã hoàn thành",
+    "played.allBoards": "Tất cả bàn cờ",
+    "played.allLocations": "Tất cả địa điểm",
+    "played.dateFrom": "Từ ngày",
+    "played.dateTo": "Đến ngày",
+    "played.minMoves": "Số nước tối thiểu",
+    "played.maxMoves": "Số nước tối đa",
+    "played.clearFilters": "Xóa bộ lọc",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Dán chuỗi nước đi vào đây",
