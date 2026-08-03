@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, getGameCollections, moveAllHistoryToTrash, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -87,16 +87,6 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to move history to trash" });
-        }
-    },
-
-    async deleteAllHistory(_req: Request, res: Response): Promise<void> {
-        try {
-            const deletedCount = await moveAllHistoryToTrash();
-            res.json({ success: true, deletedCount, retentionDays: 30 });
-        } catch (e) {
-            console.error(e);
-            res.status(500).json({ error: "Unable to move all history to trash" });
         }
     },
 

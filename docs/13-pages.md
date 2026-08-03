@@ -2,7 +2,7 @@
 
 ## Played history alignment
 
-The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers. Live snapshots with no final PGN result are retained in history and shown as **In progress** / **Chưa hoàn thành**; completed results remain White win, Black win, or Draw. The view accepts both current `WhiteName`/`BlackName` records and legacy `White`/`Black` name fields. Administrators can move all history into the recoverable trash with a confirmation dialog, or permanently empty only the trash with a separate destructive confirmation.
+The Played history table keeps the optional administrator action column after the duration column. Header and row cell ordering must remain identical so adding the recycle-bin icon never shifts the Date or Duration headers. Live snapshots with no final PGN result are retained in history and shown as **In progress** / **Chưa hoàn thành**; completed results remain White win, Black win, or Draw. The view accepts both current `WhiteName`/`BlackName` records and legacy `White`/`Black` name fields. Administrators delete individual History rows by moving them to the recoverable trash; only the trash can be permanently emptied with the localized **Delete all** / **Xóa toàn bộ** action and a separate destructive confirmation.
 
 When the administrator opens the recycle bin, an API/authentication failure is displayed explicitly. The UI must never represent an unavailable recycle bin as an empty one.
 
