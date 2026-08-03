@@ -96,31 +96,37 @@ async function afterMove(
     const write = await saveGame(
         gameID, 
         { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove, startedAt, lastMoveAt: now, durationSec },
-        { uci, fen, seq, boardType, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
+        { uci, fen: state.fen, seq, boardType, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
     ); // save db
     if (!write?.modifiedCount) {
         await restorefromDB(gameID);
         throw new Error("GAME_STATE_CONFLICT");
     }
 
+    // Use the document returned by MongoDB as the source of the history
+    // snapshot. This guarantees PGN, UCI, and FEN histories are identical in
+    // `games` and `game_history` after every accepted move.
+    const updatedGame = await getGame(gameID);
     await saveHistorySnapshot({
         gameID,
-        boardID: persistedGame?.boardID,
-        pgn: state.pgn ?? "",
-        fen: state.fen,
-        initialFen: persistedGame?.initialFen,
-        lastMove: state.lastMove ?? null,
-        lastSeq: state.lastSeq ?? seq,
-        totalMoves: state.lastSeq ?? seq,
-        totalPlies: state.lastSeq ?? seq,
-        WhiteName: persistedGame?.WhiteName ?? "White",
-        BlackName: persistedGame?.BlackName ?? "Black",
+        boardID: updatedGame?.boardID ?? persistedGame?.boardID,
+        pgn: updatedGame?.pgn ?? state.pgn ?? "",
+        fen: updatedGame?.fen ?? state.fen,
+        initialFen: updatedGame?.initialFen ?? persistedGame?.initialFen,
+        lastMove: updatedGame?.lastMove ?? state.lastMove ?? null,
+        lastSeq: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
+        totalMoves: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
+        totalPlies: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
+        uciHistory: updatedGame?.uciHistory ?? [],
+        fenHistory: updatedGame?.fenHistory ?? [],
+        WhiteName: updatedGame?.WhiteName ?? persistedGame?.WhiteName ?? "White",
+        BlackName: updatedGame?.BlackName ?? persistedGame?.BlackName ?? "Black",
         Result: "*",
         Date: now.toISOString().slice(0, 10).replace(/-/g, "."),
         round: persistedGame?.round ?? 1,
-        startedAt,
+        startedAt: updatedGame?.startedAt ?? startedAt,
         lastMoveAt: now,
-        durationSec,
+        durationSec: updatedGame?.durationSec ?? durationSec,
     });
 
     getIO().to(gameID).emit("esp_move", state);// broadcast move
@@ -157,14 +163,14 @@ export const MoveService = {
         switch (boardType) {
             case BOARD_TYPE.NFC: {
                 const moveState = await processMoveNFC({ boardType, gameID, fen, seq, moveType, uci, departures, arrivals }) as MoveState;
-                if (moveState.status === MOVE_STATUS.OK) await afterMove(gameID, moveState, uci, moveState.lastSeq ?? seq ?? 0, boardType, fen, expectedVersion);
+                if (moveState.status === MOVE_STATUS.OK) await afterMove(gameID, moveState, uci, moveState.lastSeq ?? seq ?? 0, boardType, moveState.fen, expectedVersion);
                 return moveState;
             }
             case BOARD_TYPE.HALL: {
                 const moveState = await processMoveHall({boardType, gameID, seq, moveType, uci, departures, arrivals }) as MoveState;
                 if (moveState.status === MOVE_STATUS.OK) {
                     const persistedUci = moveState.isError ? `dep:${departures ?? ""} arr:${arrivals ?? ""}` : uci;
-                    await afterMove(gameID, moveState, persistedUci, moveState.lastSeq ?? seq ?? 0, boardType, undefined, expectedVersion);
+                    await afterMove(gameID, moveState, persistedUci, moveState.lastSeq ?? seq ?? 0, boardType, moveState.fen, expectedVersion);
                 }
                 return moveState;
             }

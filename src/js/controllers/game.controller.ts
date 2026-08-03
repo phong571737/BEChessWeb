@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, moveHistoryToTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -24,14 +24,47 @@ export const GameController = {
     // get history of game
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
-            const games = await getPGNCollections()
+            const history = await getPGNCollections()
                 .find({ deletedAt: { $exists: false } })
                 .sort({ createdAt: -1 }) // newest
                 .toArray();
 
+            // History snapshots created by older versions sometimes retained
+            // only a move count. For an unfinished game the live game document
+            // is still authoritative and contains its names, PGN, UCI/FEN
+            // history, and current clock metadata. Enrich only incomplete
+            // snapshots; finished history remains immutable.
+            const activeIds = history
+                .filter((row) => row.historyStatus === "active" || !row.Result || row.Result === "*")
+                .map((row) => row.gameID)
+                .filter((gameID): gameID is string => typeof gameID === "string" && gameID.length > 0);
+            const liveGames = activeIds.length
+                ? await getGameCollections().find({ gameID: { $in: activeIds } }).toArray()
+                : [];
+            const liveByGameID = new Map(liveGames.map((game) => [game.gameID, game]));
+            const games = history.map((snapshot) => {
+                const live = typeof snapshot.gameID === "string" ? liveByGameID.get(snapshot.gameID) : undefined;
+                if (!live) return snapshot;
+                return {
+                    ...snapshot,
+                    WhiteName: snapshot.WhiteName || live.WhiteName || "White",
+                    BlackName: snapshot.BlackName || live.BlackName || "Black",
+                    pgn: snapshot.pgn || live.pgn || "",
+                    initialFen: snapshot.initialFen || live.initialFen,
+                    uciHistory: Array.isArray(snapshot.uciHistory) && snapshot.uciHistory.length ? snapshot.uciHistory : live.uciHistory ?? [],
+                    fenHistory: Array.isArray(snapshot.fenHistory) && snapshot.fenHistory.length ? snapshot.fenHistory : live.fenHistory ?? [],
+                    totalMoves: snapshot.totalMoves ?? live.lastSeq ?? live.totalMoves ?? 0,
+                    totalPlies: snapshot.totalPlies ?? live.lastSeq ?? live.totalMoves ?? 0,
+                    startedAt: snapshot.startedAt || live.startedAt,
+                    lastMoveAt: snapshot.lastMoveAt || live.lastMoveAt,
+                    durationSec: snapshot.durationSec ?? live.durationSec,
+                };
+            });
+
             res.json(games);
         } catch (e) {
             console.error(e);
+            res.status(500).json({ error: "Unable to load game history" });
         }
     },
 

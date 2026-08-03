@@ -164,6 +164,8 @@ Request body:
 
 If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. When the base time changes during an active game, connected clients preserve each side's elapsed time by applying the difference between the old and new base time; for example, a 10-minute clock with 4 minutes elapsed becomes 26 minutes when changed to 30 minutes. Missing/invalid credentials receive `401`; non-admin credentials receive `403`.
 
+`GET /games/history` enriches incomplete legacy snapshots from the matching live game document by `gameID`. This restores available names, PGN, UCI/FEN move history, and clock metadata without rewriting completed history. A record that retains only a move count has no move sequence and cannot be converted into an exact PGN.
+
 ### `POST /games/:id/endgame`
 
 Completes the final PGN entry in `game_history`.

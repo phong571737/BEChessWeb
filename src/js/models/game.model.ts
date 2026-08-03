@@ -1,6 +1,5 @@
 import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
-import { BOARD_TYPE } from "../constant.js";
 import { GameDoc, SaveGameOptions } from "../types/game.types.js"
 
 
@@ -59,7 +58,10 @@ export async function saveGame(
         if (Array.isArray(fenHistory)) setFields.fenHistory = fenHistory;
 
         if (uci) pushFeilds.uciHistory = uci;
-        if (boardType === BOARD_TYPE.NFC) {
+        // The server-calculated FEN is available for both Hall and NFC moves.
+        // Persist it for every accepted move so an unfinished game can always
+        // be replayed even when a device did not send its own FEN payload.
+        if (typeof fen === "string" && fen.trim()) {
             pushFeilds.fenHistory = fen;
         }
 

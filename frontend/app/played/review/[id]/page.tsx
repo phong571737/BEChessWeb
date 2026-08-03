@@ -12,6 +12,14 @@ import { fetchJSONCached } from "@/lib/fetch-cache";
 import { useT } from "@/lib/i18n";
 import { parsePgnHeader } from "@/lib/game-utils";
 
+type LegacyHistoryGame = HistoryGame & {
+  White?: string;
+  Black?: string;
+  whiteName?: string;
+  blackName?: string;
+  lastSeq?: number;
+};
+
 function ReviewSkeleton() {
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-5 py-4 sm:py-5 space-y-3">
@@ -79,14 +87,16 @@ export default function PlayedReviewPage() {
           setGame(null); 
           return;
         }
+        const legacy = raws as LegacyHistoryGame;
         const headers = parsePgnHeader(raws.pgn ?? "");
         setGame({
           ...raws,
-          WhiteName: raws?.WhiteName || headers["White"] || "?",
-          BlackName: raws?.BlackName || headers["Black"] || "?",
+          WhiteName: raws.WhiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
+          BlackName: raws.BlackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
           Result: (raws.Result || headers["Result"] || "*") as HistoryGame["Result"],
           Date: raws.Date || headers["Date"] || raws.createdAt || "",
           createdAt: raws.createdAt || raws.startedAt || raws.createAt,
+          totalMoves: raws.totalMoves ?? legacy.lastSeq ?? raws.totalPlies ?? raws.uciHistory?.length ?? raws.fenHistory?.length ?? 0,
         });
       })
       .catch(() => setGame(null))

@@ -37,6 +37,8 @@ The persisted game object is a MongoDB document with fields such as:
 - `incrementMs` — increment per move in milliseconds (optional)
 - `clockSeconds` / `clockIncrement` — legacy second-based fields supported only while loading older game documents
 
+For every accepted move, the active `game_history` snapshot stores the current PGN together with complete `uciHistory` and server-calculated `fenHistory`. This makes unfinished games reviewable and recoverable without waiting for resignation.
+
 This is the durable projection of the current game state.
 
 ### Game state in memory
