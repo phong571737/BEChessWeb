@@ -47,6 +47,8 @@ The played page surfaces historical game sessions, including live snapshots that
 
 The review index route (`/played/review`) is a guard for malformed or legacy links without a game ID and redirects back to `/played`; individual reviews always use `/played/review/[id]`.
 
+The History table uses a compact `920px` minimum width, matching its column budget so common laptop layouts do not show a needless horizontal scrollbar. Smaller viewports still scroll the table horizontally when required.
+
 ### `/played/review`
 
 The review page is for deeper historical analysis and branch navigation. Its Match Analysis section recalculates when the loaded game changes and derives charts from the persisted PGN, UCI history, or FEN snapshot history. PGN notation is rebuilt from UCI for legacy header-only records, including the standard Event/Site/Date/Round/White/Black/Result headers; missing UCI tokens fall back to a FEN diff and are displayed as `x` when still unknown. FEN-only review entries render on their own row. The FEN Timeline keeps its native disclosure icon, has a larger heading, and a same-row localized Copy FEN action that copies the complete numbered timeline. The login form includes an accessible icon-only control to show or hide the password. Empty or partial histories display an empty state instead of zero-filled broken charts.

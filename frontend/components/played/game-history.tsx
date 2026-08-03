@@ -391,7 +391,7 @@ export function GameHistory() {
                 </div>
               ) : null}
               <div className="table-scroll max-h-[60vh] overflow-auto">
-                <table className="w-full min-w-[1120px] border-separate border-spacing-0">
+                <table className="w-full min-w-[920px] border-separate border-spacing-0">
                   <thead className="sticky top-0 z-20 bg-muted/50 backdrop-blur-sm">
                     <tr className="border-b border-border">
                       <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[72px]">
