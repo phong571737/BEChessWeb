@@ -25,6 +25,15 @@ type LegacyHistoryGame = HistoryGame & {
 const isFinishedResult = (result?: string | null) =>
   result === "1-0" || result === "0-1" || result === "1/2-1/2";
 
+function normalizeHistoryId(value: unknown): string {
+  if (typeof value === "string") return value.trim();
+  if (value && typeof value === "object" && "$oid" in value) {
+    const objectId = (value as { $oid?: unknown }).$oid;
+    return typeof objectId === "string" ? objectId.trim() : "";
+  }
+  return "";
+}
+
 const INPUT_CLS =
   "h-9 rounded-md border border-input bg-background px-3 text-sm text-foreground " +
   "outline-none focus:ring-2 focus:ring-ring/40 focus:border-ring/50 transition-shadow " +
@@ -55,6 +64,7 @@ export function GameHistory() {
     const headers = parsePgnHeader(g.pgn ?? "");
     return {
       ...g,
+      _id: normalizeHistoryId(g._id),
       // Older endgame records used White/Black while live snapshots use
       // WhiteName/BlackName. Keep both formats readable in the same table.
       WhiteName: g.WhiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
