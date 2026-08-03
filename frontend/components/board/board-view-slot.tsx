@@ -240,8 +240,12 @@ export function BoardViewSlot({
     const evaluationEnabled = enableEval && showEvaluation;
     const { workerRef, onMessageRef, isReady } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
+    const activeSearchRef = useRef<{ fen: string; depth: number } | null>(null);
+    const stopRequestedRef = useRef(false);
+    const startSearchRef = useRef<() => void>(() => undefined);
     const [cp, setCp] = useState<number | null>(null);
     const [mate, setMate] = useState<number | null>(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
     const currentFenRef = useRef<string | null>(null);
     const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
     const redirectTimerRef = useRef<number | null>(null);
@@ -345,11 +349,48 @@ export function BoardViewSlot({
         };
     }, [socket, gameID, handleUnavailable]);
 
+    const startNextSearch = useCallback(() => {
+        if (!evaluationEnabled || !isReady || activeSearchRef.current) return;
+        const fenToAnalyze = pendingFenRef.current;
+        const worker = workerRef.current;
+        if (!fenToAnalyze || !worker) {
+            if (!fenToAnalyze) setIsAnalyzing(false);
+            return;
+        }
+
+        pendingFenRef.current = null;
+        stopRequestedRef.current = false;
+        activeSearchRef.current = { fen: fenToAnalyze, depth: -1 };
+        setIsAnalyzing(true);
+        worker.postMessage(`position fen ${fenToAnalyze}`);
+        worker.postMessage("go depth 16");
+    }, [evaluationEnabled, isReady, workerRef]);
+
+    useEffect(() => {
+        startSearchRef.current = startNextSearch;
+    }, [startNextSearch]);
+
     useEffect(() => {
         if (!evaluationEnabled) return;
         onMessageRef.current = (line: string) => {
-            const cpMatch = line.match(/score cp (-?\d+)/);
-            const isBlackToMove = currentFenRef.current?.split(" ")[1] === "b";
+            const activeSearch = activeSearchRef.current;
+            if (line.startsWith("bestmove")) {
+                activeSearchRef.current = null;
+                stopRequestedRef.current = false;
+                startSearchRef.current();
+                return;
+            }
+
+            if (!activeSearch || !line.startsWith("info ") || activeSearch.fen !== currentFenRef.current) return;
+            const multiPv = line.match(/\bmultipv (\d+)/);
+            if (multiPv && Number(multiPv[1]) !== 1) return;
+            const depthMatch = line.match(/\bdepth (\d+)/);
+            const depth = depthMatch ? Number(depthMatch[1]) : -1;
+            if (depth < activeSearch.depth) return;
+            activeSearch.depth = depth;
+
+            const isBlackToMove = activeSearch.fen.split(" ")[1] === "b";
+            const cpMatch = line.match(/\bscore cp (-?\d+)/);
 
             if (cpMatch) {
                 let val = Number(cpMatch[1]);
@@ -359,7 +400,7 @@ export function BoardViewSlot({
                 return;
             }
 
-            const mateMatch = line.match(/score mate (-?\d+)/);
+            const mateMatch = line.match(/\bscore mate (-?\d+)/);
             if (mateMatch) {
                 let mateIn = Number(mateMatch[1]);
                 if (isBlackToMove) mateIn = -mateIn;
@@ -373,18 +414,29 @@ export function BoardViewSlot({
     }, [evaluationEnabled, onMessageRef]);
 
     useEffect(() => {
-        if (!evaluationEnabled || !displayFen) return;
+        if (!evaluationEnabled || !displayFen) {
+            pendingFenRef.current = null;
+            activeSearchRef.current = null;
+            stopRequestedRef.current = false;
+            setIsAnalyzing(false);
+            return;
+        }
 
         currentFenRef.current = displayFen;
         pendingFenRef.current = displayFen;
+        setCp(null);
+        setMate(null);
 
         const worker = workerRef.current;
-        if (!worker || !isReady) return;
-
-        worker.postMessage("stop");
-        worker.postMessage(`position fen ${displayFen}`);
-        worker.postMessage("go movetime 300");
-    }, [displayFen, isReady, evaluationEnabled, workerRef]);
+        if (activeSearchRef.current) {
+            if (worker && !stopRequestedRef.current) {
+                stopRequestedRef.current = true;
+                worker.postMessage("stop");
+            }
+            return;
+        }
+        startNextSearch();
+    }, [displayFen, isReady, evaluationEnabled, startNextSearch, workerRef]);
 
     useEffect(() => {
         const el = boardWrapRef.current;
@@ -543,14 +595,14 @@ export function BoardViewSlot({
 
                                 {evaluationEnabled && (
                                     <div className="hidden lg:block w-[22px] shrink-0 self-stretch min-h-0">
-                        <EvalBar cp={cp} mate={mate} flipped={flipped} />
+                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} />
                                     </div>
                                 )}
                             </div>
 
                             {evaluationEnabled && (
                                 <div className="lg:hidden">
-                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} />
+                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} />
                                 </div>
                             )}
                         </div>

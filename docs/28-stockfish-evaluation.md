@@ -1,0 +1,43 @@
+# 28. Stockfish Evaluation
+
+## Scope
+
+The main single-board page runs Stockfish 18 Lite entirely in the browser. The backend remains responsible for legal moves, durable game state, Socket.IO, and MQTT; it does not provide the live evaluation shown beside the board. Multi-board layouts deliberately disable engine analysis to avoid running several WebAssembly workers at once.
+
+## Worker lifecycle
+
+[use-stockfish.ts](../frontend/hooks/use-stockfish.ts) creates one worker from the public Stockfish asset only while evaluation is enabled. It sends `uci`, `ucinewgame`, and `isready`, exposes readiness to the board component, and always sends `quit` and terminates the worker during cleanup.
+
+The board owns the search lifecycle:
+
+1. A displayed FEN becomes the latest queued position.
+2. If an older search is active, the board sends `stop` once.
+3. The board waits for Stockfish's `bestmove`, which marks the prior UCI search complete.
+4. It starts exactly one search for the latest queued FEN with `go depth 16`.
+5. It accepts only `info` lines for `multipv 1`, and only when their depth is at least the best depth already shown for that FEN.
+
+This prevents an `info score` line from a stopped, older position being rendered as the score of a newly selected move. Rapid move navigation therefore keeps only the newest requested FEN; intermediate positions are intentionally discarded.
+
+## Score convention
+
+Stockfish returns UCI scores from the perspective of the side to move. The board converts every score to White's perspective before rendering:
+
+- White to move: keep the engine score.
+- Black to move: invert the score.
+
+Centipawn values are displayed as pawn values (`+0.6`, `−1.2`). Mate values use `#3` for White mating in three and `#−2` for Black mating in two. While a fresh position is calculating, the bar displays a neutral split and an ellipsis instead of incorrectly showing `0.0`.
+
+## Evaluation bar behavior
+
+[eval-bar.tsx](../frontend/components/board/eval-bar.tsx) converts a centipawn score into White's expected share with the Lichess-style logistic curve rather than a linear percentage. This gives useful visual range near equality while keeping large advantages near the end of the bar.
+
+Forced mates are rendered as decisive 99%/1% shares instead of synthetic centipawn scores. This avoids making a forced mate look uncertain merely because the mate distance is long.
+
+With normal orientation, vertical mode places Black at the top and White at the bottom; horizontal mode places Black at the left and White at the right. Flip board mirrors both segments and moves the score label onto the side represented by the score, matching the rendered board orientation.
+
+## Operational limits
+
+- Browser analysis is optional and controlled by the Evaluation bar setting.
+- One worker and depth 16 favour stable interactive feedback over server cost or deep correspondence analysis.
+- The UI does not persist engine scores as game truth. A later engine version or deeper search can legitimately produce a different evaluation.
+- If analysis is needed for every historical move, run a separate backend job and store its version, depth, FEN, and score explicitly rather than sharing the live UI worker.

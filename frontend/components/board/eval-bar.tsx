@@ -8,13 +8,16 @@ interface Props {
     orientation?: "vertical" | "horizontal";
     /** Mirrors the evaluation bar with the board orientation. */
     flipped?: boolean;
+    /** True while Stockfish is calculating the displayed position. */
+    isAnalyzing?: boolean;
 }
 
 /** Lichess winning-chances → [0, 1] share for White (see lichess-org/lila). */
 function whiteWinShare(cp: number | null | undefined, mate: number | null | undefined): number {
     if (mate != null && mate !== 0) {
-        const signedCp = (21 - Math.min(10, Math.abs(mate))) * 100 * Math.sign(mate);
-        return (rawWinningChances(signedCp) + 1) / 2;
+        // A forced mate is decisive. Do not turn it into an artificial
+        // centipawn score because that makes a mate in 10 look uncertain.
+        return mate > 0 ? 0.99 : 0.01;
     }
     if (cp == null || Number.isNaN(cp)) return 0.5;
     const clamped = Math.max(-1000, Math.min(1000, cp));
@@ -41,11 +44,11 @@ function formatEval(cp: number | null | undefined, mate: number | null | undefin
     return "0.0";
 }
 
-export function EvalBar({ cp = null, mate = null, orientation = "vertical", flipped = false }: Props) {
+export function EvalBar({ cp = null, mate = null, orientation = "vertical", flipped = false, isAnalyzing = false }: Props) {
     const hasEval = mate != null || (cp != null && !Number.isNaN(cp));
     const whitePct = whiteWinShare(cp, mate) * 100;
     const blackPct = 100 - whitePct;
-    const label = formatEval(cp, mate);
+    const label = hasEval ? formatEval(cp, mate) : (isAnalyzing ? "…" : "—");
     const whiteAhead = hasEval ? (mate != null ? mate > 0 : (cp ?? 0) >= 0) : true;
 
     if (orientation === "horizontal") {

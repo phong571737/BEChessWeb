@@ -1,4 +1,4 @@
-# 20 — Styling System
+# 20 — Frontend Design System
 
 ---
 
@@ -126,3 +126,24 @@ The project uses the standard Tailwind breakpoint scale.
 | `xl:` | 1280 px |
 
 This is visible in board and home layouts where the UI switches from single-column mobile arrangements to multi-column desktop composition.
+
+---
+
+## Shared visual primitives
+
+The reusable primitives live in [frontend/components/ui](../frontend/components/ui) and keep controls consistent across pages.
+
+- `Button` uses CVA variants: default, destructive, outline, secondary, ghost, and link.
+- `Badge` provides result and status variants, including white, black, and draw states.
+- `Card`, `Input`, `Dialog`, `Skeleton`, and `ScrollArea` share the semantic surface, border, focus, and loading contracts.
+- Dialog close labels and every other user-facing label use the locale dictionaries rather than hard-coded text.
+
+## Typography
+
+Typography comes from [frontend/app/globals.css](../frontend/app/globals.css). The system uses compact semantic sizes (`--fs-xs` through `--fs-xl`), system sans text for UI, and monospace/tabular figures for PGN, clocks, FEN, and evaluation values. This keeps board data scannable without introducing a separate font pipeline.
+
+## Motion and loading feedback
+
+Motion is intentionally restrained: short transition utilities communicate hover, expansion, and selection; `animate-pulse` is used for skeletons; and `animate-spin` is used only while an action is pending. The evaluation bar uses a 500ms eased size transition so engine updates remain readable instead of flickering.
+
+This document consolidates the former Theme System, Visual Primitives, Typography, and Animation documents. Layout-shell, board-specific, and stateful behavior remain separate because they describe runtime interaction rather than the shared design system.

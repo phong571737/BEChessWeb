@@ -26,6 +26,7 @@ export function useStockfish(enabled = true) {
         };
 
         worker.postMessage("uci");
+        worker.postMessage("ucinewgame");
         worker.postMessage("isready");
 
         return () => {
