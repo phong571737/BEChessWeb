@@ -41,3 +41,11 @@ With normal orientation, vertical mode places Black at the top and White at the 
 - One worker and depth 16 favour stable interactive feedback over server cost or deep correspondence analysis.
 - The UI does not persist engine scores as game truth. A later engine version or deeper search can legitimately produce a different evaluation.
 - If analysis is needed for every historical move, run a separate backend job and store its version, depth, FEN, and score explicitly rather than sharing the live UI worker.
+
+## Saved move analysis
+
+The Move Review page provides an administrator-only **Analyze game** action. It replays the saved, legal PGN in a separate browser Stockfish worker at depth 14, evaluates the initial position and each position after a ply, then stores one compact analysis record on the matching `game_history` document. Other visitors can view a stored result but cannot overwrite it.
+
+Each record contains the ply number, SAN and UCI move, engine best move, scores before/after from White's perspective, centipawn loss, classification, and search depth. The backend validates the bounded payload and requires an admin bearer token before saving it through `POST /games/history/:id/analysis`.
+
+Labels are informative rather than official engine proof: matching the engine move is **Best**; a best move that is a capturable major-piece sacrifice with a clear advantage is marked **Brilliant**. Other moves use centipawn-loss bands: Excellent (<=20), Good (<=50), Inaccuracy (<=100), Mistake (<=250), and Blunder (>250). A re-analysis intentionally replaces the old result, so its engine version and depth remain explicit.

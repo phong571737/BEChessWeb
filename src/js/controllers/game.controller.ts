@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash } from "../models/game.model.js";
+import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -72,6 +72,45 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load game history" });
+        }
+    },
+
+    async saveHistoryAnalysis(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            const body = req.body as { moves?: unknown; depth?: unknown };
+            if (!Array.isArray(body.moves) || body.moves.length === 0 || body.moves.length > 600) {
+                res.status(400).json({ error: "Invalid analysis moves" });
+                return;
+            }
+            const validClasses = new Set(["best", "brilliant", "excellent", "good", "inaccuracy", "mistake", "blunder"]);
+            const valid = body.moves.every((move) => {
+                if (!move || typeof move !== "object") return false;
+                const record = move as Record<string, unknown>;
+                return Number.isInteger(record.ply) && typeof record.san === "string" && record.san.length <= 32
+                    && typeof record.uci === "string" && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(record.uci)
+                    && typeof record.bestMove === "string" && record.bestMove.length <= 8
+                    && typeof record.classification === "string" && validClasses.has(record.classification)
+                    && Number.isInteger(record.depth) && Number(record.depth) >= 1 && Number(record.depth) <= 30;
+            });
+            if (!valid) {
+                res.status(400).json({ error: "Invalid analysis payload" });
+                return;
+            }
+            const depth = typeof body.depth === "number" && Number.isInteger(body.depth) ? body.depth : 14;
+            const saved = await saveHistoryAnalysis(req.params.id, {
+                engine: "Stockfish 18 Lite",
+                depth: Math.max(1, Math.min(depth, 30)),
+                updatedAt: new Date(),
+                moves: body.moves,
+            });
+            if (!saved) {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            res.json({ success: true });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to save history analysis" });
         }
     },
 

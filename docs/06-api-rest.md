@@ -103,6 +103,10 @@ Returns active games used by the homepage grid.
 
 Returns active and finished PGN review snapshots that are not in the recycle bin.
 
+### `POST /games/history/:id/analysis`
+
+Administrator-only. Saves the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <admin JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result.
+
 ### `GET /games/history/trash`
 
 Administrator-only. Returns soft-deleted history records that can still be restored.

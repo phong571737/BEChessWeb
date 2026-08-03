@@ -38,6 +38,15 @@ export async function saveHistorySnapshot(doc: Document): Promise<void> {
     );
 }
 
+/** Stores an administrator-requested post-game engine analysis on its history snapshot. */
+export async function saveHistoryAnalysis(id: string, analysis: Document): Promise<boolean> {
+    const result = await pgnGames().updateOne(
+        historyIdFilter(id, false),
+        { $set: { analysis, updatedAt: new Date() } },
+    );
+    return result.modifiedCount === 1;
+}
+
 // Save game state
 export async function saveGame(
     gameID: string,

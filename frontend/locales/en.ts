@@ -345,6 +345,21 @@ export const en = {
     "dashboard.whiteWins": "White wins",
     "dashboard.blackWins": "Black wins",
     "dashboard.unfinished": "Unfinished",
+    "analysis.title": "Move analysis",
+    "analysis.description": "Stockfish labels each recorded move after analysis is saved.",
+    "analysis.run": "Analyze game",
+    "analysis.reanalyze": "Analyze again",
+    "analysis.running": "Analyzing...",
+    "analysis.progress": "Analyzing {completed}/{total} moves...",
+    "analysis.empty": "No saved move analysis yet.",
+    "analysis.error": "Unable to analyze or save this game.",
+    "analysis.best": "Best",
+    "analysis.brilliant": "Brilliant",
+    "analysis.excellent": "Excellent",
+    "analysis.good": "Good",
+    "analysis.inaccuracy": "Inaccuracy",
+    "analysis.mistake": "Mistake",
+    "analysis.blunder": "Blunder",
 } as const;
 
 export type TranslationKeys = keyof typeof en;

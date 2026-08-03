@@ -15,6 +15,7 @@ import { ChessBoardView } from "@/components/board/chess-board-view";
 import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
+import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 
 interface Props {
   game:    HistoryGame | null;
@@ -512,6 +513,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
+        <MoveAnalysisPanel game={game} pgn={reviewPgn} />
     </>
   );
 }

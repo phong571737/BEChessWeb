@@ -1,4 +1,5 @@
 import { GAME_STATUS } from "@/lib/constants/game";
+import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
 export interface lastMove {
     from: string;
@@ -56,6 +57,12 @@ export interface HistoryGame {
     uciHistory?: string [];
     /** A live snapshot is saved while the game is still in progress. */
     historyStatus?: "active" | "finished";
+    analysis?: {
+        engine: string;
+        depth: number;
+        updatedAt: string;
+        moves: MoveAnalysis[];
+    };
 }
 
 /** Per-game live state stored in Zustand */

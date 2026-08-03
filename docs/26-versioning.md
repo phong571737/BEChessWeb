@@ -2,7 +2,7 @@
 
 ## Release version
 
-The current application release is `v1.1.2-change3`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
+The current application release is `v1.1.2-change4`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
 
 ## Push and tag workflow
 
@@ -17,7 +17,7 @@ Use a patch increment for fixes, a minor increment for backward-compatible featu
 
 ## Change releases
 
-Until a base-version increase is explicitly confirmed, every code push increments the `change` suffix while retaining the current base version: `v1.1.1-change1`, `v1.1.1-change2`, and so on. The same full value is written to both package manifests and `frontend/lib/app-version.ts`, then used for the commit and annotated Git tag.
+Every code push increments the `change` suffix while retaining the current base version: `v1.1.1-change1`, `v1.1.1-change2`, and so on. When the suffix reaches `change30`, the following release increments the base version and resets the suffix to `change1`. The same full value is written to both package manifests and `frontend/lib/app-version.ts`, then used for the commit and annotated Git tag.
 
 The Settings UI deliberately displays only the base version (for example, `v1.1.1`) so internal `change` suffixes do not appear to end users.
 

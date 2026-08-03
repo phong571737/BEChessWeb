@@ -28,6 +28,7 @@ gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
  * This api is used to get game played
 */
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
+gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAdmin, GameController.saveHistoryAnalysis);
 
 /** Administrator-only recycle bin for recoverable history deletion. */
 gameRouter.get("/history/trash", gameReadRateLimit, requireAdmin, GameController.getHistoryTrash);
