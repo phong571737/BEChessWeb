@@ -23,6 +23,87 @@ Responsibilities:
 
 ## Collections
 
+## ERD overview
+
+MongoDB does not enforce foreign keys. The diagram therefore shows **logical** relationships: `gameID` is the durable join key across game-related collections, while `boardID` identifies the physical board that owns an active game.
+
+```mermaid
+erDiagram
+    USERS {
+        ObjectId _id PK
+        string username
+        string email UK
+        string passwordHash
+        string role
+        date createdAt
+    }
+
+    GAMES {
+        string gameID PK
+        string boardID
+        string whiteName
+        string blackName
+        string location
+        string status
+        number version
+        string fen
+        string pgn
+        string_array uciHistory
+        string_array fenHistory
+        date startedAt
+        date lastMoveAt
+    }
+
+    GAME_HISTORY {
+        string _id PK
+        string gameID
+        string boardID
+        string whiteName
+        string blackName
+        string location
+        string result
+        string historyStatus
+        string pgn
+        string_array uciHistory
+        string_array fenHistory
+        object analysis
+        date createdAt
+        date endedAt
+        date deletedAt
+        date deleteAfter TTL
+    }
+
+    BOARD_GAME_LOCKS {
+        string boardID PK
+        string owner
+        date leaseUntil
+        date updatedAt
+    }
+
+    MOVES {
+        ObjectId _id PK
+        string gameID
+        string boardID
+        string uci
+        string fen
+        date createdAt
+    }
+
+    GAMES ||--|| GAME_HISTORY : "snapshot/final history by gameID"
+    GAMES ||--o{ MOVES : "optional move records by gameID"
+    GAMES }o--|| BOARD_GAME_LOCKS : "board creation lease by boardID"
+```
+
+### Relationship reading guide
+
+| Relationship | Join field | Meaning |
+| --- | --- | --- |
+| `games` → `game_history` | `gameID` | One live game has one upserted review snapshot. The snapshot is updated after every accepted move and becomes final when the game ends. |
+| `games` → `moves` | `gameID` | Optional lower-level move documents. The canonical review sequence remains `uciHistory` and `fenHistory` in the game/history records. |
+| `games` ↔ `board_game_locks` | `boardID` | A short lease prevents two concurrent create-game requests from assigning the same physical board. |
+
+`game_history._id` is normally the same string as `gameID` for new snapshots. Legacy records may use a MongoDB `ObjectId`; history read, restore, and deletion code accepts either representation.
+
 ### `games`
 
 The main active/current game collection. It stores current chess documents, including:
@@ -49,6 +130,8 @@ This collection backs the active game retrieval path and supports game restore f
 The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Resignation finalizes that same record rather than creating a duplicate.
 
 This collection is used by the history review UI.
+
+Its optional `analysis` object stores administrator-requested Stockfish output: engine identity, depth, save timestamp, and a per-ply list of played move, best move, principal variation, evaluation, centipawn loss, and classification. It never changes the authoritative PGN/FEN/UCI trace.
 
 ## Why two collections exist
 
@@ -88,6 +171,8 @@ The data model assumes:
 - `game_history` is a review snapshot, not the execution source of truth.
 - History deletion is a soft delete: records move to the recycle bin with `deletedAt` and `deleteAfter` fields.
 - A MongoDB TTL index permanently removes trashed records after 30 days; administrators can restore them before expiry.
+- `board_game_locks` uses `boardID` as `_id` and a short `leaseUntil` timestamp; it is a concurrency control collection, not game history.
+- `users.password` is a bcrypt hash; never return it from an API response or include it in exports.
 
 ## Cross references
 

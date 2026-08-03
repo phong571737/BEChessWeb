@@ -4,7 +4,6 @@ import { endGame, finishGame, getGame, saveGame } from "../models/game.model.js"
 import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
-import { LogController } from "../controllers/log.controller.js";
 import { gameSeq } from "../game/game.repository.js";
 import { requireAdmin } from "../middleware/auth.middleware.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
@@ -35,11 +34,6 @@ gameRouter.get("/history/trash", gameReadRateLimit, requireAdmin, GameController
 gameRouter.delete("/history/trash/permanent", gameDestructiveRateLimit, requireAdmin, GameController.permanentlyDeleteAllHistory);
 gameRouter.post("/history/:id/restore", gameMutationRateLimit, requireAdmin, GameController.restoreHistory);
 gameRouter.delete("/history/:id/permanent", gameDestructiveRateLimit, requireAdmin, GameController.permanentlyDeleteHistory);
-
-/**GET  games/log
- * This api is used to get all log is saved
- */
-gameRouter.get("/log", gameReadRateLimit, LogController.getLog);
 
 /**
  * DELETE /games/history/:id 

@@ -46,7 +46,6 @@ Path: `/games`
 
 - `GET /games/current` – fetch active game snapshot data
 - `GET /games/history` – fetch finished or historical game records
-- `GET /games/log` – fetch saved log data
 - `DELETE /games/history/:id` – remove a game history record
 - `GET /games/:id` – fetch a single game document
 - `POST /games/:id/pgn` – update PGN content and restore the in-memory state

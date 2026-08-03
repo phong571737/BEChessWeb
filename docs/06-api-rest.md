@@ -111,10 +111,6 @@ Administrator-only. Saves the bounded, browser-generated Stockfish move analysis
 
 Administrator-only. Returns soft-deleted history records that can still be restored.
 
-### `GET /games/log`
-
-Returns saved log data.
-
 ### `DELETE /games/history/:id`
 
 Administrator-only. Moves a history record to the recycle bin for 30 days instead of deleting it immediately.
