@@ -29,6 +29,10 @@ The page tree is organized around the product’s primary user journeys:
 
 The home page renders the dashboard of active games and provides an entry point for creating or opening a game session.
 
+### `/dashboard`
+
+The administrator dashboard summarizes retained history for a selectable 7- or 30-day window. It shows total, active, completed, and duration metrics; board and player activity; result distribution; and a daily game chart. It derives data from the existing history and board endpoints without treating browser metrics as durable game truth. The page is available only in the administrator UI and uses the shared semantic theme tokens.
+
 ### `/board`
 
 The board page is the main interactive experience for gameplay and game state review.

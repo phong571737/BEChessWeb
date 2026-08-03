@@ -51,6 +51,7 @@ export interface HistoryGame {
     /** Legacy spelling retained for records created by the former endgame API. */
     createAt?: string;
     durationSec?: number | null;
+    boardID?: string;
     fenHistory?: string [];
     uciHistory?: string [];
     /** A live snapshot is saved while the game is still in progress. */

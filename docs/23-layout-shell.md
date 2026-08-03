@@ -28,6 +28,8 @@ It uses:
 
 The collapsed state keeps icon-only navigation, while the expanded state shows labels and the left-active-indicator accent.
 
+The Dashboard navigation entry is appended only for an authenticated administrator. Other users do not see the route in the shell navigation.
+
 ## Header structure
 
 The header is a sticky surface with:

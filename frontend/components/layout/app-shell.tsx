@@ -34,6 +34,10 @@ function AppSidebar({
 }) {
     const pathname = usePathname();
     const {t} = useT();
+    const { isAdmin } = useAuth();
+    const sections = isAdmin
+        ? [...sectionDefs, { key: "nav.dashboard" as const, url: "/dashboard", icon: BarChart3 }]
+        : sectionDefs;
     const base = (
         <aside
             className={cn(
@@ -73,7 +77,7 @@ function AppSidebar({
 
             {/* Nav items */}
             <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-                { sectionDefs.map((section) => {
+                { sections.map((section) => {
                     const isActive = 
                         section.url === "/"
                             ? pathname === "/"
