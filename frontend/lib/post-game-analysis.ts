@@ -13,6 +13,7 @@ export interface MoveAnalysis {
   centipawnLoss: number | null;
   classification: MoveClassification;
   depth: number;
+  principalVariation: string[];
 }
 
 interface HistoryAnalysisSource {
@@ -27,6 +28,7 @@ interface EngineScore {
   mate: number | null;
   bestMove: string;
   depth: number;
+  principalVariation: string[];
 }
 
 function scoreAsCentipawns(score: EngineScore): number | null {
@@ -52,7 +54,7 @@ class PostGameEngine {
   private readonly worker: Worker;
   private ready: Promise<void>;
   private resolveSearch: ((result: EngineScore) => void) | null = null;
-  private current: EngineScore = { cp: null, mate: null, bestMove: "", depth: 0 };
+  private current: EngineScore = { cp: null, mate: null, bestMove: "", depth: 0, principalVariation: [] };
 
   constructor() {
     this.worker = new Worker(publicPath("/stockfish/stockfish-18-lite-single.js"));
@@ -81,11 +83,13 @@ class PostGameEngine {
       const depth = Number(info[1]);
       if (depth >= this.current.depth) {
         const score = Number(info[3]);
+        const variation = line.match(/\bpv\s+(.+)$/)?.[1]?.trim().split(/\s+/).slice(0, 8) ?? [];
         this.current = {
           cp: info[2] === "cp" ? score : null,
           mate: info[2] === "mate" ? score : null,
           bestMove: this.current.bestMove,
           depth,
+          principalVariation: variation,
         };
       }
       return;
@@ -101,7 +105,7 @@ class PostGameEngine {
   async evaluate(fen: string, depth: number): Promise<EngineScore> {
     await this.ready;
     const sideToMove = fen.split(" ")[1] ?? "w";
-    this.current = { cp: null, mate: null, bestMove: "", depth: 0 };
+    this.current = { cp: null, mate: null, bestMove: "", depth: 0, principalVariation: [] };
     const result = await new Promise<EngineScore>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         this.resolveSearch = null;
@@ -176,6 +180,7 @@ export async function analyzePgnMoves(
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
         depth: Math.max(1, Math.min(before.depth, after.depth)),
+        principalVariation: before.principalVariation,
       });
       before = after;
       onProgress(index + 1, moves.length);
@@ -237,6 +242,7 @@ export async function analyzeHistoryMoves(
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
         depth: Math.max(1, Math.min(before.depth, after.depth)),
+        principalVariation: before.principalVariation,
       });
       beforeFen = afterFen;
       before = after;

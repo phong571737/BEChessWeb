@@ -368,4 +368,10 @@ export const vi: Record<TranslationKeys, string> = {
     "analysis.inaccuracy": "Không chính xác",
     "analysis.mistake": "Sai lầm",
     "analysis.blunder": "Sai lầm lớn",
+    "analysis.advantage": "Lợi thế",
+    "analysis.currentPly": "Nước {ply}",
+    "analysis.playedMove": "Nước đã đi",
+    "analysis.bestMove": "Nước tốt nhất",
+    "analysis.evaluation": "Đánh giá",
+    "analysis.principalVariation": "Chuỗi nước đề xuất",
 }

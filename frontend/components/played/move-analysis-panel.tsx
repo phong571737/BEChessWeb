@@ -2,14 +2,16 @@
 
 import { useEffect, useState } from "react";
 import { BrainCircuit, LoaderCircle } from "lucide-react";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
 import type { HistoryGame } from "@/types/game.types";
 
-interface Props { game: HistoryGame; }
+interface Props { game: HistoryGame; currentPly: number; onSelectPly: (ply: number) => void; }
 
 const tone: Record<MoveAnalysis["classification"], string> = {
   brilliant: "border-accent/40 bg-accent text-accent-foreground", best: "border-success/40 bg-success/10 text-success",
@@ -18,13 +20,22 @@ const tone: Record<MoveAnalysis["classification"], string> = {
   blunder: "border-destructive/40 bg-destructive/10 text-destructive",
 };
 
-export function MoveAnalysisPanel({ game }: Props) {
+function formatEvaluation(value: number | null): string {
+  if (value === null) return "—";
+  if (Math.abs(value) >= 100_000) return value > 0 ? "+#" : "-#";
+  return `${value >= 0 ? "+" : ""}${(value / 100).toFixed(1)}`;
+}
+
+export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
   const { t } = useT();
   const { isAdmin, token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const chartConfig = { evaluation: { label: t("analysis.advantage"), color: "hsl(var(--primary))" } } satisfies ChartConfig;
+  const chartData = moves.map((move) => ({ ...move, evaluation: Math.max(-12, Math.min(12, (move.evaluationAfterCp ?? 0) / 100)) }));
+  const selected = moves.find((move) => move.ply === currentPly) ?? moves.at(-1);
 
   useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setError(null); }, [game._id, game.analysis]);
 
@@ -60,11 +71,41 @@ export function MoveAnalysisPanel({ game }: Props) {
       {error && <p className="text-xs text-destructive">{error}</p>}
       {!running && !moves.length && <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-xs text-muted-foreground">{t("analysis.empty")}</div>}
       {!!moves.length && <ScrollArea className="h-56 rounded-sm border border-border bg-muted/40"><div className="divide-y divide-border">
-        {moves.map((move) => <div key={move.ply} className="grid grid-cols-[3rem_minmax(4rem,1fr)_minmax(5rem,auto)] items-center gap-2 px-3 py-2 text-xs">
+        {moves.map((move) => <button key={move.ply} type="button" onClick={() => onSelectPly(move.ply)} className={`grid w-full grid-cols-[3rem_minmax(4rem,1fr)_minmax(5rem,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${move.ply === currentPly ? "bg-accent/70" : "hover:bg-accent/40"}`}>
           <span className="font-mono text-muted-foreground">{move.ply}.</span><span className="font-medium">{move.san}</span>
           <span className={`justify-self-end rounded-sm border px-1.5 py-0.5 font-medium ${tone[move.classification]}`}>{t(`analysis.${move.classification}`)}</span>
-        </div>)}
+        </button>)}
       </div></ScrollArea>}
+      {!!moves.length && <>
+        <div className="rounded-sm border border-border bg-muted/30 p-3">
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <span className="font-medium">{t("analysis.advantage")}</span>
+            <span className="font-mono text-muted-foreground">{t("analysis.currentPly", { ply: selected?.ply ?? 0 })}</span>
+          </div>
+          <ChartContainer config={chartConfig} className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData} onClick={(state: unknown) => {
+                const index = (state as { activeTooltipIndex?: number | string }).activeTooltipIndex;
+                const point = typeof index === "number" ? chartData[index] : undefined;
+                if (point) onSelectPly(point.ply);
+              }}>
+                <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                <XAxis dataKey="ply" tickLine={false} axisLine={false} fontSize={11} />
+                <YAxis domain={[-12, 12]} tickLine={false} axisLine={false} fontSize={11} width={30} />
+                <ReferenceLine y={0} className="stroke-muted-foreground/50" />
+                <Area type="monotone" dataKey="evaluation" stroke="var(--color-evaluation)" fill="var(--color-evaluation)" fillOpacity={0.18} strokeWidth={2} activeDot={{ r: 5 }} />
+                <ChartTooltip content={<ChartTooltipContent formatter={(value) => <><span>{t("analysis.evaluation")}</span><span className="font-mono">{Number(value).toFixed(1)}</span></>} />} />
+              </AreaChart>
+            </ResponsiveContainer>
+          </ChartContainer>
+        </div>
+        {selected && <div className="grid gap-2 rounded-sm border border-border bg-muted/30 p-3 text-xs sm:grid-cols-3">
+          <div><p className="text-muted-foreground">{t("analysis.playedMove")}</p><p className="mt-1 font-medium">{selected.san}</p></div>
+          <div><p className="text-muted-foreground">{t("analysis.bestMove")}</p><p className="mt-1 font-mono font-medium">{selected.bestMove || "—"}</p></div>
+          <div><p className="text-muted-foreground">{t("analysis.evaluation")}</p><p className="mt-1 font-mono font-medium">{formatEvaluation(selected.evaluationAfterCp)}</p></div>
+          <div className="sm:col-span-3"><p className="text-muted-foreground">{t("analysis.principalVariation")}</p><p className="mt-1 break-words font-mono text-foreground">{selected.principalVariation?.join(" ") || "—"}</p></div>
+        </div>}
+      </>}
     </section>
   );
 }

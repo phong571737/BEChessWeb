@@ -90,7 +90,10 @@ export const GameController = {
                     && typeof record.uci === "string" && (record.uci === "?" || /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(record.uci))
                     && typeof record.bestMove === "string" && record.bestMove.length <= 8
                     && typeof record.classification === "string" && validClasses.has(record.classification)
-                    && Number.isInteger(record.depth) && Number(record.depth) >= 1 && Number(record.depth) <= 30;
+                    && Number.isInteger(record.depth) && Number(record.depth) >= 1 && Number(record.depth) <= 30
+                    && (record.principalVariation === undefined || (Array.isArray(record.principalVariation)
+                        && record.principalVariation.length <= 8
+                        && record.principalVariation.every((item) => typeof item === "string" && item.length <= 8)));
             });
             if (!valid) {
                 res.status(400).json({ error: "Invalid analysis payload" });

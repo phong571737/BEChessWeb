@@ -513,7 +513,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} />
+        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} />
     </>
   );
 }

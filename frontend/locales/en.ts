@@ -365,6 +365,12 @@ export const en = {
     "analysis.inaccuracy": "Inaccuracy",
     "analysis.mistake": "Mistake",
     "analysis.blunder": "Blunder",
+    "analysis.advantage": "Advantage",
+    "analysis.currentPly": "Ply {ply}",
+    "analysis.playedMove": "Played move",
+    "analysis.bestMove": "Best move",
+    "analysis.evaluation": "Evaluation",
+    "analysis.principalVariation": "Principal variation",
 } as const;
 
 export type TranslationKeys = keyof typeof en;
