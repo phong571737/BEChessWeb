@@ -400,18 +400,11 @@ export function GameHistory() {
                 <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{t("played.filters")}</span>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
-                {/* Search */}
-                <div className="relative">
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.player")}</span><div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <input
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder={t("played.filterPlayers")}
-                    className={cn(INPUT_CLS, "pl-8")}
-                  />
-                </div>
-                {/* Result filter */}
-                <select
+                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("played.filterPlayers")} className={cn(INPUT_CLS, "pl-8")} />
+                </div></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.resultLabel")}</span><select
                   value={resultFilter}
                   onChange={(e) => setResultFilter(e.target.value as "all" | "1-0" | "0-1" | "1/2-1/2")}
                   className={cn(INPUT_CLS, "cursor-pointer")}
@@ -420,26 +413,25 @@ export function GameHistory() {
                   <option value="1-0">{t("played.whiteWin")}</option>
                   <option value="0-1">{t("played.blackWin")}</option>
                   <option value="1/2-1/2">{t("played.draw")}</option>
-                </select>
-                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "finished" | "unfinished")} className={cn(INPUT_CLS, "cursor-pointer")}>
+                </select></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.status")}</span><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "finished" | "unfinished")} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="all">{t("played.allStatuses")}</option>
                   <option value="finished">{t("played.finished")}</option>
                   <option value="unfinished">{t("played.unfinished")}</option>
-                </select>
-                <select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                </select></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.board")}</span><select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="">{t("played.allBoards")}</option>
                   {boardOptions.map((board) => <option key={board} value={board}>{board}</option>)}
-                </select>
-                <select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                </select></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.location")}</span><select value={locationFilter} onChange={(e) => setLocationFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="">{t("played.allLocations")}</option>
                   {locationOptions.map((location) => <option key={location} value={location}>{location}</option>)}
-                </select>
+                </select></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateFrom")}</span><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={INPUT_CLS} /></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateTo")}</span><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={INPUT_CLS} /></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.minMoves")}</span><input type="number" min="0" inputMode="numeric" value={minMoves} onChange={(e) => setMinMoves(e.target.value)} className={INPUT_CLS} /></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.maxMoves")}</span><input type="number" min="0" inputMode="numeric" value={maxMoves} onChange={(e) => setMaxMoves(e.target.value)} className={INPUT_CLS} /></label>
-                {/* Sort */}
-                <select
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.sortBy")}</span><select
                   value={`${sortBy}:${sortDir}`}
                   onChange={(e) => {
                     const [field, dir] = e.target.value.split(":") as [
@@ -457,8 +449,8 @@ export function GameHistory() {
                   <option value="moves:asc">{t("played.movesLH")}</option>
                   <option value="duration:desc">{t("played.durLS")}</option>
                   <option value="duration:asc">{t("played.durSL")}</option>
-                </select>
-                {(search || resultFilter !== "all" || hasAdvancedFilters) && <button type="button" onClick={clearFilters} className="h-9 rounded-md border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">{t("played.clearFilters")}</button>}
+                </select></label>
+                {(search || resultFilter !== "all" || hasAdvancedFilters) && <div className="flex items-end"><button type="button" onClick={clearFilters} className="h-9 w-full rounded-md border border-border px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">{t("played.clearFilters")}</button></div>}
               </div>
             </div>
 

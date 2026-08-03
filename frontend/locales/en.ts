@@ -187,6 +187,12 @@ export const en = {
     "played.minMoves": "Minimum moves",
     "played.maxMoves": "Maximum moves",
     "played.clearFilters": "Clear filters",
+    "played.player": "Player",
+    "played.resultLabel": "Result",
+    "played.status": "Status",
+    "played.board": "Board",
+    "played.location": "Location",
+    "played.sortBy": "Sort by",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Paste the moves text here",

@@ -308,6 +308,12 @@ export const vi: Record<TranslationKeys, string> = {
     "played.minMoves": "Số nước tối thiểu",
     "played.maxMoves": "Số nước tối đa",
     "played.clearFilters": "Xóa bộ lọc",
+    "played.player": "Người chơi",
+    "played.resultLabel": "Kết quả",
+    "played.status": "Trạng thái",
+    "played.board": "Bàn cờ",
+    "played.location": "Địa điểm",
+    "played.sortBy": "Sắp xếp theo",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Dán chuỗi nước đi vào đây",
