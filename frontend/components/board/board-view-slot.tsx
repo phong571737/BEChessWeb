@@ -238,7 +238,7 @@ export function BoardViewSlot({
     const router = useRouter();
     const socket = useSocket();
     const evaluationEnabled = enableEval && showEvaluation;
-    const { workerRef, onMessageRef, isReady } = useStockfish(evaluationEnabled);
+    const { workerRef, onMessageRef, isReady, hasError: stockfishUnavailable } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
     const activeSearchRef = useRef<{ fen: string; depth: number } | null>(null);
     const stopRequestedRef = useRef(false);
@@ -595,14 +595,14 @@ export function BoardViewSlot({
 
                                 {evaluationEnabled && (
                                     <div className="hidden lg:block w-[22px] shrink-0 self-stretch min-h-0">
-                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} />
+                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
                             </div>
 
                             {evaluationEnabled && (
                                 <div className="lg:hidden">
-                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} />
+                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                 </div>
                             )}
                         </div>

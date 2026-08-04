@@ -6,7 +6,7 @@ The main single-board page runs Stockfish 18 Lite entirely in the browser. The b
 
 ## Worker lifecycle
 
-[use-stockfish.ts](../frontend/hooks/use-stockfish.ts) creates one worker from the public Stockfish asset only while evaluation is enabled. It sends `uci`, `ucinewgame`, and `isready`, exposes readiness to the board component, and always sends `quit` and terminates the worker during cleanup.
+[use-stockfish.ts](../frontend/hooks/use-stockfish.ts) creates one worker from the public Stockfish asset only while evaluation is enabled. It sends `uci`, `ucinewgame`, and `isready`, exposes readiness to the board component, and always sends `quit` and terminates the worker during cleanup. A worker startup or message failure retries twice with a short backoff. Until Stockfish returns a score, the evaluation bar is neutral rather than showing a misleading 50/50 split; it displays an ellipsis while searching and an error indicator when the worker remains unavailable.
 
 The board owns the search lifecycle:
 
