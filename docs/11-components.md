@@ -36,6 +36,8 @@ This is the primary chessboard display slot component. It is responsible for ren
 
 Provides the interaction and control panel for game activities such as restart, resign, and branch actions. Its vertical order is the first player/clock, wide move-navigation controls, PGN move list, second player/clock, then restart and resign actions. Player sections are deliberately separated so the two clocks are never adjacent; player names and clock values use enlarged, readable type. Flipping the board also swaps the player/clock sections, matching the board orientation; the PGN table uses a larger move font for readability. Restart and resign controls are visible only after sign-in. After a restart, an administrator also sees the game setup control while the board is waiting: it can edit both player names, the base time, increment, selected game number (round), and playing location.
 
+Home-page mini boards intentionally do not highlight the last move, keeping the active-game overview visually neutral. Last-move highlighting is retained on the full board and move-review views.
+
 ### `pgn-table`
 
 The move list follows the newest move while the live board is being viewed. It scrolls the ScrollArea viewport itself rather than the browser page, so the current move stays visible even when PGN arrives before its FEN timeline. Navigating to a historical move stops this follow-latest behavior and keeps the selected move centered instead.

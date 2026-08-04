@@ -4,7 +4,7 @@ import { ActiveGame } from "@/types/game.types";
 import dynamic from "next/dynamic"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { useRef, useState, useEffect } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
@@ -36,13 +36,15 @@ export function GameCard({ game }: Props) {
     return () => ro.disconnect();
   }, []);
 
-  const squareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
-    if (!game.lastMove) return {};
-    return {
-      [game.lastMove.from]: { background: "rgba(236,243,116,0.75)" },
-      [game.lastMove.to]:   { background: "rgba(236,243,116,0.75)" },
-    };
-  }, [game.lastMove]);
+  // Keep the home mini-board neutral. Last-move highlighting remains enabled
+  // on the full board and review pages where move navigation is available.
+  // const squareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
+  //   if (!game.lastMove) return {};
+  //   return {
+  //     [game.lastMove.from]: { background: "rgba(236,243,116,0.75)" },
+  //     [game.lastMove.to]: { background: "rgba(236,243,116,0.75)" },
+  //   };
+  // }, [game.lastMove]);
 
   return (
     <Link
@@ -58,7 +60,6 @@ export function GameCard({ game }: Props) {
           <Chessboard
             position={game.fen || "start"}
             arePiecesDraggable={false}
-            customSquareStyles={squareStyles}
             customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
             customLightSquareStyle={{ backgroundColor: boardColors.light }}
             boardWidth={boardWidth}
