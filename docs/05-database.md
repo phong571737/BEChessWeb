@@ -169,6 +169,7 @@ The data model assumes:
 - `lastSeq` tracks sequence position to avoid out-of-order move application.
 - `uciHistory` and `fenHistory` are kept as trace structures for replay and branch reconstruction.
 - `game_history` is a review snapshot, not the execution source of truth.
+- Live and finished history snapshots preserve their original `createdAt`; MongoDB upserts apply that field only on insertion, while later updates change `updatedAt`.
 - History deletion is a soft delete: records move to the recycle bin with `deletedAt` and `deleteAfter` fields.
 - A MongoDB TTL index permanently removes trashed records after 30 days; administrators can restore them before expiry.
 - `board_game_locks` uses `boardID` as `_id` and a short `leaseUntil` timestamp; it is a concurrency control collection, not game history.

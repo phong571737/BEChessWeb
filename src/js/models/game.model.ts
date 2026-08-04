@@ -28,11 +28,13 @@ export async function saveHistorySnapshot(doc: Document): Promise<void> {
     if (typeof gameID !== "string" || !gameID) return;
 
     const now = new Date();
+    const { createdAt, ...historyFields } = doc;
+    delete historyFields._id;
     await pgnGames().updateOne(
         { _id: gameID, deletedAt: { $exists: false } } as unknown as Filter<Document>,
         {
-            $set: { ...doc, _id: gameID, historyStatus: "active", updatedAt: now },
-            $setOnInsert: { createdAt: doc.createdAt ?? now },
+            $set: { ...historyFields, historyStatus: "active", updatedAt: now },
+            $setOnInsert: { createdAt: createdAt ?? now },
         },
         { upsert: true },
     );
@@ -162,13 +164,15 @@ export async function endGame(doc: Document) {
         return getPGNCollections().insertOne(doc);
     }
 
+    const { createdAt, ...historyFields } = doc;
+    delete historyFields._id;
     // A move may already have created a live snapshot. Finalization updates
     // that same deterministic record instead of creating another history row.
     return getPGNCollections().updateOne(
         { _id: gameID } as unknown as Filter<Document>,
         {
-            $set: { ...doc, _id: gameID, historyStatus: "finished", updatedAt: new Date() },
-            $setOnInsert: { createdAt: doc.createdAt ?? new Date() },
+            $set: { ...historyFields, historyStatus: "finished", updatedAt: new Date() },
+            $setOnInsert: { createdAt: createdAt ?? new Date() },
         },
         { upsert: true },
     );
