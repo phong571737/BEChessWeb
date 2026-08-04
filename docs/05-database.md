@@ -70,7 +70,7 @@ erDiagram
         date createdAt
         date endedAt
         date deletedAt
-        date deleteAfter TTL
+        date deleteAfter
     }
 
     BOARD_GAME_LOCKS {
