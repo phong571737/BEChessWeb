@@ -239,7 +239,18 @@ export function customPGN(
   headers: Record<string, string> = {},
   fenHistory: string[] = [],
 ): { pgn: string } {
-  const game = new Chess(startFen, { skipValidation: true });
+  let game: Chess;
+  let usableStartFen: string | undefined;
+  if (startFen?.trim()) {
+    try {
+      game = new Chess(startFen, { skipValidation: true });
+      usableStartFen = startFen;
+    } catch {
+      game = new Chess();
+    }
+  } else {
+    game = new Chess();
+  }
 
   const defaultHeaders: Record<string, string> = {
     Event: "?",
@@ -285,9 +296,9 @@ export function customPGN(
 
   const headerLines: string[] = [];
   const gh = game.getHeaders();
-  if (startFen && startFen !== new Chess().fen()) {
+  if (usableStartFen && usableStartFen !== new Chess().fen()) {
     headerLines.push(`[SetUp "1"]`);
-    headerLines.push(`[FEN "${startFen}"]`);
+    headerLines.push(`[FEN "${usableStartFen}"]`);
   }
   for (const key in gh) {
     if (key === "SetUp" || key === "FEN") continue;

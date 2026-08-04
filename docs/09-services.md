@@ -33,6 +33,8 @@ Responsibilities:
 
 For NFC/raw-device moves, custom PGN notation is rebuilt from UCI alongside the durable post-move FEN history. The FEN snapshot is authoritative for the `+` check and `#` checkmate suffixes, so notation remains accurate when device UCI data is incomplete or cannot be replayed as a fully legal `chess.js` game. If neither source can identify a move, the custom PGN renderer retains an explicit `x` placeholder instead of inventing notation.
 
+Finalizing a resignation does not depend on a legacy `initialFen` being valid. An invalid stored starting FEN falls back to the standard position for notation rendering, allowing the game result and durable history snapshot to be saved instead of returning a server error.
+
 ### [src/js/services/board.service.ts](../src/js/services/board.service.ts)
 
 This service performs hardware board verification rules.

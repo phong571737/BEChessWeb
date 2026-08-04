@@ -157,7 +157,11 @@ export const GameResignService = {
         await GameService.create(game.boardID, newGameID, nextRound);
         return { status: "OK", oldGameID: gameID, newGameID, loser: resignSide, winner };
         } catch (error) {
-            await releaseGameResignationClaim(gameID, game.status === "resigning" ? "waiting" : game.status);
+            try {
+                await releaseGameResignationClaim(gameID, game.status === "resigning" ? "waiting" : game.status);
+            } catch (releaseError) {
+                console.error("Failed to release resignation claim:", releaseError);
+            }
             throw error;
         }
     }
