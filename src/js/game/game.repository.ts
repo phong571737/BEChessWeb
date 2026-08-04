@@ -7,4 +7,6 @@ export const currentGameByBoard = new Map();
 export const boardIDByGame = new Map<string, string>(); 
 export const pendingNextTurn  = new Map();
 export const rawMoveHistory = new Map<string, MoveLike[]>();
+/** Authoritative post-move FEN snapshots for custom PGN notation. */
+export const rawFenHistory = new Map<string, string[]>();
 export const pgnBaseFen = new Map<string, string>();

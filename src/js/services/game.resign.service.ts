@@ -1,7 +1,7 @@
 import { Chess } from "chess.js";
 import { claimGameResignation, endGame, getGame, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
-import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
+import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 import { GameDoc, ResignSide } from "../types/game.types.js";
@@ -53,7 +53,7 @@ function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[]
         Black: game.BlackName || "Black",
         Result: resultTag,
         Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
-    }).pgn;
+    }, fenHistory).pgn;
 }
 
 export const GameResignService = {
@@ -127,6 +127,7 @@ export const GameResignService = {
         gameSeq.delete(gameID);
         activeBranches.delete(gameID);
         rawMoveHistory.delete(gameID);
+        rawFenHistory.delete(gameID);
         pgnBaseFen.delete(gameID);
 
         const updateResult = await saveGame(gameID, {

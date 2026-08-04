@@ -5,7 +5,7 @@ import { buildResponse, executeMove, formatUCI, inferMoveFromFen } from "../util
 import { createBranches } from "../services/game.service.js";
 import { Branch } from "../types/chess.types.js";
 import { BOARD_TYPE, ERROR_STATUS, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
-import { games, gameSeq, activeBranches, currentGameByBoard, boardIDByGame, pgnBaseFen, rawMoveHistory } from "./game.repository.js";
+import { games, gameSeq, activeBranches, currentGameByBoard, boardIDByGame, pgnBaseFen, rawFenHistory, rawMoveHistory } from "./game.repository.js";
 import { printBranches } from "../utils/debug.branch.js";
 import { handleBranchMove } from "../services/branch.service.js";
 import { serializeBranches } from "../utils/branch.utils.js";
@@ -30,7 +30,28 @@ export async function restorefromDB(gameID: string) {
 
   games.set(gameID, game);
   gameSeq.set(gameID, data.lastSeq ?? 0);
+  const persistedMoves = Array.isArray(data.uciHistory)
+    ? data.uciHistory.map((uci) => {
+      const match = typeof uci === "string" && uci.trim().match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
+      return match
+        ? { from: match[1] as Square, to: match[2] as Square, promotion: match[3]?.toLowerCase() as PieceSymbol | undefined }
+        : { from: "--" as Square, to: "--" as Square };
+    })
+    : [];
+  if (persistedMoves.length) rawMoveHistory.set(gameID, persistedMoves);
+  if (Array.isArray(data.fenHistory) && data.fenHistory.length) {
+    rawFenHistory.set(gameID, data.fenHistory.filter((fen): fen is string => typeof fen === "string" && Boolean(fen.trim())));
+  }
+  if (typeof data.initialFen === "string" && data.initialFen.trim()) pgnBaseFen.set(gameID, data.initialFen);
   return game;
+}
+
+function ensureRawHistory(gameID: string, game: Chess): void {
+  if (!rawMoveHistory.has(gameID)) {
+    rawMoveHistory.set(gameID, []);
+    pgnBaseFen.set(gameID, game.fen());
+  }
+  if (!rawFenHistory.has(gameID)) rawFenHistory.set(gameID, []);
 }
 
 /**This function is used to create make move */
@@ -82,7 +103,7 @@ export async function makeMove(
 
       // Try to infer the move from FEN diff and push it to history.
       // If inference fails, keep the old history unchanged.
-      if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+      ensureRawHistory(gameID, mainGame);
       const inferred = inferMoveFromFen(engineFenBefore, newFen);
       if (inferred && inferred.from && inferred.to) {
         console.log(`[MOVE_ERROR] Inferred move from FEN diff: ${inferred.from}→${inferred.to}`);
@@ -93,9 +114,14 @@ export async function makeMove(
         });
       }
 
+      if (!inferred) {
+        rawMoveHistory.get(gameID)!.push({ from: "--" as Square, to: "--" as Square });
+      }
+      rawFenHistory.get(gameID)!.push(newFen);
+
       const existingMoves = rawMoveHistory.get(gameID) ?? [];
       const baseFen = pgnBaseFen.get(gameID);
-      const { pgn: freshPgn } = customPGN(existingMoves, baseFen);
+      const { pgn: freshPgn } = customPGN(existingMoves, baseFen, {}, rawFenHistory.get(gameID));
 
       return {
         status: MOVE_STATUS.OK,
@@ -135,7 +161,7 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     const to = uci.slice(2, 4);
     const promotion = uci.length > 4 ? uci[4] : undefined;
 
-    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+    ensureRawHistory(gameID, mainGame);
 
     if (fen) {
       // Board provided a complete FEN — the position is already correct.
@@ -161,9 +187,10 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
 
     // Always record the UCI for PGN generation
     rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
+    rawFenHistory.get(gameID)!.push(mainGame.fen());
 
     const baseFen = pgnBaseFen.get(gameID);
-    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen);
+    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen, {}, rawFenHistory.get(gameID));
     gameSeq.set(gameID, seq);
 
     return {
@@ -191,7 +218,7 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
       console.error("[NFC MOVE] Failed to load fen:", fen, e);
     }
 
-    if (!rawMoveHistory.has(gameID)) rawMoveHistory.set(gameID, []);
+    ensureRawHistory(gameID, mainGame);
 
     // Try to infer the move from FEN diff
     const inferred = inferMoveFromFen(engineFenBefore, fen);
@@ -211,8 +238,10 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
       });
     }
 
+    rawFenHistory.get(gameID)!.push(mainGame.fen());
+
     const baseFen = pgnBaseFen.get(gameID);
-    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen);
+    const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen, {}, rawFenHistory.get(gameID));
     gameSeq.set(gameID, seq);
 
     return {
@@ -474,6 +503,7 @@ export function resetGame(gameID: string): Chess {
   gameSeq.set(gameID, 0);
   activeBranches.delete(gameID);
   rawMoveHistory.delete(gameID);
+  rawFenHistory.delete(gameID);
   pgnBaseFen.delete(gameID);
   return game
 }
@@ -485,6 +515,7 @@ export function destroyBoard(gameID: string): void {
   gameSeq.delete(gameID);
   activeBranches.delete(gameID);
   rawMoveHistory.delete(gameID);
+  rawFenHistory.delete(gameID);
   pgnBaseFen.delete(gameID);
 }
 

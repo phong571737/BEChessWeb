@@ -3,7 +3,7 @@ import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
 import { getLatestGameByBoardID, removeGameByBoardID } from "../models/game.model.js";
-import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
+import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getCurrentGame, removeCurrenGame, setCurrentGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
 
@@ -39,6 +39,7 @@ async function cleanupBoard(boardID: string) {
                 gameSeq.delete(gameID);
                 activeBranches.delete(gameID);
                 rawMoveHistory.delete(gameID);
+                rawFenHistory.delete(gameID);
                 pgnBaseFen.delete(gameID);
                 console.log(`Cleaned game ${gameID} from RAM`);
             }

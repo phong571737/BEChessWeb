@@ -31,6 +31,8 @@ Responsibilities:
 - persist the resulting state,
 - emit the room-scoped `esp_move` event.
 
+For NFC/raw-device moves, custom PGN notation is rebuilt from UCI alongside the durable post-move FEN history. The FEN snapshot is authoritative for the `+` check and `#` checkmate suffixes, so notation remains accurate when device UCI data is incomplete or cannot be replayed as a fully legal `chess.js` game. If neither source can identify a move, the custom PGN renderer retains an explicit `x` placeholder instead of inventing notation.
+
 ### [src/js/services/board.service.ts](../src/js/services/board.service.ts)
 
 This service performs hardware board verification rules.

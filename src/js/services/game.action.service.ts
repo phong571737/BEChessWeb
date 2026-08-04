@@ -1,7 +1,7 @@
 import { resetGame } from "../game/game.manager.js";
 import { Chess } from "chess.js";
 import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
-import { games, gameSeq, activeBranches, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
+import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState, emitGameState } from "../game/game.state.js";
 import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
@@ -98,6 +98,7 @@ export const GameActionService = {
         gameSeq.delete(gameID);
         activeBranches.delete(gameID);
         rawMoveHistory.delete(gameID);
+        rawFenHistory.delete(gameID);
         pgnBaseFen.delete(gameID);
         return await removeGame(gameID);
     },

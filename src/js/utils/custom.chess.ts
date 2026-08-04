@@ -93,7 +93,19 @@ function isEnPassant(game: Chess, move: MoveLike): boolean {
   return fileOf(move.from) !== fileOf(move.to) && !game.get(move.to);
 }
 
-function moveToSanUnchecked(game: Chess, move: MoveLike): string {
+function statusSuffixFromFen(fen: string | undefined): string | null {
+  if (!fen?.trim()) return null;
+  try {
+    const position = new Chess(fen, { skipValidation: true });
+    if (position.isCheckmate()) return "#";
+    if (position.isCheck()) return "+";
+    return "";
+  } catch {
+    return null;
+  }
+}
+
+function moveToSanUnchecked(game: Chess, move: MoveLike, authoritativeAfterFen?: string): string {
   const piece = game.get(move.from);
   if (!piece) return "x";
 
@@ -125,6 +137,13 @@ function moveToSanUnchecked(game: Chess, move: MoveLike): string {
   if (move.promotion) {
     san += "=" + move.promotion.toUpperCase();
   }
+
+  // An ESP FEN is the authoritative position after a raw move. It preserves
+  // check and mate notation even when the UCI history is incomplete or does
+  // not form a legal chess.js game. Fall back to local reconstruction only
+  // when no usable FEN snapshot is available.
+  const authoritativeSuffix = statusSuffixFromFen(authoritativeAfterFen);
+  if (authoritativeSuffix !== null) return san + authoritativeSuffix;
 
   // Add check (+) / checkmate (#) based on the position *after* the move
   // Because the board state hasn't been updated yet, we apply the move,
@@ -217,7 +236,8 @@ function applyRawMove(game: Chess, move: MoveLike): boolean {
 export function customPGN(
   moves: MoveLike[],
   startFen?: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  fenHistory: string[] = [],
 ): { pgn: string } {
   const game = new Chess(startFen, { skipValidation: true });
 
@@ -240,8 +260,8 @@ export function customPGN(
   let moveString = "";
   const moveParts: string[] = [];
 
-  for (const move of moves) {
-    const san = moveToSanUnchecked(game, move); 
+  for (const [index, move] of moves.entries()) {
+    const san = moveToSanUnchecked(game, move, fenHistory[index]);
 
     if (turn === "w") {
       if (moveString.length) moveParts.push(moveString);
