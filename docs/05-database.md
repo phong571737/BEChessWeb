@@ -127,7 +127,9 @@ This collection backs the active game retrieval path and supports game restore f
 
 ### `game_history`
 
-The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Resignation finalizes that same record rather than creating a duplicate.
+The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Changes to player names, clock settings, round, or playing location during an active game also synchronize the same snapshot immediately. Resignation finalizes that same record rather than creating a duplicate.
+
+Both the live document and the snapshot retain PGN metadata: player names, round, location (`Site`), start date, board ID, UCI history, and FEN history. The review PGN exporter prefers these durable fields over placeholder headers such as `?` and `????.??.??` from older raw PGN text.
 
 This collection is used by the history review UI.
 

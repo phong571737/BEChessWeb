@@ -40,6 +40,41 @@ export async function saveHistorySnapshot(doc: Document): Promise<void> {
     );
 }
 
+function pgnDate(value: unknown, fallback = new Date()): string {
+    const date = value instanceof Date ? value : new Date(String(value ?? ""));
+    const resolved = Number.isNaN(date.getTime()) ? fallback : date;
+    return resolved.toISOString().slice(0, 10).replace(/-/g, ".");
+}
+
+/** Mirrors durable live-game metadata into its in-progress history record. */
+export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void> {
+    const now = new Date();
+    const totalPlies = game.lastSeq ?? game.uciHistory?.length ?? game.fenHistory?.length ?? 0;
+    await saveHistorySnapshot({
+        gameID: game.gameID,
+        boardID: game.boardID,
+        location: game.location,
+        pgn: game.pgn ?? "",
+        fen: game.fen,
+        initialFen: game.initialFen,
+        lastMove: game.lastMove ?? null,
+        lastSeq: totalPlies,
+        totalMoves: totalPlies,
+        totalPlies,
+        uciHistory: game.uciHistory ?? [],
+        fenHistory: game.fenHistory ?? [],
+        WhiteName: game.WhiteName ?? "White",
+        BlackName: game.BlackName ?? "Black",
+        Result: "*",
+        Date: pgnDate(game.startedAt ?? game.createdAt, now),
+        round: game.round ?? 1,
+        startedAt: game.startedAt ?? null,
+        lastMoveAt: game.lastMoveAt ?? null,
+        durationSec: game.durationSec ?? 0,
+        createdAt: game.createdAt ?? now,
+    });
+}
+
 /** Stores an administrator-requested post-game engine analysis on its history snapshot. */
 export async function saveHistoryAnalysis(id: string, analysis: Document): Promise<boolean> {
     const result = await pgnGames().updateOne(

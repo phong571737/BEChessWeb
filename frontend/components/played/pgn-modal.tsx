@@ -137,11 +137,19 @@ function customReviewPgn(game: HistoryGame): string {
   for (let index = 0; index < moves.length; index += 2) lines.push(`${index / 2 + 1}. ${moves[index]}${moves[index + 1] ? ` ${moves[index + 1]}` : ""}`);
   const result = game.Result || "*";
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
+  const knownHeader = (value: string | undefined): string | undefined => {
+    const normalized = value?.trim();
+    return normalized && normalized !== "?" && normalized !== "????.??.??" ? normalized : undefined;
+  };
+  const pgnDate = (value: unknown): string | undefined => {
+    const date = new Date(String(value ?? ""));
+    return Number.isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10).replace(/-/g, ".");
+  };
   const headers = [
-    `[Event "${savedHeaders.Event || "?"}"]`,
-    `[Site "${savedHeaders.Site || "?"}"]`,
-    `[Date "${savedHeaders.Date || game.Date || "????.??.??"}"]`,
-    `[Round "${savedHeaders.Round || "?"}"]`,
+    `[Event "${knownHeader(savedHeaders.Event) || "?"}"]`,
+    `[Site "${game.location?.trim() || knownHeader(savedHeaders.Site) || "?"}"]`,
+    `[Date "${knownHeader(game.Date) || pgnDate(game.startedAt || game.createdAt || game.createAt) || knownHeader(savedHeaders.Date) || "????.??.??"}"]`,
+    `[Round "${game.round ?? knownHeader(savedHeaders.Round) ?? "1"}"]`,
     `[White "${game.WhiteName || savedHeaders.White || "White"}"]`,
     `[Black "${game.BlackName || savedHeaders.Black || "Black"}"]`,
     `[Result "${result}"]`,

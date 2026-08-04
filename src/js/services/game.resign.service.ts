@@ -103,6 +103,8 @@ export const GameResignService = {
             : game.durationSec ?? null;
         const doc = {
             gameID,
+            boardID: game.boardID,
+            location: game.location,
             pgn: finalPGN,
             initialFen: game.initialFen,
             WhiteName: game.WhiteName || "White",
@@ -111,6 +113,8 @@ export const GameResignService = {
             Date: endedAt.toISOString().slice(0, 10).replace(/-/g, "."),
             totalMoves: fenHistory.length,
             round: currentRound,
+            lastMove: game.lastMove ?? null,
+            lastSeq: game.lastSeq ?? fenHistory.length,
             uciHistory,
             fenHistory,
             createdAt: startedAt,

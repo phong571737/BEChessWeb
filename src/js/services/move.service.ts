@@ -1,5 +1,5 @@
 import { getOrRestoreCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
-import { getGame, saveGame, saveHistorySnapshot } from "../models/game.model.js";
+import { getGame, saveActiveGameHistorySnapshot, saveGame } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
@@ -104,31 +104,10 @@ async function afterMove(
     }
 
     // Use the document returned by MongoDB as the source of the history
-    // snapshot. This guarantees PGN, UCI, and FEN histories are identical in
-    // `games` and `game_history` after every accepted move.
+    // snapshot. This guarantees PGN, UCI, FEN, names, location, and timing
+    // metadata are identical in `games` and `game_history` after every move.
     const updatedGame = await getGame(gameID);
-    await saveHistorySnapshot({
-        gameID,
-        boardID: updatedGame?.boardID ?? persistedGame?.boardID,
-        location: updatedGame?.location ?? persistedGame?.location,
-        pgn: updatedGame?.pgn ?? state.pgn ?? "",
-        fen: updatedGame?.fen ?? state.fen,
-        initialFen: updatedGame?.initialFen ?? persistedGame?.initialFen,
-        lastMove: updatedGame?.lastMove ?? state.lastMove ?? null,
-        lastSeq: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
-        totalMoves: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
-        totalPlies: updatedGame?.lastSeq ?? state.lastSeq ?? seq,
-        uciHistory: updatedGame?.uciHistory ?? [],
-        fenHistory: updatedGame?.fenHistory ?? [],
-        WhiteName: updatedGame?.WhiteName ?? persistedGame?.WhiteName ?? "White",
-        BlackName: updatedGame?.BlackName ?? persistedGame?.BlackName ?? "Black",
-        Result: "*",
-        Date: now.toISOString().slice(0, 10).replace(/-/g, "."),
-        round: persistedGame?.round ?? 1,
-        startedAt: updatedGame?.startedAt ?? startedAt,
-        lastMoveAt: now,
-        durationSec: updatedGame?.durationSec ?? durationSec,
-    });
+    if (updatedGame) await saveActiveGameHistorySnapshot(updatedGame);
 
     getIO().to(gameID).emit("esp_move", state);// broadcast move
 }

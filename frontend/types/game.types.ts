@@ -54,6 +54,7 @@ export interface HistoryGame {
     durationSec?: number | null;
     boardID?: string;
     location?: string;
+    round?: number;
     fenHistory?: string [];
     uciHistory?: string [];
     /** A live snapshot is saved while the game is still in progress. */

@@ -1,6 +1,6 @@
 import { resetGame } from "../game/game.manager.js";
 import { Chess } from "chess.js";
-import { getGame, renamePlayer, saveGame, removeGame } from "../models/game.model.js";
+import { getGame, renamePlayer, saveActiveGameHistorySnapshot, saveGame, removeGame } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState, emitGameState } from "../game/game.state.js";
 import { getIO } from "../sockets/index.js";
@@ -81,6 +81,10 @@ export const GameActionService = {
         if (!game) return;
 
         await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round, location);
+        const updatedGame = await getGame(gameID);
+        if (updatedGame && ((updatedGame.lastSeq ?? 0) > 0 || (updatedGame.uciHistory?.length ?? 0) > 0)) {
+            await saveActiveGameHistorySnapshot(updatedGame);
+        }
         // Broadcast to all clients in the game room so board page can update immediately
         const payload: Record<string, any> = { gameID };
         if (color === "White") payload.WhiteName = name;
