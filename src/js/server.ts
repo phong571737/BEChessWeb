@@ -12,6 +12,7 @@ import authRouter from "./routes/auth.router.js";
 import { env } from "./config/environment.js";
 import { ensureDefaultAdmin } from "./models/user.model.js";
 import { corsOptions } from "./config/cors.js";
+import { restoreActiveGamesFromDB } from "./game/game.manager.js";
 
 async function StartServer() {
   const app = express();
@@ -36,6 +37,8 @@ async function StartServer() {
   // app.use("/", evalRouter);
 
   await connectDB();
+  const restoredGames = await restoreActiveGamesFromDB();
+  if (restoredGames) console.log(`Restored ${restoredGames} active game session(s) from MongoDB`);
   if (env.ADMIN_USERNAME && env.ADMIN_EMAIL && env.ADMIN_PASSWORD) {
     await ensureDefaultAdmin(env.ADMIN_USERNAME, env.ADMIN_EMAIL, env.ADMIN_PASSWORD);
   }

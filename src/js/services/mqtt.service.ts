@@ -2,9 +2,9 @@ import mqtt, { MqttClient } from "mqtt";
 import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { getLatestGameByBoardID, removeGameByBoardID } from "../models/game.model.js";
+import { removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
-import { getCurrentGame, removeCurrenGame, setCurrentGame } from "../game/game.manager.js";
+import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
 
 let mqttClient: MqttClient | null = null;
@@ -76,15 +76,7 @@ async function handleMessage(topic: string, message: Buffer) {
             const payload = JSON.parse(message.toString()) as { command?: string };
             if (payload.command !== "restart_game_esp" && payload.command !== "restart_game") return;
 
-            let gameID = getCurrentGame(boardID);
-            if (!gameID) {
-                const persistedGame = await getLatestGameByBoardID(boardID);
-                if (persistedGame?.gameID) {
-                    gameID = persistedGame.gameID;
-                    setCurrentGame(boardID, gameID);
-                    console.log(`[MQTT] Restored board ${boardID} → game ${gameID} from MongoDB for ${payload.command}`);
-                }
-            }
+            const gameID = await getOrRestoreCurrentGame(boardID);
             if (!gameID) {
                 console.warn(`[MQTT] Ignoring ${payload.command}: no active game for board ${boardID}`);
                 return;

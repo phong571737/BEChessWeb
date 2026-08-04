@@ -28,6 +28,8 @@ The `game.manager` module is the center of the runtime state model. It is respon
 - obtaining the current game object for an active board ID,
 - keeping the active game map up to date.
 
+At backend startup it rebuilds the board-to-game map and each non-terminal chess session from MongoDB. The move endpoint also performs this recovery lazily if a board's runtime mapping is absent, so a Docker restart cannot make an ESP32 move lose its existing `gameID`.
+
 ### Game state object
 
 The game state object holds a minimal, runtime-friendly view of the board and current game session, including:

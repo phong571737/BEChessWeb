@@ -1,5 +1,5 @@
 import { Chess, PieceSymbol, Square } from "chess.js";
-import { getGame } from "../models/game.model.js";
+import { getAllGame, getGame, getLatestGameByBoardID } from "../models/game.model.js";
 import { ChessService } from "../services/chess.service.js";
 import { buildResponse, executeMove, formatUCI, inferMoveFromFen } from "../utils/chess.utils.js";
 import { createBranches } from "../services/game.service.js";
@@ -44,6 +44,28 @@ export async function restorefromDB(gameID: string) {
   }
   if (typeof data.initialFen === "string" && data.initialFen.trim()) pgnBaseFen.set(gameID, data.initialFen);
   return game;
+}
+
+/**
+ * Rebuild runtime game sessions after a Node/Docker restart. MongoDB is the
+ * durable source of truth; the repository maps are only an in-memory cache.
+ */
+export async function restoreActiveGamesFromDB(): Promise<number> {
+  const activeGames = await getAllGame();
+  let restoredCount = 0;
+
+  for (const data of activeGames) {
+    if (!data.boardID || !data.gameID || ["finished", "resigning", "ended"].includes(data.status ?? "")) continue;
+    try {
+      setCurrentGame(data.boardID, data.gameID);
+      await restorefromDB(data.gameID);
+      restoredCount += 1;
+    } catch (error) {
+      console.error(`Failed to restore active game ${data.gameID}`, error);
+    }
+  }
+
+  return restoredCount;
 }
 
 function ensureRawHistory(gameID: string, game: Chess): void {
@@ -535,6 +557,25 @@ export function setCurrentGame(boardID: string, gameID: string): void {
 // Get gameID from boardID
 export function getCurrentGame(boardID: string): string | undefined {
   return currentGameByBoard.get(boardID);
+}
+
+/** Resolves a board session from MongoDB if its runtime mapping was lost. */
+export async function getOrRestoreCurrentGame(boardID: string): Promise<string | undefined> {
+  const inMemoryGameID = getCurrentGame(boardID);
+  if (inMemoryGameID) return inMemoryGameID;
+
+  const persistedGame = await getLatestGameByBoardID(boardID);
+  if (!persistedGame?.gameID) return undefined;
+
+  setCurrentGame(boardID, persistedGame.gameID);
+  const restored = await restorefromDB(persistedGame.gameID);
+  if (!restored) {
+    removeCurrenGame(boardID);
+    return undefined;
+  }
+
+  console.log(`Restored board ${boardID} to game ${persistedGame.gameID} from MongoDB`);
+  return persistedGame.gameID;
 }
 
 // get boardID from gameID

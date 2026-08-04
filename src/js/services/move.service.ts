@@ -1,4 +1,4 @@
-import { getCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
+import { getOrRestoreCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
 import { getGame, saveGame, saveHistorySnapshot } from "../models/game.model.js";
 import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
@@ -135,7 +135,7 @@ async function afterMove(
 
 export const MoveService = {
     async processMove({ boardType, uci, fen, boardID, seq, moveType, departures, arrivals }: ProcessMoveInput) {
-        const gameID = getCurrentGame(boardID);
+        const gameID = await getOrRestoreCurrentGame(boardID);
 
         if (!gameID) {
             return {

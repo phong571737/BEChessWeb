@@ -41,7 +41,7 @@ This file is the server entry point. It:
 - creates the `http.Server` instance,
 - applies middleware,
 - mounts routers,
-- awaits the MongoDB connection,
+- awaits the MongoDB connection and restores every non-terminal board-to-game mapping and chess session from its persisted snapshot,
 - initializes socket and MQTT modules,
 - begins listening on the configured port.
 

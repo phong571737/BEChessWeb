@@ -131,7 +131,7 @@ export async function getGame(gameID: string): Promise<GameDoc | null> {
  */
 export async function getLatestGameByBoardID(boardID: string): Promise<GameDoc | null> {
     return games()
-        .find({ boardID, status: { $ne: "finished" } } as Filter<GameDoc>)
+        .find({ boardID, status: { $nin: ["finished", "resigning", "ended"] } } as Filter<GameDoc>)
         .sort({ updateAt: -1, createdAt: -1 })
         .limit(1)
         .next();
