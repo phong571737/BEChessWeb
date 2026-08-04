@@ -218,7 +218,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
             <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 
-            {isAdmin && status === GAME_STATUS.WAITING && (
+            {isAdmin && status !== GAME_STATUS.FINISHED && status !== GAME_STATUS.ENDED && (
                 <div className="flex justify-end border-b border-border bg-muted/20 px-3 py-1.5">
                     <GameSetupDialog
                         gameID={gameID}
