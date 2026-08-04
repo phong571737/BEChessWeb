@@ -380,6 +380,7 @@ export const en = {
     "analysis.inaccuracy": "Inaccuracy",
     "analysis.mistake": "Mistake",
     "analysis.blunder": "Blunder",
+    "analysis.unavailable": "Unavailable",
     "analysis.advantage": "Advantage",
     "analysis.currentPly": "Ply {ply}",
     "analysis.playedMove": "Played move",

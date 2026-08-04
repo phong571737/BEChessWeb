@@ -1,7 +1,7 @@
 import { Chess, type Move } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 
-export type MoveClassification = "best" | "brilliant" | "excellent" | "good" | "inaccuracy" | "mistake" | "blunder";
+export type MoveClassification = "best" | "brilliant" | "excellent" | "good" | "inaccuracy" | "mistake" | "blunder" | "unavailable";
 
 // A complete game analysis runs one search per position. Keep each search
 // bounded so a single tactical position cannot discard the entire batch.
@@ -46,12 +46,26 @@ function uci(move: Move): string {
 }
 
 function classify(loss: number | null, played: string, best: string, brilliant: boolean): MoveClassification {
+  if (!played || !best || loss === null) return "unavailable";
   if (played === best) return brilliant ? "brilliant" : "best";
-  if (loss === null || loss <= 20) return "excellent";
+  if (loss <= 20) return "excellent";
   if (loss <= 50) return "good";
   if (loss <= 100) return "inaccuracy";
   if (loss <= 250) return "mistake";
   return "blunder";
+}
+
+function emptyScore(): EngineScore {
+  return { cp: null, mate: null, bestMove: "", depth: 0, principalVariation: [] };
+}
+
+/** Returns a standard FEN suitable for Stockfish, or null for a device snapshot it cannot analyze. */
+function engineFen(fen: string): string | null {
+  try {
+    return new Chess(fen).fen();
+  } catch {
+    return null;
+  }
 }
 
 /** A one-game, sequential UCI engine.  Scores are normalized to White's view. */
@@ -59,7 +73,7 @@ class PostGameEngine {
   private readonly worker: Worker;
   private ready: Promise<void>;
   private resolveSearch: ((result: EngineScore) => void) | null = null;
-  private current: EngineScore = { cp: null, mate: null, bestMove: "", depth: 0, principalVariation: [] };
+  private current: EngineScore = emptyScore();
 
   constructor() {
     this.worker = new Worker(publicPath("/stockfish/stockfish-18-lite-single.js"));
@@ -110,7 +124,7 @@ class PostGameEngine {
   async evaluate(fen: string, depth: number): Promise<EngineScore> {
     await this.ready;
     const sideToMove = fen.split(" ")[1] ?? "w";
-    this.current = { cp: null, mate: null, bestMove: "", depth: 0, principalVariation: [] };
+    this.current = emptyScore();
     const result = await new Promise<EngineScore>((resolve, reject) => {
       const timeout = window.setTimeout(() => {
         this.resolveSearch = null;
@@ -135,8 +149,39 @@ class PostGameEngine {
   }
 
   dispose() {
-    this.worker.postMessage("quit");
+    try { this.worker.postMessage("quit"); } catch { /* Worker may already have failed. */ }
     this.worker.terminate();
+  }
+}
+
+/**
+ * Keeps a malformed e-board snapshot or a transient worker failure local to
+ * that position. A fresh worker is retried once, then the move is saved as
+ * unavailable instead of aborting analysis of the entire game.
+ */
+class ResilientPostGameEngine {
+  private engine: PostGameEngine | null = null;
+
+  async evaluate(fen: string, depth: number): Promise<EngineScore> {
+    const normalizedFen = engineFen(fen);
+    if (!normalizedFen) return emptyScore();
+
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      this.engine ??= new PostGameEngine();
+      try {
+        return await this.engine.evaluate(normalizedFen, attempt === 0 ? depth : Math.min(depth, 10));
+      } catch (error) {
+        console.warn("Post-game engine evaluation failed", error);
+        this.engine.dispose();
+        this.engine = null;
+      }
+    }
+    return emptyScore();
+  }
+
+  dispose() {
+    this.engine?.dispose();
+    this.engine = null;
   }
 }
 
@@ -162,7 +207,7 @@ export async function analyzePgnMoves(
   if (!moves.length) return [];
 
   const replay = initialGame(pgn);
-  const engine = new PostGameEngine();
+  const engine = new ResilientPostGameEngine();
   const analysis: MoveAnalysis[] = [];
   try {
     let before = await engine.evaluate(replay.fen(), depth);
@@ -187,7 +232,7 @@ export async function analyzePgnMoves(
         evaluationAfterCp: afterCp,
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
-        depth: Math.max(1, Math.min(before.depth, after.depth)),
+        depth: Math.min(before.depth, after.depth),
         principalVariation: before.principalVariation,
       });
       before = after;
@@ -219,16 +264,17 @@ export async function analyzeHistoryMoves(
   const fens = game.fenHistory?.filter((fen) => typeof fen === "string" && fen.trim()) ?? [];
   if (!fens.length) return analyzePgnMoves(game.pgn ?? "", onProgress, depth);
 
-  const engine = new PostGameEngine();
+  const engine = new ResilientPostGameEngine();
   const output: MoveAnalysis[] = [];
   try {
     let beforeFen = game.initialFen || DEFAULT_FEN;
     let before = await engine.evaluate(beforeFen, depth);
     for (const [index, afterFen] of fens.entries()) {
       const token = parseUci(game.uciHistory?.[index]);
-      const position = new Chess(beforeFen, { skipValidation: true });
+      let position: Chess | null = null;
+      try { position = new Chess(beforeFen, { skipValidation: true }); } catch { position = null; }
       let move: Move | null = null;
-      if (token) {
+      if (token && position) {
         try { move = position.move(token); } catch { move = null; }
       }
       const played = token ? `${token.from}${token.to}${token.promotion ?? ""}` : "";
@@ -238,7 +284,9 @@ export async function analyzeHistoryMoves(
       const side = beforeFen.split(" ")[1] ?? "w";
       const loss = beforeCp === null || afterCp === null ? null : Math.max(0, side === "w" ? beforeCp - afterCp : afterCp - beforeCp);
       const pieceValue = move ? ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 } as Record<string, number>)[move.piece] ?? 0 : 0;
-      const opponentCanCaptureMovedPiece = Boolean(move) && position.moves({ verbose: true }).some((candidate) => candidate.to === move!.to && Boolean(candidate.captured));
+      const opponentCanCaptureMovedPiece = move !== null && position !== null
+        ? position.moves({ verbose: true }).some((candidate) => candidate.to === move.to && Boolean(candidate.captured))
+        : false;
       const brilliant = played === before.bestMove && pieceValue >= 3 && opponentCanCaptureMovedPiece && Math.abs(afterCp ?? 0) >= 80;
       output.push({
         ply: index + 1,
@@ -249,7 +297,7 @@ export async function analyzeHistoryMoves(
         evaluationAfterCp: afterCp,
         centipawnLoss: loss,
         classification: classify(loss, played, before.bestMove, brilliant),
-        depth: Math.max(1, Math.min(before.depth, after.depth)),
+        depth: Math.min(before.depth, after.depth),
         principalVariation: before.principalVariation,
       });
       beforeFen = afterFen;

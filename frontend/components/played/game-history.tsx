@@ -238,8 +238,8 @@ export function GameHistory() {
       const analysis = { engine: "Stockfish 18 Lite", depth: 14, updatedAt: new Date().toISOString(), moves };
       setGames((current) => current.map((item) => item._id === game._id ? { ...item, analysis } : item));
       invalidateFetchCache("/games/history");
-    } catch (error) {
-      setAnalysisError(error instanceof Error ? error.message : t("analysis.error"));
+    } catch {
+      setAnalysisError(t("analysis.error"));
     } finally {
       setAnalysisId(null);
     }

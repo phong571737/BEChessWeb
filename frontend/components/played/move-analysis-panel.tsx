@@ -18,6 +18,7 @@ const tone: Record<MoveAnalysis["classification"], string> = {
   excellent: "border-info/40 bg-info/10 text-info", good: "border-border bg-muted text-foreground",
   inaccuracy: "border-warning/40 bg-warning/10 text-warning", mistake: "border-warning/60 bg-warning/15 text-warning",
   blunder: "border-destructive/40 bg-destructive/10 text-destructive",
+  unavailable: "border-border bg-muted text-muted-foreground",
 };
 
 function formatEvaluation(value: number | null): string {
@@ -34,7 +35,10 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
   const chartConfig = { evaluation: { label: t("analysis.advantage"), color: "hsl(var(--primary))" } } satisfies ChartConfig;
-  const chartData = moves.map((move) => ({ ...move, evaluation: Math.max(-12, Math.min(12, (move.evaluationAfterCp ?? 0) / 100)) }));
+  const chartData = moves.map((move) => ({
+    ...move,
+    evaluation: move.evaluationAfterCp === null ? null : Math.max(-12, Math.min(12, move.evaluationAfterCp / 100)),
+  }));
   const selected = moves.find((move) => move.ply === currentPly) ?? moves.at(-1);
 
   useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setError(null); }, [game._id, game.analysis]);
@@ -55,7 +59,7 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
       if (response.status === 400) throw new Error(t("analysis.invalidData"));
       if (!response.ok) throw new Error(t("analysis.error"));
       setMoves(result);
-    } catch (reason) { setError(reason instanceof Error ? reason.message : t("analysis.error")); } finally { setRunning(false); }
+    } catch { setError(t("analysis.error")); } finally { setRunning(false); }
   };
 
   return (
@@ -94,7 +98,7 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
                 <YAxis domain={[-12, 12]} tickLine={false} axisLine={false} fontSize={11} width={30} />
                 <ReferenceLine y={0} className="stroke-muted-foreground/50" />
                 <Area type="monotone" dataKey="evaluation" stroke="var(--color-evaluation)" fill="var(--color-evaluation)" fillOpacity={0.18} strokeWidth={2} activeDot={{ r: 5 }} />
-                <ChartTooltip content={<ChartTooltipContent formatter={(value) => <><span>{t("analysis.evaluation")}</span><span className="font-mono">{Number(value).toFixed(1)}</span></>} />} />
+                <ChartTooltip content={<ChartTooltipContent formatter={(value) => <><span>{t("analysis.evaluation")}</span><span className="font-mono">{typeof value === "number" ? value.toFixed(1) : "—"}</span></>} />} />
               </AreaChart>
             </ResponsiveContainer>
           </ChartContainer>

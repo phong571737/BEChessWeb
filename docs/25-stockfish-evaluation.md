@@ -48,7 +48,9 @@ The Move Review page and each administrator History row provide an **Analyze gam
 
 Each record contains the ply number, SAN and UCI move, engine best move, principal variation (up to eight UCI moves), scores before/after from White's perspective, centipawn loss, classification, and search depth. The backend validates the bounded payload and requires an admin bearer token before saving it through `POST /games/history/:id/analysis`.
 
-Post-game analysis runs Stockfish at the requested depth ceiling with a one-second time budget per position and a five-second safety timeout. The first limit reached ends that individual search, which prevents a difficult tactical position from blocking the remaining moves or discarding the entire game analysis. Each saved move records the actual completed search depth.
+Post-game analysis runs Stockfish at the requested depth ceiling with a one-second time budget per position and a five-second safety timeout. The first limit reached ends that individual search. If a worker fails or times out, it is replaced and the same valid position is retried once at a lower depth. This prevents a transient engine failure from discarding the remaining moves.
+
+Physical-board snapshots are accepted only when they are valid standard FEN positions. A malformed or device-specific snapshot is saved with the **Unavailable** classification, no evaluation, and depth `0`; it is never fabricated as `0.0` or labeled as a good move. Analysis continues with later valid snapshots, so one incompatible stored position does not cancel the whole game.
 
 When an analysis is available, Move Review renders an interactive advantage chart from the after-move evaluation. Selecting a chart point or a labeled move synchronizes the board, move list, and detail panel at that ply. The detail panel shows the played move, Stockfish best move, evaluation, and saved principal variation. Evaluation display is capped visually at ±12 pawns so a mate does not flatten every non-mate point; stored engine scores remain unchanged.
 
