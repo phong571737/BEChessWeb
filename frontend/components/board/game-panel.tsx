@@ -205,10 +205,11 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             {/* ── PGN move list ── */}
             <div className="flex flex-col h-[clamp(180px,35vh,280px)] sm:h-auto sm:flex-1 sm:min-h-0 border-b border-border">
                 <PGNTable
-                    pgn={activePGN}
-                    mainPgn={mainPgnBeforeBranch || pgn}
-                    cursor={activeCursor}
-                    moveTimesMap={moveTimesMap}
+                  pgn={activePGN}
+                  mainPgn={mainPgnBeforeBranch || pgn}
+                  cursor={activeCursor}
+                  followLatest={cursor === -1}
+                  moveTimesMap={moveTimesMap}
                     onGoTo={(idx) => goTo(idx)}
                     branches={branches}
                     selectedBranchId={selectedBranchId}

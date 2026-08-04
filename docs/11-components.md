@@ -38,6 +38,8 @@ Provides the interaction and control panel for game activities such as restart, 
 
 ### `pgn-table`
 
+The move list follows the newest move while the live board is being viewed. It scrolls the ScrollArea viewport itself rather than the browser page, so the current move stays visible even when PGN arrives before its FEN timeline. Navigating to a historical move stops this follow-latest behavior and keeps the selected move centered instead.
+
 Displays the move sequence in PGN form with branch awareness.
 
 ### `eval-bar`

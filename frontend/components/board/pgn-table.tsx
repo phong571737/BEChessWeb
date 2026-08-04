@@ -37,6 +37,7 @@ interface Props {
   selectedBranchId?: string | null;
   onBranchSelect?: (branch: string | null) => void;
   moveTimesMap?: Record<number, number>;
+  followLatest?: boolean;
   onGoTo: (idx: number) => void;
 }
 
@@ -68,10 +69,11 @@ function getBranchMoveSan(branch: Branch): string {
     ?? (branch.lastMove ? `${branch.lastMove.from}${branch.lastMove.to}` : "?");
 }
 
-export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId = null, onBranchSelect, moveTimesMap, onGoTo }: Props) {
+export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId = null, onBranchSelect, moveTimesMap, followLatest = false, onGoTo }: Props) {
   const { t } = useT();
   const activeRef = useRef<HTMLButtonElement | null>(null);
-  const endRef = useRef<HTMLDivElement>(null);
+  const latestRef = useRef<HTMLButtonElement | null>(null);
+  const viewportRef = useRef<HTMLDivElement | null>(null);
 
   const [branchOpen, setBranchOpen] = useState(false);
   const selectedBranch = branches.find(b => b.id === selectedBranchId) ?? null;
@@ -121,21 +123,25 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   const branchCol = branchPly >= 0 ? branchPly % 2 : -1;
   const isTrailingBranch = branchPly >= 0 && branchPly >= pairs.length * 2;
 
-  // Scroll active move into view
+  // Scroll only the Radix viewport so the page itself does not jump.
   useEffect(() => {
-    activeRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }, [cursor]);
+    const viewport = viewportRef.current;
+    const target = followLatest ? latestRef.current : activeRef.current;
+    if (!viewport || !target) return;
 
-  // Keep scrolled to bottom in live mode
-  useEffect(() => {
-    const lastPair = pairs[pairs.length - 1];
-    if (!lastPair) return;
-    const lastIdx = lastPair.black ? lastPair.bi : lastPair.wi;
-    if (cursor === lastIdx) {
-      endRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pairs.length, cursor]);
+    const frame = requestAnimationFrame(() => {
+      const viewportRect = viewport.getBoundingClientRect();
+      const targetRect = target.getBoundingClientRect();
+      const targetTop = viewport.scrollTop
+        + targetRect.top
+        - viewportRect.top
+        - (viewport.clientHeight - targetRect.height) / 2;
+
+      viewport.scrollTo({ top: Math.max(0, targetTop), behavior: "smooth" });
+    });
+
+    return () => cancelAnimationFrame(frame);
+  }, [cursor, pairs.length, followLatest, selectedBranchId]);
 
   function handleBranchClick(b: Branch) {
     if (selectedBranchId === b.id) {
@@ -147,7 +153,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
   if (pairs.length === 0) {
     return (
-      <ScrollArea className="flex-1 min-h-0 h-full">
+      <ScrollArea className="flex-1 min-h-0 h-full" viewportRef={viewportRef}>
         <div className="min-h-full flex items-center justify-center text-sm text-muted-foreground py-6">
           {t("board.noMoves")}
         </div>
@@ -156,12 +162,14 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
   }
 
   return (
-    <ScrollArea className="flex-1 min-h-0 h-full">
+    <ScrollArea className="flex-1 min-h-0 h-full" viewportRef={viewportRef}>
       <div className="p-1.5">
         {pairs.map(({ num, white, black, wi, bi, wPly, bPly }, pairIdx) => {
           const wTime = moveTimesMap?.[wPly];
           const bTime = moveTimesMap?.[bPly];
           const isLastPair = pairIdx === pairs.length - 1;
+          const isLastWhiteMove = isLastPair && !black;
+          const isLastBlackMove = isLastPair && !!black;
           const trailingInBlackSlot = isTrailingBranch && isLastPair && !black;
           const trailingInNewRow = isTrailingBranch && isLastPair && !!black;
           const showBtn = !isTrailingBranch && branches.length > 0 && pairIdx === branchPairIdx;
@@ -182,7 +190,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                     <BranchDots branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchClick} />
                   ) : (
                     <button
-                      ref={cursor === wi ? activeRef : undefined}
+                      ref={followLatest && isLastWhiteMove ? latestRef : cursor === wi ? activeRef : undefined}
                       onClick={() => onGoTo(wi)}
                       className={cn(
                         "flex items-center gap-1 px-1.5 py-[3px] rounded-sm hover:bg-accent/70 transition-colors min-w-0",
@@ -207,7 +215,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                     <BranchDots branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchClick} />
                   ) : black ? (
                     <button
-                      ref={cursor === bi ? activeRef : undefined}
+                      ref={followLatest && isLastBlackMove ? latestRef : cursor === bi ? activeRef : undefined}
                       onClick={() => onGoTo(bi)}
                       className={cn(
                         "flex items-center gap-1 px-1.5 py-[3px] rounded-sm hover:bg-accent/70 transition-colors min-w-0",
@@ -265,7 +273,6 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
             </div>
           );
         })}
-        <div ref={endRef} />
       </div>
     </ScrollArea>
   );
