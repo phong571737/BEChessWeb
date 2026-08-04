@@ -252,6 +252,86 @@ function parseUci(token: string | undefined): { from: string; to: string; promot
   return { from: match[1].toLowerCase(), to: match[2].toLowerCase(), promotion: match[3]?.toLowerCase() as "q" | "r" | "b" | "n" | undefined };
 }
 
+function unavailableMove(ply: number, played: string): MoveAnalysis {
+  return {
+    ply,
+    san: played || "?",
+    uci: played || "?",
+    bestMove: "",
+    evaluationBeforeCp: null,
+    evaluationAfterCp: null,
+    centipawnLoss: null,
+    classification: "unavailable",
+    depth: 0,
+    principalVariation: [],
+  };
+}
+
+/**
+ * Older e-board records can contain UCI moves without FEN snapshots and a
+ * custom (non-SAN) PGN. Rebuild the legal prefix directly from UCI instead of
+ * asking chess.js to parse that custom PGN. Invalid device moves remain visible
+ * and save as unavailable, while valid later data is still retained.
+ */
+async function analyzeUciHistoryMoves(
+  game: HistoryAnalysisSource,
+  onProgress: (completed: number, total: number) => void,
+  depth: number,
+): Promise<MoveAnalysis[]> {
+  const playedHistory = game.uciHistory
+    ?.map((entry) => parseUci(entry))
+    .map((entry) => entry ? `${entry.from}${entry.to}${entry.promotion ?? ""}` : "") ?? [];
+  if (!playedHistory.length) return [];
+
+  let position: Chess | null = null;
+  try { position = new Chess(game.initialFen || DEFAULT_FEN); } catch { position = null; }
+
+  const engine = new ResilientPostGameEngine();
+  const output: MoveAnalysis[] = [];
+  try {
+    let before = position ? await engine.evaluate(position.fen(), depth) : emptyScore();
+    for (const [index, played] of playedHistory.entries()) {
+      const token = parseUci(played);
+      let move: Move | null = null;
+      if (position && token) {
+        try { move = position.move(token); } catch { move = null; }
+      }
+      if (!position || !move) {
+        output.push(unavailableMove(index + 1, played));
+        onProgress(index + 1, playedHistory.length);
+        continue;
+      }
+
+      const after = await engine.evaluate(position.fen(), depth);
+      const beforeCp = scoreAsCentipawns(before);
+      const afterCp = scoreAsCentipawns(after);
+      const loss = beforeCp === null || afterCp === null
+        ? null
+        : Math.max(0, move.color === "w" ? beforeCp - afterCp : afterCp - beforeCp);
+      const pieceValue = ({ p: 1, n: 3, b: 3, r: 5, q: 9, k: 0 } as Record<string, number>)[move.piece] ?? 0;
+      const opponentCanCaptureMovedPiece = position.moves({ verbose: true }).some((candidate) => candidate.to === move.to && Boolean(candidate.captured));
+      const brilliant = played === before.bestMove && pieceValue >= 3 && opponentCanCaptureMovedPiece && Math.abs(afterCp ?? 0) >= 80;
+      output.push({
+        ply: index + 1,
+        san: move.san,
+        uci: played,
+        bestMove: before.bestMove,
+        evaluationBeforeCp: beforeCp,
+        evaluationAfterCp: afterCp,
+        centipawnLoss: loss,
+        classification: classify(loss, played, before.bestMove, brilliant),
+        depth: Math.min(before.depth, after.depth),
+        principalVariation: before.principalVariation,
+      });
+      before = after;
+      onProgress(index + 1, playedHistory.length);
+    }
+    return output;
+  } finally {
+    engine.dispose();
+  }
+}
+
 /**
  * Analyzes the durable e-board history directly. FEN snapshots take priority
  * over PGN because older devices may have stored incomplete PGN notation.
@@ -262,7 +342,10 @@ export async function analyzeHistoryMoves(
   depth = 14,
 ): Promise<MoveAnalysis[]> {
   const fens = game.fenHistory?.filter((fen) => typeof fen === "string" && fen.trim()) ?? [];
-  if (!fens.length) return analyzePgnMoves(game.pgn ?? "", onProgress, depth);
+  if (!fens.length) {
+    const uciAnalysis = await analyzeUciHistoryMoves(game, onProgress, depth);
+    return uciAnalysis.length ? uciAnalysis : analyzePgnMoves(game.pgn ?? "", onProgress, depth);
+  }
 
   const engine = new ResilientPostGameEngine();
   const output: MoveAnalysis[] = [];

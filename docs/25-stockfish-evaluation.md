@@ -52,6 +52,8 @@ Post-game analysis runs Stockfish at the requested depth ceiling with a one-seco
 
 Physical-board snapshots are accepted only when they are valid standard FEN positions. A malformed or device-specific snapshot is saved with the **Unavailable** classification, no evaluation, and depth `0`; it is never fabricated as `0.0` or labeled as a good move. Analysis continues with later valid snapshots, so one incompatible stored position does not cancel the whole game.
 
+For historical records that have UCI moves but no FEN history, the analyzer reconstructs the legal prefix from the saved initial FEN and UCI sequence. It does not attempt to parse the project's custom UCI notation as standard PGN. Any move that cannot be reconstructed is retained as **Unavailable**, so the completed result is saved and visible instead of leaving Move Analysis empty.
+
 When an analysis is available, Move Review renders an interactive advantage chart from the after-move evaluation. Selecting a chart point or a labeled move synchronizes the board, move list, and detail panel at that ply. The detail panel shows the played move, Stockfish best move, evaluation, and saved principal variation. Evaluation display is capped visually at ±12 pawns so a mate does not flatten every non-mate point; stored engine scores remain unchanged.
 
 Labels are informative rather than official engine proof: matching the engine move is **Best**; a best move that is a capturable major-piece sacrifice with a clear advantage is marked **Brilliant**. Other moves use centipawn-loss bands: Excellent (<=20), Good (<=50), Inaccuracy (<=100), Mistake (<=250), and Blunder (>250). A re-analysis intentionally replaces the old result, so its engine version and depth remain explicit.
