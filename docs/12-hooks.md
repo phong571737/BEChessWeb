@@ -38,6 +38,8 @@ Responsibilities:
 
 This hook acts as the bridge between the REST API, the socket layer, and the board page UI.
 
+Its REST requests are abortable on unmount or game change. The initialization poll keeps at most one request in flight, so a slow or unavailable backend cannot accumulate overlapping one-second requests.
+
 ### `usePhysicalBoards`
 
 Responsible for:
@@ -45,6 +47,8 @@ Responsible for:
 - fetching the physical board list,
 - reconciling board online/offline state,
 - updating the store when a new board scan succeeds or a board goes offline.
+
+Its 30-second refresh is also abortable and skips a new request while the previous refresh is still pending.
 
 ### `useStockfish`
 

@@ -420,11 +420,29 @@ export function createGame(gameID: string): Chess {
 export async function getCurrentState(
   gameID: string
 ): Promise<{ gameID: string, fen: string, lastMove: null } | null> {
-  let game = games.get(gameID);
-  // create a game if game is not exists
-  if (!game) {
-    game = await restorefromDB(gameID);
-    if (!game) return null;
+  const inMemoryGame = games.get(gameID);
+  if (inMemoryGame) {
+    return {
+      gameID,
+      fen: inMemoryGame.fen(),
+      lastMove: null
+    };
+  }
+
+  // A Socket.IO snapshot request must not turn an arbitrary historical game
+  // into a permanent in-memory session. Build a short-lived Chess instance
+  // from MongoDB instead; moves can still restore an active session normally.
+  const data = await getGame(gameID);
+  if (!data) return null;
+  const game = new Chess();
+  if (data.fen) {
+    try {
+      game.load(data.fen, { skipValidation: true });
+    } catch {
+      if (data.pgn) game.loadPgn(data.pgn);
+    }
+  } else if (data.pgn) {
+    game.loadPgn(data.pgn);
   }
 
   return {

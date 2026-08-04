@@ -15,6 +15,9 @@ export interface GameStateData {
 
 export type GameStatePatch = Partial<GameStateData>;
 
+const OFFLINE_STATE_TTL_MS = 10 * 60 * 1_000;
+const lastUpdatedAt = new Map<string, number>();
+
 export const gameState = {
     data: {} as Record<string, GameStateData>,
 
@@ -26,6 +29,7 @@ export const gameState = {
                 wrongSquares: [],
                 missingSquares: [],
             };
+            lastUpdatedAt.set(gameID, Date.now());
         }
         return this.data[gameID];
     },
@@ -40,6 +44,7 @@ export const gameState = {
             wrongSquares: patch.wrongSquares ?? current.wrongSquares,
             missingSquares: patch.missingSquares ?? current.missingSquares,
         };
+        lastUpdatedAt.set(gameID, Date.now());
     },
 
     get(gameID: string) {
@@ -48,8 +53,20 @@ export const gameState = {
 
     delete(gameID: string): void {
         delete this.data[gameID];
+        lastUpdatedAt.delete(gameID);
     }
 }
+
+function pruneStaleOfflineStates(now = Date.now()): void {
+    for (const [boardID, updatedAt] of lastUpdatedAt) {
+        if (gameState.data[boardID]?.boardStatus === "offline" && now - updatedAt >= OFFLINE_STATE_TTL_MS) {
+            gameState.delete(boardID);
+        }
+    }
+}
+
+const cleanupTimer = setInterval(() => pruneStaleOfflineStates(), 60_000);
+cleanupTimer.unref();
 
 export function emitGameState(gameID: string): void {
     const state = gameState.get(gameID);

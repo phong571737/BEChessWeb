@@ -17,10 +17,14 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
   // heartbeat events don't carry gameStatus, so periodic re-sync is needed.
   useEffect(() => {
     let cancelled = false;
+    let inFlight = false;
+    const controller = new AbortController();
 
     const fetchBoards = async (initial: boolean) => {
+      if (inFlight) return;
+      inFlight = true;
       try {
-        const res = await fetch("/boards");
+        const res = await fetch("/boards", { signal: controller.signal });
 
         const games = await res.json();
 
@@ -45,15 +49,20 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
           err instanceof Error ? err.message : err
         );
       } finally {
+        inFlight = false;
         if (initial && !cancelled) {
           setLoading(false);
         }
       }
     };
 
-    fetchBoards(true);
-    const id = setInterval(() => fetchBoards(false), 30_000);
-    return () => { cancelled = true; clearInterval(id); };
+    void fetchBoards(true);
+    const id = setInterval(() => void fetchBoards(false), 30_000);
+    return () => {
+      cancelled = true;
+      controller.abort();
+      clearInterval(id);
+    };
   }, [patchPhysicalBoard, removePhysicalBoard]);
 
   // Live updates via Socket.io

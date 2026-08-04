@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, Copy, Share2 } from "lucide-react";
 import { useParams } from "next/navigation";
 import { PGNReviewContent } from "@/components/played/pgn-modal";
@@ -77,11 +77,15 @@ export default function PlayedReviewPage() {
   const [game, setGame] = useState<HistoryGame | null>(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const copiedResetTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
-    fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
+    let cancelled = false;
+    const controller = new AbortController();
+    fetchJSONCached<HistoryGame[]>("/games/history", 10_000, { signal: controller.signal })
       .then((rows: HistoryGame[]) => {
+        if (cancelled) return;
         const raws = rows.find((x) => x._id === id) ?? null;
         if (!raws) {
           setGame(null); 
@@ -99,9 +103,21 @@ export default function PlayedReviewPage() {
           totalMoves: raws.totalMoves ?? legacy.lastSeq ?? raws.totalPlies ?? raws.uciHistory?.length ?? raws.fenHistory?.length ?? 0,
         });
       })
-      .catch(() => setGame(null))
-      .finally(() => setLoading(false));
+      .catch(() => {
+        if (!cancelled) setGame(null);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [id]);
+
+  useEffect(() => () => {
+    if (copiedResetTimerRef.current !== null) window.clearTimeout(copiedResetTimerRef.current);
+  }, []);
 
   if (loading) return <ReviewSkeleton />;
 
@@ -126,7 +142,11 @@ export default function PlayedReviewPage() {
     try {
       await navigator.clipboard.writeText(shareUrl);
       setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
+      if (copiedResetTimerRef.current !== null) window.clearTimeout(copiedResetTimerRef.current);
+      copiedResetTimerRef.current = window.setTimeout(() => {
+        copiedResetTimerRef.current = null;
+        setCopied(false);
+      }, 1500);
     } catch {}
   };
 

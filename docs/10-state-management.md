@@ -43,6 +43,12 @@ The game state object holds a minimal, runtime-friendly view of the board and cu
 
 The active board check results are tracked separately in the `gameState` map.
 
+### Runtime retention and cleanup
+
+Runtime state is intentionally limited to active board sessions. Resignation, board destruction, and MQTT offline cleanup remove the corresponding chess, sequence, branch, and raw-history entries. Socket snapshot reads for a game that is not already active use a temporary `Chess` instance and do not add that game to the runtime maps.
+
+Board states marked offline also have a 10-minute safety TTL. MQTT normally removes them after its delayed offline cleanup, while the TTL prevents stale state from remaining in memory if that cleanup is interrupted.
+
 ## Frontend state
 
 The frontend uses Zustand in [frontend/lib/store.ts](../frontend/lib/store.ts).
@@ -102,6 +108,8 @@ Each board entry stores:
 - `incrementMs` — increment per move in milliseconds (optional)
 
 This structure allows the board page to avoid repeatedly fetching everything from the API after a socket update. It is not a full normalized state graph; it is a per-game cached projection.
+
+The small REST cache is bounded to 100 entries and removes expired entries before reads and writes. This keeps navigation across many historical games from growing browser memory indefinitely.
 
 ## State synchronization pattern
 

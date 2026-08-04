@@ -12,9 +12,11 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
   const { token } = useAuth();
 
   useEffect(() => {
-    let sock: Socket;
+    let cancelled = false;
+    let sock: Socket | null = null;
 
-    import("socket.io-client").then(({ io }) => {
+    void import("socket.io-client").then(({ io }) => {
+      if (cancelled) return;
       const url = getBrowserServiceUrl(process.env.NEXT_PUBLIC_SOCKET_URL) ?? getApiUrl();
       // Polling works through an HTTPS tunnel that forwards to Nginx on port 80.
       // Socket.IO upgrades to WebSocket automatically when the tunnel supports it.
@@ -22,11 +24,17 @@ export function SocketProvider({ children }: { children: React.ReactNode }) {
         transports: ["polling", "websocket"],
         auth: token ? { token } : undefined,
       });
+      if (cancelled) {
+        sock.disconnect();
+        return;
+      }
       setSocket(sock);
     });
 
     return () => {
+      cancelled = true;
       sock?.disconnect();
+      setSocket((current) => current === sock ? null : current);
     };
   }, [token]);
 

@@ -96,8 +96,9 @@ export function useGame(gameID: string) {
         setIsLoaded(false);
         setLoadError(null);
         let cancelled = false;
+        const controller = new AbortController();
 
-        fetchJSONCached<any>(`/games/${gameID}`, 1_500)
+        fetchJSONCached<any>(`/games/${gameID}`, 1_500, { signal: controller.signal })
             .then((game) => {
                 try {
                     // if (game.pgn) chessRef.current.loadPgn(game.pgn);
@@ -164,7 +165,10 @@ export function useGame(gameID: string) {
                 setIsLoaded(false);
             });
 
-        return () => { cancelled = true; }
+        return () => {
+            cancelled = true;
+            controller.abort();
+        }
     }, [gameID, cachedBoard?.fen, cachedBoard?.pgn]);
 
     // ---------------Polling initial check state ----------------------------
@@ -172,10 +176,15 @@ export function useGame(gameID: string) {
         if (!gameID || !isLoaded) return;
 
         let stopped = false;
+        let inFlight = false;
+        const controller = new AbortController();
+        let interval: ReturnType<typeof setInterval> | undefined;
 
         const fetchInitCheck = async () => {
+            if (stopped || inFlight) return;
+            inFlight = true;
             try {
-                const res = await fetch(`/games/${gameID}/initcheck`);
+                const res = await fetch(`/games/${gameID}/initcheck`, { signal: controller.signal });
 
                 if (!res.ok) return;
                 const data = await res.json();
@@ -191,20 +200,26 @@ export function useGame(gameID: string) {
                 // stop polling when board is ready
                 if (data.status === GAME_STATUS.READY) {
                     stopped = true;
-                    clearInterval(interval);
+                    if (interval) clearInterval(interval);
                 }
             } catch {
                 // Polling failures are transient and will be retried on the next interval.
+            } finally {
+                inFlight = false;
             }
         };
 
-        fetchInitCheck();
-        const interval = setInterval(() => {
+        void fetchInitCheck();
+        interval = setInterval(() => {
             if (!stopped) {
-                fetchInitCheck();
+                void fetchInitCheck();
             }
         }, 1000);
-        return () => clearInterval(interval);
+        return () => {
+            stopped = true;
+            controller.abort();
+            if (interval) clearInterval(interval);
+        };
     }, [gameID, isLoaded, resetRevision]);
 
     const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number } = {}) => {

@@ -256,6 +256,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
   }, []);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const copiedResetTimerRef = useRef<number | null>(null);
+  const fenCopiedResetTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (copiedResetTimerRef.current !== null) window.clearTimeout(copiedResetTimerRef.current);
+      if (fenCopiedResetTimerRef.current !== null) window.clearTimeout(fenCopiedResetTimerRef.current);
+      void audioCtxRef.current?.close();
+      audioCtxRef.current = null;
+    };
+  }, []);
+
   const getAudioCtx = () => {
     if (!audioCtxRef.current) {
       const AC = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
@@ -315,7 +327,11 @@ export function PGNReviewContent({ game }: ReviewProps) {
     try {
       await navigator.clipboard.writeText(reviewPgn);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      if (copiedResetTimerRef.current !== null) window.clearTimeout(copiedResetTimerRef.current);
+      copiedResetTimerRef.current = window.setTimeout(() => {
+        copiedResetTimerRef.current = null;
+        setCopied(false);
+      }, 2000);
     } catch {}
   };
 
@@ -324,7 +340,11 @@ export function PGNReviewContent({ game }: ReviewProps) {
     try {
       await navigator.clipboard.writeText(game.fenHistory.map((fen, index) => `${index + 1}. ${fen}`).join("\n"));
       setFenCopied(true);
-      setTimeout(() => setFenCopied(false), 2000);
+      if (fenCopiedResetTimerRef.current !== null) window.clearTimeout(fenCopiedResetTimerRef.current);
+      fenCopiedResetTimerRef.current = window.setTimeout(() => {
+        fenCopiedResetTimerRef.current = null;
+        setFenCopied(false);
+      }, 2000);
     } catch {}
   };
 
