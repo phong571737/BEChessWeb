@@ -48,6 +48,8 @@ The Move Review page and each administrator History row provide an **Analyze gam
 
 Each record contains the ply number, SAN and UCI move, engine best move, principal variation (up to eight UCI moves), scores before/after from White's perspective, centipawn loss, classification, and search depth. The backend validates the bounded payload and requires an admin bearer token before saving it through `POST /games/history/:id/analysis`.
 
+Post-game analysis runs Stockfish at the requested depth ceiling with a one-second time budget per position and a five-second safety timeout. The first limit reached ends that individual search, which prevents a difficult tactical position from blocking the remaining moves or discarding the entire game analysis. Each saved move records the actual completed search depth.
+
 When an analysis is available, Move Review renders an interactive advantage chart from the after-move evaluation. Selecting a chart point or a labeled move synchronizes the board, move list, and detail panel at that ply. The detail panel shows the played move, Stockfish best move, evaluation, and saved principal variation. Evaluation display is capped visually at ±12 pawns so a mate does not flatten every non-mate point; stored engine scores remain unchanged.
 
 Labels are informative rather than official engine proof: matching the engine move is **Best**; a best move that is a capturable major-piece sacrifice with a clear advantage is marked **Brilliant**. Other moves use centipawn-loss bands: Excellent (<=20), Good (<=50), Inaccuracy (<=100), Mistake (<=250), and Blunder (>250). A re-analysis intentionally replaces the old result, so its engine version and depth remain explicit.

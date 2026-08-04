@@ -3,6 +3,11 @@ import { publicPath } from "@/lib/public-path";
 
 export type MoveClassification = "best" | "brilliant" | "excellent" | "good" | "inaccuracy" | "mistake" | "blunder";
 
+// A complete game analysis runs one search per position. Keep each search
+// bounded so a single tactical position cannot discard the entire batch.
+const SEARCH_TIME_MS = 1_000;
+const SEARCH_TIMEOUT_MS = 5_000;
+
 export interface MoveAnalysis {
   ply: number;
   san: string;
@@ -111,13 +116,16 @@ class PostGameEngine {
         this.resolveSearch = null;
         this.worker.postMessage("stop");
         reject(new Error("Engine search timed out"));
-      }, 30_000);
+      }, SEARCH_TIMEOUT_MS);
       this.resolveSearch = (score) => {
         window.clearTimeout(timeout);
         resolve(score);
       };
       this.worker.postMessage(`position fen ${fen}`);
-      this.worker.postMessage(`go depth ${depth}`);
+      // Stockfish stops at whichever limit is reached first. Depth remains a
+      // quality ceiling while movetime guarantees that long tactical lines do
+      // not stall or abort analysis of the remaining moves.
+      this.worker.postMessage(`go depth ${depth} movetime ${SEARCH_TIME_MS}`);
     });
     return {
       ...result,
