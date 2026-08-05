@@ -52,6 +52,10 @@ Shows engine or evaluation metadata when present in the board state.
 
 Renders the review-page statistics and charts from real persisted move data. It delegates parsing to [frontend/lib/match-analysis.ts](../frontend/lib/match-analysis.ts): valid PGN is preferred, then UCI history, then recoverable FEN snapshots. The analyzer supports PGN `SetUp`/`FEN` headers, calculates captures/checks/castles/promotions and piece activity from verbose `chess.js` moves, and renders a safe empty state when no valid moves exist.
 
+### `move-analysis-panel`
+
+Provides administrator-triggered Stockfish analysis for a History review. It prioritizes persisted FEN snapshots, then rebuilds a legal prefix from UCI history and the initial FEN, and finally uses valid standard PGN. The panel stores one row per persisted ply. A malformed or custom-device move is rendered with the localized **Unavailable** / **Không khả dụng** label rather than preventing the rest of the history from being saved. Null engine scores are omitted from the advantage chart instead of being rendered as a false `0.0` evaluation.
+
 ### `paste-game`
 
 Provides the UCI-to-PGN import workflow on `/paste`. It uses the shared page/card visual language: standard page header, token-driven surfaces and borders, compact controls, selected quick presets, and matched-height responsive input/preview panels without page-specific hero layout. Its icon language is contextual and consistent: file/clipboard for import, scroll/file output for PGN, git-fork for branches, and swords for move counts.

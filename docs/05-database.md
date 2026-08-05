@@ -133,7 +133,7 @@ Both the live document and the snapshot retain PGN metadata: player names, round
 
 This collection is used by the history review UI.
 
-Its optional `analysis` object stores administrator-requested Stockfish output: engine identity, depth, save timestamp, and a per-ply list of played move, best move, principal variation, evaluation, centipawn loss, and classification. It never changes the authoritative PGN/FEN/UCI trace.
+Its optional `analysis` object stores administrator-requested Stockfish output: engine identity, depth, save timestamp, and a per-ply list of played move, best move, principal variation, evaluation, centipawn loss, and classification. A row with `classification: "unavailable"` has no engine score and uses depth `0`; it records a device move that cannot be reconstructed or evaluated without fabricating a score. Analysis never changes the authoritative PGN/FEN/UCI trace.
 
 ## Why two collections exist
 
