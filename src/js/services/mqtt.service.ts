@@ -13,7 +13,7 @@ import type { ResignSide } from "../types/game.types.js";
 let mqttClient: MqttClient | null = null;
 
 interface StatusPayload {
-    status: "online" | "offline" | "restart" | string;
+    status: "online" | "offline" | string;
 }
 
 const OFFLINE_CLEANUP_DELAY_MS = 5 * 60 * 1000;  // 2 minutes
@@ -184,14 +184,6 @@ async function handleMessage(topic: string, message: Buffer) {
                 }, OFFLINE_CLEANUP_DELAY_MS);
 
                 pendingCleanupTimers.set(boardID, timer);
-            } else if (payload.status === "restart") {
-                console.log(`[MQTT] Board ${boardID} restart`);
-                cancelPendingCleanup(boardID);
-                gameState.set(boardID, { boardStatus: "online", gameStatus: "restart" });
-
-                setTimeout(() => {
-                    gameState.set(boardID, { boardStatus: "online", gameStatus: "checkinit" });
-                }, 100);
             }
 
             emitGameState(boardID);

@@ -65,7 +65,7 @@ Responsibilities:
 - monitor board online/offline topics,
 - notify the application when board connectivity changes,
 - support board cleanup after offline or destroyed states.
-- subscribe to `chess/+/command` and process lifecycle commands. `restart_game_esp` and `restart_game` reset the active board game in place; `resign` accepts `{"command":"resign","side":"white"|"black"}` and `draw` accepts `{"command":"draw"}`. These commands resolve the active game by board, use the same atomic resignation service as the web API, emit the old game result to its room, and create/announce the next waiting game so an open board page and the home board card update consistently.
+- subscribe to `chess/+/command` and process lifecycle commands. `restart_game_esp` and `restart_game` reset the active board game in place; restart is intentionally handled only on the command topic, not as a status value. `resign` accepts `{"command":"resign","side":"white"|"black"}` and `draw` accepts `{"command":"draw"}`. These commands resolve the active game by board, use the same atomic resignation service as the web API, emit the old game result to its room, and create/announce the next waiting game so an open board page and the home board card update consistently.
 
 ### [src/js/services/log.service.ts](../src/js/services/log.service.ts)
 
