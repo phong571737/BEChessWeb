@@ -376,7 +376,10 @@ export function useGame(gameID: string) {
 
         const onUpdateAllGame = (data: any) => {
             if (data?.gameID && data.gameID !== gameID) return;
-            patchBoard(gameID, { status: GAME_STATUS.ENDED });
+            patchBoard(gameID, {
+                status: GAME_STATUS.ENDED,
+                ...(typeof data?.result === "string" ? { result: data.result } : {}),
+            });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
             invalidateFetchCache("/games/history");

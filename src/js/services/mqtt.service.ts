@@ -136,8 +136,14 @@ async function handleMessage(topic: string, message: Buffer) {
                     ? payload.branchId.trim()
                     : null;
                 const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+                const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
+                // Match the web resignation flow: update the old game room, then
+                // attach the board to the newly created waiting game.
+                getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide });
+                getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
                 emitGameState(boardID);
                 getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
+                getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
             }
         } catch (e) {
             console.log("[MQTT] Command parse or lifecycle error: ", e);
