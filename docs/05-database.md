@@ -7,8 +7,8 @@ The repository uses MongoDB as its durable storage layer, but the application in
 The design choice is:
 
 - keep active game state in memory for fast chess operations,
-- persist snapshots and history for recoverability and review,
-- avoid making every move a slow database round-trip.
+- persist the accepted move and its active history snapshot for recoverability and review,
+- restore the in-memory chess session from MongoDB after a process/container restart.
 
 ## Database connection
 
@@ -160,7 +160,7 @@ This means the game document stays current without replacing the whole doc on ev
 
 ### `removeGameByBoardID`
 
-This method is used when the system needs to discard all game records associated with a board ID. It is part of the cleanup path after board scans, restart, or MQTT offline transitions.
+This method is used when delayed MQTT offline cleanup discards game records associated with a disconnected board ID. An in-place restart does not call this cleanup and retains the current `gameID`.
 
 ## Business invariants
 
@@ -176,6 +176,7 @@ The data model assumes:
 - A MongoDB TTL index permanently removes trashed records after 30 days; administrators can restore them before expiry.
 - `board_game_locks` uses `boardID` as `_id` and a short `leaseUntil` timestamp; it is a concurrency control collection, not game history.
 - `users.password` is a bcrypt hash; never return it from an API response or include it in exports.
+- Bootstrap account synchronization updates username, role, and a changed bcrypt password hash by configured email; a standard bootstrap account cannot reuse an administrator email.
 
 ## Cross references
 

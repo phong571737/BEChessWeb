@@ -1,4 +1,4 @@
-# 24. Board Visuals
+# 22. Board Visuals
 
 ## Board rendering strategy
 

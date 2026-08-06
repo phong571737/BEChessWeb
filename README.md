@@ -1,392 +1,189 @@
-# ♟️♟️♟️ TTLab Chess Web
+# TTLab Chess Web
 
-A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.
+TTLab Chess Web connects a physical electronic chessboard to a real-time web interface. The repository contains an Express/Socket.IO/MQTT backend and a Next.js frontend, with MongoDB providing durable active-game and history snapshots.
 
-## Overview
+Current release: `v1.1.3-change1`.
 
-TTLab Chess Web is a full-stack chess platform that combines:
-- **Backend**: Node.js/Express server with chess logic and real-time updates
-- **Frontend**: Interactive web interface with chessboard visualization
-- **Real-time Communication**: WebSocket support via Socket.io for live moves
-- **Database**: MongoDB for game persistence
-- **Messaging**: MQTT integration for IoT communication
-- **Deployment**: Docker & Docker Compose for containerized deployment
+## Runtime architecture
 
-## System Requirements
-
-### Windows
-
-- **Docker Desktop** (v4.0+) - [Download](https://www.docker.com/products/docker-desktop)
-  - Includes Docker Engine and Docker Compose
-  - Requires Windows 10/11 Pro, Enterprise, or Education edition
-  - Enable WSL 2 (Windows Subsystem for Linux 2)
-
-### macOS
-
-- **Docker Desktop** (v4.0+) - [Download](https://www.docker.com/products/docker-desktop)
-  - Includes Docker Engine and Docker Compose
-  - Requires macOS 11 (Big Sur) or newer
-  - Native Apple Silicon (M1/M2) or Intel support
-
-### Linux
-
-Install Docker and Docker Compose:
-
-```bash
-# Ubuntu/Debian
-sudo apt-get update
-sudo apt-get install docker.io docker-compose
-
-# Fedora
-sudo dnf install docker docker-compose
-
-# Start Docker daemon
-sudo systemctl start docker
-sudo systemctl enable docker
-
-# Optional: Add user to docker group (avoid sudo)
-sudo usermod -aG docker $USER
+```mermaid
+flowchart LR
+    Board[Physical chessboard] -->|POST /moves and /boards/:id/initcheck| API[Express backend]
+    Board <-->|chess/+/status and chess/+/command| MQTT[MQTT broker]
+    MQTT <--> API
+    Browser[Next.js browser UI] <-->|REST and Socket.IO| API
+    API <--> Mongo[(MongoDB)]
+    Browser --> Stockfish[Stockfish Web Worker]
 ```
 
-## Quick Start with Docker
+- The physical board submits moves over HTTP and publishes connectivity/lifecycle messages over MQTT.
+- Express owns game mutations, authentication, persistence, concurrency checks, and Socket.IO broadcasts.
+- Next.js renders the home, board, history, dashboard, guide, login, and paste/import pages.
+- Stockfish runs in the browser for optional live evaluation and saved post-game analysis.
 
-### Step 1: Clone the Repository
+The detailed design is in [docs/01-architecture.md](docs/01-architecture.md), and the complete documentation index is [docs/README.md](docs/README.md).
 
-```bash
-git clone https://github.com/yourusername/TTLab_BEChessWeb.git
-cd TTLab_BEChessWeb
-```
+## Requirements
 
-### Step 2: Create Environment Files
+- Node.js 20 or newer
+- npm
+- MongoDB
+- An MQTT broker
+- Docker with Compose for container deployment
 
-Create a `.env` file in the root directory:
+## Environment
 
-```bash
-#mongodb
-MONGO_URI=mongodb+srv://<username>:<password>@<your-cluster>.mongodb.net/?appName=<your-app>
-MONGO_LOCAL=mongodb://localhost:27017
-VERCEL_WEB=https://<your-vercel-app>.vercel.app
-AUTHOR=<your-name>
-PORT=80
-SERVER_NAME=<your-server-name>
+Copy [.env.example](.env.example) to `.env` and replace every placeholder. Real `.env` files are ignored by Git.
 
-# Docker Compose frontend settings. BACKEND_PUBLIC_URL is used only at build
-# time and is compiled into both the browser REST and Socket.IO URLs.
-# Use the same protocol that users use to open the site.
-FRONTEND_BASE_PATH=/chess
-BACKEND_PUBLIC_URL=http://<your-domain>
-# MQTT
-URL_HIVEMQTT=mqtts://<your-broker-url>.hivemq.cloud
-MQTT_USER=<your-mqtt-username>
-MQTT_PASSWORD=<your-mqtt-password>
+Required backend values:
+
+```env
+MONGO_URI=<mongodb-connection-string>
+JWT_SECRET=<private-random-secret-at-least-32-characters>
+URL_HIVEMQTT=<mqtt-or-mqtts-broker-url>
 MQTT_PORT=8883
-MQTT_TOPIC_GET_IP=<your/mqtt/topic>
 ```
 
-Create a `frontend/.env.local` file (local, non-Docker `npm run dev` only — Docker Compose bakes the equivalent values in at build time instead):
+Common deployment and optional bootstrap values:
 
-```bash
-API_URL=http://localhost:80          # HTTP proxy target (server-side)
-NEXT_PUBLIC_SOCKET_URL=http://localhost:80   # Socket.io URL (browser-side)
+```env
+PORT=8080
+CORS_ORIGINS=http://localhost:3000
+FRONTEND_BASE_PATH=
+BACKEND_PUBLIC_URL=http://localhost:8080
+
+ADMIN_USERNAME=<private-admin-name>
+ADMIN_EMAIL=<private-admin-email>
+ADMIN_PASSWORD=<private-high-entropy-password>
+
+USER_USERNAME=<standard-user-name>
+USER_EMAIL=<standard-user-email>
+USER_PASSWORD=<standard-user-password>
 ```
 
-**Configuration Details:**
-- `MONGO_URI` - MongoDB Atlas connection string
-- `MONGO_LOCAL` - Local MongoDB fallback URI
-- `VERCEL_WEB` - URL of the Vercel-hosted frontend deployment
-- `PORT` - Application port (default: 80)
-- `SERVER_NAME` - Identifier for this server instance
-- `AUTHOR` - Server author/maintainer name
-- `FRONTEND_BASE_PATH` - Optional public frontend path, such as `/chess`
-- `BACKEND_PUBLIC_URL` - One public browser origin compiled into both API and Socket.IO URLs during the Docker frontend build
-- `URL_HIVEMQTT` - MQTT broker URL
-- `MQTT_USER` / `MQTT_PASSWORD` - MQTT authentication credentials
-- `MQTT_PORT` - MQTT broker port (8883 for secure)
-- `MQTT_TOPIC_GET_IP` - MQTT topic for IP discovery
+Bootstrap accounts are synchronized when the backend starts. Passwords are hashed with bcrypt before MongoDB storage. Keep real administrator credentials only in local or deployment secrets.
 
-### Step 3: Build and Deploy with Docker Compose
-
-```bash
-# Navigate to project root
-cd TTLab_BEChessWeb
-
-# Build Docker image
-docker compose build
-
-# Start all services
-docker compose up -d
-
-# Verify services are running
-docker compose ps
-```
+See [docs/04-environment.md](docs/04-environment.md) for every supported variable.
 
 ## Local development
 
-Start the backend with automatic TypeScript reload:
+Install dependencies:
+
+```powershell
+npm install
+npm --prefix frontend install
+```
+
+Start the backend with automatic reload:
 
 ```powershell
 npm run dev
 ```
 
-The development launcher reads `PORT` from `.env` (default `80`). If a stale Node.js development process is already listening on that port, it stops that process before starting Nodemon. If a different application owns the port, it exits with the process details instead of stopping an unrelated program. On Windows, use an Administrator PowerShell session if HTTP.sys or another protected service owns port 80.
+Start the frontend in a second terminal:
 
-### Step 4: Verify Deployment
+```powershell
+npm --prefix frontend run dev
+```
+
+The backend port comes from `.env`. The sample uses `8080`; the frontend development server normally uses `3000`. The Windows launcher only stops an existing Node.js process on the configured backend port and refuses to terminate unrelated processes.
+
+Production checks:
+
+```powershell
+npm run build
+npm --prefix frontend run build
+```
+
+## Docker Compose
+
+The Compose stack contains:
+
+- `ttlab-chess-app`: backend, published on `${PORT:-80}`
+- `frontend`: Next.js standalone server, published on host port `4000`
+
+Build and start:
 
 ```bash
-# Check application logs
-docker compose logs -f app
-
-# Check MongoDB connection
-docker compose logs mongodb
-
-# Test the application
-curl http://localhost:8080
-
-# View all running containers
-docker compose ps
-```
-
-## Docker Architecture
-
-```
-┌─────────────────────────────────────────────────────┐
-│         Docker Compose Network                      │
-│         (ttlab-network)                             │
-│                                                     │
-│  ┌────────────────────────────────────────────┐   │
-│  │   Chess App Container                      │   │
-│  │  (Port 8080)                               │   │
-│  │                                            │   │
-│  │  Node.js v18                               │   │
-│  │  Express + Socket.io                       │   │
-│  │  MQTT client                               │   │
-│  │                                            │   │
-│  │  Connects to:                              │   │
-│  │  - MongoDB Atlas (Cloud)                   │   │
-│  │  - HiveMQ Cloud (MQTT)                     │   │
-│  └────────────────────────────────────────────┘   │
-│                                                     │
-└─────────────────────────────────────────────────────┘
-```
-
-## Common Docker Commands
-
-### View Logs
-
-```bash
-# View all service logs
-docker compose logs
-
-# View specific service logs (follow mode)
-docker compose logs -f app
-
-# View last 50 lines
-docker compose logs --tail=50
-```
-
-### Manage Services
-
-```bash
-# Start services
+docker compose build --no-cache
 docker compose up -d
-
-# Stop services
-docker compose stop
-
-# Restart services
-docker compose restart
-
-# Stop and remove containers
-docker compose down
-
-# Stop and remove containers + volumes
-docker compose down -v
-
-# View running containers
 docker compose ps
-
-# Execute command in running container
-docker compose exec app npm list
 ```
 
-### Troubleshooting
+Useful checks:
 
 ```bash
-# View service status
-docker compose ps
-
-# Check application health
-docker compose exec app curl http://localhost:8080
-
-# View Docker images
-docker images
-
-# Remove unused images
-docker image prune
-
-# View Docker networks
-docker network ls
-
-# Inspect service details
-docker compose exec app env
+docker compose logs --tail=150 -f ttlab-chess-app
+docker compose logs --tail=150 -f frontend
+curl http://127.0.0.1:${PORT:-80}/health
+curl http://127.0.0.1:4000/
 ```
 
-## Project Structure
+For a VPS deployment under `/chess`, Nginx proxies `/chess` to port `4000`, backend REST paths to the backend port, and `/socket.io/` to the backend with upgrade headers. See [docs/16-deployment.md](docs/16-deployment.md).
+
+## Authentication and authorization
+
+- Registration creates a `user` account.
+- `ADMIN_*` can bootstrap a private developer administrator.
+- `USER_*` can bootstrap a standard account.
+- Administrator REST mutations require `Authorization: Bearer <JWT>`.
+- Standard users cannot delete, restore, permanently delete, or view trashed history records.
+- Hiding controls in the frontend is only presentation; the backend independently checks the JWT role.
+
+## MQTT contract
+
+Connectivity topic:
+
+```text
+chess/<boardID>/status
+```
+
+Supported status values are `online` and `offline`.
+
+Lifecycle topic:
+
+```text
+chess/<boardID>/command
+```
+
+Supported payloads:
+
+```json
+{"command":"restart_game_esp"}
+{"command":"restart_game"}
+{"command":"resign","side":"white","requestId":"unique-device-command-id"}
+{"command":"resign","side":"black","requestId":"unique-device-command-id"}
+{"command":"draw","requestId":"unique-device-command-id"}
+```
+
+Both restart commands perform the same in-place reset and retain `gameID`, names, and clock configuration. Resign/draw finalizes history, emits the result to the old game room, and creates the next waiting game for that physical board.
+
+## REST surface
+
+The backend mounts:
+
+- `/auth`
+- `/boards`
+- `/moves`
+- `/games`
+- `/socket.io/`
+- `/health`
+
+There is no `/api` prefix. See [docs/06-api-rest.md](docs/06-api-rest.md) and [docs/07-api-socket.md](docs/07-api-socket.md).
+
+## Repository map
 
 ```text
 BEChessWeb/
-├── frontend/                    # Next.js 16 / React 19 TypeScript web client
-│   ├── app/                     # App Router pages, including the board and history views
-│   ├── components/              # UI, home, board, layout, and provider components
-│   ├── hooks/                   # Game loading, chess-clock, socket, board, and Stockfish hooks
-│   ├── lib/                     # Zustand state, API URL, Socket.IO client, and shared utilities
-│   ├── locales/                 # English and Vietnamese translations
-│   ├── public/                  # Static images and Stockfish browser assets
-│   ├── types/                   # Frontend TypeScript game and socket contracts
-│   ├── Dockerfile               # Frontend production image
-│   └── README.md                # Frontend setup and structure notes
-├── src/
-│   ├── js/                      # Express backend TypeScript source
-│   │   ├── config/              # Environment and MongoDB setup
-│   │   ├── controllers/         # HTTP request handlers
-│   │   ├── game/                # In-memory chess games, repository maps, and game state
-│   │   ├── models/              # MongoDB game, move, PGN, user, and log persistence
-│   │   ├── routes/              # REST routes for boards, games, moves, and authentication
-│   │   ├── services/            # Game, move, board, branch, resign, and MQTT logic
-│   │   ├── sockets/             # Socket.IO initialization, events, and emitters
-│   │   ├── types/               # Backend request, game, board, chess, and move types
-│   │   ├── utils/               # Chess, UCI, caching, and branch helpers
-│   │   └── server.ts            # Express, Socket.IO, and MQTT application entry point
-│   └── lib/                     # Vendored chess.js and chessboard.js libraries
-├── docs/                        # Architecture, API, environment, deployment, and UI documentation
-├── tools/                       # Local MQTT publish and Socket.IO listening scripts
-├── Dockerfile                   # Backend/container image definition
-├── docker-compose.yml           # Docker Compose deployment configuration
-├── package.json                 # Backend scripts and dependencies
-├── tsconfig.json                # Backend TypeScript configuration
-└── README.md                    # Project overview and setup guide
+├── frontend/          Next.js application, themes, locales, Stockfish and static assets
+├── src/js/            Express backend, MongoDB models, services, sockets and MQTT
+├── docs/              Maintained architecture and operating documentation
+├── tools/             Local development and MQTT helper scripts
+├── Dockerfile         Backend image
+├── docker-compose.yml Backend and frontend services
+└── package.json       Backend scripts and release version
 ```
 
-The frontend calls the backend through its `/games` and `/boards` proxies (`API_URL`) and connects directly to Socket.IO with `NEXT_PUBLIC_SOCKET_URL`. Game and clock configuration are loaded through `frontend/hooks/use-game.ts`, displayed by `frontend/hooks/use-chess-clock.ts`, and persisted by the backend game model and services under `src/js/`. MQTT integration is implemented in `src/js/services/mqtt.service.ts`; REST and Socket.IO entry points are in `src/js/routes/` and `src/js/sockets/`.
+## Release policy
 
-## API Endpoints
-
-### Game Routes
-- `GET /api/games` - List all games
-- `POST /api/boards` - Create a new game
-- `GET /api/games/:id` - Get game details
-- `PUT /api/games/:id` - Update game
-
-### Move Routes
-- `POST /api/moves` - Make a move in a game
-- `GET /api/moves/:gameId` - Get move history
-
-## WebSocket Events
-
-Real-time communication via Socket.io:
-- `esp_move` - Broadcast when a move is made
-- `game_update` - Broadcast when game state changes
-
-## Key Dependencies
-
-- **chess.js** (v1.4.0) - Chess engine for move validation
-- **express** (v5.1.0) - Web framework
-- **socket.io** (v4.8.1) - Real-time WebSocket communication
-- **mongodb** (v7.0.0) - Database driver
-- **mqtt** (v5.15.1) - MQTT client for IoT integration
-- **cors** (v2.8.6) - Cross-origin resource sharing
-- **dotenv** (v17.2.3) - Environment variable management
-
-## Deployment Tips
-
-### Production Considerations
-
-1. **Use MongoDB Atlas** (Cloud database) instead of local MongoDB
-2. **Set strong MQTT passwords** with special characters
-3. **Enable HTTPS/TLS** for MQTT connections (mqtts://)
-4. **Use environment-specific `.env` files**
-5. **Monitor container logs** regularly
-6. **Set resource limits** in docker-compose.yml
-
-### Scaling
-
-For production deployment with multiple instances:
-
-```bash
-# Scale app service to 3 replicas
-docker compose up -d --scale app=3
-
-# Use a reverse proxy (Nginx) for load balancing
-```
-
-## Troubleshooting
-
-### Container won't start
-
-```bash
-# Check logs
-docker compose logs app
-
-# Verify .env file exists and has required variables
-cat .env
-
-# Rebuild image
-docker compose build --no-cache
-docker compose up -d
-```
-
-### MongoDB connection error
-
-```bash
-# Verify MongoDB is running
-docker compose ps
-
-# Check MongoDB logs
-docker compose logs mongodb
-
-# Test connection
-docker compose exec app mongosh mongodb://mongodb:27017
-```
-
-### Port already in use
-
-```bash
-# Change PORT in .env file
-PORT=80
-
-# Restart services
-docker compose restart
-```
-
-## License
-
-See individual library licenses:
-- chess.js - BSD-2-Clause
-- chessboard.js - MIT
-
-## Contributing
-
-To contribute to this project:
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Build and test with Docker
-5. Submit a pull request
-
-## Support
-
-For issues or questions:
-- Check Docker logs: `docker compose logs`
-- Review `.env` configuration
-- Verify MongoDB/MQTT connectivity
-- Check firewall and port availability
-
-## Security Notes
-
-- Never commit `.env` file to version control
-- Use strong passwords for MQTT and MongoDB
-- Keep Docker images updated: `docker compose pull`
-- Regularly backup `mongodb_data` volume
-- Use environment variables for sensitive data only
-
----
+The root package, frontend package, and `frontend/lib/app-version.ts` use the same value. Changes are tagged as `v<base>-changeN`; the thirtieth accepted change publishes the next base version and resets the suffix. See [docs/24-versioning.md](docs/24-versioning.md).

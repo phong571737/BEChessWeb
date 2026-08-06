@@ -12,17 +12,18 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 
 - `MONGO_URI` – primary MongoDB connection string
 - `JWT_SECRET` – JWT signing secret; must be random, private, and at least 32 characters
-- `CORS_ORIGINS` – optional comma-separated browser origins allowed to call the API, for example `http://localhost:3000,http://ttlab.uit.edu.vn`
-- `PORT` – HTTP server port (defaults to `80` when omitted)
 - `URL_HIVEMQTT` – MQTT broker URL
 - `MQTT_PORT` – MQTT broker port
-- `MQTT_USER` – broker username
-- `MQTT_PASSWORD` – broker password
 
 ### Optional values
 
 - `AUTHOR` – server attribution metadata
+- `PORT` – HTTP server port; defaults to `80`
+- `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO
+- `VERCEL_WEB` – additional allowed frontend origin retained for compatible deployments
 - `SERVER_NAME` – server identity label
+- `MQTT_USER` – broker username when authentication is enabled
+- `MQTT_PASSWORD` – broker password when authentication is enabled
 - `MQTT_TOPIC_GET_IP` – topic used for IP discovery or device-side signaling
 - `MONGO_LOCAL` – local fallback MongoDB URI
 - `ADMIN_USERNAME` – optional bootstrap administrator username
@@ -32,9 +33,9 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 - `USER_EMAIL` – optional bootstrap standard-user email/login
 - `USER_PASSWORD` – optional bootstrap standard-user password
 
-### Default admin account
+### Bootstrap accounts
 
-On backend startup, the server can ensure one administrator account exists, but only when all three admin bootstrap variables are provided through local environment variables or deployment secrets. No administrator credential is hard-coded in source control or documentation.
+On backend startup, the server can ensure one administrator and one standard account exist, but only when all three variables for that account are provided through local environment variables or deployment secrets. No real credential is hard-coded in source control or documentation.
 
 Bootstrap credentials are synchronized at server startup. If the configured email already exists, the username, role, and changed password hash are updated. This lets the developer rotate the private administrator password through deployment secrets. A standard-user email cannot reuse an administrator email.
 
@@ -80,8 +81,9 @@ The frontend relies on a smaller runtime contract for browser and server-side ta
 The helper in [frontend/lib/api-url.ts](../frontend/lib/api-url.ts) resolves the API endpoint by priority:
 
 1. `NEXT_PUBLIC_API_URL` if present
-2. fallback to `window.location` heuristics for localhost/LAN/VPN-like hosts
-3. fallback to `API_URL`
+2. same-origin or localhost/LAN discovery based on `window.location`
+
+During SSR, `API_URL` is used instead. `getBrowserServiceUrl()` also rejects a localhost build value on a remote host and aligns an HTTP/HTTPS mismatch with the current page origin when the host is identical.
 
 This exists because the frontend can run in multiple deployment modes, including local development and remote deployment.
 

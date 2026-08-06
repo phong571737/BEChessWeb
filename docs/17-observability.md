@@ -67,7 +67,8 @@ If any of those stages fail, the logs should reveal the boundary where the probl
 
 - confirm `board_scan_ok` arrives after scanning
 - confirm `esp_move` is emitted after a legal move
-- confirm `update_all_game` or `game_restart` is emitted after restart or resignation
+- confirm `game:reset` and `game_status_update` are emitted after restart
+- confirm `update_all_game`, the old `finished` mapping, and the new `waiting`/`board_scan_ok` mapping are emitted after MQTT resignation or draw
 - confirm `/games/:id/initcheck` reports `READY` when the board is correctly configured
 
 ## Cross references

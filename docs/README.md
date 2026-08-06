@@ -1,6 +1,6 @@
 # BEChessWeb Documentation
 
-A clean architecture guide for the BEChessWeb monorepo.
+A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against release `v1.1.3-change1`.
 
 ## Overview
 
@@ -43,7 +43,7 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 
 ## Runtime flow
 
-1. A physical board publishes readiness, status, or move-related signals through MQTT and HTTP.
+1. A physical board submits moves/init checks through HTTP and publishes connectivity or lifecycle commands through MQTT.
 2. The backend restores or creates the matching in-memory chess session and persists the latest snapshot to MongoDB.
 3. The frontend hydrates the UI through REST calls and joins the matching Socket.IO room.
 4. Move and state events are broadcast to connected clients to refresh the board page and the active-game dashboard.

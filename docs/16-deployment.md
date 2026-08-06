@@ -32,13 +32,12 @@ This is especially useful because the application depends on dynamic network end
 
 ## Compose topology
 
-The compose setup wires together multiple service boundaries:
+The compose setup wires together two containers:
 
-- app service for the Node backend
-- frontend service for the Next.js UI
-- MongoDB service or MongoDB-compatible endpoint
+- `ttlab-chess-app` for the Node backend
+- `frontend` for the Next.js UI
 
-In practice, the backend is the process that connects to MongoDB and MQTT, while the frontend just needs the correct public endpoint URLs.
+MongoDB and MQTT are external endpoints configured through `.env`; Compose does not start local MongoDB or MQTT services. The frontend reaches the backend internally as `http://ttlab-chess-app:${PORT}` and receives browser-visible public origins as build arguments.
 
 ## Deployment variables
 
@@ -96,12 +95,10 @@ BACKEND_PUBLIC_URL=http://ttlab.uit.edu.vn
 
 For HTTPS, replace `http://` with `https://` only after the HTTPS gateway/proxy is correctly configured. Rebuild the frontend after changing either value.
 
-Use this Nginx shape (adjust the backend port if the service does not run on `8080`):
+Use this Nginx shape (adjust the backend port to the value published by Compose). Do not redirect `/chess` to `/chess/`: Next.js canonicalizes the base path back to `/chess`, so the two redirects would loop.
 
 ```nginx
-location = /chess { return 301 /chess/; }
-
-location ^~ /chess/ {
+location ^~ /chess {
     proxy_pass http://127.0.0.1:4000;
     proxy_http_version 1.1;
     proxy_set_header Host $host;
@@ -140,6 +137,13 @@ Do not add a separate `/images/` proxy location. The Next.js app now serves its 
 When a tunnel or edge proxy owns HTTPS while the VPS accepts only port `80`, keep the API and `/socket.io/` proxy locations in the Nginx `listen 80` server. The edge proxy must forward `/chess/`, the API routes, and `/socket.io/` to that server and allow HTTP long-polling. The frontend starts Socket.IO with polling and upgrades to WSS only when the edge proxy supports WebSocket upgrades.
 
 For same-domain deployments, the frontend also uses the protocol of the page for API and Socket.IO when an old build-time public URL differs only by `http` versus `https`. This avoids mixed-content requests while a corrected Docker image is being deployed.
+
+After changing build-time public URLs or the base path, recreate the frontend image; restarting an old container does not rewrite values already compiled into browser chunks:
+
+```bash
+docker compose build --no-cache frontend
+docker compose up -d --force-recreate frontend
+```
 
 ## Cross references
 

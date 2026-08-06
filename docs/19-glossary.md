@@ -52,7 +52,23 @@ A final game outcome string such as `1-0`, `0-1`, or `1/2-1/2`.
 
 ### Game history
 
-A durable collection of finished or archival game records used by the `played` review experience.
+A durable collection of active snapshots and finished game records used by the `played` review experience.
+
+### Standard user
+
+An authenticated account with role `user`. It can use authenticated presentation features but cannot pass administrator middleware for persistent game mutations or History recycle-bin actions.
+
+### Administrator
+
+An authenticated account with role `admin`. The backend accepts its bearer JWT for protected game, setup, analysis, and history-management routes.
+
+### Request ID
+
+An optional unique MQTT lifecycle-command identifier. The backend combines it with `boardID` to suppress duplicate restart, resign, or draw delivery during a short in-memory window.
+
+### Recycle bin
+
+Soft-deleted `game_history` records carrying `deletedAt` and `deleteAfter`. Administrators may restore them before MongoDB TTL expiry or permanently delete them sooner.
 
 ### Board status
 

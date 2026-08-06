@@ -36,14 +36,7 @@ The application should be deployed behind a secure network boundary or a reverse
 
 ## Security limitations of the current codebase
 
-From the repository structure alone, the app does not appear to include:
-
-- role-based access control,
-- explicit API authorization middleware,
-- CSRF protection,
-- strict input validation beyond the local controller and service checks.
-
-This means the product is functionally oriented and operationally targeted rather than security-hardened.
+The application has role-based JWT authorization, route-specific rate limits, exact-origin CORS, atomic game transitions, and bcrypt password storage. Remaining limitations include localStorage bearer tokens rather than httpOnly cookies, no CSRF layer for a future cookie-based session model, in-memory rate-limit/deduplication state that is not shared across replicas, and controller/service validation rather than a single schema-validation framework.
 
 ## Authentication and authorization
 
@@ -65,14 +58,14 @@ The system follows the principle of **not exposing sensitive information to unau
 - `JWT_SECRET` is mandatory at server startup; there is no fallback signing secret
 - JWT tokens are required for authenticated operations
 - User identity is verified on each protected request
-- Sensitive operations (login, register) use HTTPS in production
-- Error messages do not reveal whether an email exists in the system
+- Production deployments must expose login and registration through HTTPS
+- Login uses a generic invalid-credentials response; registration currently reports an existing email as a conflict
 
 ### Administrator account and UI authorization
 
 Administrator credentials are not hard-coded in source control or documentation. The backend only bootstraps an administrator account when `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are supplied through environment variables or deployment secrets. The same mechanism can provision a non-administrator account through `USER_USERNAME`, `USER_EMAIL`, and `USER_PASSWORD`. Existing bootstrap accounts are synchronized so password rotation takes effect after restart; passwords remain bcrypt hashes in MongoDB.
 
-Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. The board UI uses this flag to show operational actions such as **Restart** and **Resign** only to administrators. The backend independently enforces this rule with `requireAdmin`, so a hidden UI button cannot be bypassed by calling the API directly.
+Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. Some operational controls are visible after sign-in, and administrator-only areas such as Dashboard setup and History deletion additionally use `isAdmin`. The backend independently enforces every persistent game mutation with `requireAdmin`, so UI visibility cannot grant a standard user permission.
 
 History deletion is administrator-only at both layers. The frontend hides and disables moving records to trash, viewing/restoring trash, permanent deletion, and empty-trash actions for standard users. Every corresponding backend route also uses `requireAdmin`; a valid `user` JWT therefore receives HTTP `403` even if the endpoint is called manually.
 
@@ -82,7 +75,7 @@ The following information is considered sensitive and must not be exposed:
 
 - User passwords (even hashed versions should not be returned from APIs)
 - JWT tokens in URLs or logs
-- Internal MongoDB document structure (_id fields in public responses)
+- Unnecessary internal MongoDB fields; History `_id` is intentionally returned because it is the review/delete route key
 - Environment variables and configuration secrets
 - MQTT broker credentials
 - Internal API endpoints and architecture details
@@ -126,6 +119,8 @@ The backend accepts cross-origin browser requests only from the comma-separated 
 `POST /games/:id/resign` first performs an atomic MongoDB state transition from a live status to `resigning`. Only the request that successfully claims that transition may write the history entry, reset the live state, and create the next game. Concurrent clicks and network retries receive `409 Conflict` while the resignation is in progress, rather than creating another history entry or next-game record. History records use the game ID as their deterministic MongoDB `_id`, making a repeated final-history write an idempotent no-op.
 
 The resignation claim is a 30-second lease. If a process dies after claiming a resignation, a later request may reclaim an expired lease instead of leaving the game permanently locked. Move and restart writes use a monotonically increasing game `version`; a write based on an older version returns a conflict rather than overwriting the latest persisted state.
+
+MQTT resign/draw is treated as a trusted broker-side command path and does not carry a browser JWT. A short in-memory key suppresses duplicate `requestId` delivery for 15 seconds, while the MongoDB claim protects concurrent finalization of the same old `gameID`. Broker credentials and topic publish ACLs must therefore prevent untrusted clients from publishing lifecycle commands.
 
 ### Board creation serialization
 

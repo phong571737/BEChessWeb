@@ -13,7 +13,7 @@ The essential concepts are:
 - `branch` – an alternate sequence of moves derived from the main line
 - `board status` – scan and readiness status from the physical board
 - `result` – game outcome such as white win, black win, or draw
-- `user` – authenticated user account with username, email, and hashed password
+- `user` – authenticated account with username, email, bcrypt password hash, and `user` or `admin` role
 
 ## Entity truth model
 
@@ -63,7 +63,7 @@ The relationship is expressed as:
 - `boardID -> gameID` in the in-memory board registry
 - `gameID -> boardID` in the persisted game document
 
-This binding is important because the system can create a new game session for the same physical board after a restart or resignation.
+This binding is important because restart retains the same game session and board mapping, while resignation or draw finalizes the old session and creates a new waiting `gameID` for the same physical board.
 
 ## Branch model
 

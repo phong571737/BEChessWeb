@@ -20,8 +20,10 @@ sequenceDiagram
   Process->>Router: register JSON/CORS middleware
   Process->>Router: mount /moves, /games, /boards routes
   Process->>DB: connectDB()
+  Process->>DB: restore active games and board mappings
+  Process->>DB: synchronize optional admin/user bootstrap accounts
   Process->>Socket: initSocket(server)
-  Process->>MQTT: initMqtt()
+  Process->>MQTT: subscribe status and command topics
   Process-->>Process: start HTTP listener on configured port
 ```
 
@@ -42,6 +44,7 @@ This file is the server entry point. It:
 - applies middleware,
 - mounts routers,
 - awaits the MongoDB connection and restores every non-terminal board-to-game mapping and chess session from its persisted snapshot,
+- synchronizes optional `ADMIN_*` and `USER_*` bootstrap accounts before accepting logins,
 - initializes socket and MQTT modules,
 - begins listening on the configured port.
 
@@ -59,7 +62,7 @@ Creates the singleton `io` server and registers the game socket lifecycle.
 
 ### [src/js/services/mqtt.service.ts](../src/js/services/mqtt.service.ts)
 
-Connects to the MQTT broker and subscribes to board status topics.
+Connects to the MQTT broker and subscribes to `chess/+/status` and `chess/+/command`. Connectivity status accepts `online`/`offline`; restart, resign, and draw are command-topic messages.
 
 ## Runtime startup assumptions
 

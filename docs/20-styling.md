@@ -1,4 +1,4 @@
-# 20 — Frontend Design System
+# 20. Frontend Design System
 
 ---
 

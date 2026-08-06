@@ -67,6 +67,8 @@ The first accepted move starts the chess clock. After each later accepted move, 
 
 When a game is ended or resigned, the backend updates the board state and emits lifecycle updates. A restart is an in-place reset: HTTP or MQTT commands (`chess/<board-name>/command` with `restart_game_esp` or `restart_game`) clear the game to the standard starting position, retain the same `gameID`, player names, and clock settings, and return the physical board to `checkinit`. The next board scan must pass initialization before play resumes; `game:reset` resets the browser board and clocks to the retained configuration immediately. A global `game_status_update` also preserves the physical-board card and the mini chessboard game card on the homepage while the board waits for initialization. Selecting that waiting/initializing physical-board card opens its retained board session rather than the admin start-game dialog.
 
+Both restart payloads are accepted only on `chess/<board-name>/command`: `restart_game_esp` identifies the ESP action and `restart_game` identifies the companion app action, but both call the same in-place service. `chess/<board-name>/status` is limited to `online` and `offline`.
+
 While this retained session is waiting after restart, an administrator can update its names, time control, increment, game number, and playing location. The protected rename endpoint validates the selected game number from 1 through 99 and the location length, then broadcasts the updated setup to connected board views.
 
 MQTT restart commands are resilient to backend reloads. If the in-memory board-to-game map is unavailable when `restart_game` or `restart_game_esp` arrives, the backend resolves the most recent non-finished game for that `boardID` from MongoDB, rebuilds the map, and performs the same in-place reset.
@@ -74,6 +76,8 @@ MQTT restart commands are resilient to backend reloads. If the in-memory board-t
 The duration timer starts at the first accepted move. Each later accepted move persists `lastMoveAt` and recalculates `durationSec`; when a game is resigned, the completed history record retains the calculated start time, end time, and duration.
 
 For a resignation, the history PGN is generated from the persisted UCI sequence with the custom PGN renderer, which deliberately does not reject a move for chess-rule validation. Missing UCI entries are recovered from the corresponding FEN snapshots where possible; an unrecoverable entry is stored as `x` rather than silently dropping a ply. The game-start FEN is persisted for new games so custom-start games keep the correct PGN context.
+
+MQTT resignation (`{"command":"resign","side":"white"|"black","requestId":"..."}`) and draw (`{"command":"draw","requestId":"..."}`) call the same atomic finalization service as REST. The old game room receives `update_all_game` with its result, global clients receive the old `finished` and new `waiting` mappings, and `board_scan_ok` attaches the physical board to the newly created game. Duplicate command delivery is suppressed in memory for 15 seconds; the database claim protects the old game against concurrent finalization.
 
 ## Board-type processing behavior
 

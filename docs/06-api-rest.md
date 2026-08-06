@@ -7,6 +7,7 @@ The backend exposes a small HTTP surface mounted from [src/js/server.ts](../src/
 - `/moves`
 - `/games`
 - `/boards`
+- `/auth`
 
 The root service also exposes a simple health endpoint.
 
@@ -14,13 +15,13 @@ The root service also exposes a simple health endpoint.
 
 ### MQTT game commands
 
-The backend listens on `chess/<boardID>/command` for trusted physical-board lifecycle commands:
+The backend listens on `chess/<boardID>/command` for trusted device/app lifecycle commands. Restart is not accepted as a value on `chess/<boardID>/status`; that topic is reserved for `online` and `offline` connectivity:
 
 - `{"command":"restart_game"}` or `{"command":"restart_game_esp"}` resets the active game without changing its game ID.
 - `{"command":"resign","side":"white"}` or `{"command":"resign","side":"black"}` records the corresponding resignation.
 - `{"command":"draw"}` records a draw.
 
-Resign and draw are processed atomically and create the next waiting game for the board. An optional `requestId` can be supplied by a device to make retries idempotent within the deduplication window.
+Resign and draw are processed atomically and create the next waiting game for the board. An optional `requestId` is scoped to the board and suppresses duplicate delivery for 15 seconds in backend memory. The MongoDB resignation claim independently prevents concurrent writes to the same old game; callers should still generate a unique request ID for each intentional command.
 
 ### `/moves`
 
@@ -87,7 +88,7 @@ Request body:
 Returns:
 
 - `token` — JWT token valid for 7 days
-- `user` — object with `id`, `username`, `email`
+- `user` — object with `id`, `username`, `email`, `role`, and `isAdmin`
 
 ### `POST /auth/login`
 
@@ -101,7 +102,7 @@ Request body:
 Returns:
 
 - `token` — JWT token valid for 7 days
-- `user` — object with `id`, `username`, `email`
+- `user` — object with `id`, `username`, `email`, `role`, and `isAdmin`
 
 ## `/games`
 
@@ -133,6 +134,10 @@ Administrator-only. Restores a history record from the recycle bin before its TT
 
 Administrator-only. Permanently deletes a history record, but only if it is already in the recycle bin. The action cannot be restored.
 
+### `DELETE /games/history/trash/permanent`
+
+Administrator-only. Permanently deletes every record currently in the recycle bin; it does not delete visible history rows.
+
 ### History timing
 
 The first accepted move records `startedAt`. Each subsequent accepted move updates `lastMoveAt` and `durationSec`, and game finalization stores `endedAt` and the final duration in the same history document.
@@ -143,7 +148,7 @@ Returns a single game snapshot.
 
 ### `POST /games/:id/pgn`
 
-Updates PGN content and restores engine state from the updated document.
+Administrator-only. Updates PGN content and restores engine state from the updated document.
 
 ### `POST /games/:id/restart`
 
@@ -151,15 +156,15 @@ Resets the existing game in place. The `gameID`, board association, player names
 
 ### `POST /games/:id/destroy`
 
-Removes a game from memory and DB.
+Administrator-only. Removes a game from memory and DB.
 
 ### `POST /games/:id/resign`
 
-Ends the game with a result tag and creates a new game for the same board.
+Administrator-only. Ends the game with a result tag and creates a new game for the same board.
 
 ### `POST /games/:id/reset`
 
-Resets a game to the initial board state.
+Administrator-only alias for the same in-place restart service.
 
 ### `POST /games/:id/rename`
 
@@ -180,7 +185,7 @@ Administrators can empty only the recycle bin permanently with `DELETE /games/hi
 
 ### `POST /games/:id/endgame`
 
-Completes the final PGN entry in `game_history`.
+Administrator-only. Completes the final PGN entry in `game_history`.
 
 ### `GET /games/:id/initcheck`
 
@@ -188,7 +193,7 @@ Returns the latest initialization-check state for the board.
 
 ### `PUT /games/:id/update`
 
-Finalizes PGN-backed data mutation for a game.
+Administrator-only. Finalizes PGN-backed data mutation for a game.
 
 ## API design rationale
 

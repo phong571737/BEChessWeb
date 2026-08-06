@@ -7,7 +7,7 @@ This repository is a monorepo with two runtime roots:
 - the backend under [src/js](../src/js)
 - the frontend under [frontend](../frontend)
 
-The root also contains deployment and workspace metadata files such as `docker-compose.yml`, `Dockerfile`, `package.json`, and `pnpm-workspace.yaml`.
+The root also contains deployment and workspace metadata files such as `docker-compose.yml`, `Dockerfile`, `package.json`, `.env.example`, and `tsconfig.json`.
 
 ## Top-level folder conventions
 
@@ -19,7 +19,7 @@ The root also contains deployment and workspace metadata files such as `docker-c
 - `docker-compose.yml` – container orchestration file
 - `Dockerfile` – backend container build
 - `package.json` – backend workspace package manifest
-- `pnpm-workspace.yaml` – workspace package coordination
+- `.env.example` – safe placeholder contract for backend, frontend build, MQTT, and bootstrap-account settings
 
 ### Folder naming conventions
 

@@ -36,6 +36,8 @@ Responsibilities:
 - compute the selected branch display PGN,
 - expose restart and resign actions back to the UI.
 
+The action functions send the stored bearer token. A successful local web resignation patches the current board to `ended`; an MQTT resignation reaches the same state through the room-scoped `update_all_game` event and its result payload.
+
 This hook acts as the bridge between the REST API, the socket layer, and the board page UI.
 
 Its REST requests are abortable on unmount or game change. The initialization poll keeps at most one request in flight, so a slow or unavailable backend cannot accumulate overlapping one-second requests.

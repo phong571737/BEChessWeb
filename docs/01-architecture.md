@@ -45,7 +45,7 @@ flowchart LR
 | Realtime backend | Socket.IO | Emits game and board events and scopes game-specific events through rooms. |
 | Game runtime | `chess.js` plus `src/js/game` maps | Applies accepted moves, tracks sequences and branches, maps boards to games, and restores sessions after restart. |
 | Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, optional engine analysis, and recycle-bin metadata. |
-| Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles ESP restart, resignation, and draw commands. |
+| Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles equivalent ESP/app restart commands plus resignation and draw commands. |
 | Browser engine | Stockfish WebAssembly worker | Optional live evaluation and administrator-requested review analysis; it never decides server game state. |
 
 ## Backend structure and startup
@@ -56,7 +56,7 @@ flowchart LR
 2. Mount `/moves`, `/games`, `/boards`, and `/auth`; `/` and `/health` are health endpoints.
 3. Connect MongoDB.
 4. Restore non-finished games from MongoDB into the in-memory repository.
-5. Create the configured default administrator when the three admin environment values are present.
+5. Synchronize configured administrator and standard bootstrap accounts when each account's three environment values are present.
 6. Initialize Socket.IO on the same HTTP server.
 7. Initialize MQTT subscriptions.
 8. Listen on `0.0.0.0:PORT`.
@@ -66,8 +66,8 @@ flowchart TD
     Start[Start server] --> Middleware[Express middleware and routes]
     Middleware --> DB[Connect MongoDB]
     DB --> Restore[Restore active games]
-    Restore --> Admin[Ensure optional default admin]
-    Admin --> Socket[Initialize Socket.IO]
+    Restore --> Accounts[Ensure optional admin and user accounts]
+    Accounts --> Socket[Initialize Socket.IO]
     Socket --> MQTT[Subscribe MQTT]
     MQTT --> Listen[Listen on PORT]
 ```
@@ -126,7 +126,7 @@ Board status and lifecycle commands use MQTT topics (`chess/<boardID>/status` an
 
 ### Restart, resign, and recovery
 
-- REST, Socket, and MQTT restart commands use the same game-action service; they keep the same `gameID` and return the board to the configured start position.
+- REST and MQTT restart commands use the same game-action service; they keep the same `gameID` and return the board to the configured start position. The legacy protected Socket.IO `restart` listener emits a room refresh only and is not the persistent command path used by the current web UI.
 - Resignation claims an atomic lifecycle transition before final history work, preventing simultaneous clicks or retries from creating duplicate completed games.
 - On a Docker or Node restart, `restoreActiveGamesFromDB()` rebuilds non-finished sessions. A board command can also restore the current game lazily by board ID.
 - An MQTT offline signal emits an immediate browser notification but waits before destructive cleanup. An online event cancels the pending cleanup.
@@ -139,8 +139,8 @@ Move Review derives replay and statistics from saved traces. Stockfish analysis 
 
 ## Security and trust boundaries
 
-- The UI hiding a control is not authorization. Backend mutation endpoints use bearer JWT middleware, and administrator-only actions such as rename, time setup, resign, delete, restore, and analysis are checked server-side.
-- `JWT_SECRET`, MongoDB credentials, and MQTT credentials are required environment secrets and are not committed.
+- The UI hiding a control is not authorization. Backend mutation endpoints use bearer JWT middleware, and administrator-only actions such as rename, time setup, resign, delete, restore, and analysis are checked server-side. Bootstrap `user` and `admin` accounts are optional environment-driven records; only the admin role passes mutation middleware.
+- `JWT_SECRET`, MongoDB connection details, and any MQTT credentials are sensitive environment values and are not committed.
 - CORS permits only configured browser origins; ESP and other non-browser clients without an `Origin` header can submit their scoped device requests.
 - Rate-limit middleware protects read, mutation, and destructive game routes.
 - Nginx is trusted as one proxy hop so the backend receives the forwarded protocol and client address correctly.
@@ -155,7 +155,6 @@ frontend/
 ├── lib/          store API/socket helpers cache and game utilities
 ├── locales/      matching English and Vietnamese dictionaries
 ├── public/       images APK QR code and Stockfish assets
-├── services/     frontend service helpers
 └── types/        browser game and socket contracts
 ```
 
