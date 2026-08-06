@@ -6,6 +6,9 @@ import { removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
+import { GameResignService } from "./game.resign.service.js";
+import { BOARD_TYPE } from "../constant.js";
+import type { ResignSide } from "../types/game.types.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -18,6 +21,33 @@ const pendingCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 interface RemoveGameByBoardResult {
     gameIDs?: string[];
+}
+
+interface CommandPayload {
+    command?: string;
+    side?: string;
+    resignSide?: string;
+    boardType?: string;
+    branchId?: string;
+    requestId?: string;
+}
+
+const COMMAND_DEDUPE_WINDOW_MS = 15_000;
+const recentCommandKeys = new Map<string, number>();
+
+function claimCommand(boardID: string, payload: CommandPayload, command: string, side?: string) {
+    const requestKey = typeof payload.requestId === "string" && payload.requestId.trim()
+        ? payload.requestId.trim()
+        : `${command}:${side ?? ""}`;
+    const key = `${boardID}:${requestKey}`;
+    const now = Date.now();
+    const previous = recentCommandKeys.get(key);
+    if (previous && now - previous < COMMAND_DEDUPE_WINDOW_MS) return false;
+    recentCommandKeys.set(key, now);
+    setTimeout(() => {
+        if (recentCommandKeys.get(key) === now) recentCommandKeys.delete(key);
+    }, COMMAND_DEDUPE_WINDOW_MS);
+    return true;
 }
 
 function cancelPendingCleanup(boardID: string) {
@@ -73,18 +103,44 @@ async function handleMessage(topic: string, message: Buffer) {
         const boardID = parts[1];
         if (!boardID) return;
         try {
-            const payload = JSON.parse(message.toString()) as { command?: string };
-            if (payload.command !== "restart_game_esp" && payload.command !== "restart_game") return;
+            const payload = JSON.parse(message.toString()) as CommandPayload;
+            const command = typeof payload.command === "string" ? payload.command.trim().toLowerCase() : "";
+            if (!["restart_game_esp", "restart_game", "resign", "draw"].includes(command)) return;
+            const rawSide = payload.side ?? payload.resignSide;
+            const normalizedSide = typeof rawSide === "string" && ["white", "black"].includes(rawSide.trim().toLowerCase())
+                ? rawSide.trim().toLowerCase() as "white" | "black"
+                : undefined;
+            if (command === "resign" && !normalizedSide) {
+                console.warn(`[MQTT] Ignoring resign: payload must include side white or black for board ${boardID}`);
+                return;
+            }
+            if (!claimCommand(boardID, payload, command, normalizedSide)) {
+                console.warn(`[MQTT] Ignoring duplicate ${command} command for board ${boardID}`);
+                return;
+            }
 
             const gameID = await getOrRestoreCurrentGame(boardID);
             if (!gameID) {
-                console.warn(`[MQTT] Ignoring ${payload.command}: no active game for board ${boardID}`);
+                console.warn(`[MQTT] Ignoring ${command}: no active game for board ${boardID}`);
                 return;
             }
-            console.log(`[MQTT] ${payload.command} received for board ${boardID}, game ${gameID}`);
-            await GameActionService.restart(gameID);
+            console.log(`[MQTT] ${command} received for board ${boardID}, game ${gameID}`);
+            if (command === "restart_game_esp" || command === "restart_game") {
+                await GameActionService.restart(gameID);
+            } else {
+                const resignSide: ResignSide = command === "draw" ? "draw" : normalizedSide!;
+                const boardType = typeof payload.boardType === "string" && payload.boardType.toUpperCase() === BOARD_TYPE.HALL
+                    ? BOARD_TYPE.HALL
+                    : BOARD_TYPE.NFC;
+                const branchId = typeof payload.branchId === "string" && payload.branchId.trim()
+                    ? payload.branchId.trim()
+                    : null;
+                const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+                emitGameState(boardID);
+                getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
+            }
         } catch (e) {
-            console.log("[MQTT] Command parse or restart error: ", e);
+            console.log("[MQTT] Command parse or lifecycle error: ", e);
         }
         return;
     }

@@ -12,6 +12,16 @@ The root service also exposes a simple health endpoint.
 
 ## Route map
 
+### MQTT game commands
+
+The backend listens on `chess/<boardID>/command` for trusted physical-board lifecycle commands:
+
+- `{"command":"restart_game"}` or `{"command":"restart_game_esp"}` resets the active game without changing its game ID.
+- `{"command":"resign","side":"white"}` or `{"command":"resign","side":"black"}` records the corresponding resignation.
+- `{"command":"draw"}` records a draw.
+
+Resign and draw are processed atomically and create the next waiting game for the board. An optional `requestId` can be supplied by a device to make retries idempotent within the deduplication window.
+
 ### `/moves`
 
 #### `POST /moves`

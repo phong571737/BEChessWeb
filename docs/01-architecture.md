@@ -45,7 +45,7 @@ flowchart LR
 | Realtime backend | Socket.IO | Emits game and board events and scopes game-specific events through rooms. |
 | Game runtime | `chess.js` plus `src/js/game` maps | Applies accepted moves, tracks sequences and branches, maps boards to games, and restores sessions after restart. |
 | Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, optional engine analysis, and recycle-bin metadata. |
-| Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles ESP restart commands. |
+| Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles ESP restart, resignation, and draw commands. |
 | Browser engine | Stockfish WebAssembly worker | Optional live evaluation and administrator-requested review analysis; it never decides server game state. |
 
 ## Backend structure and startup
@@ -122,7 +122,7 @@ sequenceDiagram
     UI->>UI: patch Zustand state and clock display
 ```
 
-Board status and restart commands use MQTT topics (`chess/<boardID>/status` and `chess/<boardID>/command`), while physical move payloads are submitted through the move HTTP API. For NFC/device snapshots, the backend can load a board FEN with validation skipped, keep raw UCI/FEN traces, and build custom notation. This preserves the physical-board record even if the device sequence cannot be replayed as a fully legal `chess.js` game.
+Board status and lifecycle commands use MQTT topics (`chess/<boardID>/status` and `chess/<boardID>/command`), while physical move payloads are submitted through the move HTTP API. Command payloads can restart (`restart_game`/`restart_game_esp`), resign a side (`{"command":"resign","side":"white"|"black"}`), or agree a draw (`{"command":"draw"}`). Resign/draw uses the same atomic service as the web action and then publishes the next waiting game state. For NFC/device snapshots, the backend can load a board FEN with validation skipped, keep raw UCI/FEN traces, and build custom notation. This preserves the physical-board record even if the device sequence cannot be replayed as a fully legal `chess.js` game.
 
 ### Restart, resign, and recovery
 
