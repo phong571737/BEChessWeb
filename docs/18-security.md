@@ -70,7 +70,7 @@ The system follows the principle of **not exposing sensitive information to unau
 
 ### Administrator account and UI authorization
 
-Administrator credentials are not hard-coded in source control or documentation. The backend only bootstraps an administrator account when `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are supplied through environment variables or deployment secrets.
+Administrator credentials are not hard-coded in source control or documentation. The backend only bootstraps an administrator account when `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are supplied through environment variables or deployment secrets. The same mechanism can provision a non-administrator account through `USER_USERNAME`, `USER_EMAIL`, and `USER_PASSWORD`. Existing bootstrap accounts are synchronized so password rotation takes effect after restart; passwords remain bcrypt hashes in MongoDB.
 
 Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. The board UI uses this flag to show operational actions such as **Restart** and **Resign** only to administrators. The backend independently enforces this rule with `requireAdmin`, so a hidden UI button cannot be bypassed by calling the API directly.
 

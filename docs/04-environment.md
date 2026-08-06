@@ -28,12 +28,15 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 - `ADMIN_USERNAME` – optional bootstrap administrator username
 - `ADMIN_EMAIL` – optional bootstrap administrator email/login
 - `ADMIN_PASSWORD` – optional bootstrap administrator password
+- `USER_USERNAME` – optional bootstrap standard-user username
+- `USER_EMAIL` – optional bootstrap standard-user email/login
+- `USER_PASSWORD` – optional bootstrap standard-user password
 
 ### Default admin account
 
 On backend startup, the server can ensure one administrator account exists, but only when all three admin bootstrap variables are provided through local environment variables or deployment secrets. No administrator credential is hard-coded in source control or documentation.
 
-If a user with `ADMIN_EMAIL` already exists, the bootstrap keeps the existing password and only promotes that account to `role: "admin"` when needed.
+Bootstrap credentials are synchronized at server startup. If the configured email already exists, the username, role, and changed password hash are updated. This lets the developer rotate the private administrator password through deployment secrets. A standard-user email cannot reuse an administrator email.
 
 ### Secret handling rules
 
@@ -45,6 +48,9 @@ Example placeholders may be used when necessary, but they must not be valid proj
 ADMIN_USERNAME=<admin-username>
 ADMIN_EMAIL=<admin-email>
 ADMIN_PASSWORD=<admin-password>
+USER_USERNAME=<standard-user-username>
+USER_EMAIL=<standard-user-email>
+USER_PASSWORD=<standard-user-password>
 JWT_SECRET=<long-random-private-signing-secret>
 ```
 

@@ -34,6 +34,9 @@ export interface Env {
   ADMIN_USERNAME?: string;
   ADMIN_EMAIL?: string;
   ADMIN_PASSWORD?: string;
+  USER_USERNAME?: string;
+  USER_EMAIL?: string;
+  USER_PASSWORD?: string;
 }
 
 export const env: Env = {
@@ -53,4 +56,7 @@ export const env: Env = {
   ADMIN_USERNAME: optionalEnv("ADMIN_USERNAME"),
   ADMIN_EMAIL: optionalEnv("ADMIN_EMAIL"),
   ADMIN_PASSWORD: optionalEnv("ADMIN_PASSWORD"),
+  USER_USERNAME: optionalEnv("USER_USERNAME"),
+  USER_EMAIL: optionalEnv("USER_EMAIL"),
+  USER_PASSWORD: optionalEnv("USER_PASSWORD"),
 };

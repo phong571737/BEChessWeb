@@ -10,7 +10,7 @@ import { gameRouter } from "./routes/game.router.js";
 import { moveRouter } from "./routes/move.router.js";
 import authRouter from "./routes/auth.router.js";
 import { env } from "./config/environment.js";
-import { ensureDefaultAdmin } from "./models/user.model.js";
+import { ensureDefaultAdmin, ensureDefaultUser } from "./models/user.model.js";
 import { corsOptions } from "./config/cors.js";
 import { restoreActiveGamesFromDB } from "./game/game.manager.js";
 
@@ -41,6 +41,9 @@ async function StartServer() {
   if (restoredGames) console.log(`Restored ${restoredGames} active game session(s) from MongoDB`);
   if (env.ADMIN_USERNAME && env.ADMIN_EMAIL && env.ADMIN_PASSWORD) {
     await ensureDefaultAdmin(env.ADMIN_USERNAME, env.ADMIN_EMAIL, env.ADMIN_PASSWORD);
+  }
+  if (env.USER_USERNAME && env.USER_EMAIL && env.USER_PASSWORD) {
+    await ensureDefaultUser(env.USER_USERNAME, env.USER_EMAIL, env.USER_PASSWORD);
   }
   initSocket(server);
   // stockfishService.init();

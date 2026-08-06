@@ -38,12 +38,13 @@ export async function ensureDefaultAdmin(username: string, email: string, passwo
     const existingUser = await findUserByEmail(email);
 
     if (existingUser) {
-        if (existingUser.role !== "admin") {
-            await users().updateOne(
-                { email } as Filter<UserDoc>,
-                { $set: { role: "admin" } }
-            );
-        }
+        const passwordMatches = await validatePassword(password, existingUser.password);
+        const update: Partial<UserDoc> = { username, role: "admin" };
+        if (!passwordMatches) update.password = await bcrypt.hash(password, 10);
+        await users().updateOne(
+            { email } as Filter<UserDoc>,
+            { $set: update }
+        );
         return;
     }
 
@@ -53,6 +54,33 @@ export async function ensureDefaultAdmin(username: string, email: string, passwo
         email,
         password: hashedPassword,
         role: "admin",
+        createdAt: new Date(),
+    });
+}
+
+export async function ensureDefaultUser(username: string, email: string, password: string): Promise<void> {
+    const existingUser = await findUserByEmail(email);
+
+    if (existingUser) {
+        if (existingUser.role === "admin") {
+            throw new Error("DEFAULT_USER_EMAIL_CONFLICTS_WITH_ADMIN");
+        }
+        const passwordMatches = await validatePassword(password, existingUser.password);
+        const update: Partial<UserDoc> = { username, role: "user" };
+        if (!passwordMatches) update.password = await bcrypt.hash(password, 10);
+        await users().updateOne(
+            { email } as Filter<UserDoc>,
+            { $set: update }
+        );
+        return;
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+    await users().insertOne({
+        username,
+        email,
+        password: hashedPassword,
+        role: "user",
         createdAt: new Date(),
     });
 }
