@@ -74,6 +74,8 @@ Administrator credentials are not hard-coded in source control or documentation.
 
 Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. The board UI uses this flag to show operational actions such as **Restart** and **Resign** only to administrators. The backend independently enforces this rule with `requireAdmin`, so a hidden UI button cannot be bypassed by calling the API directly.
 
+History deletion is administrator-only at both layers. The frontend hides and disables moving records to trash, viewing/restoring trash, permanent deletion, and empty-trash actions for standard users. Every corresponding backend route also uses `requireAdmin`; a valid `user` JWT therefore receives HTTP `403` even if the endpoint is called manually.
+
 ### Data exposure rules
 
 The following information is considered sensitive and must not be exposed:

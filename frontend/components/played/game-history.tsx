@@ -99,16 +99,26 @@ export function GameHistory() {
       .finally(() => setLoading(false));
   }, [normalizeGame]);
 
+  useEffect(() => {
+    if (isAdmin) return;
+    setShowTrash(false);
+    setTrash([]);
+    setPendingTrashGame(null);
+    setPendingPermanentDeleteGame(null);
+    setPendingPermanentDeleteAll(false);
+  }, [isAdmin]);
+
   const loadTrash = useCallback(async () => {
-    if (!token) throw new Error(t("played.sessionExpired"));
+    if (!isAdmin || !token) throw new Error(t("played.sessionExpired"));
     const response = await fetch("/games/history/trash", { headers: { Authorization: `Bearer ${token}` } });
     if (!response.ok) throw new Error(t("played.trashLoadError"));
     const data = await response.json() as HistoryGame[];
     setTrash(data.map(normalizeGame));
     setTrashError(null);
-  }, [normalizeGame, t, token]);
+  }, [isAdmin, normalizeGame, t, token]);
 
   const toggleTrash = async () => {
+    if (!isAdmin) return;
     const next = !showTrash;
     setShowTrash(next);
     setTrashError(null);
@@ -120,7 +130,7 @@ export function GameHistory() {
   };
 
   const moveToTrash = async (id: string): Promise<boolean> => {
-    if (!token || busyId) return false;
+    if (!isAdmin || !token || busyId) return false;
     setBusyId(id);
     setTrashActionError(null);
     try {
@@ -151,7 +161,7 @@ export function GameHistory() {
   };
 
   const restoreFromTrash = async (id: string) => {
-    if (!token || busyId) return;
+    if (!isAdmin || !token || busyId) return;
     setBusyId(id);
     try {
       const response = await fetch(`/games/history/${encodeURIComponent(id)}/restore`, {
@@ -169,7 +179,7 @@ export function GameHistory() {
   };
 
   const permanentlyDeleteFromTrash = async (id: string): Promise<boolean> => {
-    if (!token || busyId) return false;
+    if (!isAdmin || !token || busyId) return false;
     setBusyId(id);
     setTrashActionError(null);
     try {
@@ -198,7 +208,7 @@ export function GameHistory() {
   };
 
   const permanentlyDeleteAllFromTrash = async (): Promise<boolean> => {
-    if (!token || busyId) return false;
+    if (!isAdmin || !token || busyId) return false;
     setBusyId("all-trash");
     setTrashActionError(null);
     try {
