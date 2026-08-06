@@ -47,9 +47,9 @@ The board page joins a `gameID` Socket.IO room so it can receive both the author
 
 ### 4. Administrator setup and clock start
 
-Only an authenticated administrator can open the physical-board setup dialog and submit player names, `initialTimeMs`, and `incrementMs`. The browser sends the JWT in an `Authorization: Bearer` header to `POST /games/:id/rename`; the backend rejects missing, invalid, or non-admin tokens.
+Any authenticated user can open the physical-board setup dialog and submit player names, `initialTimeMs`, `incrementMs`, round, and location. The browser sends the JWT in an `Authorization: Bearer` header to `POST /games/:id/rename`; the backend rejects missing or invalid tokens. Any authenticated user may also restart or resign the active game.
 
-Guests and non-admin users can open an existing board URL and watch its state, but do not see the physical-board section or the name/time setup dialog on the home page. The configured clock is visible but does not begin decreasing until the first valid move is accepted.
+Guests can open an existing board URL and watch its state, but do not see the physical-board section or the name/time setup dialog on the home page. Authenticated users can edit setup from the board page. The configured clock is visible but does not begin decreasing until the first valid move is accepted.
 
 ### 5. Move execution
 
@@ -69,7 +69,7 @@ When a game is ended or resigned, the backend updates the board state and emits 
 
 Both restart payloads are accepted only on `chess/<board-name>/command`: `restart_game_esp` identifies the ESP action and `restart_game` identifies the companion app action, but both call the same in-place service. `chess/<board-name>/status` is limited to `online` and `offline`.
 
-While this retained session is waiting after restart, an administrator can update its names, time control, increment, game number, and playing location. The protected rename endpoint validates the selected game number from 1 through 99 and the location length, then broadcasts the updated setup to connected board views.
+While this retained session is waiting after restart, any authenticated user can update its names, time control, increment, game number, and playing location. The protected rename endpoint validates the selected game number from 1 through 99 and the location length, then broadcasts the updated setup to connected board views.
 
 MQTT restart commands are resilient to backend reloads. If the in-memory board-to-game map is unavailable when `restart_game` or `restart_game_esp` arrives, the backend resolves the most recent non-finished game for that `boardID` from MongoDB, rebuilds the map, and performs the same in-place reset.
 

@@ -139,7 +139,7 @@ Move Review derives replay and statistics from saved traces. Stockfish analysis 
 
 ## Security and trust boundaries
 
-- The UI hiding a control is not authorization. Backend mutation endpoints use bearer JWT middleware, and administrator-only actions such as rename, time setup, resign, delete, restore, and analysis are checked server-side. Bootstrap `user` and `admin` accounts are optional environment-driven records; only the admin role passes mutation middleware.
+- The UI hiding a control is not authorization. Backend mutation endpoints use bearer JWT middleware. Restart, resign, and live game setup (names, clock, round, and location) require any authenticated role; administrator-only actions such as delete, restore, PGN mutation, and analysis additionally require the `admin` role. Bootstrap `user` and `admin` accounts are optional environment-driven records.
 - `JWT_SECRET`, MongoDB connection details, and any MQTT credentials are sensitive environment values and are not committed.
 - CORS permits only configured browser origins; ESP and other non-browser clients without an `Origin` header can submit their scoped device requests.
 - Rate-limit middleware protects read, mutation, and destructive game routes.

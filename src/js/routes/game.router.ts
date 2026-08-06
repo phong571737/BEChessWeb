@@ -5,7 +5,7 @@ import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { gameSeq } from "../game/game.repository.js";
-import { requireAdmin } from "../middleware/auth.middleware.js";
+import { requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
 
@@ -88,7 +88,7 @@ gameRouter.post("/:id/pgn", gameMutationRateLimit, requireAdmin, async (req, res
  * POST games/:id/restart
  * This api is used to post restart game
  */
-gameRouter.post("/:id/restart", gameMutationRateLimit, requireAdmin, GameActionController.restart);
+gameRouter.post("/:id/restart", gameMutationRateLimit, requireAuthenticated, GameActionController.restart);
 
 /**
  * POST games/:id/destroy
@@ -103,7 +103,7 @@ gameRouter.post("/:id/destroy", gameDestructiveRateLimit, requireAdmin, GameActi
  * Response 200: { status: OK, oldGameID, newGameID, loser, winner }
  * Response 400, 404, 500: { error};
  */
-gameRouter.post("/:id/resign", gameMutationRateLimit, requireAdmin, GameActionController.resign);
+gameRouter.post("/:id/resign", gameMutationRateLimit, requireAuthenticated, GameActionController.resign);
 
 /**
  * POST games/:id/reset
@@ -115,7 +115,7 @@ gameRouter.post("/:id/reset", gameMutationRateLimit, requireAdmin, GameActionCon
  * POST games/:id/rename
  * This api is used to post rename player
  */
-gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRateLimit, requireAdmin, GameActionController.rename);
+gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRateLimit, requireAuthenticated, GameActionController.rename);
 
 /**
  * POST games/:id/endgame

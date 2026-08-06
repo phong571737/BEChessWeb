@@ -154,13 +154,15 @@ Administrator-only. Updates PGN content and restores engine state from the updat
 
 Resets the existing game in place. The `gameID`, board association, player names, and persisted clock configuration are retained; FEN returns to the standard start position and PGN/moves/branches/results are cleared. The board returns to `checkinit` and must pass a fresh physical-board initialization check before play resumes. Connected clients receive a `game:reset` event with the retained clock configuration.
 
+Requires a valid bearer JWT from either the `user` or `admin` role.
+
 ### `POST /games/:id/destroy`
 
 Administrator-only. Removes a game from memory and DB.
 
 ### `POST /games/:id/resign`
 
-Administrator-only. Ends the game with a result tag and creates a new game for the same board.
+Ends the game with a result tag and creates a new game for the same board. Requires a valid bearer JWT from either the `user` or `admin` role.
 
 ### `POST /games/:id/reset`
 
@@ -168,7 +170,7 @@ Administrator-only alias for the same in-place restart service.
 
 ### `POST /games/:id/rename`
 
-Updates player names and emits the update to the socket room. This route requires an `Authorization: Bearer <admin JWT>` header.
+Updates player names and emits the update to the socket room. This route requires an `Authorization: Bearer <user-or-admin JWT>` header, so both authenticated roles may edit player names, time control, increment, round, and location.
 
 Request body:
 
@@ -177,7 +179,7 @@ Request body:
 - optional `initialTimeMs`: initial clock time per side in milliseconds; greater than zero and no more than 24 hours
 - optional `incrementMs`: increment per move in milliseconds; between zero and one hour
 
-If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. When the base time changes during an active game, connected clients preserve each side's elapsed time by applying the difference between the old and new base time; for example, a 10-minute clock with 4 minutes elapsed becomes 26 minutes when changed to 30 minutes. Missing/invalid credentials receive `401`; non-admin credentials receive `403`.
+If clock fields are provided, they are persisted to the game document and included in the `game:renamed` room event. When the base time changes during an active game, connected clients preserve each side's elapsed time by applying the difference between the old and new base time; for example, a 10-minute clock with 4 minutes elapsed becomes 26 minutes when changed to 30 minutes. Missing/invalid credentials receive `401`.
 
 `GET /games/history` enriches incomplete legacy snapshots from the matching live game document by `gameID`. This restores available names, PGN, UCI/FEN move history, and clock metadata without rewriting completed history. A record that retains only a move count has no move sequence and cannot be converted into an exact PGN.
 

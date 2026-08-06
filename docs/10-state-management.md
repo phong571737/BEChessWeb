@@ -76,7 +76,7 @@ It provides:
 
 The token is stored in localStorage and automatically restored on page load.
 
-Administrator-only mutations also send this JWT in the `Authorization: Bearer <token>` header. The backend verifies the token and its `admin` role; hiding a control in the browser is therefore not the only access control.
+Authenticated game actions send this JWT in the `Authorization: Bearer <token>` header. Restart and resign accept both `user` and `admin` roles; setup, analysis, and history management still require the `admin` role. Hiding a control in the browser is therefore not the only access control.
 
 History recycle-bin state is never retained for a non-admin session. If authentication changes from admin to user or anonymous, the history component closes the bin, clears loaded trashed records, and cancels pending destructive dialogs. The corresponding backend routes independently reject a standard-user token with HTTP `403`.
 

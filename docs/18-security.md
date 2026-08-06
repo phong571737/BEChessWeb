@@ -2,7 +2,7 @@
 
 ## Security posture
 
-This repository uses JWT-based administrator authorization for state-changing game operations. Public visitors may view board state, but cannot control games.
+This repository uses JWT authentication for state-changing game actions and role-based authorization for administrator operations. Public visitors may view board state, but cannot control games. Authenticated `user` and `admin` accounts may restart, resign, and change live game setup; only `admin` may analyze or manage history/trash.
 
 The main concerns are therefore:
 
@@ -65,7 +65,7 @@ The system follows the principle of **not exposing sensitive information to unau
 
 Administrator credentials are not hard-coded in source control or documentation. The backend only bootstraps an administrator account when `ADMIN_USERNAME`, `ADMIN_EMAIL`, and `ADMIN_PASSWORD` are supplied through environment variables or deployment secrets. The same mechanism can provision a non-administrator account through `USER_USERNAME`, `USER_EMAIL`, and `USER_PASSWORD`. Existing bootstrap accounts are synchronized so password rotation takes effect after restart; passwords remain bcrypt hashes in MongoDB.
 
-Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. Some operational controls are visible after sign-in, and administrator-only areas such as Dashboard setup and History deletion additionally use `isAdmin`. The backend independently enforces every persistent game mutation with `requireAdmin`, so UI visibility cannot grant a standard user permission.
+Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. Some operational controls are visible after sign-in, and administrator-only areas such as Dashboard and History deletion additionally use `isAdmin`. The backend independently enforces authenticated game actions and administrator-only mutations, so UI visibility cannot grant a permission.
 
 History deletion is administrator-only at both layers. The frontend hides and disables moving records to trash, viewing/restoring trash, permanent deletion, and empty-trash actions for standard users. Every corresponding backend route also uses `requireAdmin`; a valid `user` JWT therefore receives HTTP `403` even if the endpoint is called manually.
 
@@ -91,8 +91,8 @@ The following information is considered sensitive and must not be exposed:
 
 - Passwords are hashed with bcrypt (10 salt rounds)
 - JWT tokens are signed and verified
-- `DELETE /games/history/:id` and all game mutation routes (`pgn`, `restart`, `destroy`, `resign`, `reset`, `rename`, `endgame`, and `update`) require an administrator Bearer token
-- Socket.IO connections remain public for live board viewing, while `restart` and `resign` events require an administrator JWT supplied during the Socket.IO handshake
+- `restart`, `resign`, and `rename` require a valid authenticated Bearer token; administrator-only routes (`pgn`, `destroy`, `reset`, `endgame`, `update`, and history deletion) additionally require an administrator role
+- Socket.IO connections remain public for live board viewing, while `restart` and `resign` events require any valid authenticated JWT supplied during the Socket.IO handshake
 - User lookup by email/username for authentication
 - No password plaintext storage
 

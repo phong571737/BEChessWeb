@@ -53,7 +53,7 @@ The restart and resign controls in [frontend/components/board/game-actions.tsx](
 - The confirmation dialog has a semantic icon surface, a bordered header/footer, and a loading state that prevents duplicate submissions or accidental dismissal.
 - Branch and resignation-side choices use selected borders, tinted backgrounds, a check indicator, and a short press-scale transition. White, black, and draw resignation choices use light, dark, and amber selected colors respectively.
 
-These controls are shown to signed-in users; the backend remains responsible for accepting state-changing requests only from administrators. History recycle-bin controls use the stricter `isAdmin` frontend check as well as backend authorization.
+These controls are shown to signed-in users; the backend accepts restart and resign from either authenticated role. Setup and History recycle-bin controls use the stricter `isAdmin` frontend check as well as backend authorization.
 
 ## Interaction tone
 

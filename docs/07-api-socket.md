@@ -38,13 +38,13 @@ This room-based structure gives the system three important properties:
 | `board_connected` | Server → Room | Marks a board or client session as connected |
 | `update_all_game` | Server → Room | Forces clients to invalidate caches and refresh the game view |
 | `game:reset` | Server → Room | Resets the current game in place while retaining its `gameID` |
-| `game:renamed` | Server → Room | Propagates administrator-authorized player-name and clock-configuration changes |
+| `game:renamed` | Server → Room | Propagates authenticated player-name and clock-configuration changes |
 | `game_status_update` | Server → All clients | Updates home/physical-board lifecycle state |
 | `board_scan_ok` | Server → All clients | Adds or remaps a physical board after creation or a terminal MQTT command |
 | `board_offline` | Server → All clients | Removes an unavailable physical board from live UI |
 | `game:destroyed` | Server → All clients | Invalidates pages for games removed by delayed board cleanup |
 | `game_state` | Server → All clients | Publishes the latest physical-board readiness state |
-| `action_error` | Server → Requesting client | Rejects protected socket actions without an admin JWT |
+| `action_error` | Server → Requesting client | Rejects restart/resign socket actions without a valid user JWT |
 
 ## Event details
 
@@ -104,11 +104,11 @@ This room-scoped event carries `gameID`, `boardID`, the standard starting `fen`,
 
 ### `game:renamed`
 
-This event is emitted only after the administrator-protected rename endpoint has persisted the update. Its payload may include `WhiteName`, `BlackName`, `initialTimeMs`, and `incrementMs`, allowing connected board pages to refresh displayed names and clock configuration without a manual reload.
+This event is emitted only after the authenticated rename endpoint has persisted the update. Its payload may include `WhiteName`, `BlackName`, `initialTimeMs`, and `incrementMs`, allowing connected board pages to refresh displayed names and clock configuration without a manual reload.
 
 ### Protected socket compatibility actions
 
-The server still accepts `restart` and `resign` socket events for compatibility, but requires a JWT with role `admin` in the Socket.IO handshake. Current web controls use administrator-protected REST endpoints for the actual persistent mutation. MQTT lifecycle commands use the corresponding backend services and then emit the same browser-facing lifecycle events.
+The server still accepts `restart` and `resign` socket events for compatibility, but requires any valid user JWT in the Socket.IO handshake. Current web controls use authenticated REST endpoints for the actual persistent mutation. MQTT lifecycle commands use the corresponding backend services and then emit the same browser-facing lifecycle events.
 
 ## Frontend consumers
 

@@ -56,11 +56,11 @@ A durable collection of active snapshots and finished game records used by the `
 
 ### Standard user
 
-An authenticated account with role `user`. It can use authenticated presentation features but cannot pass administrator middleware for persistent game mutations or History recycle-bin actions.
+An authenticated account with role `user`. It may restart, resign, and edit live game setup, but cannot pass administrator middleware for PGN analysis or History recycle-bin actions.
 
 ### Administrator
 
-An authenticated account with role `admin`. The backend accepts its bearer JWT for protected game, setup, analysis, and history-management routes.
+An authenticated account with role `admin`. The backend accepts its bearer JWT for administrator-only analysis and history-management routes; it also has the shared authenticated setup, restart, and resign permissions.
 
 ### Request ID
 

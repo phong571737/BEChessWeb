@@ -16,21 +16,21 @@ interface SocketAuthPayload extends jwt.JwtPayload {
     role?: string;
 }
 
-function requireAdminSocket(socket: Socket): boolean {
+function requireAuthenticatedSocket(socket: Socket): boolean {
     const token = typeof socket.handshake.auth?.token === "string" ? socket.handshake.auth.token : null;
     if (!token) {
-        socket.emit("action_error", { error: "Administrator authentication required" });
+        socket.emit("action_error", { error: "Authentication required" });
         return false;
     }
 
     try {
         const payload = jwt.verify(token, env.JWT_SECRET) as SocketAuthPayload;
-        if (payload.role === "admin") return true;
+        if (typeof payload.role === "string" && payload.role.length > 0) return true;
     } catch {
         // Treat malformed and expired tokens identically.
     }
 
-    socket.emit("action_error", { error: "Administrator authentication required" });
+    socket.emit("action_error", { error: "Invalid or expired authentication token" });
     return false;
 }
 
@@ -64,7 +64,7 @@ export function initGameSocket(io: Server): void {
         });
 
         socket.on("resign", async ({gameID, resignSide}: ResignPayload) => {
-            if (!requireAdminSocket(socket)) return;
+            if (!requireAuthenticatedSocket(socket)) return;
             const current = gameStatus.get(gameID) ?? { status: "ongoing" as const, winner: null };
 
             // anti double click
@@ -87,7 +87,7 @@ export function initGameSocket(io: Server): void {
 
         // Receiv restart from client and emit update board
         socket.on("restart", ({gameID}) => {
-            if (!requireAdminSocket(socket)) return;
+            if (!requireAuthenticatedSocket(socket)) return;
             if (!gameID) return;
 
             io.to(gameID).emit("update_all_game", {
