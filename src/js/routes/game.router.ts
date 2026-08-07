@@ -9,6 +9,8 @@ import { requireAdmin, requireAuthenticated } from "../middleware/auth.middlewar
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
 import { recoverFenHistory } from "../services/fen-recovery.client.js";
+import { customPGN } from "../utils/custom.chess.js";
+import { inferMoveFromFen } from "../utils/chess.utils.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -43,8 +45,27 @@ gameRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
             typeof req.body?.startFen === "string" ? req.body.startFen : undefined,
             typeof req.body?.headers === "object" && req.body.headers !== null ? req.body.headers : {},
         );
-        if (!result) return res.status(503).json({ error: "FEN recovery service unavailable" });
-        return res.json(result);
+        if (result) return res.json(result);
+
+        // Keep Paste usable when the optional sidecar is not running (for
+        // example during local development). This uses the same unchecked
+        // renderer as game history and preserves unresolved plies as `x`.
+        const startFen = new Chess().fen();
+        let previousFen = startFen;
+        const failedPlies: number[] = [];
+        const moves = fenHistory.map((fen: string, index: number) => {
+            const inferred = inferMoveFromFen(previousFen, fen);
+            previousFen = fen;
+            if (!inferred) failedPlies.push(index + 1);
+            return inferred ?? { from: "a1", to: "a1" };
+        });
+        const fallback = customPGN(moves, startFen, {}, fenHistory).pgn;
+        return res.json({
+            pgn: fallback,
+            fullyRecovered: failedPlies.length === 0,
+            failedPlies,
+            longestRecoveredPly: failedPlies.length ? Math.max(0, failedPlies[0]! - 1) : fenHistory.length,
+        });
     } catch (error) {
         sendInternalError(res, "POST /games/recover", error);
     }
