@@ -112,7 +112,7 @@ When a limit is exceeded, the API returns `429 Too Many Requests` with a `Retry-
 
 ### CORS
 
-The backend accepts cross-origin browser requests only from the comma-separated allowlist in `CORS_ORIGINS` and the optional legacy `VERCEL_WEB` origin. It permits the API methods used by the app and the `Authorization` header. ESP32 and other non-browser clients without an `Origin` header remain supported. Bearer-token authentication does not use cross-origin cookies, so CORS credentials are disabled.
+The backend accepts cross-origin browser requests only from the comma-separated allowlist in `CORS_ORIGINS` and the optional legacy `VERCEL_WEB` origin. In non-production development, localhost ports 3000 and 3001 (including 127.0.0.1) are also allowed so the local Next.js app can call the API without duplicating temporary origins in `.env`. Production still requires the explicit allowlist. It permits the API methods used by the app and the `Authorization` header. ESP32 and other non-browser clients without an `Origin` header remain supported. Bearer-token authentication does not use cross-origin cookies, so CORS credentials are disabled.
 
 ### Idempotent resignation
 

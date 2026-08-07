@@ -3,7 +3,7 @@ export const en = {
     "nav.home": "Home",
     "nav.played": "Played",
     "nav.device": "Device",
-    "nav.import": "Paste",
+    "nav.import": "Import Game",
     "nav.guide": "Guide",
     "nav.dashboard": "Dashboard",
 
@@ -224,6 +224,11 @@ export const en = {
     "pg.recoveryComplete": "FEN timeline recovered completely",
     "pg.recoveryPartial": "FEN timeline recovered with {count} unresolved position(s)",
     "pg.recoveryError": "Unable to recover this FEN timeline.",
+    "pg.fenInput": "FEN timeline",
+    "pg.fenDescription": "Enter one FEN position per line. This box uses the recovery service only.",
+    "pg.fenPlaceholder": "1. rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+    "pg.recoverFen": "Recover FEN to PGN",
+    "pg.recoveryUnavailable": "Recovery service is unavailable. Start recover_service and try again.",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Pawn",

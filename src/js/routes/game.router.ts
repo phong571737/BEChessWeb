@@ -46,6 +46,9 @@ gameRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
             typeof req.body?.headers === "object" && req.body.headers !== null ? req.body.headers : {},
         );
         if (result) return res.json(result);
+        if (req.body?.strict === true) {
+            return res.status(503).json({ error: "FEN recovery service unavailable" });
+        }
 
         // Keep Paste usable when the optional sidecar is not running (for
         // example during local development). This uses the same unchecked
@@ -59,7 +62,17 @@ gameRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
             if (!inferred) failedPlies.push(index + 1);
             return inferred ?? { from: "a1", to: "a1" };
         });
-        const fallback = customPGN(moves, startFen, {}, fenHistory).pgn;
+        let fallback: string;
+        try {
+            fallback = customPGN(moves, startFen, {}, fenHistory).pgn;
+        } catch (error) {
+            console.warn("FEN fallback renderer failed; returning unresolved PGN", error instanceof Error ? error.message : error);
+            const moveText = fenHistory.map((_: string, index: number) => {
+                const moveNumber = Math.floor(index / 2) + 1;
+                return `${index % 2 === 0 ? `${moveNumber}.` : "..."} x`;
+            }).join(" ");
+            fallback = `[Event "?"]\n[Site "?"]\n[Date "????.??.??"]\n[Round "1"]\n[White "?"]\n[Black "?"]\n[Result "*"]\n\n${moveText} *`;
+        }
         return res.json({
             pgn: fallback,
             fullyRecovered: failedPlies.length === 0,

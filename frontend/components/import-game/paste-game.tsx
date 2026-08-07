@@ -67,6 +67,7 @@ function pgnMoves(pgn: string): string[] {
 export function PasteGame() {
     const { t } = useT();
     const [rawInput, setRawInput] = useState("");
+    const [fenInput, setFenInput] = useState("");
     const [result, setResult] = useState<ParseUciResult | null>(null);
     const [selectedBranch, setSelectedBranch] = useState(0);
     const [copiedBranch, setCopiedBranch] = useState<number | null>(null);
@@ -74,6 +75,8 @@ export function PasteGame() {
     const [isFocused, setIsFocused] = useState(false);
     const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
     const [parseError, setParseError] = useState<string | null>(null);
+    const [fenError, setFenError] = useState<string | null>(null);
+    const [isFenRecovering, setIsFenRecovering] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -98,11 +101,13 @@ export function PasteGame() {
 
     function handleClear() {
         setRawInput("");
+        setFenInput("");
         setResult(null);
         setSelectedBranch(0);
         setCopiedBranch(null);
         setSelectedPreset(null);
         setParseError(null);
+        setFenError(null);
         textareaRef.current?.focus();
     }
 
@@ -132,13 +137,8 @@ export function PasteGame() {
         setIsParsing(true);
         setParseError(null);
         try {
-            const fenHistory = extractFenHistory(rawInput);
-            if (fenHistory) {
-                await handleFenParse(fenHistory);
-            } else {
-                await new Promise<void>((resolve) => schedule(() => resolve(), 150));
-                setResult({ ...parseUciBranches(rawInput), mode: "uci" });
-            }
+            await new Promise<void>((resolve) => schedule(() => resolve(), 150));
+            setResult({ ...parseUciBranches(rawInput), mode: "uci" });
             setSelectedBranch(0);
             setCopiedBranch(null);
         } catch (error) {
@@ -146,6 +146,40 @@ export function PasteGame() {
             setParseError(error instanceof Error && error.message === "unavailable" ? "unavailable" : "failed");
         } finally {
             setIsParsing(false);
+        }
+    }
+
+    async function handleStrictFenRecovery() {
+        if (!fenInput.trim()) return;
+        setIsFenRecovering(true);
+        setFenError(null);
+        try {
+            const fenHistory = extractFenHistory(fenInput);
+            if (!fenHistory) throw new Error("invalid");
+            const response = await fetch("/games/recover", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ fenHistory, strict: true }),
+            });
+            if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
+            const data = await response.json() as { pgn?: string; fullyRecovered?: boolean; failedPlies?: number[]; longestRecoveredPly?: number };
+            if (!data.pgn) throw new Error("failed");
+            const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
+            const branch: BranchResult = {
+                pgn: data.pgn,
+                sanHistory: pgnMoves(data.pgn),
+                skipped: failedPlies.map((ply) => ({ token: "X", ply })),
+                appliedCount: Math.max(0, fenHistory.length - failedPlies.length),
+                totalTokens: fenHistory.length,
+                underpromotions: 0,
+            };
+            setResult({ branches: [branch], mode: "fen", fullyRecovered: data.fullyRecovered === true, failedPlies, longestRecoveredPly: data.longestRecoveredPly });
+            setSelectedBranch(0);
+            setCopiedBranch(null);
+        } catch (error) {
+            setFenError(error instanceof Error && error.message === "unavailable" ? "unavailable" : "failed");
+        } finally {
+            setIsFenRecovering(false);
         }
     }
 
@@ -354,6 +388,49 @@ export function PasteGame() {
                                         {t("pg.recoveryError")}
                                     </p>
                                 )}
+                            </div>
+                        </div>
+
+                        {/* Dedicated FEN recovery panel */}
+                        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                                <div className="flex min-w-0 items-center gap-2.5">
+                                    <div className="flex size-8 items-center justify-center rounded-md bg-accent text-accent-foreground">
+                                        <FileSearch className="size-3.5" />
+                                    </div>
+                                    <div className="min-w-0">
+                                        <span className="block truncate font-semibold text-sm">{t("pg.fenInput")}</span>
+                                        <span className="block truncate text-[11px] text-muted-foreground">{t("pg.fenDescription")}</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <textarea
+                                value={fenInput}
+                                onChange={(event) => { setFenInput(event.target.value); setFenError(null); }}
+                                aria-label={t("pg.fenInput")}
+                                autoCorrect="off"
+                                spellCheck={false}
+                                className="min-h-[150px] w-full resize-y bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[180px] sm:p-4 sm:text-sm"
+                                placeholder={t("pg.fenPlaceholder")}
+                            />
+                            <div className="border-t border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                    {fenError && (
+                                        <p role="alert" className="flex items-center gap-1.5 text-xs text-destructive">
+                                            <AlertCircle className="size-3.5 shrink-0" />
+                                            {fenError === "unavailable" ? t("pg.recoveryUnavailable") : t("pg.recoveryError")}
+                                        </p>
+                                    )}
+                                    <button
+                                        type="button"
+                                        disabled={!fenInput.trim() || isFenRecovering}
+                                        onClick={handleStrictFenRecovery}
+                                        className="flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary-hover disabled:cursor-not-allowed disabled:opacity-40 sm:ml-auto sm:w-auto"
+                                    >
+                                        <FileOutput className={cn("size-4", isFenRecovering && "animate-pulse")} />
+                                        <span>{t("pg.recoverFen")}</span>
+                                    </button>
+                                </div>
                             </div>
                         </div>
 

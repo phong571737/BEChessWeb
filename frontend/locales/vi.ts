@@ -5,7 +5,7 @@ export const vi: Record<TranslationKeys, string> = {
     "nav.home": "Trang chủ",
     "nav.played": "Lịch sử",
     "nav.device": "Thiết bị",
-    "nav.import": "Dán",
+    "nav.import": "Nhập ván cờ",
     "nav.guide": "Hướng dẫn",
     "nav.dashboard": "Bảng điều khiển",
 
@@ -345,6 +345,11 @@ export const vi: Record<TranslationKeys, string> = {
     "pg.recoveryComplete": "Đã khôi phục đầy đủ chuỗi FEN",
     "pg.recoveryPartial": "Chuỗi FEN còn {count} vị trí chưa xác định",
     "pg.recoveryError": "Không thể khôi phục chuỗi FEN này.",
+    "pg.fenInput": "Chuỗi FEN",
+    "pg.fenDescription": "Nhập mỗi vị trí FEN trên một dòng. Khung này chỉ dùng dịch vụ khôi phục.",
+    "pg.fenPlaceholder": "1. rnbqkbnr/pppppppp/8/8/P7/8/1PPPPPPP/RNBQKBNR b KQkq - 0 1",
+    "pg.recoverFen": "Khôi phục FEN thành PGN",
+    "pg.recoveryUnavailable": "Dịch vụ khôi phục chưa chạy. Hãy khởi động recover_service rồi thử lại.",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Tốt",

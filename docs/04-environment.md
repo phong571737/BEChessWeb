@@ -19,7 +19,7 @@ The environment contract is declared in [src/js/config/environment.ts](../src/js
 
 - `AUTHOR` – server attribution metadata
 - `PORT` – HTTP server port; defaults to `80`
-- `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO
+- `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO; local development also allows localhost:3000/3001 automatically
 - `VERCEL_WEB` – additional allowed frontend origin retained for compatible deployments
 - `SERVER_NAME` – server identity label
 - `MQTT_USER` – broker username when authentication is enabled
