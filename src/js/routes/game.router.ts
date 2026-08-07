@@ -8,6 +8,7 @@ import { gameSeq } from "../game/game.repository.js";
 import { requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
+import { recoverFenHistory } from "../services/fen-recovery.client.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -27,6 +28,27 @@ gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
  * This api is used to get game played
 */
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
+
+/** Convert a public FEN timeline into a PGN through the recovery sidecar. */
+gameRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
+    try {
+        const fenHistory = Array.isArray(req.body?.fenHistory)
+            ? req.body.fenHistory.filter((value: unknown): value is string => typeof value === "string" && value.trim().length > 0)
+            : [];
+        if (fenHistory.length === 0 || fenHistory.length > 500) {
+            return res.status(400).json({ error: "fenHistory must contain between 1 and 500 positions" });
+        }
+        const result = await recoverFenHistory(
+            fenHistory,
+            typeof req.body?.startFen === "string" ? req.body.startFen : undefined,
+            typeof req.body?.headers === "object" && req.body.headers !== null ? req.body.headers : {},
+        );
+        if (!result) return res.status(503).json({ error: "FEN recovery service unavailable" });
+        return res.json(result);
+    } catch (error) {
+        sendInternalError(res, "POST /games/recover", error);
+    }
+});
 gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAdmin, GameController.saveHistoryAnalysis);
 
 /** Administrator-only recycle bin for recoverable history deletion. */

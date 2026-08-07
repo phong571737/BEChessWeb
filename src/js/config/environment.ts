@@ -37,6 +37,8 @@ export interface Env {
   USER_USERNAME?: string;
   USER_EMAIL?: string;
   USER_PASSWORD?: string;
+  /** Internal URL of the optional Python FEN recovery sidecar. */
+  RECOVER_SERVICE_URL?: string;
 }
 
 export const env: Env = {
@@ -59,4 +61,5 @@ export const env: Env = {
   USER_USERNAME: optionalEnv("USER_USERNAME"),
   USER_EMAIL: optionalEnv("USER_EMAIL"),
   USER_PASSWORD: optionalEnv("USER_PASSWORD"),
+  RECOVER_SERVICE_URL: optionalEnv("RECOVER_SERVICE_URL"),
 };

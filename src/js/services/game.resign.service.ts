@@ -8,6 +8,7 @@ import { GameDoc, ResignSide } from "../types/game.types.js";
 import { customPGN } from "../utils/custom.chess.js";
 import { inferMoveFromFen } from "../utils/chess.utils.js";
 import { MoveLike } from "../types/chess.types.js";
+import { recoverFenHistoryToPgn } from "./fen-recovery.client.js";
 
 interface ResignResult {
     status: "OK";
@@ -25,8 +26,19 @@ function buildResultTag(resignSide: ResignSide) {
     return resultTag;
 }
 
-function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[], resultTag: string): string {
+async function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[], resultTag: string): Promise<string> {
     const startFen = typeof game.initialFen === "string" ? game.initialFen : undefined;
+    const headers = {
+        White: game.WhiteName || "White",
+        Black: game.BlackName || "Black",
+        Result: resultTag,
+        Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
+        ...(startFen && startFen !== new Chess().fen() ? { SetUp: "1", FEN: startFen } : {}),
+    };
+
+    const recoveredPgn = await recoverFenHistoryToPgn(fenHistory, startFen, headers);
+    if (recoveredPgn) return recoveredPgn;
+
     const moves: MoveLike[] = [];
     let previousFen = startFen || new Chess().fen();
     const total = Math.max(uciHistory.length, fenHistory.length);
@@ -48,12 +60,7 @@ function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[]
         if (fenHistory[index]) previousFen = fenHistory[index]!;
     }
 
-    return customPGN(moves, startFen, {
-        White: game.WhiteName || "White",
-        Black: game.BlackName || "Black",
-        Result: resultTag,
-        Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
-    }, fenHistory).pgn;
+    return customPGN(moves, startFen, headers, fenHistory).pgn;
 }
 
 export const GameResignService = {
@@ -91,7 +98,7 @@ export const GameResignService = {
         }
 
         const resultTag = buildResultTag(resignSide);
-        const finalPGN = buildFinalPGN(game, uciHistory, fenHistory, resultTag);
+        const finalPGN = await buildFinalPGN(game, uciHistory, fenHistory, resultTag);
         const currentRound = game.round ?? 1;
         const nextRound = currentRound + 1;
 

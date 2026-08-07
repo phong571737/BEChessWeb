@@ -195,11 +195,11 @@ export const en = {
     "played.sortBy": "Sort by",
 
     // --------------- Import games ------------------------------------
-    "pg.pasteUCI": "Paste the moves text here",
-    "pg.description": "Enter or paste a game's move sequence to generate a valid PGN.",
+    "pg.pasteUCI": "Paste UCI or FEN here",
+    "pg.description": "Enter UCI moves or a FEN timeline to generate a valid PGN.",
     "pg.notation": "Some move sequences may result in multiple PGN variations. You can select the desired variation.",
     "pg.pasteHint": "Paste UCI move tokens and generate a clean PGN output.",
-    "pg.pastePlaceholder": "e2e4 e7e5 g1f3",
+    "pg.pastePlaceholder": "UCI: e2e4 e7e5 g1f3  |  FEN: one position per line",
     "pg.clear": "Delete",
     "pg.generatePgn": "Generate PGN",
     "pg.input": "Input",
@@ -213,7 +213,7 @@ export const en = {
     "pg.pgnPreview": "PGN output",
     "pg.noPreview": "Paste moves to see PGN here.",
     "pg.listbranch": "List of PGN",
-    "pg.converter": "UCI → PGN Converter",
+    "pg.converter": "UCI / FEN → PGN Converter",
     "pg.quickPresets": "Quick presets",
     "pg.paste": "Paste",
     "pg.shortcutGenerate": "to generate PGN",
@@ -221,6 +221,9 @@ export const en = {
     "pg.moves": "Moves",
     "pg.skipped": "Skipped",
     "pg.downloadPgn": "Download PGN file",
+    "pg.recoveryComplete": "FEN timeline recovered completely",
+    "pg.recoveryPartial": "FEN timeline recovered with {count} unresolved position(s)",
+    "pg.recoveryError": "Unable to recover this FEN timeline.",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Pawn",

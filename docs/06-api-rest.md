@@ -11,6 +11,15 @@ The backend exposes a small HTTP surface mounted from [src/js/server.ts](../src/
 
 The root service also exposes a simple health endpoint.
 
+### `POST /games/recover`
+
+Converts a public FEN timeline into a PGN by forwarding it to the internal
+`recover-service` sidecar. The endpoint is rate-limited and does not require
+login because it powers the Paste page. The request contains `fenHistory`
+(one FEN per position), with optional `startFen` and PGN headers. The response
+contains `pgn`, `fullyRecovered`, `failedPlies`, and `longestRecoveredPly`.
+Invalid input returns `400`; an unavailable sidecar returns `503`.
+
 ## Route map
 
 ### MQTT game commands

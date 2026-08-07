@@ -47,6 +47,7 @@ flowchart LR
 | Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, optional engine analysis, and recycle-bin metadata. |
 | Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles equivalent ESP/app restart commands plus resignation and draw commands. |
 | Browser engine | Stockfish WebAssembly worker | Optional live evaluation and administrator-requested review analysis; it never decides server game state. |
+| Recovery sidecar | FastAPI + `python-chess` container | Reconstructs PGN from ordered FEN snapshots during game finalization; backend falls back to the TypeScript renderer if unavailable. |
 
 ## Backend structure and startup
 

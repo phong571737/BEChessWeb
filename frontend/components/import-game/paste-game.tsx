@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo, useRef, useEffect } from "react";
+import { Chess } from "chess.js";
 import { useT } from "@/lib/i18n";
 import {
     FileInput,
@@ -20,7 +21,7 @@ import {
     Swords,
     ListOrdered,
 } from "lucide-react";
-import { parseUciBranches, ParseUciResult } from "./parse-uci";
+import { parseUciBranches, BranchResult, ParseUciResult } from "./parse-uci";
 import { cn } from "@/lib/utils";
 
 // Sample UCI move presets for quick testing
@@ -45,6 +46,24 @@ const SAMPLES = [
     },
 ];
 
+function extractFenHistory(input: string): string[] | null {
+    const lines = input.split(/\r?\n|;\s*/).map((line) => line.trim()).filter(Boolean);
+    if (lines.length === 0) return null;
+    const fens = lines.map((line) => line.replace(/^\d+\.(\.\.\.)?\s+/, "").trim());
+    if (!fens.every((fen) => fen.split(/\s+/).length === 6)) return null;
+    try {
+        fens.forEach((fen) => new Chess(fen, { skipValidation: true }));
+        return fens;
+    } catch {
+        return null;
+    }
+}
+
+function pgnMoves(pgn: string): string[] {
+    return pgn.split(/\r?\n/).filter((line) => !line.trim().startsWith("[")).join(" ")
+        .replace(/\{[^}]*\}/g, "").split(/\s+/).filter((token) => token && !/^\d+\.{1,3}$/.test(token));
+}
+
 export function PasteGame() {
     const { t } = useT();
     const [rawInput, setRawInput] = useState("");
@@ -54,6 +73,7 @@ export function PasteGame() {
     const [isParsing, setIsParsing] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
     const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
+    const [parseError, setParseError] = useState<string | null>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -82,29 +102,61 @@ export function PasteGame() {
         setSelectedBranch(0);
         setCopiedBranch(null);
         setSelectedPreset(null);
+        setParseError(null);
         textareaRef.current?.focus();
     }
 
-    function handleParse() {
+    async function handleFenParse(fenHistory: string[]) {
+        const response = await fetch("/games/recover", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ fenHistory }),
+        });
+        if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
+        const data = await response.json() as { pgn?: string; fullyRecovered?: boolean; failedPlies?: number[]; longestRecoveredPly?: number };
+        if (!data.pgn) throw new Error("empty");
+        const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
+        const branch: BranchResult = {
+            pgn: data.pgn,
+            sanHistory: pgnMoves(data.pgn),
+            skipped: failedPlies.map((ply) => ({ token: "X", ply })),
+            appliedCount: Math.max(0, fenHistory.length - failedPlies.length),
+            totalTokens: fenHistory.length,
+            underpromotions: 0,
+        };
+        setResult({ branches: [branch], mode: "fen", fullyRecovered: data.fullyRecovered === true, failedPlies, longestRecoveredPly: data.longestRecoveredPly });
+    }
+
+    async function handleParse() {
         if (!rawInput.trim()) return;
         setIsParsing(true);
-        schedule(() => {
-            const parsed = parseUciBranches(rawInput);
+        setParseError(null);
+        try {
+            const fenHistory = extractFenHistory(rawInput);
+            if (fenHistory) {
+                await handleFenParse(fenHistory);
+            } else {
+                await new Promise<void>((resolve) => schedule(() => resolve(), 150));
+                setResult({ ...parseUciBranches(rawInput), mode: "uci" });
+            }
             setSelectedBranch(0);
-            setResult(parsed);
             setCopiedBranch(null);
+        } catch (error) {
+            setResult(null);
+            setParseError(error instanceof Error && error.message === "unavailable" ? "unavailable" : "failed");
+        } finally {
             setIsParsing(false);
-        }, 150);
+        }
     }
 
     function handleLoadSample(uci: string, presetIndex: number) {
         setRawInput(uci);
+        setParseError(null);
         setSelectedPreset(presetIndex);
         setIsParsing(true);
         schedule(() => {
-            const parsed = parseUciBranches(uci);
             setSelectedBranch(0);
-            setResult(parsed);
+            setResult({ ...parseUciBranches(uci), mode: "uci" });
             setCopiedBranch(null);
             setIsParsing(false);
         }, 150);
@@ -199,7 +251,7 @@ export function PasteGame() {
 
             {/* ─── Main Grid ─────────────────────────────────────────── */}
                 <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
-                <div className="grid min-w-0 items-start gap-5 2xl:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] 2xl:gap-6">
+                <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] lg:gap-6">
 
                     {/* ── Input Panel ─────────────────────────────────── */}
                     <div className="flex min-w-0 flex-col gap-4">
@@ -296,6 +348,12 @@ export function PasteGame() {
                                         <span>{t("pg.generatePgn")}</span>
                                     </button>
                                 </div>
+                                {parseError && (
+                                    <p role="alert" className="mt-2 flex items-center gap-1.5 text-xs text-destructive">
+                                        <AlertCircle className="size-3.5 shrink-0" />
+                                        {t("pg.recoveryError")}
+                                    </p>
+                                )}
                             </div>
                         </div>
 
@@ -328,6 +386,16 @@ export function PasteGame() {
                             </div>
 
                             <div className="flex flex-1 flex-col gap-4 p-3 sm:gap-5 sm:p-5">
+                                {result?.mode === "fen" && (
+                                    <div className={cn(
+                                        "rounded-md border px-3 py-2 text-xs",
+                                        result.fullyRecovered ? "border-success/30 bg-success/10 text-success" : "border-warning/30 bg-warning/10 text-warning"
+                                    )}>
+                                        {result.fullyRecovered
+                                            ? t("pg.recoveryComplete")
+                                            : t("pg.recoveryPartial", { count: result.failedPlies?.length ?? 0 })}
+                                    </div>
+                                )}
                                 {/* Stats row */}
                                 <div className="grid grid-cols-3 gap-2 sm:gap-3">
                                     {[

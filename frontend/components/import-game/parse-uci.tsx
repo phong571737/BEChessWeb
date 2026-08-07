@@ -20,6 +20,10 @@ export interface BranchResult {
 
 export interface ParseUciResult {
     branches: BranchResult[]; //  Sorted with the most complete branch (fewest skips) first
+    mode?: "uci" | "fen";
+    fullyRecovered?: boolean;
+    failedPlies?: number[];
+    longestRecoveredPly?: number;
 }
 
 interface BranchState {

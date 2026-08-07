@@ -316,11 +316,11 @@ export const vi: Record<TranslationKeys, string> = {
     "played.sortBy": "Sắp xếp theo",
 
     // --------------- Import games ------------------------------------
-    "pg.pasteUCI": "Dán chuỗi nước đi vào đây",
-    "pg.description": "Nhập và dán chuỗi nước đi của ván cờ để tạo chuỗi PGN hợp lệ.",
+    "pg.pasteUCI": "Dán UCI hoặc FEN vào đây",
+    "pg.description": "Nhập nước đi UCI hoặc chuỗi FEN để tạo PGN hợp lệ.",
     "pg.notation": "Có thể có nhiều nhánh PGN, có thể chọn một trong các nhánh đó.",
     "pg.pasteHint": "Dán các nước đi UCI và tạo ra chuỗi PGN rõ ràng.",
-    "pg.pastePlaceholder": "e2e4 e7e5 g1f3",
+    "pg.pastePlaceholder": "UCI: e2e4 e7e5 g1f3  |  FEN: mỗi vị trí một dòng",
     "pg.clear": "Xóa",
     "pg.generatePgn": "Tạo PGN",
     "pg.input": "Đầu vào",
@@ -334,7 +334,7 @@ export const vi: Record<TranslationKeys, string> = {
     "pg.pgnPreview": "Kết quả PGN",
     "pg.noPreview": "Dán nước đi để xem PGN ở đây.",
     "pg.listbranch": "Danh sách PGN",
-    "pg.converter": "Chuyển đổi UCI → PGN",
+    "pg.converter": "Chuyển đổi UCI / FEN → PGN",
     "pg.quickPresets": "Ví dụ mẫu",
     "pg.paste": "Dán",
     "pg.shortcutGenerate": "để tạo PGN",
@@ -342,6 +342,9 @@ export const vi: Record<TranslationKeys, string> = {
     "pg.moves": "Nước đi",
     "pg.skipped": "Bỏ qua",
     "pg.downloadPgn": "Tải tệp PGN",
+    "pg.recoveryComplete": "Đã khôi phục đầy đủ chuỗi FEN",
+    "pg.recoveryPartial": "Chuỗi FEN còn {count} vị trí chưa xác định",
+    "pg.recoveryError": "Không thể khôi phục chuỗi FEN này.",
 
     // ----------- Piece names -----------------------------------------
     "piece.pawn": "Tốt",

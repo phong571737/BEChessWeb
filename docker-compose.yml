@@ -6,6 +6,17 @@ services:
       - "${PORT:-80}:${PORT:-80}"
     env_file:
       - .env
+    environment:
+      RECOVER_SERVICE_URL: http://recover-service:8000
+    depends_on:
+      - recover-service
+
+  recover-service:
+    build:
+      context: ./recover_service
+    container_name: chess-recover-service
+    expose:
+      - "8000"
 
   frontend:
     build:

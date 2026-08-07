@@ -2,6 +2,12 @@
 
 ## Service-layer role
 
+### FEN recovery sidecar
+
+`recover_service` is an optional Python/FastAPI Docker sidecar. It exposes `POST /recover` on the internal Compose network at `http://recover-service:8000`. The backend sends ordered `fenHistory`, the starting FEN, and PGN headers when finalizing a game. The sidecar compares consecutive piece-placement snapshots, detects legal candidates with `python-chess`, explores compatible branches, and returns `originalPgn` plus recovery metadata. If the sidecar is unavailable, times out, or cannot produce PGN, `GameResignService` falls back to the local `customPGN()` renderer and preserves the game history.
+
+The sidecar is not exposed publicly and is enabled by `RECOVER_SERVICE_URL`. It is built by `recover_service/Dockerfile` and started by `docker-compose.yml` before the backend. This keeps recovery failures isolated from MQTT, clocks, and normal move processing.
+
 The backend service layer embodies the system’s business rules. It is the layer that translates transport inputs into meaningful chess domain changes.
 
 The service layer is intentionally more important than the controller layer because this codebase is not just CRUD. It is a live chess orchestration workflow.
