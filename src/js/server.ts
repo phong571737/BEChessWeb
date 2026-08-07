@@ -7,6 +7,7 @@ import { connectDB } from "./config/database.js";
 import { initMqtt } from "./services/mqtt.service.js";
 import { boardRouter } from "./routes/board.router.js";
 import { gameRouter } from "./routes/game.router.js";
+import { recoverRouter } from "./routes/recover.router.js";
 import { moveRouter } from "./routes/move.router.js";
 import authRouter from "./routes/auth.router.js";
 import { env } from "./config/environment.js";
@@ -31,6 +32,7 @@ async function StartServer() {
 
   app.get("/health", (req, res) => res.status(200).send("OK"));
   app.use("/moves", moveRouter); //moves
+  app.use("/games", recoverRouter);
   app.use("/games", gameRouter); // get games/current and games
   app.use("/boards", boardRouter); // create a new board
   app.use("/auth", authRouter); // auth routes
