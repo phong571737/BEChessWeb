@@ -1,6 +1,6 @@
 # BEChessWeb Documentation
 
-A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against release `v1.1.3-change14`.
+A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against release `v1.1.3-change21`.
 
 ## Overview
 

@@ -13,6 +13,7 @@ import { GameSetupDialog } from "./game-setup-dialog";
 import { Branch } from "@/types/game.types";
 import type { ClockSide } from "@/hooks/use-chess-clock";
 import { formatClockMs } from "@/hooks/use-chess-clock";
+import { classifyTimeControl } from "@/lib/time-control";
 
 interface Props {
     gameID: string;
@@ -59,6 +60,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location,
 }, ref) {
     const { t } = useT();
+    const timeControl = classifyTimeControl(initialTimeMs);
+    const timeControlLabel = {
+        blitz: t("timeControl.blitz"),
+        rapid: t("timeControl.rapid"),
+        classical: t("timeControl.classical"),
+    }[timeControl];
     const [cursor, setCursor] = useState(-1);
 
     // Determine the current branch
@@ -179,6 +186,10 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     return (
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
+            <div className="flex items-center justify-between border-b border-border bg-muted/20 px-3 py-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{timeControlLabel}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">{Math.round((initialTimeMs ?? 600_000) / 60_000)}+{Math.round((incrementMs ?? 0) / 1_000)}</span>
+            </div>
             <PlayerRow player={firstPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 
             {/* ── Navigation controls ── */}

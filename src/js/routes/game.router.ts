@@ -62,7 +62,7 @@ gameRouter.get("/history/:id/fen-text", gameReadRateLimit, async (req, res) => {
     }
 });
 
-gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAdmin, GameController.saveHistoryAnalysis);
+gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthenticated, GameController.saveHistoryAnalysis);
 
 /** Administrator-only recycle bin for recoverable history deletion. */
 gameRouter.get("/history/trash", gameReadRateLimit, requireAdmin, GameController.getHistoryTrash);

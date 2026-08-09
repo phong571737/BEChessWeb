@@ -6,6 +6,7 @@ import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { GameService } from "./game.service.js";
 import { GameDoc, ResignSide } from "../types/game.types.js";
 import { customPGN } from "../utils/custom.chess.js";
+import { classifyTimeControl } from "../utils/time-control.js";
 import { inferMoveFromFen } from "../utils/chess.utils.js";
 import { MoveLike } from "../types/chess.types.js";
 import { recoverFenHistoryToPgn } from "./fen-recovery.client.js";
@@ -128,6 +129,9 @@ export const GameResignService = {
             startedAt,
             endedAt,
             durationSec,
+            initialTimeMs: game.initialTimeMs,
+            incrementMs: game.incrementMs,
+            timeControlType: game.timeControlType ?? classifyTimeControl(game.initialTimeMs, game.incrementMs),
         }
 
         await endGame(doc);

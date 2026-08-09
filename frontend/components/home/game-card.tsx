@@ -8,6 +8,7 @@ import { useRef, useState, useEffect } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
+import { classifyTimeControl } from "@/lib/time-control";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -25,6 +26,12 @@ export function GameCard({ game }: Props) {
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors } = useBoardDisplay();
   const { t } = useT();
+  const timeControl = game.timeControlType ?? classifyTimeControl(game.initialTimeMs);
+  const timeControlLabel = {
+    blitz: t("timeControl.blitz"),
+    rapid: t("timeControl.rapid"),
+    classical: t("timeControl.classical"),
+  }[timeControl];
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -70,7 +77,7 @@ export function GameCard({ game }: Props) {
       </div>
 
       {/* Player names footer */}
-      <div className="flex items-center gap-2 px-3 py-2 border-t border-border bg-card">
+      <div className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
         {/* White */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
@@ -82,6 +89,11 @@ export function GameCard({ game }: Props) {
           <span className="text-xs font-medium text-foreground truncate text-right">{game.BlackName}</span>
           <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
         </div>
+      </div>
+      <div className="border-t border-border/70 bg-muted/30 px-3 py-1.5">
+        <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+          {timeControlLabel}
+        </span>
       </div>
     </Link>
   );

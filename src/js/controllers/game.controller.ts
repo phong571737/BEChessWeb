@@ -5,6 +5,7 @@ import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
+import { classifyTimeControl } from "../utils/time-control.js";
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
     return {
@@ -69,6 +70,7 @@ export const GameController = {
                     startedAt: live.startedAt || snapshot.startedAt,
                     lastMoveAt: live.lastMoveAt || snapshot.lastMoveAt,
                     durationSec: live.durationSec ?? snapshot.durationSec,
+                    timeControlType: snapshot.timeControlType ?? live.timeControlType ?? classifyTimeControl(live.initialTimeMs ?? snapshot.initialTimeMs, live.incrementMs ?? snapshot.incrementMs),
                 };
             });
 

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
+import { classifyTimeControl } from "@/lib/time-control";
 import {
   Dialog,
   DialogContent,
@@ -376,6 +377,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
             </h2>
             <Badge variant={isFinishedResult ? resultVariant(game.Result) : "secondary"} className={`w-28 justify-center shrink-0${isFinishedResult ? "" : " border border-primary/25 bg-primary/10 text-primary"}`}>
               {resultText}
+            </Badge>
+            <Badge variant="outline" className="shrink-0 border-primary/20 bg-primary/5 text-primary">
+              {t(`timeControl.${game.timeControlType ?? classifyTimeControl(game.initialTimeMs)}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical")}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">

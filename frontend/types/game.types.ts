@@ -30,6 +30,9 @@ export interface ActiveGame {
     round?: number;
     createdAt: string;
     status?: string | null;
+    timeControlType?: "blitz" | "rapid" | "classical";
+    initialTimeMs?: number;
+    incrementMs?: number;
 }
 
 /** Completed game returned by GET /games/history */
@@ -65,6 +68,9 @@ export interface HistoryGame {
         updatedAt: string;
         moves: MoveAnalysis[];
     };
+    timeControlType?: "blitz" | "rapid" | "classical";
+    initialTimeMs?: number;
+    incrementMs?: number;
 }
 
 /** Per-game live state stored in Zustand */

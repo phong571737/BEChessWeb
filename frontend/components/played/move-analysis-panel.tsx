@@ -29,7 +29,7 @@ function formatEvaluation(value: number | null): string {
 
 export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
   const { t } = useT();
-  const { isAdmin, token } = useAuth();
+  const { token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
@@ -66,7 +66,7 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
     <section className="px-4 sm:px-5 pb-5 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="text-sm font-medium">{t("analysis.title")}</h3><p className="text-xs text-muted-foreground">{t("analysis.description")}</p></div>
-        {isAdmin && <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={runAnalysis} disabled={running}>
+        {token && <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={runAnalysis} disabled={running}>
           {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
           {running ? t("analysis.running") : moves.length ? t("analysis.reanalyze") : t("analysis.run")}
         </Button>}

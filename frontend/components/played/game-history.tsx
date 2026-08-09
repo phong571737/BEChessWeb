@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { HistoryGame } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
+import { classifyTimeControl } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2 } from "lucide-react";
@@ -25,6 +26,12 @@ type LegacyHistoryGame = HistoryGame & {
 
 const isFinishedResult = (result?: string | null) =>
   result === "1-0" || result === "0-1" || result === "1/2-1/2";
+
+function timeControlBadgeClass(type: "blitz" | "rapid" | "classical") {
+  if (type === "blitz") return "border-violet-300/50 bg-violet-500/10 text-violet-700 dark:text-violet-300";
+  if (type === "rapid") return "border-sky-300/50 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+  return "border-amber-300/50 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+}
 
 function normalizeHistoryId(value: unknown): string {
   if (typeof value === "string") return value.trim();
@@ -491,6 +498,9 @@ export function GameHistory() {
                           {t("played.colPlayers")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "players" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
+                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
+                        {t("played.colTimeControl")}
+                      </th>
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
                         <button type="button" onClick={() => toggleSort("moves")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "moves" && "text-foreground")}>
                           {t("played.colMoves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
@@ -506,7 +516,7 @@ export function GameHistory() {
                           {t("played.colDuration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      {isAdmin && <th className="w-[116px] px-4 py-2.5" aria-label={t("played.actions")} />}
+                      {(isAdmin || token) && <th className="w-[116px] px-4 py-2.5" aria-label={t("played.actions")} />}
                     </tr>
                   </thead>
                   <tbody>
@@ -537,6 +547,14 @@ export function GameHistory() {
                             <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
                           </div>
                         </td>
+                        <td className="px-4 py-3">
+                          {(() => {
+                            const type = game.timeControlType ?? classifyTimeControl(game.initialTimeMs);
+                            return <Badge variant="outline" className={cn("w-[118px] justify-center text-[11px]", timeControlBadgeClass(type))}>
+                              {t(`timeControl.${type}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical")}
+                            </Badge>;
+                          })()}
+                        </td>
                         <td className="px-4 py-3 text-right">
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                             <Hash className="h-3 w-3 opacity-60" />
@@ -549,21 +567,21 @@ export function GameHistory() {
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
                           {formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}
                         </td>
-                        {isAdmin && (
+                        {(isAdmin || token) && (
                           <td className="px-4 py-3 text-right">
-                            <button type="button" disabled={Boolean(analysisId)} onClick={(event) => { event.stopPropagation(); void analyzeFromHistory(game); }} className="mr-1 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={game.analysis?.moves.length ? t("analysis.reanalyze") : t("analysis.run")}>
+                            {token && <button type="button" disabled={Boolean(analysisId)} onClick={(event) => { event.stopPropagation(); void analyzeFromHistory(game); }} className="mr-1 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={game.analysis?.moves.length ? t("analysis.reanalyze") : t("analysis.run")}>
                               {analysisId === game._id ? <LoaderCircle className="size-3.5 animate-spin" /> : <BrainCircuit className="size-3.5" />}
-                            </button>
-                            <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
+                            </button>}
+                            {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
-                            </button>
+                            </button>}
                           </td>
                         )}
                       </tr>;
                     })}
                     {filteredGames.length === 0 && (
                       <tr>
-                        <td colSpan={isAdmin ? 7 : 6} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        <td colSpan={(isAdmin || token) ? 8 : 7} className="px-4 py-10 text-center text-sm text-muted-foreground">
                           {t("played.noMatch")}
                         </td>
                       </tr>

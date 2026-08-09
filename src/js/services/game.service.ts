@@ -5,6 +5,7 @@ import { executeMove } from "../utils/chess.utils.js";
 import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
 import { MoveLike, Branch } from "../types/chess.types.js";
+import { classifyTimeControl } from "../utils/time-control.js";
 
 export const GameService = {
   // Only one creator may initialize a physical board at a time. A second
@@ -40,6 +41,7 @@ export const GameService = {
         BlackName,
         initialTimeMs,
         incrementMs,
+        timeControlType: classifyTimeControl(initialTimeMs, incrementMs),
       });
 
       setCurrentGame(boardID, gameID);

@@ -143,7 +143,7 @@ The route accepts either a history document `_id` or a live `gameID` and returns
 
 ### `POST /games/history/:id/analysis`
 
-Administrator-only. Saves the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <admin JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result. A valid request may include `unavailable` rows with depth `0` and null evaluations when a persisted physical-board position cannot be reconstructed safely.
+Authenticated users can save the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result. A valid request may include `unavailable` rows with depth `0` and null evaluations when a persisted physical-board position cannot be reconstructed safely.
 
 ### `GET /games/history/trash`
 

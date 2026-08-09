@@ -13,7 +13,6 @@ import {
     GitFork,
     FileOutput,
     FileSearch,
-    Library,
     ScrollText,
     CheckCircle2,
     AlertCircle,
@@ -23,28 +22,6 @@ import {
 } from "lucide-react";
 import { parseUciBranches, BranchResult, ParseUciResult } from "./parse-uci";
 import { cn } from "@/lib/utils";
-
-// Sample UCI move presets for quick testing
-const SAMPLES = [
-    {
-        name: "Scholar's Mate",
-        label: "4 moves",
-        uci: "e2e4 e7e5 d2d4 b8c6 f1c4 g8f6 d1f3 c6d4 f3f7",
-        dot: "bg-warning",
-    },
-    {
-        name: "Italian Game",
-        label: "Classic",
-        uci: "e2e4 e7e5 g1f3 b8c6 f1c4 f8c5 c2c3 g8f6 d2d4 e5d4 c3d4 c5b4",
-        dot: "bg-success",
-    },
-    {
-        name: "Ambiguous Capture",
-        label: "Branching",
-        uci: "e2e4 d7d5 e4d5 c7c6 d5c6 b8c6 g1f3 e7e5 f1c4 e5e4",
-        dot: "bg-primary",
-    },
-];
 
 function extractFenHistory(input: string): string[] | null {
     const lines = input.split(/\r?\n|;\s*/).map((line) => line.trim()).filter(Boolean);
@@ -73,7 +50,6 @@ export function PasteGame() {
     const [copiedBranch, setCopiedBranch] = useState<number | null>(null);
     const [isParsing, setIsParsing] = useState(false);
     const [isFocused, setIsFocused] = useState(false);
-    const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
     const [parseError, setParseError] = useState<string | null>(null);
     const [fenError, setFenError] = useState<string | null>(null);
     const [isFenRecovering, setIsFenRecovering] = useState(false);
@@ -105,7 +81,6 @@ export function PasteGame() {
         setResult(null);
         setSelectedBranch(0);
         setCopiedBranch(null);
-        setSelectedPreset(null);
         setParseError(null);
         setFenError(null);
         textareaRef.current?.focus();
@@ -183,19 +158,6 @@ export function PasteGame() {
         }
     }
 
-    function handleLoadSample(uci: string, presetIndex: number) {
-        setRawInput(uci);
-        setParseError(null);
-        setSelectedPreset(presetIndex);
-        setIsParsing(true);
-        schedule(() => {
-            setSelectedBranch(0);
-            setResult({ ...parseUciBranches(uci), mode: "uci" });
-            setCopiedBranch(null);
-            setIsParsing(false);
-        }, 150);
-    }
-
     async function handlePasteFromClipboard() {
         try {
             const text = await navigator.clipboard.readText();
@@ -227,14 +189,15 @@ export function PasteGame() {
     }
 
     return (
-        <div className="min-h-full min-w-0 max-w-full overflow-x-clip bg-background">
+        <div className="relative min-h-full min-w-0 max-w-full overflow-x-clip bg-background">
+            <div className="pointer-events-none absolute inset-x-0 top-0 -z-0 h-72 overflow-hidden bg-gradient-to-b from-primary/8 via-accent/5 to-transparent" />
             {/* ─── Standard page header ───────────────────────────────── */}
-            <div className="border-b border-border bg-card/60">
+            <div className="relative z-10 border-b border-border bg-card/60 backdrop-blur-sm">
                 <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-4 sm:px-6 sm:py-5 lg:py-6">
-                    <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-center 2xl:justify-between">
+                    <div className="flex flex-col gap-5">
                         <div className="min-w-0 space-y-2">
                             <div className="flex items-center gap-2.5 sm:gap-3">
-                                <div className="flex size-10 shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/10 shadow-sm shadow-primary/10 sm:size-11">
+                                <div className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-primary/10 shadow-sm shadow-primary/10 sm:size-11">
                                     <FileInput className="size-[18px] text-primary sm:size-5" />
                                 </div>
                                 <div className="min-w-0">
@@ -246,52 +209,47 @@ export function PasteGame() {
                                     </p>
                                 </div>
                             </div>
-                            <p className="max-w-2xl text-sm text-muted-foreground leading-relaxed">
+                            <p className="max-w-2xl text-sm leading-relaxed text-muted-foreground">
                                 {t("pg.description")}
                             </p>
                         </div>
 
-                        {/* Sample Presets */}
-                        <div className="flex flex-col gap-2 2xl:items-end">
-                            <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                                <Library className="size-3" />
-                                {t("pg.quickPresets")}
-                            </span>
-                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 2xl:flex 2xl:flex-wrap 2xl:justify-end">
-                                {SAMPLES.map((sample, idx) => (
-                                    <button
-                                        key={idx}
-                                    onClick={() => handleLoadSample(sample.uci, idx)}
-                                    className={cn(
-                                            "group relative flex min-w-0 items-center gap-2 rounded-lg border px-3 py-2 text-left text-xs font-medium transition-all",
-                                            selectedPreset === idx
-                                                ? "border-primary/40 bg-primary/10 text-primary shadow-sm"
-                                                : "border-border bg-card text-foreground hover:border-primary/25 hover:bg-surface-hover",
-                                            "active:scale-[0.98]"
-                                        )}
-                                    >
-                                        <span className={cn("size-1.5 rounded-full shrink-0", sample.dot)} />
-                                        <span className="text-foreground">{sample.name}</span>
-                                        <span className="text-muted-foreground">·</span>
-                                        <span className="text-muted-foreground">{sample.label}</span>
-                                        <ChevronRight className="size-3 text-muted-foreground opacity-0 group-hover:opacity-100 -ml-1 transition-all group-hover:translate-x-0.5" />
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
                     </div>
                 </div>
             </div>
 
+            <div className="relative z-10 border-b border-border/80 bg-background-secondary/70">
+                <div className="mx-auto grid w-full max-w-7xl grid-cols-1 gap-2 px-4 py-3 sm:grid-cols-3 sm:gap-3 sm:px-6">
+                    {[
+                        { number: "01", title: t("pg.stepInput"), description: t("pg.stepInputDescription"), icon: Clipboard },
+                        { number: "02", title: t("pg.stepRecover"), description: t("pg.stepRecoverDescription"), icon: GitFork },
+                        { number: "03", title: t("pg.stepExport"), description: t("pg.stepExportDescription"), icon: Download },
+                    ].map((step, index) => {
+                        const Icon = step.icon;
+                        return (
+                            <div key={step.number} className="flex min-w-0 items-center gap-3 rounded-lg border border-border/70 bg-card/70 px-3 py-2.5 sm:px-4">
+                                <span className="font-mono text-[10px] font-bold tracking-widest text-primary">{step.number}</span>
+                                <Icon className="size-4 shrink-0 text-primary" />
+                                <div className="min-w-0">
+                                    <p className="truncate text-xs font-semibold text-foreground">{step.title}</p>
+                                    <p className="truncate text-[11px] text-muted-foreground">{step.description}</p>
+                                </div>
+                                {index < 2 && <ChevronRight className="ml-auto hidden size-3.5 shrink-0 text-muted-foreground/50 sm:block" />}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+
             {/* ─── Main Grid ─────────────────────────────────────────── */}
-                <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+            <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
                 <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] lg:gap-6">
 
                     {/* ── Input Panel ─────────────────────────────────── */}
                     <div className="flex min-w-0 flex-col gap-4">
                         {/* Card */}
                         <div className={cn(
-                            "flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm transition-all sm:min-h-[420px] 2xl:min-h-[458px]",
+                            "flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all sm:min-h-[420px] 2xl:min-h-[458px]",
                             isFocused && "border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/5"
                         )}>
                             {/* Card Header */}
@@ -327,7 +285,6 @@ export function PasteGame() {
                                     value={rawInput}
                                     onChange={(e) => {
                                         setRawInput(e.target.value);
-                                        setSelectedPreset(null);
                                     }}
                                     onFocus={() => setIsFocused(true)}
                                     onBlur={() => setIsFocused(false)}
@@ -392,8 +349,8 @@ export function PasteGame() {
                         </div>
 
                         {/* Dedicated FEN recovery panel */}
-                        <div className="flex min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
+                        <div className="flex min-w-0 flex-col overflow-hidden rounded-xl border border-primary/20 bg-card shadow-sm shadow-primary/5">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-gradient-to-r from-background-secondary to-accent/10 px-3 py-3 sm:px-5 sm:py-3.5">
                                 <div className="flex min-w-0 items-center gap-2.5">
                                     <div className="flex size-8 items-center justify-center rounded-md bg-accent text-accent-foreground">
                                         <FileSearch className="size-3.5" />
@@ -444,8 +401,8 @@ export function PasteGame() {
                     </div>
 
                     {/* ── Result Panel ────────────────────────────────── */}
-                    <div className="flex min-w-0 flex-col gap-4">
-                        <div className="flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm sm:min-h-[420px] 2xl:min-h-[458px]">
+                    <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4">
+                        <div className="flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:min-h-[420px] 2xl:min-h-[458px]">
                             {/* Card Header */}
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
                                 <div className="flex min-w-0 items-center gap-2.5">

@@ -44,7 +44,7 @@ With normal orientation, vertical mode places Black at the top and White at the 
 
 ## Saved move analysis
 
-The Move Review page and each administrator History row provide an **Analyze game** action. It prioritizes durable `fenHistory` snapshots. When FEN history is absent, it reconstructs a legal prefix from `uciHistory` and the saved initial FEN; only when neither trace is available does it parse standard legal PGN. A separate browser Stockfish worker evaluates the initial position and each position after a ply at depth 14, then stores one compact analysis record on the matching `game_history` document through an administrator-protected endpoint. Other visitors, including standard authenticated users, can view a stored result but cannot overwrite it.
+The Move Review page and each authenticated History row provide an **Analyze game** action. It prioritizes durable `fenHistory` snapshots. When FEN history is absent, it reconstructs a legal prefix from `uciHistory` and the saved initial FEN; only when neither trace is available does it parse standard legal PGN. A separate browser Stockfish worker evaluates the initial position and each position after a ply at depth 14, then stores one compact analysis record on the matching `game_history` document through an authenticated endpoint. All authenticated roles can run or replace the saved analysis; anonymous visitors can view only an existing result.
 
 Each record contains the ply number, SAN and UCI move, engine best move, principal variation (up to eight UCI moves), scores before/after from White's perspective, centipawn loss, classification, and search depth. The backend validates the bounded payload and requires an admin bearer token before saving it through `POST /games/history/:id/analysis`.
 

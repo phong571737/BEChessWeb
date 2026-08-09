@@ -44,7 +44,7 @@ flowchart LR
 | HTTP backend | Node.js, Express 5 | Authenticates requests, applies validation/rate limits, and exposes game, move, board, and history APIs. |
 | Realtime backend | Socket.IO | Emits game and board events and scopes game-specific events through rooms. |
 | Game runtime | `chess.js` plus `src/js/game` maps | Applies accepted moves, tracks sequences and branches, maps boards to games, and restores sessions after restart. |
-| Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, optional engine analysis, and recycle-bin metadata. |
+| Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, time-control classification, optional engine analysis, and recycle-bin metadata. |
 | Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles equivalent ESP/app restart commands plus resignation and draw commands. |
 | Browser engine | Stockfish WebAssembly worker | Optional live evaluation and administrator-requested review analysis; it never decides server game state. |
 | Recovery sidecar | FastAPI + `python-chess` container | Reconstructs PGN from ordered FEN snapshots during game finalization; backend falls back to the TypeScript renderer if unavailable. |

@@ -45,6 +45,7 @@ export interface GameDoc extends Document {
     initialTimeMs?: number;
     /** Chess clock increment per move in milliseconds. */
     incrementMs?: number;
+    timeControlType?: "blitz" | "rapid" | "classical";
     [key: string]: unknown;
 }
 

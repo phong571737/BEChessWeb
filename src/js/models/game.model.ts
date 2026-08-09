@@ -1,6 +1,7 @@
 import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
 import { GameDoc, SaveGameOptions } from "../types/game.types.js"
+import { classifyTimeControl } from "../utils/time-control.js";
 
 
 const games = (): Collection<GameDoc> => getDB().collection<GameDoc>("games");
@@ -71,6 +72,9 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         startedAt: game.startedAt ?? null,
         lastMoveAt: game.lastMoveAt ?? null,
         durationSec: game.durationSec ?? 0,
+        initialTimeMs: game.initialTimeMs,
+        incrementMs: game.incrementMs,
+        timeControlType: game.timeControlType ?? classifyTimeControl(game.initialTimeMs, game.incrementMs),
         createdAt: game.createdAt ?? now,
     });
 }
@@ -346,6 +350,9 @@ export async function renamePlayer(
     const update: Record<string, unknown> = { [field]: name, updateAt: new Date() };
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
+    if (initialTimeMs !== undefined || incrementMs !== undefined) {
+        update.timeControlType = classifyTimeControl(initialTimeMs, incrementMs);
+    }
     if (round !== undefined) update.round = round;
     if (location !== undefined) update.location = location;
     return games().updateOne({ gameID } as Filter<GameDoc>, {
