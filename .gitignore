@@ -22,5 +22,6 @@ mongodb_data/
 .DS_Store
 dist/
 build/
+.codegraph/
 *.log
 chessserver.exe

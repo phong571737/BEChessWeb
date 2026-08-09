@@ -1,6 +1,6 @@
 # BEChessWeb Documentation
 
-A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against release `v1.1.3-change12`.
+A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against release `v1.1.3-change13`.
 
 ## Overview
 
@@ -40,6 +40,7 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 | [23-stateful-ui.md](23-stateful-ui.md) | State-driven UI patterns |
 | [24-versioning.md](24-versioning.md) | Release and GitHub versioning policy |
 | [25-stockfish-evaluation.md](25-stockfish-evaluation.md) | Browser Stockfish lifecycle and evaluation-bar behavior |
+| [26-codegraph.md](26-codegraph.md) | Local repository code graph and architecture visualization |
 
 ## Runtime flow
 
