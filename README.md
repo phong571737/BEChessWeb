@@ -176,7 +176,7 @@ There is no `/api` prefix. See [docs/06-api-rest.md](docs/06-api-rest.md) and [d
 ```text
 BEChessWeb/
 ├── frontend/          Next.js application, themes, locales, Stockfish and static assets
-├── src/js/            Express backend, MongoDB models, services, sockets and MQTT
+├── backend/src/       Express backend, MongoDB models, services, sockets and MQTT
 ├── docs/              Maintained architecture and operating documentation
 ├── tools/             Local development and MQTT helper scripts
 ├── Dockerfile         Backend image

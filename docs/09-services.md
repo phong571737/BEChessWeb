@@ -14,7 +14,7 @@ The service layer is intentionally more important than the controller layer beca
 
 ## Service inventory
 
-### [src/js/services/chess.service.ts](../src/js/services/chess.service.ts)
+### [backend/src/services/chess.service.ts](../backend/src/services/chess.service.ts)
 
 This service wraps `chess.js` operations for move application and move validation.
 
@@ -25,7 +25,7 @@ Responsibilities:
 - enumerate valid candidate moves,
 - preserve move validity for ambiguous or promotion cases.
 
-### [src/js/services/move.service.ts](../src/js/services/move.service.ts)
+### [backend/src/services/move.service.ts](../backend/src/services/move.service.ts)
 
 This is the primary execution service for the move pipeline.
 
@@ -41,7 +41,7 @@ For NFC/raw-device moves, custom PGN notation is rebuilt from UCI alongside the 
 
 Finalizing a resignation does not depend on a legacy `initialFen` being valid. An invalid stored starting FEN falls back to the standard position for notation rendering, allowing the game result and durable history snapshot to be saved instead of returning a server error.
 
-### [src/js/services/board.service.ts](../src/js/services/board.service.ts)
+### [backend/src/services/board.service.ts](../backend/src/services/board.service.ts)
 
 This service performs hardware board verification rules.
 
@@ -51,7 +51,7 @@ Responsibilities:
 - classify the board as `READY`, `MISSING_PIECE`, or `WRONG_PIECE`,
 - return the missing/extra/wrong-square details needed by the UI.
 
-### [src/js/services/game.action.service.ts](../src/js/services/game.action.service.ts)
+### [backend/src/services/game.action.service.ts](../backend/src/services/game.action.service.ts)
 
 This service handles end-of-game and board lifecycle actions such as:
 
@@ -61,7 +61,7 @@ This service handles end-of-game and board lifecycle actions such as:
 - result generation,
 - room-based socket notification.
 
-### [src/js/services/mqtt.service.ts](../src/js/services/mqtt.service.ts)
+### [backend/src/services/mqtt.service.ts](../backend/src/services/mqtt.service.ts)
 
 This service provides the MQTT integration layer.
 

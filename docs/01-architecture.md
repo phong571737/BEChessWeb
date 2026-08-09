@@ -43,7 +43,7 @@ flowchart LR
 | Client state | Zustand, React hooks, small fetch cache | Holds visible board state, active games, physical boards, clock display, and socket-driven updates. |
 | HTTP backend | Node.js, Express 5 | Authenticates requests, applies validation/rate limits, and exposes game, move, board, and history APIs. |
 | Realtime backend | Socket.IO | Emits game and board events and scopes game-specific events through rooms. |
-| Game runtime | `chess.js` plus `src/js/game` maps | Applies accepted moves, tracks sequences and branches, maps boards to games, and restores sessions after restart. |
+| Game runtime | `chess.js` plus `backend/src/game` maps | Applies accepted moves, tracks sequences and branches, maps boards to games, and restores sessions after restart. |
 | Durable persistence | MongoDB | Stores users, active games, review snapshots, UCI/FEN traces, time-control classification, optional engine analysis, and recycle-bin metadata. |
 | Physical-board integration | MQTT service | Subscribes to board status and command topics, starts delayed offline cleanup, and handles equivalent ESP/app restart commands plus resignation and draw commands. |
 | Browser engine | Stockfish WebAssembly worker | Optional live evaluation and administrator-requested review analysis; it never decides server game state. |
@@ -51,7 +51,7 @@ flowchart LR
 
 ## Backend structure and startup
 
-`src/js/server.ts` creates one Node HTTP server shared by Express and Socket.IO. Its startup sequence is intentional:
+`backend/src/server.ts` creates one Node HTTP server shared by Express and Socket.IO. Its startup sequence is intentional:
 
 1. Create Express and enable JSON/form parsing, trusted proxy support, and configured CORS.
 2. Mount `/moves`, `/games`, `/boards`, and `/auth`; `/` and `/health` are health endpoints.
@@ -76,7 +76,7 @@ flowchart TD
 The backend folders reflect these boundaries:
 
 ```text
-src/js/
+backend/src/
 ├── config/       environment database and CORS
 ├── middleware/   authentication and rate limits
 ├── routes/       REST route declarations

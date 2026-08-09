@@ -1,6 +1,6 @@
 {
   "compilerOptions": {                              
-    "rootDir": "./src",
+    "rootDir": "./backend/src",
     "outDir": "./dist",
     "allowJs": true,
     "checkJs": true,
@@ -12,7 +12,7 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true
   },
-  "include": ["src/**/*.ts"],
+  "include": ["backend/**/*.ts"],
   "exclude": [
     "node_modules",
     "dist",

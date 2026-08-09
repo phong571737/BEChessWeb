@@ -29,5 +29,5 @@ foreach ($processId in $listeners) {
 }
 
 Set-Location $projectRoot
-& (Join-Path $projectRoot "node_modules\.bin\nodemon.cmd") --exec "tsx src/js/server.ts" --ext "ts,js,json"
+& (Join-Path $projectRoot "node_modules\.bin\nodemon.cmd") --exec "tsx backend/src/server.ts" --ext "ts,js,json"
 exit $LASTEXITCODE

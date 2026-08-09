@@ -6,7 +6,7 @@ The backend runtime depends on environment variables for orchestration, database
 
 ## Backend configuration contract
 
-The environment contract is declared in [src/js/config/environment.ts](../src/js/config/environment.ts).
+The environment contract is declared in [backend/src/config/environment.ts](../backend/src/config/environment.ts).
 
 ### Required values
 

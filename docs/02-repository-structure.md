@@ -4,7 +4,7 @@
 
 This repository is a monorepo with two runtime roots:
 
-- the backend under [src/js](../src/js)
+- the backend under [backend/src](../backend/src)
 - the frontend under [frontend](../frontend)
 
 The root also contains deployment and workspace metadata files such as `docker-compose.yml`, `Dockerfile`, `package.json`, `.env.example`, and `tsconfig.json`.
@@ -13,7 +13,7 @@ The root also contains deployment and workspace metadata files such as `docker-c
 
 ### Root-level responsibilities
 
-- `src/js` – backend application code
+- `backend/src` – backend application code
 - `frontend` – frontend application code
 - `tools` – operational helper scripts such as MQTT publish/listen utilities
 - `docker-compose.yml` – container orchestration file
@@ -37,15 +37,15 @@ The repository follows a practical, feature-first convention instead of a strict
 
 ## Backend folder responsibilities
 
-### [src/js/config](../src/js/config)
+### [backend/src/config](../backend/src/config)
 
 Contains environment and DB initialization. The design exists so boot-time configuration does not leak into business logic.
 
-### [src/js/controllers](../src/js/controllers)
+### [backend/src/controllers](../backend/src/controllers)
 
 Contains HTTP-facing controller objects. Controllers are thin layers that validate the request contract and call the service layer.
 
-### [src/js/services](../src/js/services)
+### [backend/src/services](../backend/src/services)
 
 Contains the policy layer:
 
@@ -55,19 +55,19 @@ Contains the policy layer:
 - resignation and restart behavior,
 - MQTT cleanup lifecycle.
 
-### [src/js/models](../src/js/models)
+### [backend/src/models](../backend/src/models)
 
 Contains database wrappers built against MongoDB collections. These are persistence adapters, not business logic containers.
 
-### [src/js/game](../src/js/game)
+### [backend/src/game](../backend/src/game)
 
 Contains the engine-facing runtime state and board-to-game identity relationships. This is the heart of the live game session model.
 
-### [src/js/sockets](../src/js/sockets)
+### [backend/src/sockets](../backend/src/sockets)
 
 Contains Socket.IO boot and event wiring.
 
-### [src/js/utils](../src/js/utils)
+### [backend/src/utils](../backend/src/utils)
 
 Contains reusable conversion helpers that the chess service layer depends on.
 

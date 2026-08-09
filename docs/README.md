@@ -6,7 +6,7 @@ A maintained architecture and operating guide for BEChessWeb. This documentation
 
 BEChessWeb is a real-time chess platform made of four major runtime parts:
 
-- A Node.js + Express backend under `src/js`
+- A Node.js + Express backend under `backend/src`
 - A Next.js frontend under `frontend`
 - MongoDB persistence for durable game and history records
 - Socket.IO + MQTT for live board synchronization and hardware events

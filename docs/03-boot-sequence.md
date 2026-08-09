@@ -36,7 +36,7 @@ sequenceDiagram
 
 ## Main boot responsibilities by file
 
-### [src/js/server.ts](../src/js/server.ts)
+### [backend/src/server.ts](../backend/src/server.ts)
 
 This file is the server entry point. It:
 
@@ -48,19 +48,19 @@ This file is the server entry point. It:
 - initializes socket and MQTT modules,
 - begins listening on the configured port.
 
-### [src/js/config/environment.ts](../src/js/config/environment.ts)
+### [backend/src/config/environment.ts](../backend/src/config/environment.ts)
 
 Loads the runtime configuration and enforces required infrastructure values such as MongoDB and MQTT endpoints.
 
-### [src/js/config/database.ts](../src/js/config/database.ts)
+### [backend/src/config/database.ts](../backend/src/config/database.ts)
 
 Creates the MongoDB client and connects to the `chess` database after a ping check.
 
-### [src/js/sockets/index.ts](../src/js/sockets/index.ts)
+### [backend/src/sockets/index.ts](../backend/src/sockets/index.ts)
 
 Creates the singleton `io` server and registers the game socket lifecycle.
 
-### [src/js/services/mqtt.service.ts](../src/js/services/mqtt.service.ts)
+### [backend/src/services/mqtt.service.ts](../backend/src/services/mqtt.service.ts)
 
 Connects to the MQTT broker and subscribes to `chess/+/status` and `chess/+/command`. Connectivity status accepts `online`/`offline`; restart, resign, and draw are command-topic messages.
 
@@ -82,4 +82,4 @@ If any of these are missing or unreachable, the app may start partially but real
 - [07-api-socket.md](07-api-socket.md) explains what the socket layer becomes available for after boot.
 ## Development boot sequence
 
-`npm run dev` calls [tools/start-dev.ps1](../tools/start-dev.ps1). The launcher reads the backend port from `.env` (default `80`), stops only a stale Node.js process that is already listening on that port, and then starts `nodemon --exec "tsx src/js/server.ts" --ext ts,js,json`. A non-Node process is never stopped automatically; the command reports its PID and asks the operator to free the port or change `PORT`. On Windows, run PowerShell as Administrator when port 80 is reserved by HTTP.sys or another protected service.
+`npm run dev` calls [tools/start-dev.ps1](../tools/start-dev.ps1). The launcher reads the backend port from `.env` (default `80`), stops only a stale Node.js process that is already listening on that port, and then starts `nodemon --exec "tsx backend/src/server.ts" --ext ts,js,json`. A non-Node process is never stopped automatically; the command reports its PID and asks the operator to free the port or change `PORT`. On Windows, run PowerShell as Administrator when port 80 is reserved by HTTP.sys or another protected service.

@@ -12,7 +12,7 @@ The design choice is:
 
 ## Database connection
 
-The connection bootstrap logic lives in [src/js/config/database.ts](../src/js/config/database.ts).
+The connection bootstrap logic lives in [backend/src/config/database.ts](../backend/src/config/database.ts).
 
 Responsibilities:
 
@@ -156,7 +156,7 @@ That separation supports faster active-session operations while keeping historic
 
 ### `saveGame`
 
-Implemented in [src/js/models/game.model.ts](../src/js/models/game.model.ts).
+Implemented in [backend/src/models/game.model.ts](../backend/src/models/game.model.ts).
 
 It performs an upsert using:
 

@@ -8,7 +8,7 @@ Socket.IO is the real-time transport layer for this project. It is responsible f
 
 ## Bootstrap
 
-The server-side socket initialization lives in [src/js/sockets/index.ts](../src/js/sockets/index.ts), and the game-specific listener wiring lives in [src/js/sockets/game.socket.ts](../src/js/sockets/game.socket.ts).
+The server-side socket initialization lives in [backend/src/sockets/index.ts](../backend/src/sockets/index.ts), and the game-specific listener wiring lives in [backend/src/sockets/game.socket.ts](../backend/src/sockets/game.socket.ts).
 
 The socket layer registers the following lifecycle handlers:
 

@@ -2,7 +2,7 @@
 
 ## REST surface
 
-The backend exposes a small HTTP surface mounted from [src/js/server.ts](../src/js/server.ts):
+The backend exposes a small HTTP surface mounted from [backend/src/server.ts](../backend/src/server.ts):
 
 - `/moves`
 - `/games`

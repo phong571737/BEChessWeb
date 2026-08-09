@@ -17,4 +17,4 @@ RUN npm run build
 EXPOSE 8080
 
 # Start the application
-ENTRYPOINT ["node", "dist/js/server.js"]
+ENTRYPOINT ["node", "dist/server.js"]
