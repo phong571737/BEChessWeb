@@ -1,6 +1,7 @@
 import express, { Router } from "express";
+import { ObjectId } from "mongodb";
 import { restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getGame, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, getGame, getPGNCollections, saveGame } from "../models/game.model.js";
 import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
@@ -27,6 +28,39 @@ gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
  * This api is used to get game played
 */
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
+
+/** Download the durable FEN timeline in the recovery-service text format. */
+gameRouter.get("/history/:id/fen-text", gameReadRateLimit, async (req, res) => {
+    try {
+        const id = String(req.params.id ?? "");
+        const liveGame = await getGame(id);
+        const historyIds: unknown[] = [id];
+        if (ObjectId.isValid(id)) historyIds.push(new ObjectId(id));
+        const historyGame = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
+        const game = liveGame ?? historyGame;
+        if (!game) return res.status(404).json({ error: "Game not found" });
+        const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
+            ? (game as any).initialFen.trim()
+            : "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        const fens = Array.isArray((game as any).fenHistory)
+            ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
+            : [];
+        const gameLabel = String((game as any).gameID ?? id);
+        const content = [
+            `# id: ${gameLabel}`,
+            `# start_fen: ${startFen}`,
+            "",
+            ...fens.map((fen: string, index: number) => `${index + 1}. ${fen}`),
+            "",
+        ].join("\n");
+        const safeName = gameLabel.replace(/[^a-zA-Z0-9_-]/g, "_");
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename=\"${safeName}-fen-timeline.txt\"`);
+        return res.send(content);
+    } catch (error) {
+        sendInternalError(res, "GET /games/history/:id/fen-text", error);
+    }
+});
 
 gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAdmin, GameController.saveHistoryAnalysis);
 

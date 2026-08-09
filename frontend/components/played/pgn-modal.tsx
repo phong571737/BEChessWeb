@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
 import { Chess } from "chess.js";
+import { publicPath } from "@/lib/public-path";
 import {
   Dialog,
   DialogContent,
@@ -356,6 +357,16 @@ export function PGNReviewContent({ game }: ReviewProps) {
     } catch {}
   };
 
+  const downloadFenTimeline = () => {
+    if (!game._id || !game.fenHistory?.length) return;
+    const link = document.createElement("a");
+    link.href = publicPath(`/games/history/${encodeURIComponent(game._id)}/fen-text`);
+    link.download = "";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -505,15 +516,20 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
           {!!game.fenHistory?.length && (
             <details className="relative text-sm">
-              <summary className="cursor-pointer pr-28 font-semibold text-muted-foreground hover:text-foreground select-none">
-                FEN Timeline ({game.fenHistory.length})
+              <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
+                {t("rev.fenTimeline")} ({game.fenHistory.length})
               </summary>
-              <Button variant="outline" size="sm" className="absolute right-0 top-[-4px] h-8 text-xs gap-1.5" onClick={copyFenTimeline}>
-                {fenCopied
-                  ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFen")}</>
-                  : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFen")}</>
-                }
-              </Button>
+              <div className="absolute left-0 top-8 flex max-w-full flex-wrap items-center gap-1.5 sm:left-auto sm:right-0 sm:top-[-4px] sm:flex-nowrap">
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline}>
+                  {fenCopied
+                    ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFen")}</>
+                    : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFen")}</>
+                  }
+                </Button>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadFenTimeline}>
+                  <Download className="h-3.5 w-3.5" />{t("rev.downloadFenText")}
+                </Button>
+              </div>
               <div className="mt-2">
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
                   <div className="p-3 space-y-1.5">

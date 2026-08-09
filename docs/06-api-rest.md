@@ -125,6 +125,22 @@ Returns active games used by the homepage grid.
 
 Returns active and finished PGN review snapshots that are not in the recycle bin.
 
+### `GET /games/history/:id/fen-text`
+
+Downloads the selected history record's FEN timeline as a plain-text attachment.
+The response contains the record ID, starting FEN, and one numbered persisted FEN
+position per line, for example:
+
+```text
+# id: game_0001
+# start_fen: rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1
+
+1. rnbqkbnr/pppppppp/8/8/8/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1
+```
+
+The route accepts either a history document `_id` or a live `gameID` and returns
+`404` when no matching record exists.
+
 ### `POST /games/history/:id/analysis`
 
 Administrator-only. Saves the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <admin JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result. A valid request may include `unavailable` rows with depth `0` and null evaluations when a persisted physical-board position cannot be reconstructed safely.

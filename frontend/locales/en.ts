@@ -100,6 +100,8 @@ export const en = {
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Copied!",
     "rev.copyFen": "Copy FEN",
+    "rev.fenTimeline": "FEN Timeline",
+    "rev.downloadFenText": "Download as text file",
     "rev.copiedFen": "Copied!",
     "rev.showFullPgn": "Show full PGN",
     "rev.analysis": "Match Analysis",
