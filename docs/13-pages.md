@@ -11,7 +11,7 @@ When the administrator opens the recycle bin, an API/authentication failure is d
 Moving a game to the recycle bin requires an explicit confirmation dialog. Recycle-bin rows retain and display both player names, the game date, and the move count so an administrator can identify and restore the intended game.
 The recycle bin also provides a separately confirmed permanent-delete action; it applies only to records already in the bin and cannot be undone.
 
-Move Review silently falls back to its FEN timeline when a legacy custom PGN cannot be parsed. It rebuilds notation from stored UCI/FEN data, including check (`+`) and checkmate (`#`) suffixes, and keeps the active move visible by automatically scrolling the move list. Review and history duration use persisted `durationSec`, with timestamp recovery only for older records that did not store it.
+Move Review requests `/games/history/:id/recovered-pgn` and uses the `recover_service` PGN for both the move list and PGN notation. The persisted FEN timeline remains authoritative for board positions, including custom or partially legal physical-board games. If the sidecar is unavailable, the existing local renderer remains a compatibility fallback for legacy records. The active move stays visible by automatically scrolling the move list. Review and history duration use persisted `durationSec`, with timestamp recovery only for older records that did not store it.
 
 ## Page model
 

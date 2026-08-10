@@ -18,6 +18,7 @@ import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds }
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
+import { extractSanMoves } from "@/lib/custom-chess";
 
 interface Props {
   game:    HistoryGame | null;
@@ -175,43 +176,49 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [copied, setCopied] = useState(false);
   const [fenCopied, setFenCopied] = useState(false);
   const [cursor, setCursor] = useState(-1);
+  const [recoveredPgn, setRecoveredPgn] = useState<string | null>(null);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
-  const reviewPgn = useMemo(() => customReviewPgn(game), [game]);
+  // The recovery sidecar is the canonical renderer for historical FEN/UCI
+  // traces. Keep the local renderer only as a compatibility fallback when a
+  // legacy record has no FEN snapshots or the sidecar is temporarily down.
+  useEffect(() => {
+    let cancelled = false;
+    setRecoveredPgn(null);
+    if (!game._id || !game.fenHistory?.length) return () => { cancelled = true; };
+
+    fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn`)
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const data = await response.json() as { pgn?: unknown };
+        return typeof data.pgn === "string" && data.pgn.trim() ? data.pgn : null;
+      })
+      .then((pgn) => {
+        if (!cancelled && pgn) setRecoveredPgn(pgn);
+      })
+      .catch(() => undefined);
+
+    return () => { cancelled = true; };
+  }, [game._id, game.fenHistory]);
+
+  const reviewPgn = useMemo(() => recoveredPgn ?? customReviewPgn(game), [game, recoveredPgn]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null }];
-    const customMoves = customMoveTokens(game);
-    try {
-      const c = new Chess();
-      c.loadPgn(game.pgn);
-      const sans = c.history();
-      const temp = new Chess();
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
-        { fen: temp.fen(), san: "start", lastMove: null },
-      ];
-      for (const san of sans) {
-        const mv = temp.move(san);
-        out.push({
-          fen: temp.fen(),
-          san,
-          lastMove: mv ? { from: mv.from, to: mv.to } : null,
-        });
-      }
-      if (out.length > 1) return out;
-    } catch {}
-
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
+      // Notation comes from recover-service; FEN snapshots remain authoritative
+      // for board navigation, including custom/partially legal device games.
+      const serviceMoves = extractSanMoves(reviewPgn);
       const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
-        { fen: "start", san: "start", lastMove: null },
+        { fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null },
       ];
 
-      const temp = new Chess();
+      const temp = new Chess(game.initialFen ?? DEFAULT_FEN, { skipValidation: true });
       for (let i = 0; i < game.fenHistory.length; i++) {
         const nextFen = game.fenHistory[i];
-        let san = customMoves[i] ?? "x";
+        let san = serviceMoves[i] ?? "x";
         let lastMove: { from: string; to: string } | null = null;
 
         try {
@@ -232,8 +239,24 @@ export function PGNReviewContent({ game }: ReviewProps) {
       }
       return out;
     }
+    // Records without FEN snapshots can only be displayed from the recovered
+    // PGN text itself. This path is uncommon and still uses the sidecar PGN
+    // whenever it was returned.
+    try {
+      const c = new Chess();
+      c.loadPgn(reviewPgn);
+      const temp = new Chess();
+      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null }> = [
+        { fen: temp.fen(), san: "start", lastMove: null },
+      ];
+      for (const san of c.history()) {
+        const mv = temp.move(san);
+        out.push({ fen: temp.fen(), san, lastMove: mv ? { from: mv.from, to: mv.to } : null });
+      }
+      if (out.length > 1) return out;
+    } catch {}
     return [{ fen: "start", san: "start", lastMove: null }];
-  }, [game]);
+  }, [game, reviewPgn]);
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
