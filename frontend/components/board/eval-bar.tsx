@@ -50,17 +50,17 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
     const hasEval = mate != null || (cp != null && !Number.isNaN(cp));
     const whitePct = whiteWinShare(cp, mate) * 100;
     const blackPct = 100 - whitePct;
-    const label = hasEval ? formatEval(cp, mate) : (isAnalyzing ? "…" : "—");
+    const label = hasEval ? formatEval(cp, mate) : (isAnalyzing ? "…" : "|");
     const whiteAhead = hasEval ? (mate != null ? mate > 0 : (cp ?? 0) >= 0) : true;
 
     if (!hasEval) {
         return orientation === "horizontal" ? (
             <div className="eval-bar eval-bar--horizontal relative flex h-5 w-full items-center justify-center overflow-hidden border border-border bg-muted">
-                <span className="font-mono text-[10px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "—"}</span>
+                <span className="font-mono text-[10px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>
             </div>
         ) : (
             <div className="eval-bar eval-bar--vertical relative flex h-full w-full items-center justify-center overflow-hidden border border-border bg-muted">
-                <span className="font-mono text-[9px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "—"}</span>
+                <span className="font-mono text-[9px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>
             </div>
         );
     }

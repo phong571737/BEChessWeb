@@ -27,6 +27,7 @@ The square overlays are defined via inline styles and use low-opacity colored ba
 - a king with no legal escape receives the stronger `--state-checkmate` treatment
 - both colors are inspected, with the recorded active color taking priority when both kings appear attacked in malformed legacy data
 - `chess.js` loads the snapshot with validation skipped only for display recovery; live move legality is not changed
+- when no engine score is available, both desktop and mobile bars use the same `|` placeholder; an engine score replaces it with a centipawn or mate value
 
 The UI does not trust a `+` or `#` character in recovered notation as the source of truth. The displayed board position determines whether the king is visually marked.
 
