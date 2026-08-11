@@ -46,7 +46,7 @@ Displays the move sequence in PGN form with branch awareness.
 
 ### `eval-bar`
 
-Shows engine or evaluation metadata when present in the board state.
+Shows engine or evaluation metadata when present in the board state. Its responsive breakpoint matches the full board's two-column layout: from `sm` upward it stays vertically beside the board; only phone-width layouts render the horizontal bar below the board.
 
 ### `chess-board-view`
 

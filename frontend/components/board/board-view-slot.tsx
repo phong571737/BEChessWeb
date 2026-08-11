@@ -58,9 +58,9 @@ function SlotSkeleton({ compact }: { compact?: boolean }) {
                     <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
                         <div className="flex gap-1.5 sm:flex-1 sm:min-h-0">
                             <Skeleton className="flex-1 aspect-square sm:aspect-auto sm:min-h-0" />
-                            <Skeleton className="hidden lg:block w-[22px] shrink-0 h-full" />
+                            <Skeleton className="hidden sm:block w-[22px] shrink-0 h-full" />
                         </div>
-                        <Skeleton className="h-5 lg:hidden" />
+                        <Skeleton className="h-5 sm:hidden" />
                     </div>
                     <div className="flex flex-col gap-2 sm:h-full">
                         <Skeleton className="h-9" />
@@ -594,14 +594,14 @@ export function BoardViewSlot({
                                 </div>
 
                                 {evaluationEnabled && (
-                                    <div className="hidden lg:block w-[22px] shrink-0 self-stretch min-h-0">
-                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                                    <div className="hidden sm:block w-[22px] shrink-0 self-stretch min-h-0">
+                                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
                             </div>
 
                             {evaluationEnabled && (
-                                <div className="lg:hidden">
+                                <div className="sm:hidden">
                                     <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                 </div>
                             )}

@@ -37,7 +37,7 @@ The administrator dashboard summarizes retained history for a selectable 7- or 3
 
 ### `/board`
 
-The board page is the main interactive experience for gameplay and game state review. An administrator can open the game settings during any live state to update player names, time control, increment, round, or location. Changing the base time preserves elapsed clock time by applying only the configured-time difference to both clocks; finished and ended games do not expose this control.
+The board page is the main interactive experience for gameplay and game state review. Its evaluation bar uses the same `sm` breakpoint as the board/control-panel grid, so any viewport that can show the main two-column layout keeps the bar vertically beside the board; the horizontal bar is reserved for phones. An administrator can open the game settings during any live state to update player names, time control, increment, round, or location. Changing the base time preserves elapsed clock time by applying only the configured-time difference to both clocks; finished and ended games do not expose this control.
 
 It consumes the `gameID` query parameter and loads the corresponding live data through the `useGame` hook.
 
