@@ -50,7 +50,7 @@ Shows engine or evaluation metadata when present in the board state.
 
 ### `match-analysis`
 
-Renders the review-page Stockfish summary directly from the persisted `analysis.moves` records. It counts Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, and Blunder labels for White and Black from the saved ply number, then compares both sides in a grouped horizontal bar chart. It does not reparse legacy PGN/FEN data or present rule-event counts as engine analysis. When no saved engine analysis exists, it renders a safe empty state.
+Renders the review-page Stockfish summary directly from the persisted `analysis.moves` records. It counts Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, and Blunder labels for White and Black from the saved ply number, then compares both sides in a grouped vertical bar chart. It does not reparse legacy PGN/FEN data or present rule-event counts as engine analysis. When no saved engine analysis exists, it renders a safe empty state.
 
 ### `move-analysis-panel`
 

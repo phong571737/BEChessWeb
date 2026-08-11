@@ -109,12 +109,12 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
             <CardContent className="space-y-3">
               <ChartContainer config={chartConfig} className="h-[360px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} layout="vertical" barGap={4} margin={{ left: 8, right: 20 }}>
-                    <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
-                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
-                    <YAxis type="category" dataKey="classification" width={105} tickLine={false} axisLine={false} fontSize={11} />
-                    <Bar dataKey="white" fill="var(--color-white)" radius={[0, 3, 3, 0]} maxBarSize={18} />
-                    <Bar dataKey="black" fill="var(--color-black)" radius={[0, 3, 3, 0]} maxBarSize={18} />
+                  <BarChart data={chartData} barGap={4} margin={{ top: 8, right: 12, bottom: 18, left: 0 }}>
+                    <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis dataKey="classification" interval={0} height={62} tickLine={false} axisLine={false} angle={-18} textAnchor="end" fontSize={11} />
+                    <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={28} />
+                    <Bar dataKey="white" fill="var(--color-white)" radius={[3, 3, 0, 0]} maxBarSize={28} />
+                    <Bar dataKey="black" fill="var(--color-black)" radius={[3, 3, 0, 0]} maxBarSize={28} />
                     <ChartTooltip content={<ChartTooltipContent />} />
                   </BarChart>
                 </ResponsiveContainer>
