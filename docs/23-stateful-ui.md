@@ -42,7 +42,7 @@ The board and related review surfaces also encode state through control states s
 
 ## Match Analysis data state
 
-The Move Review Match Analysis surface is derived from the selected history record's persisted `analysis.moves`. It recalculates classification totals whenever those saved Stockfish moves change, assigns White/Black by the one-based ply number, and does not reparse PGN/FEN to invent engine classifications. If no saved analysis exists, the summary is deliberately replaced with an empty state.
+The Move Review Match Analysis surface is derived from the selected history record's persisted `analysis.moves`. It recalculates classification totals whenever those saved Stockfish moves change, assigns White/Black by the one-based ply number, and renders the comparison as a grouped horizontal bar chart. It does not reparse PGN/FEN to invent engine classifications. If no saved analysis exists, the summary is deliberately replaced with an empty state.
 
 ## Administrator game actions
 

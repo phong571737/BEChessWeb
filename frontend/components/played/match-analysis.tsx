@@ -1,7 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n";
 import type { MoveClassification } from "@/lib/post-game-analysis";
 import type { HistoryGame } from "@/types/game.types";
@@ -30,6 +32,10 @@ const tone: Record<MoveClassification, string> = {
 /** Summarizes the persisted Stockfish labels without reparsing legacy PGN data. */
 export function MatchAnalysis({ game }: { game: HistoryGame }) {
   const { t } = useT();
+  const chartConfig = {
+    white: { label: t("played.white"), color: "hsl(var(--primary))" },
+    black: { label: t("played.black"), color: "hsl(var(--destructive))" },
+  } satisfies ChartConfig;
   const summary = useMemo(() => {
     const moves = game.analysis?.moves ?? [];
     const counts = Object.fromEntries(
@@ -52,6 +58,11 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
       analyzed: moves.length - counts.unavailable.total,
     };
   }, [game.analysis?.moves]);
+  const chartData = classifications.map((classification) => ({
+    classification: t(`analysis.${classification}`),
+    white: summary.counts[classification].white,
+    black: summary.counts[classification].black,
+  }));
 
   return (
     <div className="space-y-3 p-4 sm:p-5">
@@ -87,34 +98,27 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
 
           <Card>
             <CardHeader>
-              <CardTitle>{t("rev.stockfishBreakdown")}</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              <div className="grid grid-cols-[minmax(7rem,1fr)_4rem_4rem] gap-3 px-3 text-xs text-muted-foreground sm:grid-cols-[minmax(9rem,1fr)_5rem_5rem]">
-                <span>{t("rev.classification")}</span>
-                <span className="text-center">{t("played.white")}</span>
-                <span className="text-center">{t("played.black")}</span>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <CardTitle>{t("rev.stockfishBreakdown")}</CardTitle>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-[2px] bg-primary" />{t("played.white")}</span>
+                  <span className="flex items-center gap-1.5"><span className="size-2.5 rounded-[2px] bg-destructive" />{t("played.black")}</span>
+                </div>
               </div>
-              {classifications.map((classification) => {
-                const count = summary.counts[classification];
-                const maximum = Math.max(1, summary.analyzed);
-                return (
-                  <div key={classification} className="grid grid-cols-[minmax(7rem,1fr)_4rem_4rem] items-center gap-3 rounded-sm border border-border bg-muted/30 px-3 py-2 sm:grid-cols-[minmax(9rem,1fr)_5rem_5rem]">
-                    <div className="min-w-0">
-                      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
-                        <span className={`rounded-sm border px-1.5 py-0.5 font-medium ${tone[classification]}`}>{t(`analysis.${classification}`)}</span>
-                        <span className="font-mono text-muted-foreground">{count.total}</span>
-                      </div>
-                      <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
-                        <span className="bg-state-white" style={{ width: `${(count.white / maximum) * 100}%` }} />
-                        <span className="bg-state-black" style={{ width: `${(count.black / maximum) * 100}%` }} />
-                      </div>
-                    </div>
-                    <span className="text-center font-mono text-sm font-semibold">{count.white}</span>
-                    <span className="text-center font-mono text-sm font-semibold">{count.black}</span>
-                  </div>
-                );
-              })}
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <ChartContainer config={chartConfig} className="h-[360px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} layout="vertical" barGap={4} margin={{ left: 8, right: 20 }}>
+                    <CartesianGrid horizontal={false} strokeDasharray="3 3" className="stroke-border" />
+                    <XAxis type="number" allowDecimals={false} tickLine={false} axisLine={false} />
+                    <YAxis type="category" dataKey="classification" width={105} tickLine={false} axisLine={false} fontSize={11} />
+                    <Bar dataKey="white" fill="var(--color-white)" radius={[0, 3, 3, 0]} maxBarSize={18} />
+                    <Bar dataKey="black" fill="var(--color-black)" radius={[0, 3, 3, 0]} maxBarSize={18} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </ChartContainer>
               {summary.counts.unavailable.total > 0 && (
                 <div className="flex items-center justify-between rounded-sm border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
                   <span>{t("analysis.unavailable")}</span>
