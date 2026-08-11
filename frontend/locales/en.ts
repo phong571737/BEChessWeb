@@ -120,6 +120,7 @@ export const en = {
     "rev.noMovesAnalysis": "No moves are available to analyze yet.",
     "rev.moveEBoard": "The move received from e-board.",
     "rev.wheelNavigation": "Mouse wheel: scroll up/down to navigate moves",
+    "rev.recoveryAlternatives": "Recovered alternatives",
 
     // -------- Played / History -------------------------------------------
     "played.title": "Game History",
@@ -131,6 +132,7 @@ export const en = {
     "played.blackWin": "Black win",
     "played.draw": "Draw",
     "played.unfinished": "In progress",
+    "played.unconfirmed": "Winner unconfirmed",
     "played.deleteAll": "Delete all",
     "played.emptyTrashTitle": "Permanently empty the trash?",
     "played.emptyTrashDescription": "Every game in the trash will be deleted permanently and cannot be restored.",

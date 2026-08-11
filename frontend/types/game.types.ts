@@ -62,6 +62,8 @@ export interface HistoryGame {
     uciHistory?: string [];
     /** A live snapshot is saved while the game is still in progress. */
     historyStatus?: "active" | "finished";
+    /** A finalized session may still have no provable winner (for example an ESP restart). */
+    outcomeStatus?: "confirmed" | "unconfirmed";
     analysis?: {
         engine: string;
         depth: number;

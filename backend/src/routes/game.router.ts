@@ -1,7 +1,6 @@
 import express, { Router } from "express";
-import { ObjectId } from "mongodb";
 import { restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getGame, getPGNCollections, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, getGame, saveGame } from "../models/game.model.js";
 import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
@@ -9,7 +8,6 @@ import { gameSeq } from "../game/game.repository.js";
 import { requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
-import { recoverFenHistory } from "../services/fen-recovery.client.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -29,77 +27,6 @@ gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
  * This api is used to get game played
 */
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
-
-/**
- * Rebuild the review notation with the Python recovery service.  Review uses
- * the persisted FEN snapshots as its source of truth instead of trusting a
- * legacy/custom PGN string that may contain UCI or placeholder tokens.
- */
-gameRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, res) => {
-    try {
-        const id = String(req.params.id ?? "");
-        const historyIds: unknown[] = [id];
-        if (ObjectId.isValid(id)) historyIds.push(new ObjectId(id));
-        const game = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
-        if (!game) return res.status(404).json({ error: "Game not found" });
-
-        const fenHistory = Array.isArray((game as any).fenHistory)
-            ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
-            : [];
-        if (!fenHistory.length) return res.status(422).json({ error: "No FEN history available for recovery" });
-
-        const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
-            ? (game as any).initialFen.trim()
-            : undefined;
-        const headers = {
-            Event: String((game as any).Event ?? "?"),
-            Site: String((game as any).location ?? (game as any).Site ?? "?"),
-            Date: String((game as any).Date ?? "????.??.??"),
-            Round: String((game as any).round ?? (game as any).Round ?? "1"),
-            White: String((game as any).WhiteName ?? (game as any).White ?? "White"),
-            Black: String((game as any).BlackName ?? (game as any).Black ?? "Black"),
-            Result: String((game as any).Result ?? "*"),
-        };
-        const recovered = await recoverFenHistory(fenHistory, startFen, headers);
-        if (!recovered) return res.status(503).json({ error: "FEN recovery service unavailable" });
-        return res.json({ ...recovered, fenHistory, startFen: startFen ?? null });
-    } catch (error) {
-        sendInternalError(res, "GET /games/history/:id/recovered-pgn", error);
-    }
-});
-
-/** Download the durable FEN timeline in the recovery-service text format. */
-gameRouter.get("/history/:id/fen-text", gameReadRateLimit, async (req, res) => {
-    try {
-        const id = String(req.params.id ?? "");
-        const liveGame = await getGame(id);
-        const historyIds: unknown[] = [id];
-        if (ObjectId.isValid(id)) historyIds.push(new ObjectId(id));
-        const historyGame = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
-        const game = liveGame ?? historyGame;
-        if (!game) return res.status(404).json({ error: "Game not found" });
-        const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
-            ? (game as any).initialFen.trim()
-            : "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-        const fens = Array.isArray((game as any).fenHistory)
-            ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
-            : [];
-        const gameLabel = String((game as any).gameID ?? id);
-        const content = [
-            `# id: ${gameLabel}`,
-            `# start_fen: ${startFen}`,
-            "",
-            ...fens.map((fen: string, index: number) => `${index + 1}. ${fen}`),
-            "",
-        ].join("\n");
-        const safeName = gameLabel.replace(/[^a-zA-Z0-9_-]/g, "_");
-        res.setHeader("Content-Type", "text/plain; charset=utf-8");
-        res.setHeader("Content-Disposition", `attachment; filename=\"${safeName}-fen-timeline.txt\"`);
-        return res.send(content);
-    } catch (error) {
-        sendInternalError(res, "GET /games/history/:id/fen-text", error);
-    }
-});
 
 gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthenticated, GameController.saveHistoryAnalysis);
 

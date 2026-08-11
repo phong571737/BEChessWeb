@@ -3,6 +3,7 @@ import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
 import { GameIdParams, RenameBody, ResignBody } from "../types/game.types.js";
 import { ERROR_STATUS } from "../constant.js";
+import { publishBoardCommand } from "../services/mqtt.service.js";
 
 export const GameActionController = {
     // resign action
@@ -31,7 +32,11 @@ export const GameActionController = {
         try {
             const gameID = req.params.id;
             const result = await GameActionService.restart(gameID);
-            res.json({ ok: true, ...result });
+            // Keep the physical board in sync with the web reset. The game
+            // reset is already committed; MQTT availability is reported to
+            // the client without turning a successful reset into a 500.
+            const boardResetPublished = await publishBoardCommand(result.boardID, "restart_game");
+            res.json({ ok: true, boardResetPublished, ...result });
         } catch (e) {
             console.error("Restart error:", e);
             const message = e instanceof Error ? e.message : String(e);

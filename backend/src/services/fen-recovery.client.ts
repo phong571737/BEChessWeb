@@ -2,6 +2,9 @@ import { env } from "../config/environment.js";
 
 interface RecoveryResponse {
   originalPgn?: unknown;
+  steps?: unknown;
+  bestMoveLists?: unknown;
+  finalMoveLists?: unknown;
   fullyRecovered?: unknown;
   failedPlies?: unknown;
   longestRecoveredPly?: unknown;
@@ -12,6 +15,9 @@ export interface FenRecoveryResult {
   fullyRecovered: boolean;
   failedPlies: number[];
   longestRecoveredPly: number;
+  steps?: unknown[];
+  bestMoveLists?: unknown[];
+  finalMoveLists?: unknown[];
 }
 
 interface RecoveryHeaders {
@@ -34,6 +40,7 @@ export async function recoverFenHistory(
   fenHistory: string[],
   startFen: string | undefined,
   headers: RecoveryHeaders,
+  options: { includeSteps?: boolean } = {},
 ): Promise<FenRecoveryResult | null> {
   const baseUrl = env.RECOVER_SERVICE_URL?.trim().replace(/\/$/, "");
   if (!baseUrl || fenHistory.length === 0) return null;
@@ -49,7 +56,7 @@ export async function recoverFenHistory(
         startFen,
         headers,
         maxBranches: 2_000,
-        finalOnly: true,
+        finalOnly: options.includeSteps !== true,
       }),
       signal: controller.signal,
     });
@@ -69,6 +76,9 @@ export async function recoverFenHistory(
       fullyRecovered: data.fullyRecovered === true,
       failedPlies,
       longestRecoveredPly: typeof data.longestRecoveredPly === "number" ? data.longestRecoveredPly : 0,
+      steps: options.includeSteps === true && Array.isArray(data.steps) ? data.steps : undefined,
+      bestMoveLists: options.includeSteps === true && Array.isArray(data.bestMoveLists) ? data.bestMoveLists : undefined,
+      finalMoveLists: options.includeSteps === true && Array.isArray(data.finalMoveLists) ? data.finalMoveLists : undefined,
     };
   } catch (error) {
     console.warn("[FEN RECOVERY] Sidecar unavailable; using local fallback", error instanceof Error ? error.message : error);

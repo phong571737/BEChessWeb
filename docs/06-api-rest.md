@@ -37,7 +37,7 @@ transitions are represented as `x` and listed in `failedPlies`.
 
 The backend listens on `chess/<boardID>/command` for trusted device/app lifecycle commands. Restart is not accepted as a value on `chess/<boardID>/status`; that topic is reserved for `online` and `offline` connectivity:
 
-- `{"command":"restart_game"}` or `{"command":"restart_game_esp"}` resets the active game without changing its game ID.
+- `{"command":"restart_game"}` resets the active game in place. `{"command":"restart_game_esp"}` evaluates a game with at least two plies using backend Stockfish; a clear advantage (at least ±150 cp) or mate score finalizes the old game and creates the next waiting game. If the result cannot be confirmed, the old session is still finalized with `Result: "*"`, `historyStatus: "finished"`, and `outcomeStatus: "unconfirmed"` (shown as “Winner unconfirmed” / “Không xác nhận được bên thắng”), then the next waiting game is created. The normal `historyStatus: "active"` / “In progress” state is reserved for games that have moves but have not been resigned, drawn, or restarted.
 - `{"command":"resign","side":"white"}` or `{"command":"resign","side":"black"}` records the corresponding resignation.
 - `{"command":"draw"}` records a draw.
 
@@ -190,7 +190,7 @@ Administrator-only. Updates PGN content and restores engine state from the updat
 
 Resets the existing game in place. The `gameID`, board association, player names, and persisted clock configuration are retained; FEN returns to the standard start position and PGN/moves/branches/results are cleared. The board returns to `checkinit` and must pass a fresh physical-board initialization check before play resumes. Connected clients receive a `game:reset` event with the retained clock configuration.
 
-Requires a valid bearer JWT from either the `user` or `admin` role.
+Requires a valid bearer JWT from either the `user` or `admin` role. When the MQTT broker is connected, the backend also publishes `{"command":"restart_game"}` to `chess/<boardID>/command` so the associated ESP32 resets its local board. The API still returns a successful game reset when MQTT is temporarily unavailable; `boardResetPublished` indicates whether the command was accepted by the broker client.
 
 ### `POST /games/:id/destroy`
 

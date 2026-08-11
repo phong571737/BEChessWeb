@@ -32,10 +32,19 @@ export const GameController = {
     // get history of game
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
-            const history = await getPGNCollections()
+            const history = (await getPGNCollections()
                 .find({ deletedAt: { $exists: false } })
                 .sort({ createdAt: -1 }) // newest
-                .toArray();
+                .toArray())
+                .filter((row) => {
+                    const totalPlies = Math.max(
+                        Number(row.totalMoves ?? 0),
+                        Number(row.totalPlies ?? 0),
+                        Array.isArray(row.uciHistory) ? row.uciHistory.length : 0,
+                        Array.isArray(row.fenHistory) ? row.fenHistory.length : 0,
+                    );
+                    return Number.isFinite(totalPlies) && totalPlies > 0;
+                });
 
             // History snapshots created by older versions sometimes retained
             // only a move count. For an unfinished game the live game document
@@ -43,7 +52,7 @@ export const GameController = {
             // history, and current clock metadata. Enrich only incomplete
             // snapshots; finished history remains immutable.
             const activeIds = history
-                .filter((row) => row.historyStatus === "active" || !row.Result || row.Result === "*")
+                .filter((row) => row.outcomeStatus !== "unconfirmed" && (row.historyStatus === "active" || !row.Result || row.Result === "*"))
                 .map((row) => row.gameID)
                 .filter((gameID): gameID is string => typeof gameID === "string" && gameID.length > 0);
             const liveGames = activeIds.length

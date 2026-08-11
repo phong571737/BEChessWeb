@@ -23,6 +23,7 @@ services:
       context: ./frontend
       args:
         API_URL: ${BACKEND_INTERNAL_URL}
+        BACKEND_PROXY_URL: ${BACKEND_INTERNAL_URL}
         # One public origin is compiled into both browser REST and Socket.IO URLs.
         NEXT_PUBLIC_API_URL: ${BACKEND_PUBLIC_URL}
         NEXT_PUBLIC_SOCKET_URL: ${BACKEND_PUBLIC_URL}

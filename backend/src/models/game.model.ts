@@ -51,6 +51,9 @@ function pgnDate(value: unknown, fallback = new Date()): string {
 export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void> {
     const now = new Date();
     const totalPlies = game.lastSeq ?? game.uciHistory?.length ?? game.fenHistory?.length ?? 0;
+    // Do not create history rows for a game that has not accepted its first
+    // move yet. Such rows are setup/restart placeholders, not playable games.
+    if (totalPlies <= 0) return;
     await saveHistorySnapshot({
         gameID: game.gameID,
         boardID: game.boardID,
@@ -203,6 +206,18 @@ export async function endGame(doc: Document) {
         return getPGNCollections().insertOne(doc);
     }
 
+    const totalPlies = Math.max(
+        Number(doc.totalMoves ?? 0),
+        Number(doc.totalPlies ?? 0),
+        Array.isArray(doc.uciHistory) ? doc.uciHistory.length : 0,
+        Array.isArray(doc.fenHistory) ? doc.fenHistory.length : 0,
+    );
+    if (!Number.isFinite(totalPlies) || totalPlies <= 0) {
+        // A resign/draw received before the first move must not leave an
+        // empty history record behind.
+        return getPGNCollections().deleteOne({ _id: gameID } as unknown as Filter<Document>);
+    }
+
     const { createdAt, ...historyFields } = doc;
     delete historyFields._id;
     // A move may already have created a live snapshot. Finalization updates
@@ -215,6 +230,15 @@ export async function endGame(doc: Document) {
         },
         { upsert: true },
     );
+}
+
+/** Marks a finalized session as completed but without a confirmed winner. */
+export async function markHistoryUnfinished(gameID: string): Promise<boolean> {
+    const result = await pgnGames().updateOne(
+        { _id: gameID } as unknown as Filter<Document>,
+        { $set: { Result: "*", historyStatus: "finished", outcomeStatus: "unconfirmed", updatedAt: new Date() } },
+    );
+    return result.modifiedCount === 1;
 }
 
 export async function moveHistoryToTrash(id: string): Promise<boolean> {

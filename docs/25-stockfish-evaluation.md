@@ -50,6 +50,8 @@ Each record contains the ply number, SAN and UCI move, engine best move, princip
 
 Post-game analysis runs Stockfish at the requested depth ceiling with a one-second time budget per position and a five-second safety timeout. The first limit reached ends that individual search. If a worker fails or times out, it is replaced and the same valid position is retried once at a lower depth. This prevents a transient engine failure from discarding the remaining moves.
 
+The backend Stockfish instance used when an ESP32 sends `restart_game_esp` uses a fixed depth of 16 (`go depth 16`) so the winner decision is reproducible across machines. It has an eight-second safety timeout; a timeout or invalid position is treated as **Unconfirmed** rather than inventing a winner.
+
 Physical-board snapshots are accepted only when they are valid standard FEN positions. A malformed or device-specific snapshot is saved with the **Unavailable** classification, no evaluation, and depth `0`; it is never fabricated as `0.0` or labeled as a good move. Analysis continues with later valid snapshots, so one incompatible stored position does not cancel the whole game.
 
 For historical records that have UCI moves but no FEN history, the analyzer reconstructs the legal prefix from the saved initial FEN and UCI sequence. It does not attempt to parse the project's custom UCI notation as standard PGN. Any move that cannot be reconstructed is retained as **Unavailable**, so the completed result is saved and visible instead of leaving Move Analysis empty.

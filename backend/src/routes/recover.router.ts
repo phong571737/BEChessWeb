@@ -1,9 +1,11 @@
 import express, { Router } from "express";
+import { ObjectId } from "mongodb";
 import { Chess } from "chess.js";
-import { gameMutationRateLimit } from "../middleware/rate-limit.middleware.js";
+import { gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { recoverFenHistory } from "../services/fen-recovery.client.js";
 import { customPGN } from "../utils/custom.chess.js";
 import { inferMoveFromFen } from "../utils/chess.utils.js";
+import { getGame, getPGNCollections } from "../models/game.model.js";
 
 export const recoverRouter: Router = express.Router();
 
@@ -11,6 +13,73 @@ function sendInternalError(res: express.Response, operation: string, error: unkn
     console.error(`${operation} failed:`, error);
     res.status(500).json({ error: "Internal server error" });
 }
+
+/** GET /games/history/:id/recovered-pgn - rebuild review notation via the sidecar. */
+recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, res) => {
+    try {
+        const id = String(req.params.id ?? "");
+        const historyIds: unknown[] = [id];
+        if (ObjectId.isValid(id)) historyIds.push(new ObjectId(id));
+        const game = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
+        if (!game) return res.status(404).json({ error: "Game not found" });
+
+        const fenHistory = Array.isArray((game as any).fenHistory)
+            ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
+            : [];
+        if (!fenHistory.length) return res.status(422).json({ error: "No FEN history available for recovery" });
+
+        const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
+            ? (game as any).initialFen.trim()
+            : undefined;
+        const headers = {
+            Event: String((game as any).Event ?? "?"),
+            Site: String((game as any).location ?? (game as any).Site ?? "?"),
+            Date: String((game as any).Date ?? "????.??.??"),
+            Round: String((game as any).round ?? (game as any).Round ?? "1"),
+            White: String((game as any).WhiteName ?? (game as any).White ?? "White"),
+            Black: String((game as any).BlackName ?? (game as any).Black ?? "Black"),
+            Result: String((game as any).Result ?? "*"),
+        };
+        const recovered = await recoverFenHistory(fenHistory, startFen, headers, { includeSteps: true });
+        if (!recovered) return res.status(503).json({ error: "FEN recovery service unavailable" });
+        return res.json({ ...recovered, fenHistory, startFen: startFen ?? null });
+    } catch (error) {
+        sendInternalError(res, "GET /games/history/:id/recovered-pgn", error);
+    }
+});
+
+/** GET /games/history/:id/fen-text - download the recovery-service timeline format. */
+recoverRouter.get("/history/:id/fen-text", gameReadRateLimit, async (req, res) => {
+    try {
+        const id = String(req.params.id ?? "");
+        const liveGame = await getGame(id);
+        const historyIds: unknown[] = [id];
+        if (ObjectId.isValid(id)) historyIds.push(new ObjectId(id));
+        const historyGame = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
+        const game = liveGame ?? historyGame;
+        if (!game) return res.status(404).json({ error: "Game not found" });
+        const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
+            ? (game as any).initialFen.trim()
+            : "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+        const fens = Array.isArray((game as any).fenHistory)
+            ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
+            : [];
+        const gameLabel = String((game as any).gameID ?? id);
+        const content = [
+            `# id: ${gameLabel}`,
+            `# start_fen: ${startFen}`,
+            "",
+            ...fens.map((fen: string, index: number) => `${index + 1}. ${fen}`),
+            "",
+        ].join("\n");
+        const safeName = gameLabel.replace(/[^a-zA-Z0-9_-]/g, "_");
+        res.setHeader("Content-Type", "text/plain; charset=utf-8");
+        res.setHeader("Content-Disposition", `attachment; filename=\"${safeName}-fen-timeline.txt\"`);
+        return res.send(content);
+    } catch (error) {
+        sendInternalError(res, "GET /games/history/:id/fen-text", error);
+    }
+});
 
 /** POST /games/recover - convert a FEN timeline into PGN. */
 recoverRouter.post("/recover", gameMutationRateLimit, async (req, res) => {

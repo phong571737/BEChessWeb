@@ -24,8 +24,9 @@ type LegacyHistoryGame = HistoryGame & {
   lastSeq?: number;
 };
 
-const isFinishedResult = (result?: string | null) =>
-  result === "1-0" || result === "0-1" || result === "1/2-1/2";
+const isFinishedResult = (game: Pick<HistoryGame, "Result" | "historyStatus" | "outcomeStatus">) =>
+  game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" ||
+  game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
 
 function timeControlBadgeClass(type: "blitz" | "rapid" | "classical") {
   if (type === "blitz") return "border-violet-300/50 bg-violet-500/10 text-violet-700 dark:text-violet-300";
@@ -92,10 +93,11 @@ export function GameHistory() {
     };
   }, []);
 
-  const resultText = (result: HistoryGame["Result"]) => {
-    if (result === "1-0") return t("result.whiteWin");
-    if (result === "0-1") return t("result.blackWin");
-    if (result === "1/2-1/2") return t("result.draw");
+  const resultText = (game: HistoryGame) => {
+    if (game.outcomeStatus === "unconfirmed") return t("played.unconfirmed");
+    if (game.Result === "1-0") return t("result.whiteWin");
+    if (game.Result === "0-1") return t("result.blackWin");
+    if (game.Result === "1/2-1/2") return t("result.draw");
     return t("played.unfinished");
   };
 
@@ -273,7 +275,7 @@ export function GameHistory() {
 
   const filteredGames = games
     .filter((g) => (resultFilter === "all" ? true : g.Result === resultFilter))
-    .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g.Result) : isFinishedResult(g.Result))
+    .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g) : isFinishedResult(g))
     .filter((g) => !boardFilter || g.boardID === boardFilter)
     .filter((g) => !locationFilter || g.location?.trim() === locationFilter)
     .filter((g) => {
@@ -532,10 +534,10 @@ export function GameHistory() {
                         </td>
                         <td className="px-4 py-3">
                           <Badge
-                            variant={isFinishedResult(game.Result) ? resultVariant(game.Result) : "secondary"}
-                            className={cn("w-[118px] justify-center text-[11px]", !isFinishedResult(game.Result) && "border border-primary/25 bg-primary/10 text-primary")}
+                            variant={isFinishedResult(game) && game.outcomeStatus !== "unconfirmed" ? resultVariant(game.Result) : "secondary"}
+                            className={cn("w-[118px] justify-center text-[11px]", (!isFinishedResult(game) || game.outcomeStatus === "unconfirmed") && "border border-primary/25 bg-primary/10 text-primary")}
                           >
-                            {resultText(game.Result)}
+                            {resultText(game)}
                           </Badge>
                         </td>
                         <td className="px-4 py-3">

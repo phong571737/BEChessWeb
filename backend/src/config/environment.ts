@@ -2,6 +2,7 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+/** Read a mandatory deployment setting and fail fast when it is absent. */
 function requireEnv(key: string): string {
   const value = process.env[key];
   if (!value) {
@@ -10,7 +11,7 @@ function requireEnv(key: string): string {
   return value;
 }
 
-// Reads an optional env var, returns undefined if missing
+/** Read an optional deployment setting without inventing a production default. */
 function optionalEnv(key: string): string | undefined {
   return process.env[key];
 }

@@ -241,6 +241,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.noMovesAnalysis": "Chưa có nước đi để phân tích.",
     "rev.moveEBoard": "Nước đi nhận từ bàn cờ điện tử",
     "rev.wheelNavigation": "Dùng con lăn chuột lên/xuống để xem nước đi",
+    "rev.recoveryAlternatives": "Nhánh khôi phục khác",
 
     // ----- Played / History ---------------------------------------------
     "played.title": "Lịch sử ván cờ",
@@ -252,6 +253,7 @@ export const vi: Record<TranslationKeys, string> = {
     "played.blackWin": "Đen thắng",
     "played.draw": "Hoà",
     "played.unfinished": "Chưa hoàn thành",
+    "played.unconfirmed": "Không xác nhận được bên thắng",
     "played.deleteAll": "Xóa toàn bộ",
     "played.emptyTrashTitle": "Xóa vĩnh viễn toàn bộ thùng rác?",
     "played.emptyTrashDescription": "Mọi ván trong thùng rác sẽ bị xóa hoàn toàn và không thể khôi phục.",

@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { claimGameResignation, endGame, getGame, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
+import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
@@ -65,6 +65,15 @@ async function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: st
 }
 
 export const GameResignService = {
+    /** Finalize a physical-board session when Stockfish cannot prove a winner. */
+    async handleUnconfirmed(gameID: string, boardType: string): Promise<ResignResult & { unconfirmed: true }> {
+        // Reuse the atomic finalization/next-game flow, then relabel the
+        // history record so an uncertain Stockfish result is not shown as a draw.
+        const result = await GameResignService.handle(gameID, "draw", boardType, null);
+        await markHistoryUnfinished(result.oldGameID);
+        return { ...result, unconfirmed: true };
+    },
+
     async handle(gameID: string, resignSide: ResignSide, boardType: string, branchId: string | null = null): Promise<ResignResult> {
         // Validate 
         if (!resignSide || !["white", "black", "draw"].includes(resignSide)) {

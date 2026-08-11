@@ -41,6 +41,7 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 | [24-versioning.md](24-versioning.md) | Release and GitHub versioning policy |
 | [25-stockfish-evaluation.md](25-stockfish-evaluation.md) | Browser Stockfish lifecycle and evaluation-bar behavior |
 | [26-codegraph.md](26-codegraph.md) | Local repository code graph and architecture visualization |
+| [27-code-comments-and-configuration.md](27-code-comments-and-configuration.md) | English function-comment and environment/secret policy |
 
 ## Runtime flow
 

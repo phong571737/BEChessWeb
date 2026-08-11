@@ -7,6 +7,7 @@ import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseF
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
 import { GameResignService } from "./game.resign.service.js";
+import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
 
@@ -25,6 +26,7 @@ interface RemoveGameByBoardResult {
 
 interface CommandPayload {
     command?: string;
+    origin?: string;
     side?: string;
     resignSide?: string;
     boardType?: string;
@@ -33,6 +35,7 @@ interface CommandPayload {
 }
 
 const COMMAND_DEDUPE_WINDOW_MS = 15_000;
+const AUTO_RESULT_THRESHOLD_CP = 150;
 const recentCommandKeys = new Map<string, number>();
 
 function claimCommand(boardID: string, payload: CommandPayload, command: string, side?: string) {
@@ -104,6 +107,9 @@ async function handleMessage(topic: string, message: Buffer) {
         if (!boardID) return;
         try {
             const payload = JSON.parse(message.toString()) as CommandPayload;
+            // The backend subscribes to the same command topic it publishes
+            // to. Do not execute our own outbound command a second time.
+            if (payload.origin === "backend") return;
             const command = typeof payload.command === "string" ? payload.command.trim().toLowerCase() : "";
             if (!["restart_game_esp", "restart_game", "resign", "draw"].includes(command)) return;
             const rawSide = payload.side ?? payload.resignSide;
@@ -125,7 +131,23 @@ async function handleMessage(topic: string, message: Buffer) {
                 return;
             }
             console.log(`[MQTT] ${command} received for board ${boardID}, game ${gameID}`);
-            if (command === "restart_game_esp" || command === "restart_game") {
+            if (command === "restart_game_esp") {
+                const boardType = typeof payload.boardType === "string" && payload.boardType.toUpperCase() === BOARD_TYPE.HALL
+                    ? BOARD_TYPE.HALL
+                    : BOARD_TYPE.NFC;
+                const result = await finishEspRestartByEvaluation(gameID, boardID, boardType)
+                    ?? await GameResignService.handleUnconfirmed(gameID, boardType);
+                if (result) {
+                    const resultTag = "unconfirmed" in result && result.unconfirmed
+                        ? "*"
+                        : result.loser === "white" ? "0-1" : "1-0";
+                    getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide: result.loser });
+                    getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
+                    emitGameState(boardID);
+                    getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
+                    getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
+                }
+            } else if (command === "restart_game") {
                 await GameActionService.restart(gameID);
             } else {
                 const resignSide: ResignSide = command === "draw" ? "draw" : normalizedSide!;
@@ -234,4 +256,59 @@ export function initMqtt() {
 
 export function getMqttClient() {
     return mqttClient;
+}
+
+/**
+ * Evaluate the final physical-board position before creating the next game.
+ * A missing or inconclusive score deliberately returns null so the caller can
+ * persist a finished session with an unconfirmed outcome instead of guessing.
+ */
+async function finishEspRestartByEvaluation(gameID: string, boardID: string, boardType: string) {
+    const { getGame } = await import("../models/game.model.js");
+    const game = await getGame(gameID);
+    const fen = game?.fenHistory?.at(-1) ?? game?.fen;
+    const plyCount = Math.max(
+      game?.fenHistory?.length ?? 0,
+      game?.uciHistory?.length ?? 0,
+      game?.lastSeq ?? 0,
+    );
+    if (!fen || plyCount < 2) return null;
+
+    try {
+        const evaluation = await evaluatePosition(fen);
+        if (!evaluation) return null;
+        const loser = evaluation.mate !== null
+            ? evaluation.mate > 0 ? "black" : "white"
+            : evaluation.cp !== null && evaluation.cp >= AUTO_RESULT_THRESHOLD_CP ? "black"
+                : evaluation.cp !== null && evaluation.cp <= -AUTO_RESULT_THRESHOLD_CP ? "white"
+                    : null;
+        if (!loser) return null;
+        return await GameResignService.handle(gameID, loser, boardType, null);
+    } catch (error) {
+        console.error(`[MQTT] Stockfish restart evaluation failed for ${boardID}:`, error);
+        return null;
+    }
+}
+
+/** Publish a non-retained command to a physical board. */
+export function publishBoardCommand(
+    boardID: string,
+    command: string,
+): Promise<boolean> {
+    const client = mqttClient;
+    if (!client || !client.connected || !boardID.trim()) return Promise.resolve(false);
+
+    const topic = `chess/${boardID}/command`;
+    const payload = JSON.stringify({ command, origin: "backend" });
+    return new Promise((resolve) => {
+        client.publish(topic, payload, { qos: 1, retain: false }, (error) => {
+            if (error) {
+                console.error(`[MQTT] Failed to publish ${command} for board ${boardID}:`, error);
+                resolve(false);
+                return;
+            }
+            console.log(`[MQTT] Published ${command} for board ${boardID}`);
+            resolve(true);
+        });
+    });
 }

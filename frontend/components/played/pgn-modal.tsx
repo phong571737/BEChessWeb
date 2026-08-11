@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from "lucide-react";
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { classifyTimeControl } from "@/lib/time-control";
@@ -27,6 +27,24 @@ interface Props {
 
 interface ReviewProps {
   game: HistoryGame;
+}
+
+interface RecoveryLine {
+  uciMoves: string[];
+  sanMoves: string[];
+  assumedFens: string[];
+  moveSources?: string[];
+}
+
+interface RecoveryStep {
+  ply: number;
+  moveLists?: RecoveryLine[];
+}
+
+interface RecoveryPayload {
+  pgn?: unknown;
+  steps?: unknown;
+  bestMoveLists?: unknown;
 }
 
 function movesOnly(pgn: string): string {
@@ -163,10 +181,31 @@ function customReviewPgn(game: HistoryGame): string {
   return [...headers, "", `${lines.join(" ")} ${result}`].join("\n");
 }
 
+function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
+  const savedHeaders = readPgnHeaders(game.pgn ?? "");
+  const headers = [
+    `[Event "${savedHeaders.Event || "?"}"]`,
+    `[Site "${game.location?.trim() || savedHeaders.Site || "?"}"]`,
+    `[Date "${savedHeaders.Date || game.Date || "????.??.??"}"]`,
+    `[Round "${game.round ?? savedHeaders.Round ?? "1"}"]`,
+    `[White "${game.WhiteName || savedHeaders.White || "White"}"]`,
+    `[Black "${game.BlackName || savedHeaders.Black || "Black"}"]`,
+    `[Result "${game.Result || "*"}"]`,
+  ];
+  if (game.initialFen) headers.push(`[SetUp "1"]`, `[FEN "${game.initialFen}"]`);
+  const moves = line.sanMoves.map((san, index) => index % 2 === 0
+    ? `${Math.floor(index / 2) + 1}. ${san}`
+    : `${Math.floor(index / 2) + 1}... ${san}`
+  ).join(" ");
+  return [...headers, "", `${moves} ${game.Result || "*"}`].join("\n");
+}
+
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
-  const isFinishedResult = game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
-  const resultText = game.Result === "1-0"
+  const isFinishedResult = game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" || game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
+  const resultText = game.outcomeStatus === "unconfirmed"
+    ? t("played.unconfirmed")
+    : game.Result === "1-0"
     ? t("result.whiteWin")
     : game.Result === "0-1"
       ? t("result.blackWin")
@@ -177,6 +216,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [fenCopied, setFenCopied] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const [recoveredPgn, setRecoveredPgn] = useState<string | null>(null);
+  const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
+  const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
+  const [selectedRecoveryLine, setSelectedRecoveryLine] = useState<RecoveryLine | null>(null);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
@@ -187,37 +229,48 @@ export function PGNReviewContent({ game }: ReviewProps) {
   useEffect(() => {
     let cancelled = false;
     setRecoveredPgn(null);
+    setRecoverySteps([]);
+    setRecoveryLines([]);
+    setSelectedRecoveryLine(null);
     if (!game._id || !game.fenHistory?.length) return () => { cancelled = true; };
 
     fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn`)
       .then(async (response) => {
         if (!response.ok) return null;
-        const data = await response.json() as { pgn?: unknown };
-        return typeof data.pgn === "string" && data.pgn.trim() ? data.pgn : null;
+        const data = await response.json() as RecoveryPayload;
+        return data;
       })
-      .then((pgn) => {
-        if (!cancelled && pgn) setRecoveredPgn(pgn);
+      .then((data) => {
+        if (cancelled || !data) return;
+        if (typeof data.pgn === "string" && data.pgn.trim()) setRecoveredPgn(data.pgn);
+        if (Array.isArray(data.steps)) setRecoverySteps(data.steps as RecoveryStep[]);
+        if (Array.isArray(data.bestMoveLists)) setRecoveryLines(data.bestMoveLists as RecoveryLine[]);
       })
       .catch(() => undefined);
 
     return () => { cancelled = true; };
   }, [game._id, game.fenHistory]);
 
-  const reviewPgn = useMemo(() => recoveredPgn ?? customReviewPgn(game), [game, recoveredPgn]);
+  const reviewPgn = useMemo(() => {
+    if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
+    return recoveredPgn ?? customReviewPgn(game);
+  }, [game, recoveredPgn, selectedRecoveryLine]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null }];
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
       // Notation comes from recover-service; FEN snapshots remain authoritative
       // for board navigation, including custom/partially legal device games.
-      const serviceMoves = extractSanMoves(reviewPgn);
+      const serviceMoves = selectedRecoveryLine?.sanMoves ?? extractSanMoves(reviewPgn);
+      const selectedFens = selectedRecoveryLine?.assumedFens;
+      const sourceFens = selectedFens?.length ? selectedFens : game.fenHistory;
       const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
         { fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null },
       ];
 
       const temp = new Chess(game.initialFen ?? DEFAULT_FEN, { skipValidation: true });
-      for (let i = 0; i < game.fenHistory.length; i++) {
-        const nextFen = game.fenHistory[i];
+      for (let i = 0; i < sourceFens.length; i++) {
+        const nextFen = sourceFens[i];
         let san = serviceMoves[i] ?? "x";
         let lastMove: { from: string; to: string } | null = null;
 
@@ -256,13 +309,37 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [{ fen: "start", san: "start", lastMove: null }];
-  }, [game, reviewPgn]);
+  }, [game, reviewPgn, selectedRecoveryLine]);
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
 
+  const recoveryAlternatives = useMemo(() => {
+    const alternatives = new Map<number, RecoveryLine[]>();
+    for (const step of recoverySteps) {
+      const lines = Array.isArray(step.moveLists) ? step.moveLists : [];
+      const unique = new Map<string, RecoveryLine>();
+      for (const line of lines) {
+        const move = line.sanMoves?.[step.ply - 1];
+        if (move && !unique.has(move)) unique.set(move, line);
+      }
+      if (unique.size > 1) alternatives.set(step.ply, [...unique.values()]);
+    }
+    return alternatives;
+  }, [recoverySteps]);
+
+  const selectRecoveryAlternative = useCallback((ply: number, line: RecoveryLine) => {
+    const prefix = line.uciMoves?.slice(0, ply) ?? [];
+    const completeLine = recoveryLines.find((candidate) =>
+      prefix.length > 0 && prefix.every((move, index) => candidate.uciMoves?.[index] === move)
+    );
+    setSelectedRecoveryLine(completeLine ?? line);
+    setCursor(Math.max(0, Math.min(ply, (completeLine ?? line).sanMoves.length)));
+  }, [recoveryLines]);
+
   useEffect(() => {
     setCursor(-1);
+    setSelectedRecoveryLine(null);
   }, [game?._id]);
 
   useEffect(() => {
@@ -398,7 +475,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
             <h2 className="text-base sm:text-lg font-semibold leading-none tracking-tight">
               {game.WhiteName} vs {game.BlackName}
             </h2>
-            <Badge variant={isFinishedResult ? resultVariant(game.Result) : "secondary"} className={`w-28 justify-center shrink-0${isFinishedResult ? "" : " border border-primary/25 bg-primary/10 text-primary"}`}>
+            <Badge variant={isFinishedResult && game.outcomeStatus !== "unconfirmed" ? resultVariant(game.Result) : "secondary"} className={`w-28 justify-center shrink-0${(!isFinishedResult || game.outcomeStatus === "unconfirmed") ? " border border-primary/25 bg-primary/10 text-primary" : ""}`}>
               {resultText}
             </Badge>
             <Badge variant="outline" className="shrink-0 border-primary/20 bg-primary/5 text-primary">
@@ -463,33 +540,46 @@ export function PGNReviewContent({ game }: ReviewProps) {
               </div>
               <ScrollArea className="h-[160px]">
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
-                  {timeline.slice(1).map((m, i) => (
-                    m.fenFallback ? (
-                    <button
-                      key={`${m.san}-${i}`}
-                      ref={currentIndex === i + 1 ? activeMoveRef : undefined}
-                      type="button"
-                      onClick={() => goTo(i + 1)}
-                      className={`col-span-full rounded-sm border px-2 py-1 text-left font-mono text-[10px] transition-colors ${
-                        currentIndex === i + 1 ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
-                      }`}
-                    >
-                      {i + 1}. {m.san}
-                    </button>
-                    ) : <button
-                      key={`${m.san}-${i}`}
-                      ref={currentIndex === i + 1 ? activeMoveRef : undefined}
-                      type="button"
-                      onClick={() => goTo(i + 1)}
-                      className={`text-left px-2 py-1 rounded-sm text-xs border ${
-                        currentIndex === i + 1
-                          ? "bg-accent border-border text-foreground"
-                          : "border-transparent hover:bg-accent/70 text-muted-foreground"
-                      }`}
-                    >
-                      {i + 1}. {m.san}
-                    </button>
-                  ))}
+                  {timeline.slice(1).map((m, i) => {
+                    const ply = i + 1;
+                    const alternatives = recoveryAlternatives.get(ply) ?? [];
+                    return (
+                      <Fragment key={`${m.san}-${i}`}>
+                        <button
+                          ref={currentIndex === ply ? activeMoveRef : undefined}
+                          type="button"
+                          onClick={() => goTo(ply)}
+                          className={m.fenFallback
+                            ? `col-span-full rounded-sm border px-2 py-1 text-left font-mono text-[10px] transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
+                            : `text-left px-2 py-1 rounded-sm text-xs border ${currentIndex === ply ? "bg-accent border-border text-foreground" : "border-transparent hover:bg-accent/70 text-muted-foreground"}`}
+                        >
+                          {ply}. {m.san}
+                        </button>
+                        {alternatives.length > 1 && (
+                          <div className="col-span-full flex items-center gap-1 pl-2 -mt-0.5 mb-0.5">
+                            <GitBranch className="size-3 text-primary shrink-0" />
+                            <span className="text-[10px] text-muted-foreground mr-1">{t("rev.recoveryAlternatives")}</span>
+                            {alternatives.map((line, optionIndex) => {
+                              const label = line.sanMoves?.[ply - 1] ?? "x";
+                              const selected = selectedRecoveryLine?.sanMoves?.[ply - 1] === label;
+                              return (
+                                <Button
+                                  key={`${ply}-${label}-${optionIndex}`}
+                                  type="button"
+                                  variant={selected ? "secondary" : "outline"}
+                                  size="sm"
+                                  className="h-6 px-2 text-[10px] font-mono"
+                                  onClick={() => selectRecoveryAlternative(ply, line)}
+                                >
+                                  {label}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </Fragment>
+                    );
+                  })}
                 </div>
               </ScrollArea>
               <div className="flex items-center justify-center gap-1 p-2 border-t border-border">

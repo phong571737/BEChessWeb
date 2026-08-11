@@ -133,7 +133,7 @@ This collection backs the active game retrieval path and supports game restore f
 
 ### `game_history`
 
-The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Changes to player names, clock settings, round, or playing location during an active game also synchronize the same snapshot immediately. Resignation finalizes that same record rather than creating a duplicate.
+The review-history collection. It receives an upserted snapshot after every accepted move, so an in-progress game is reviewable even before resignation. Changes to player names, clock settings, round, or playing location during an active game also synchronize the same snapshot immediately once at least one ply exists. Empty setup/restart games with zero plies are not written to history, and a terminal action before the first move removes any empty placeholder instead of creating a history row. Resignation finalizes that same record rather than creating a duplicate.
 
 Both the live document and the snapshot retain PGN metadata: player names, round, location (`Site`), start date, board ID, UCI history, and FEN history. The review PGN exporter prefers these durable fields over placeholder headers such as `?` and `????.??.??` from older raw PGN text.
 
@@ -194,3 +194,13 @@ The data model assumes:
 ## Game duration fields
 
 Live game documents store `startedAt` when the first accepted move is processed, `lastMoveAt` after every accepted move, and `durationSec` as the elapsed number of seconds. Restart clears these values. Completed-history documents retain `startedAt`, `endedAt`, and `durationSec` so the Played and Move Review pages can display the actual game duration.
+## Repairing a concatenated FEN history
+
+If one legacy `game_history` document contains two sessions concatenated into
+one `fenHistory`, use `npx tsx tools/split-concatenated-history.ts` for a dry
+run. The migration detects the reset from a reduced material position to a new
+starting setup, prints both ply counts and generated IDs, and never writes by
+default. Review the preview, then rerun with `--apply` (optionally
+`--game-id=<id>`). It keeps the first session ID, creates a new ID for the
+second session, clears the invalid combined PGN, and leaves both records as
+active snapshots so the recovery service can rebuild their notation from FEN.
