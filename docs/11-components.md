@@ -54,7 +54,7 @@ Renders the review-page Stockfish summary directly from the persisted `analysis.
 
 ### `move-analysis-panel`
 
-Provides authenticated-user-triggered Stockfish analysis for a History review. It prioritizes persisted FEN snapshots, then rebuilds a legal prefix from UCI history and the initial FEN, and finally uses valid standard PGN. The panel stores one row per persisted ply. Saved classifications use standard chess annotation glyphs (`!!`, `!`, `?!`, `?`, and `??`) beside their localized labels; the same glyph is shown beside the corresponding move in the board review list. A malformed or custom-device move is rendered with the localized **Unavailable** / **Không khả dụng** label rather than preventing the rest of the history from being saved. Null engine scores are omitted from the advantage chart instead of being rendered as a false `0.0` evaluation.
+Provides authenticated-user-triggered Stockfish analysis for a History review. It prioritizes persisted FEN snapshots, then rebuilds a legal prefix from UCI history and the initial FEN, and finally uses valid standard PGN. The panel stores one row per persisted ply. Saved classifications use shared `lucide-react` icons beside their localized labels; the same icon is shown beside the corresponding move in the board review list. A malformed or custom-device move is rendered with the localized **Unavailable** / **Không khả dụng** label rather than preventing the rest of the history from being saved. Null engine scores are omitted from the advantage chart instead of being rendered as a false `0.0` evaluation.
 
 ### `paste-game`
 

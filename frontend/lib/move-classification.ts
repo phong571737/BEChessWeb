@@ -1,15 +1,26 @@
+import {
+  BadgeCheck,
+  CircleCheckBig,
+  CircleHelp,
+  Minus,
+  OctagonX,
+  Sparkles,
+  ThumbsUp,
+  TriangleAlert,
+  type LucideIcon,
+} from "lucide-react";
 import type { MoveClassification } from "@/lib/post-game-analysis";
 
-/** Standard chess annotation glyphs used beside Stockfish move labels. */
-export const moveClassificationSymbol: Record<MoveClassification, string> = {
-  brilliant: "!!",
-  best: "★",
-  excellent: "!",
-  good: "✓",
-  inaccuracy: "?!",
-  mistake: "?",
-  blunder: "??",
-  unavailable: "—",
+/** Lucide icons shared by all Stockfish move-classification surfaces. */
+export const moveClassificationIcon: Record<MoveClassification, LucideIcon> = {
+  brilliant: Sparkles,
+  best: BadgeCheck,
+  excellent: CircleCheckBig,
+  good: ThumbsUp,
+  inaccuracy: CircleHelp,
+  mistake: TriangleAlert,
+  blunder: OctagonX,
+  unavailable: Minus,
 };
 
 /** Shared semantic color treatment for Stockfish move classifications. */

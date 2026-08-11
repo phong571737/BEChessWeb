@@ -2,7 +2,7 @@
 
 TTLab Chess Web connects a physical electronic chessboard to a real-time web interface. The repository contains an Express/Socket.IO/MQTT backend and a Next.js frontend, with MongoDB providing durable active-game and history snapshots.
 
-Current release: `v1.1.4-change1`.
+Current release: `v1.1.4-change2`.
 
 ## Runtime architecture
 
