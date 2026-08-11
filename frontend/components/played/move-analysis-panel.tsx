@@ -12,7 +12,12 @@ import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis
 import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
-interface Props { game: HistoryGame; currentPly: number; onSelectPly: (ply: number) => void; }
+interface Props {
+  game: HistoryGame;
+  currentPly: number;
+  onSelectPly: (ply: number) => void;
+  onAnalysisSaved?: (moves: MoveAnalysis[]) => void;
+}
 
 function formatEvaluation(value: number | null): string {
   if (value === null) return "—";
@@ -20,7 +25,7 @@ function formatEvaluation(value: number | null): string {
   return `${value >= 0 ? "+" : ""}${(value / 100).toFixed(1)}`;
 }
 
-export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
+export function MoveAnalysisPanel({ game, currentPly, onSelectPly, onAnalysisSaved }: Props) {
   const { t } = useT();
   const { token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
@@ -52,6 +57,7 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
       if (response.status === 400) throw new Error(t("analysis.invalidData"));
       if (!response.ok) throw new Error(t("analysis.error"));
       setMoves(result);
+      onAnalysisSaved?.(result);
     } catch { setError(t("analysis.error")); } finally { setRunning(false); }
   };
 

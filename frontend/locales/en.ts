@@ -100,6 +100,8 @@ export const en = {
     "rev.started": "Started",
     "rev.moveReview": "Move Review",
     "rev.moveDuration": "Move time",
+    "rev.showEvaluation": "Show evaluation bar",
+    "rev.hideEvaluation": "Hide evaluation bar",
     "rev.pgnNotation": "PGN Notation",
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Copied!",

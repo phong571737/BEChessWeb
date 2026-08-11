@@ -221,6 +221,8 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.started": "Bắt đầu lúc",
     "rev.moveReview": "Xem lại nước đi",
     "rev.moveDuration": "Thời gian nước đi",
+    "rev.showEvaluation": "Hiện thanh đánh giá",
+    "rev.hideEvaluation": "Ẩn thanh đánh giá",
     "rev.pgnNotation": "Ký hiệu PGN",
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Đã copy!",

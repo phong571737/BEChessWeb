@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3 } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { classifyTimeControl } from "@/lib/time-control";
@@ -14,6 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { ChessBoardView } from "@/components/board/chess-board-view";
+import { EvalBar } from "@/components/board/eval-bar";
 import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
@@ -95,7 +96,8 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
 
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
-  const analysisByPly = useMemo(() => new Map((game.analysis?.moves ?? []).map((move) => [move.ply, move])), [game.analysis?.moves]);
+  const [reviewAnalysisMoves, setReviewAnalysisMoves] = useState(game.analysis?.moves ?? []);
+  const analysisByPly = useMemo(() => new Map(reviewAnalysisMoves.map((move) => [move.ply, move])), [reviewAnalysisMoves]);
   const isFinishedResult = game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" || game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
   const resultText = game.outcomeStatus === "unconfirmed"
     ? t("played.unconfirmed")
@@ -114,6 +116,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
   const [selectedRecoveryLine, setSelectedRecoveryLine] = useState<RecoveryLine | null>(null);
+  const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
@@ -226,6 +229,11 @@ export function PGNReviewContent({ game }: ReviewProps) {
         label: t(`analysis.${currentMoveAnalysis.classification}`),
       }
     : null;
+  const savedEvaluation = currentMoveAnalysis?.evaluationAfterCp ?? null;
+  const savedMate = savedEvaluation !== null && Math.abs(savedEvaluation) >= 100_000
+    ? Math.sign(savedEvaluation)
+    : null;
+  const savedCentipawns = savedMate === null ? savedEvaluation : null;
   const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
     ? (recoveryStatus === "loading" ? t("rev.loading") : t("pg.recoveryUnavailable"))
     : "";
@@ -256,7 +264,19 @@ export function PGNReviewContent({ game }: ReviewProps) {
   useEffect(() => {
     setCursor(-1);
     setSelectedRecoveryLine(null);
-  }, [game?._id]);
+    setReviewAnalysisMoves(game.analysis?.moves ?? []);
+  }, [game?._id, game.analysis?.moves]);
+
+  useEffect(() => {
+    setShowHistoryEvaluation(localStorage.getItem("history-show-evaluation") !== "false");
+  }, []);
+
+  const toggleHistoryEvaluation = () => {
+    setShowHistoryEvaluation((visible) => {
+      localStorage.setItem("history-show-evaluation", String(!visible));
+      return !visible;
+    });
+  };
 
   useEffect(() => {
     activeMoveRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -441,13 +461,33 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
         {/* Review board */}
         <div className="px-4 sm:px-5 pb-3 space-y-2">
+          <div className="flex justify-end">
+            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistoryEvaluation}>
+              <BarChart3 className="size-3.5" />
+              {showHistoryEvaluation ? t("rev.hideEvaluation") : t("rev.showEvaluation")}
+            </Button>
+          </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
-            <div
-              ref={boardWrapRef}
-              className="w-full max-w-[560px] select-none overscroll-contain"
-              title={t("rev.wheelNavigation")}
-            >
-              <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <div className="flex min-w-0 items-stretch gap-1.5">
+                <div
+                  ref={boardWrapRef}
+                  className="min-w-0 flex-1 select-none overscroll-contain"
+                  title={t("rev.wheelNavigation")}
+                >
+                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
+                </div>
+                {showHistoryEvaluation && (
+                  <div className="hidden w-[22px] shrink-0 sm:block">
+                    <EvalBar cp={savedCentipawns} mate={savedMate} />
+                  </div>
+                )}
+              </div>
+              {showHistoryEvaluation && (
+                <div className="sm:hidden">
+                  <EvalBar cp={savedCentipawns} mate={savedMate} orientation="horizontal" />
+                </div>
+              )}
             </div>
             <div className="flex h-[420px] min-h-0 flex-col overflow-hidden rounded-sm border border-border bg-muted/50 xl:h-[520px]">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
@@ -605,7 +645,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} />
+        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
     </>
   );
 }

@@ -46,7 +46,7 @@ Displays the move sequence in PGN form with branch awareness.
 
 ### `eval-bar`
 
-Shows engine or evaluation metadata when present in the board state. Its responsive breakpoint matches the full board's two-column layout: from `sm` upward it stays vertically beside the board; only phone-width layouts render the horizontal bar below the board.
+Shows engine or evaluation metadata when present in the board state. Its responsive breakpoint matches the full board's two-column layout: from `sm` upward it stays vertically beside the board; only phone-width layouts render the horizontal bar below the board. Move Review reuses the component with the saved evaluation for its selected ply, but owns a separate `history-show-evaluation` preference so hiding it never changes the live Board preference.
 
 ### `chess-board-view`
 
@@ -58,7 +58,7 @@ Renders the review-page Stockfish summary directly from the persisted `analysis.
 
 ### `move-analysis-panel`
 
-Provides authenticated-user-triggered Stockfish analysis for a History review. It prioritizes persisted FEN snapshots, then rebuilds a legal prefix from UCI history and the initial FEN, and finally uses valid standard PGN. The panel stores one row per persisted ply. Saved classifications use Lichess-style standard NAG marks: `?!` for an inaccuracy, `?` for a mistake, and `??` for a blunder. Positive project-specific classifications use their standard chess annotations (`!!`, `!`, and `!?`). The colored mark is overlaid on the move's destination square; it is not repeated in the move list. That list instead shows the persisted thinking time for each ply. A malformed or custom-device move is rendered with the localized **Unavailable** / **Không khả dụng** label rather than preventing the rest of the history from being saved. Null engine scores are omitted from the advantage chart instead of being rendered as a false `0.0` evaluation.
+Provides authenticated-user-triggered Stockfish analysis for a History review. It prioritizes persisted FEN snapshots, then rebuilds a legal prefix from UCI history and the initial FEN, and finally uses valid standard PGN. The panel stores one row per persisted ply and reports newly saved results to the parent Review immediately, updating the board mark and evaluation bar without a page reload. Saved classifications use Lichess-style standard NAG marks: `?!` for an inaccuracy, `?` for a mistake, and `??` for a blunder. Positive project-specific classifications use their standard chess annotations (`!!`, `!`, and `!?`). The colored mark is overlaid on the move's destination square; it is not repeated in the move list. That list instead shows the persisted thinking time for each ply. A malformed or custom-device move is rendered with the localized **Unavailable** / **Không khả dụng** label rather than preventing the rest of the history from being saved. Null engine scores are omitted from the advantage chart instead of being rendered as a false `0.0` evaluation.
 
 ### `paste-game`
 

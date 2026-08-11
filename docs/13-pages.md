@@ -55,7 +55,7 @@ The review index route (`/played/review`) is a guard for malformed or legacy lin
 
 The History table uses a compact `920px` minimum width, matching its column budget so common laptop layouts do not show a needless horizontal scrollbar. Smaller viewports still scroll the table horizontally when required.
 
-Active boards, History rows, and Review headers show the derived time-control badge: `Blitz`/`Cờ chớp` for up to 10 minutes, `Rapid`/`Cờ nhanh` above 10 and below 60 minutes, and `Classical`/`Cờ tiêu chuẩn` from 60 minutes. The backend persists this classification with each game and remains authoritative for legacy records.
+Active boards, History rows, and Review headers show the derived time-control badge: `Blitz`/`Cờ chớp` for up to 10 minutes, `Rapid`/`Cờ nhanh` above 10 and below 60 minutes, and `Classical`/`Cờ tiêu chuẩn` from 60 minutes. The backend persists this classification with each game and remains authoritative for legacy records. Move Review can independently show or hide a responsive evaluation bar driven by the selected ply's saved Stockfish score. Its persisted preference is separate from the live Board evaluation setting.
 
 ### `/played/review`
 
