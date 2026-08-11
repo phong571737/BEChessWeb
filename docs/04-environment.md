@@ -20,8 +20,8 @@ The environment contract is declared in [backend/src/config/environment.ts](../b
 - `AUTHOR` – server attribution metadata
 - `PORT` – HTTP server port; defaults to `80`
 - `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO; local development also allows localhost:3000/3001 automatically
-- `BACKEND_INTERNAL_URL` – backend URL used by the frontend container through the internal Compose network; Compose defaults to `http://ttlab-chess-app:8080`
-- `RECOVER_SERVICE_URL` – internal URL of the FEN recovery service; Compose defaults to `http://recover-service:8000`
+- `BACKEND_INTERNAL_URL` – backend URL used by the frontend container through the internal Compose network; it must be defined in the deployment `.env`
+- `RECOVER_SERVICE_URL` – internal URL of the FEN recovery service; it must be defined in the deployment `.env`
 - `VERCEL_WEB` – additional allowed frontend origin retained for compatible deployments
 - `SERVER_NAME` – server identity label
 - `MQTT_USER` – broker username when authentication is enabled
