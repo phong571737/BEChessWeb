@@ -1,4 +1,6 @@
 import { env } from "../config/environment.js";
+import { request as httpRequest } from "node:http";
+import { request as httpsRequest } from "node:https";
 
 interface RecoveryResponse {
   originalPgn?: unknown;
@@ -32,6 +34,51 @@ interface RecoveryHeaders {
   FEN?: string;
 }
 
+const RECOVERY_TIMEOUT_MS = 8_000;
+const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
+
+/**
+ * Sends recovery requests without relying on global fetch. The Node build of
+ * Stockfish Lite clears global fetch while initializing its WASM runtime, so
+ * using the native HTTP modules keeps the recovery sidecar independent from
+ * the chess engine's process-wide compatibility shim.
+ */
+function postRecovery(url: URL, payload: object): Promise<{ status: number; body: string }> {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const request = (url.protocol === "https:" ? httpsRequest : httpRequest)(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(body),
+      },
+    }, (response) => {
+      const chunks: Buffer[] = [];
+      let size = 0;
+
+      response.on("data", (chunk: Buffer | string) => {
+        const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+        size += buffer.length;
+        if (size > MAX_RESPONSE_BYTES) {
+          request.destroy(new Error("FEN recovery response is too large"));
+          return;
+        }
+        chunks.push(buffer);
+      });
+      response.on("end", () => resolve({
+        status: response.statusCode ?? 500,
+        body: Buffer.concat(chunks).toString("utf8"),
+      }));
+    });
+
+    request.setTimeout(RECOVERY_TIMEOUT_MS, () => {
+      request.destroy(new Error("FEN recovery request timed out"));
+    });
+    request.on("error", reject);
+    request.end(body);
+  });
+}
+
 /**
  * Calls the optional Python recovery sidecar. A null result means the caller
  * should use its local custom PGN fallback.
@@ -45,27 +92,20 @@ export async function recoverFenHistory(
   const baseUrl = env.RECOVER_SERVICE_URL?.trim().replace(/\/$/, "");
   if (!baseUrl || fenHistory.length === 0) return null;
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8_000);
   try {
-    const response = await fetch(`${baseUrl}/recover`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+    const response = await postRecovery(new URL(`${baseUrl}/recover`), {
         fenHistory,
         startFen,
         headers,
         maxBranches: 2_000,
         finalOnly: options.includeSteps !== true,
-      }),
-      signal: controller.signal,
     });
-    if (!response.ok) {
+    if (response.status < 200 || response.status >= 300) {
       console.warn(`[FEN RECOVERY] Sidecar returned HTTP ${response.status}`);
       return null;
     }
 
-    const data = await response.json() as RecoveryResponse;
+    const data = JSON.parse(response.body) as RecoveryResponse;
     const pgn = typeof data.originalPgn === "string" ? data.originalPgn.trim() : "";
     if (!pgn) return null;
     const failedPlies = Array.isArray(data.failedPlies)
@@ -83,8 +123,6 @@ export async function recoverFenHistory(
   } catch (error) {
     console.warn("[FEN RECOVERY] Sidecar unavailable; using local fallback", error instanceof Error ? error.message : error);
     return null;
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
