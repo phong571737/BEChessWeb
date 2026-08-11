@@ -50,6 +50,7 @@ erDiagram
         string pgn
         string_array uciHistory
         string_array fenHistory
+        number_array moveDurationsMs
         date startedAt
         date lastMoveAt
         number initialTimeMs
@@ -69,6 +70,7 @@ erDiagram
         string pgn
         string_array uciHistory
         string_array fenHistory
+        number_array moveDurationsMs
         object analysis
         date createdAt
         date endedAt
@@ -127,6 +129,7 @@ The main active/current game collection. It stores current chess documents, incl
 - `round`
 - `uciHistory`
 - `fenHistory`
+- `moveDurationsMs`
 - timestamps
 
 This collection backs the active game retrieval path and supports game restore from DB.
@@ -137,7 +140,7 @@ The review-history collection. It receives an upserted snapshot after every acce
 
 Both the live document and the snapshot retain PGN metadata: player names, round, location (`Site`), start date, board ID, UCI history, and FEN history. The review PGN exporter prefers these durable fields over placeholder headers such as `?` and `????.??.??` from older raw PGN text.
 
-Clock metadata is persisted on both collections: `initialTimeMs` is the configured time per side, `incrementMs` is the per-move increment, and `timeControlType` is the derived classification (`blitz`, `rapid`, or `classical`). History readers must not infer an elapsed duration from `createdAt` to the current time when `endedAt` is missing; legacy records without a persisted `durationSec` remain unknown rather than displaying an inflated duration.
+Clock metadata is persisted on both collections: `initialTimeMs` is the configured time per side, `incrementMs` is the per-move increment, and `timeControlType` is the derived classification (`blitz`, `rapid`, or `classical`). `moveDurationsMs` stores the elapsed thinking time for every accepted ply and is appended atomically with the UCI/FEN traces. Because the game clock starts after the first accepted move, its first entry is `0`; later entries measure from the preceding accepted move. History readers must not infer an elapsed duration from `createdAt` to the current time when `endedAt` is missing; legacy records without persisted timing remain unknown rather than displaying fabricated values.
 
 This collection is used by the history review UI.
 
@@ -177,7 +180,7 @@ The data model assumes:
 - `gameID` is the canonical identifier for a game session.
 - `boardID` links a physical board to a game.
 - `lastSeq` tracks sequence position to avoid out-of-order move application.
-- `uciHistory` and `fenHistory` are kept as trace structures for replay and branch reconstruction.
+- `uciHistory`, `fenHistory`, and `moveDurationsMs` are aligned by ply for replay, branch reconstruction, and move timing.
 - `game_history` is a review snapshot, not the execution source of truth.
 - Live and finished history snapshots preserve their original `createdAt`; MongoDB upserts apply that field only on insertion, while later updates change `updatedAt`.
 - History deletion is a soft delete: records move to the recycle bin with `deletedAt` and `deleteAfter` fields.
@@ -193,7 +196,7 @@ The data model assumes:
 - [09-services.md](09-services.md) explains how the service layer uses the DB wrappers.
 ## Game duration fields
 
-Live game documents store `startedAt` when the first accepted move is processed, `lastMoveAt` after every accepted move, and `durationSec` as the elapsed number of seconds. Restart clears these values. Completed-history documents retain `startedAt`, `endedAt`, and `durationSec` so the Played and Move Review pages can display the actual game duration.
+Live game documents store `startedAt` when the first accepted move is processed, `lastMoveAt` after every accepted move, `moveDurationsMs` by ply, and `durationSec` as the elapsed number of seconds. Restart clears these values. Completed-history documents retain `startedAt`, `endedAt`, `moveDurationsMs`, and `durationSec` so the Played and Move Review pages can display actual game and move durations.
 ## Repairing a concatenated FEN history
 
 If one legacy `game_history` document contains two sessions concatenated into

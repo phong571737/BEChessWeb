@@ -67,6 +67,7 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         totalPlies,
         uciHistory: game.uciHistory ?? [],
         fenHistory: game.fenHistory ?? [],
+        moveDurationsMs: game.moveDurationsMs ?? [],
         WhiteName: game.WhiteName ?? "White",
         BlackName: game.BlackName ?? "Black",
         Result: "*",
@@ -95,7 +96,7 @@ export async function saveHistoryAnalysis(id: string, analysis: Document): Promi
 export async function saveGame(
     gameID: string,
     state: Partial<GameDoc>,
-    { uci, fen, seq, boardType, expectedVersion, expectedStatus }: SaveGameOptions = {}) {
+    { uci, fen, seq, boardType, moveDurationMs, expectedVersion, expectedStatus }: SaveGameOptions = {}) {
     try {
         // remove fen history
         const { fenHistory, uciHistory, ...safeState } = state;
@@ -111,6 +112,9 @@ export async function saveGame(
         if (Array.isArray(fenHistory)) setFields.fenHistory = fenHistory;
 
         if (uci) pushFeilds.uciHistory = uci;
+        if (typeof moveDurationMs === "number" && Number.isFinite(moveDurationMs)) {
+            pushFeilds.moveDurationsMs = Math.max(0, Math.round(moveDurationMs));
+        }
         // The server-calculated FEN is available for both Hall and NFC moves.
         // Persist it for every accepted move so an unfinished game can always
         // be replayed even when a device did not send its own FEN payload.

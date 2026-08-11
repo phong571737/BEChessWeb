@@ -35,9 +35,10 @@ The persisted game object is a MongoDB document with fields such as:
 - `createdAt`, `updatedAt`
 - `initialTimeMs` — initial clock time per side in milliseconds (optional)
 - `incrementMs` — increment per move in milliseconds (optional)
+- `moveDurationsMs` — elapsed thinking time for each accepted ply, aligned with UCI/FEN history
 - `clockSeconds` / `clockIncrement` — legacy second-based fields supported only while loading older game documents
 
-For every accepted move, the active `game_history` snapshot stores the current PGN together with complete `uciHistory` and server-calculated `fenHistory`. This makes unfinished games reviewable and recoverable without waiting for resignation.
+For every accepted move, the active `game_history` snapshot stores the current PGN together with complete `uciHistory`, server-calculated `fenHistory`, and `moveDurationsMs`. The timing entry is written in the same guarded MongoDB update as the move trace. This makes unfinished games reviewable and recoverable without waiting for resignation.
 
 This is the durable projection of the current game state.
 

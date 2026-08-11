@@ -19,7 +19,6 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import { extractSanMoves } from "@/lib/custom-chess";
-import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 
 interface Props {
   game:    HistoryGame | null;
@@ -52,6 +51,15 @@ type RecoveryStatus = "idle" | "loading" | "ready" | "error";
 
 function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
+}
+
+/** Formats a persisted per-ply duration without inventing data for legacy games. */
+function formatMoveDuration(ms: number | undefined): string {
+  if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0) return "—";
+  const totalSeconds = Math.floor(ms / 1_000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${String(seconds).padStart(2, "0")}`;
 }
 
 function readPgnHeaders(pgn: string): Record<string, string> {
@@ -456,7 +464,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   {timeline.slice(1).map((m, i) => {
                     const ply = i + 1;
                     const alternatives = recoveryAlternatives.get(ply) ?? [];
-                    const moveAnalysis = analysisByPly.get(ply);
+                    const moveDuration = game.moveDurationsMs?.[i];
                     return (
                       <Fragment key={`${m.san}-${i}`}>
                         <button
@@ -469,15 +477,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
                         >
                           <span className="flex items-center justify-between gap-2">
                             <span>{ply}. {m.san}</span>
-                            {moveAnalysis && moveAnalysis.classification !== "unavailable" && (
-                              <span
-                                className={`inline-flex size-6 shrink-0 items-center justify-center rounded-sm border ${moveClassificationTone[moveAnalysis.classification]}`}
-                                title={t(`analysis.${moveAnalysis.classification}`)}
-                                aria-label={t(`analysis.${moveAnalysis.classification}`)}
-                              >
-                                <span className="text-[11px] font-black leading-none" aria-hidden="true">{moveClassificationMark[moveAnalysis.classification]}</span>
-                              </span>
-                            )}
+                            <span
+                              className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                              title={t("rev.moveDuration")}
+                              aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                            >
+                              {formatMoveDuration(moveDuration)}
+                            </span>
                           </span>
                         </button>
                         {alternatives.length > 1 && (

@@ -60,6 +60,8 @@ export interface HistoryGame {
     round?: number;
     fenHistory?: string [];
     uciHistory?: string [];
+    /** Elapsed thinking time for each ply, aligned with the move histories. */
+    moveDurationsMs?: number[];
     /** A live snapshot is saved while the game is still in progress. */
     historyStatus?: "active" | "finished";
     /** A finalized session may still have no provable winner (for example an ESP restart). */

@@ -31,6 +31,8 @@ export interface GameDoc extends Document {
     branches?: GameBranch[];
     uciHistory?: string[];
     fenHistory?: string[];
+    /** Elapsed thinking time for each accepted ply, aligned with UCI/FEN history. */
+    moveDurationsMs?: number[];
     updateAt?: Date;
     createdAt?: Date;
     /** Set when the first accepted move is saved; reset clears this timestamp. */
@@ -54,6 +56,8 @@ export interface SaveGameOptions {
     fen?: string;
     seq?: number;
     boardType?: string;
+    /** Elapsed thinking time for the accepted move being appended. */
+    moveDurationMs?: number;
     /** Only update when the persisted game still has this revision. */
     expectedVersion?: number;
     /** Optional persisted status precondition for a state transition. */

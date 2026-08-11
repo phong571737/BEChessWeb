@@ -134,6 +134,7 @@ export const GameResignService = {
             lastSeq: game.lastSeq ?? fenHistory.length,
             uciHistory,
             fenHistory,
+            moveDurationsMs: game.moveDurationsMs ?? [],
             createdAt: startedAt,
             startedAt,
             endedAt,
@@ -164,6 +165,7 @@ export const GameResignService = {
             round: nextRound,
             uciHistory: [], // reset
             fenHistory: [],
+            moveDurationsMs: [],
             resigningAt: null,
         }, {
             boardType,

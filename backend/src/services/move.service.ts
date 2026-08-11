@@ -92,11 +92,18 @@ async function afterMove(
     const now = new Date();
     const persistedGame = await getGame(gameID);
     const startedAt = persistedGame?.startedAt ?? now;
+    // The clock starts after the first accepted move. Subsequent entries are
+    // measured from the previous accepted move and persisted by ply.
+    const previousMoveAt = persistedGame?.lastMoveAt;
+    const previousMoveTimestamp = previousMoveAt ? new Date(previousMoveAt).getTime() : Number.NaN;
+    const moveDurationMs = Number.isFinite(previousMoveTimestamp)
+        ? Math.max(0, now.getTime() - previousMoveTimestamp)
+        : 0;
     const durationSec = Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 1_000));
     const write = await saveGame(
         gameID, 
         { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove, startedAt, lastMoveAt: now, durationSec },
-        { uci, fen: state.fen, seq, boardType, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
+        { uci, fen: state.fen, seq, boardType, moveDurationMs, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
     ); // save db
     if (!write?.modifiedCount) {
         await restorefromDB(gameID);

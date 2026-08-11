@@ -220,6 +220,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.result": "Kết quả",
     "rev.started": "Bắt đầu lúc",
     "rev.moveReview": "Xem lại nước đi",
+    "rev.moveDuration": "Thời gian nước đi",
     "rev.pgnNotation": "Ký hiệu PGN",
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Đã copy!",

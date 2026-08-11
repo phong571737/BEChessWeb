@@ -70,6 +70,7 @@ export const GameController = {
                     initialFen: live.initialFen || snapshot.initialFen,
                     uciHistory: Array.isArray(live.uciHistory) && live.uciHistory.length ? live.uciHistory : snapshot.uciHistory ?? [],
                     fenHistory: Array.isArray(live.fenHistory) && live.fenHistory.length ? live.fenHistory : snapshot.fenHistory ?? [],
+                    moveDurationsMs: Array.isArray(live.moveDurationsMs) && live.moveDurationsMs.length ? live.moveDurationsMs : snapshot.moveDurationsMs ?? [],
                     boardID: live.boardID || snapshot.boardID,
                     location: live.location || snapshot.location,
                     Date: snapshot.Date || live.startedAt || live.createdAt,

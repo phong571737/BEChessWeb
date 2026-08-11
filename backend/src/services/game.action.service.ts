@@ -39,6 +39,7 @@ export const GameActionService = {
             branches: [],
             uciHistory: [],
             fenHistory: [],
+            moveDurationsMs: [],
         }, { expectedVersion: game.version ?? 0, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] });
         if (!transition?.modifiedCount) {
             throw new Error("GAME_STATE_CONFLICT");

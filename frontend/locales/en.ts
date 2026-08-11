@@ -99,6 +99,7 @@ export const en = {
     "rev.result": "Result",
     "rev.started": "Started",
     "rev.moveReview": "Move Review",
+    "rev.moveDuration": "Move time",
     "rev.pgnNotation": "PGN Notation",
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Copied!",
