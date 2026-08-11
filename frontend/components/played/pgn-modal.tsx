@@ -54,6 +54,25 @@ function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
 }
 
+/**
+ * Pairs White and Black SAN under one conventional full-move number without
+ * changing any notation or recovery comments returned by recover-service.
+ */
+export function formatPgnForDisplay(pgn: string): string {
+  if (!pgn.trim()) return "";
+
+  const headers = pgn
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith("[") && line.endsWith("]"));
+  const movetext = movesOnly(pgn)
+    .replace(/(\d+)\.\s+(?!\.)([\s\S]*?)\s+\1\.\.\.\s+/g, "$1. $2 ")
+    .replace(/\s+(?=\d+\.\s+(?!\.))/g, "\n")
+    .trim();
+
+  return headers.length > 0 ? `${headers.join("\n")}\n\n${movetext}` : movetext;
+}
+
 /** Formats a persisted per-ply duration without inventing data for legacy games. */
 function formatMoveDuration(ms: number | undefined): string {
   if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0) return "—";
@@ -159,6 +178,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
     if (game.fenHistory?.length) return recoveredPgn ?? "";
     return game.pgn ?? "";
   }, [game, recoveredPgn, selectedRecoveryLine]);
+  const displayPgn = useMemo(() => formatPgnForDisplay(reviewPgn), [reviewPgn]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null }];
@@ -371,7 +391,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   const copyPGN = async () => {
     try {
-      await navigator.clipboard.writeText(reviewPgn);
+      await navigator.clipboard.writeText(displayPgn);
       setCopied(true);
       if (copiedResetTimerRef.current !== null) window.clearTimeout(copiedResetTimerRef.current);
       copiedResetTimerRef.current = window.setTimeout(() => {
@@ -586,18 +606,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
           {/* Moves only */}
           <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
             <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-              {reviewPgn ? movesOnly(reviewPgn) : recoveryNotice}
+              {displayPgn ? movesOnly(displayPgn) : recoveryNotice}
             </pre>
           </ScrollArea>
 
           {/* Full PGN collapsible */}
-          {reviewPgn && <details className="text-xs">
+          {displayPgn && <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
               {t("rev.showFullPgn")}
             </summary>
             <ScrollArea className="mt-2 h-44 rounded-sm border border-border bg-muted">
               <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                {reviewPgn}
+                {displayPgn}
               </pre>
             </ScrollArea>
           </details>}
