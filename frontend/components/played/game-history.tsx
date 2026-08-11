@@ -56,10 +56,9 @@ export function GameHistory() {
   const [search, setSearch] = useState("");
   const [boardFilter, setBoardFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [timeControlFilter, setTimeControlFilter] = useState<"all" | "blitz" | "rapid" | "classical">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
-  const [minMoves, setMinMoves] = useState("");
-  const [maxMoves, setMaxMoves] = useState("");
   const [sortBy, setSortBy] = useState<"date" | "result" | "players" | "moves" | "duration">("date");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [trash, setTrash] = useState<HistoryGame[]>([]);
@@ -266,11 +265,11 @@ export function GameHistory() {
 
   const boardOptions = useMemo(() => Array.from(new Set(games.map((game) => game.boardID).filter((value): value is string => Boolean(value)))).sort(), [games]);
   const locationOptions = useMemo(() => Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(), [games]);
-  const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || minMoves || maxMoves || statusFilter !== "all");
+  const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || timeControlFilter !== "all" || statusFilter !== "all");
 
   const clearFilters = () => {
     setResultFilter("all"); setStatusFilter("all"); setSearch(""); setBoardFilter(""); setLocationFilter("");
-    setDateFrom(""); setDateTo(""); setMinMoves(""); setMaxMoves("");
+    setTimeControlFilter("all"); setDateFrom(""); setDateTo("");
   };
 
   const filteredGames = games
@@ -278,17 +277,12 @@ export function GameHistory() {
     .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g) : isFinishedResult(g))
     .filter((g) => !boardFilter || g.boardID === boardFilter)
     .filter((g) => !locationFilter || g.location?.trim() === locationFilter)
+    .filter((g) => timeControlFilter === "all" || (g.timeControlType ?? classifyTimeControl(g.initialTimeMs)) === timeControlFilter)
     .filter((g) => {
       const date = new Date(g.createdAt || g.startedAt || g.endedAt || g.Date);
       if (Number.isNaN(date.getTime())) return !dateFrom && !dateTo;
       if (dateFrom && date < new Date(`${dateFrom}T00:00:00`)) return false;
       if (dateTo && date > new Date(`${dateTo}T23:59:59.999`)) return false;
-      return true;
-    })
-    .filter((g) => {
-      const lower = Number(minMoves); const upper = Number(maxMoves);
-      if (minMoves && (!Number.isFinite(lower) || g.totalMoves < lower)) return false;
-      if (maxMoves && (!Number.isFinite(upper) || g.totalMoves > upper)) return false;
       return true;
     })
     .filter((g) => {
@@ -448,8 +442,12 @@ export function GameHistory() {
                 </select></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateFrom")}</span><input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className={INPUT_CLS} /></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.dateTo")}</span><input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className={INPUT_CLS} /></label>
-                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.minMoves")}</span><input type="number" min="0" inputMode="numeric" value={minMoves} onChange={(e) => setMinMoves(e.target.value)} className={INPUT_CLS} /></label>
-                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.maxMoves")}</span><input type="number" min="0" inputMode="numeric" value={maxMoves} onChange={(e) => setMaxMoves(e.target.value)} className={INPUT_CLS} /></label>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.timeControl")}</span><select value={timeControlFilter} onChange={(e) => setTimeControlFilter(e.target.value as "all" | "blitz" | "rapid" | "classical")} className={cn(INPUT_CLS, "cursor-pointer")}>
+                  <option value="all">{t("played.allTimeControls")}</option>
+                  <option value="blitz">{t("timeControl.blitz")}</option>
+                  <option value="rapid">{t("timeControl.rapid")}</option>
+                  <option value="classical">{t("timeControl.classical")}</option>
+                </select></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.sortBy")}</span><select
                   value={`${sortBy}:${sortDir}`}
                   onChange={(e) => {
