@@ -50,7 +50,7 @@ Shows engine or evaluation metadata when present in the board state.
 
 ### `chess-board-view`
 
-The shared board accepts an optional `moveAnnotation` containing a destination square, Stockfish classification, and localized accessible label. It supplies a custom square renderer to `react-chessboard`, keeps each square positioned relatively, and overlays the Lichess-style NAG mark in the destination square's top-right corner. Only Move Review passes this property, so live-board behavior is unchanged.
+The shared board accepts an optional `moveAnnotation` containing a destination square, Stockfish classification, and localized accessible label. It supplies a custom square renderer to `react-chessboard`, keeps each square positioned relatively, and overlays the Lichess-style NAG mark in the destination square's top-right corner. Board marks use larger opaque semantic colors, a contrasting border, background ring, and shadow so they remain legible over either a chess piece or square color. Only Move Review passes this property, so live-board behavior is unchanged.
 
 ### `match-analysis`
 

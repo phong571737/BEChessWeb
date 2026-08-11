@@ -2,7 +2,7 @@
 
 ## Release version
 
-The current application release is `v1.1.4-change4`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
+The current application release is `v1.1.4-change5`. The root package, frontend package, and `frontend/lib/app-version.ts` must use the same version.
 
 ## Push and tag workflow
 

@@ -4,7 +4,7 @@ import { forwardRef, useMemo, type CSSProperties, type ReactNode } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
-import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
+import { moveClassificationBoardTone, moveClassificationMark } from "@/lib/move-classification";
 import type { MoveClassification } from "@/lib/post-game-analysis";
 
 interface MoveAnnotation {
@@ -51,7 +51,7 @@ export function ChessBoardView({
         {children}
         {moveAnnotation?.square === square && (
           <span
-            className={`pointer-events-none absolute right-[4%] top-[4%] z-20 inline-flex size-[25%] min-h-4 min-w-4 max-h-7 max-w-7 items-center justify-center rounded-full border text-[clamp(9px,1.4vw,12px)] font-black leading-none shadow-sm ${moveClassificationTone[moveAnnotation.classification]}`}
+            className={`pointer-events-none absolute right-[3%] top-[3%] z-30 inline-flex size-[38%] min-h-6 min-w-6 max-h-9 max-w-9 items-center justify-center rounded-full border-2 text-[clamp(11px,1.8vw,15px)] font-black leading-none shadow-lg ring-2 ring-background/90 ${moveClassificationBoardTone[moveAnnotation.classification]}`}
             title={moveAnnotation.label}
             aria-label={moveAnnotation.label}
           >

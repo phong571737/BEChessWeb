@@ -23,3 +23,15 @@ export const moveClassificationTone: Record<MoveClassification, string> = {
   blunder: "border-destructive/40 bg-destructive/10 text-destructive",
   unavailable: "border-border bg-muted text-muted-foreground",
 };
+
+/** Opaque, high-contrast tones for marks displayed over a board square. */
+export const moveClassificationBoardTone: Record<MoveClassification, string> = {
+  brilliant: "border-white/90 bg-info text-white",
+  best: "border-white/90 bg-success text-black",
+  excellent: "border-white/90 bg-success text-black",
+  good: "border-white/90 bg-primary text-primary-foreground",
+  inaccuracy: "border-white/90 bg-warning text-black",
+  mistake: "border-white/90 bg-orange-600 text-white",
+  blunder: "border-white/90 bg-destructive text-destructive-foreground",
+  unavailable: "border-white/90 bg-muted-foreground text-background",
+};
