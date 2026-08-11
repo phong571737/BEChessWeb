@@ -1,6 +1,7 @@
 "use client";
 
 import { Chessboard } from "react-chessboard";
+import { Chess } from "chess.js";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 
 interface Props {
@@ -29,6 +30,28 @@ export function ChessBoardView({
   const { flipped, boardColors } = useBoardDisplay();
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
 
+  // Derive the checked king from the current position. This also covers FEN
+  // review, MQTT updates, and restarts; malformed legacy FEN is ignored.
+  let checkedKingSquare: string | null = null;
+  let checkmate = false;
+  try {
+    const position = new Chess(fen || "start");
+    if (position.isCheck()) {
+      const checkedColor = position.turn();
+      const files = "abcdefgh";
+      position.board().forEach((rank, rankIndex) => {
+        rank.forEach((piece, fileIndex) => {
+          if (piece?.type === "k" && piece.color === checkedColor) {
+            checkedKingSquare = `${files[fileIndex]}${8 - rankIndex}`;
+          }
+        });
+      });
+      checkmate = position.isCheckmate();
+    }
+  } catch {
+    // Keep rendering even when a legacy/custom snapshot is not valid chess.
+  }
+
   // ================ Initcheck =========================
   // Missing piece
   missingSquares?.forEach((sq) => {
@@ -53,6 +76,20 @@ export function ChessBoardView({
       background: "rgba(255,255,0,0.55)",
     }
   });
+
+  if (checkedKingSquare) {
+    squareStyles[checkedKingSquare] = {
+      ...squareStyles[checkedKingSquare],
+      background: checkmate
+        ? "hsl(var(--state-checkmate) / 0.78)"
+        : "hsl(var(--state-check) / 0.72)",
+      boxShadow: checkmate
+        ? "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 18px hsl(var(--state-checkmate) / 0.72)"
+        : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 16px hsl(var(--state-check) / 0.65)",
+      animation: "king-check-pulse 1.05s ease-in-out infinite",
+      zIndex: 2,
+    };
+  }
 
   // if (lastMove) {
   //   squareStyles[lastMove.from] = { background: "rgba(236,243,116,0.75)" };
