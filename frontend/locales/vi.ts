@@ -224,7 +224,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.copyPgn": "Copy PGN",
     "rev.copiedPgn": "Đã copy!",
     "rev.copyFen": "Sao chép FEN",
-    "rev.fenTimeline": "Dòng thời gian FEN",
+    "rev.fenTimeline": "Danh sách FEN",
     "rev.downloadFenText": "Tải xuống dạng tệp văn bản",
     "rev.copiedFen": "Đã sao chép!",
     "rev.showFullPgn": "Xem đầy đủ PGN",

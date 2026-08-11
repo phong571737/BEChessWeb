@@ -31,7 +31,20 @@ def _same_moving_piece(before: chess.Piece, after: chess.Piece) -> bool:
     )
 
 
-def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
+def _turn_from_fen(fen: str) -> chess.Color | None:
+    """Read the active color when a complete FEN supplies one."""
+    fields = fen.split()
+    if len(fields) < 2 or fields[1] not in ("w", "b"):
+        return None
+    return chess.WHITE if fields[1] == "w" else chess.BLACK
+
+
+def infer_move_from_fen(
+    before_fen: str,
+    after_fen: str,
+    *,
+    expected_color: chess.Color | None = None,
+) -> chess.Move | None:
     before = _piece_board(before_fen)
     after = _piece_board(after_fen)
     changed = [
@@ -43,12 +56,14 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
     if not changed:
         return None
 
+    expected_color = expected_color if expected_color is not None else _turn_from_fen(before_fen)
     king_from = next(
         (
             square
             for square in changed
             if (piece := before.piece_at(square)) is not None
             and piece.piece_type == chess.KING
+            and (expected_color is None or piece.color == expected_color)
             and after.piece_at(square) != piece
         ),
         None,
@@ -87,6 +102,24 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
             candidates.append(chess.Move(from_square, to_square, promotion=promotion))
 
     unique = list(dict.fromkeys(candidates))
+    if expected_color is not None:
+        expected = [
+            move
+            for move in unique
+            if (piece := before.piece_at(move.from_square)) is not None
+            and piece.color == expected_color
+        ]
+        if expected:
+            unique = expected
+
+    king_moves = [
+        move
+        for move in unique
+        if (piece := before.piece_at(move.from_square)) is not None
+        and piece.piece_type == chess.KING
+    ]
+    if len(king_moves) == 1:
+        return king_moves[0]
     if len(unique) == 1:
         return unique[0]
     raise FenConversionError(
@@ -123,7 +156,24 @@ def _san_for_inferred_move(before_fen: str, move: chess.Move) -> str:
     try:
         return chess.Board(reconstructed).san(move)
     except (AssertionError, ValueError):
-        return move.uci()
+        destination = chess.square_name(move.to_square)
+        capture = placement_board.piece_at(move.to_square) is not None or (
+            piece.piece_type == chess.PAWN
+            and chess.square_file(move.from_square) != chess.square_file(move.to_square)
+        )
+        if piece.piece_type == chess.KING and abs(
+            chess.square_file(move.to_square) - chess.square_file(move.from_square)
+        ) == 2:
+            return "O-O" if move.to_square > move.from_square else "O-O-O"
+        if piece.piece_type == chess.PAWN:
+            prefix = chess.square_name(move.from_square)[0] if capture else ""
+            promotion = (
+                f"={chess.piece_symbol(move.promotion).upper()}"
+                if move.promotion is not None
+                else ""
+            )
+            return f"{prefix}{'x' if capture else ''}{destination}{promotion}"
+        return f"{piece.symbol().upper()}{'x' if capture else ''}{destination}"
 
 
 def _format_move_list(move_tokens: list[str]) -> str:

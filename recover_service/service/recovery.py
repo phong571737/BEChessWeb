@@ -176,10 +176,17 @@ def detect_transitions(
     history = list(fen_history)
     detections: list[DetectedTransition] = []
     before_fen = start_fen
+    start_fields = start_fen.split()
+    initial_color = chess.BLACK if len(start_fields) > 1 and start_fields[1] == "b" else chess.WHITE
 
     for ply, after_fen in enumerate(history, start=1):
+        expected_color = initial_color if ply % 2 == 1 else not initial_color
         try:
-            move = infer_move_from_fen(before_fen, after_fen)
+            move = infer_move_from_fen(
+                before_fen,
+                after_fen,
+                expected_color=expected_color,
+            )
             error = None if move is not None else "No piece-placement change"
         except (FenConversionError, ValueError) as exc:
             move = None

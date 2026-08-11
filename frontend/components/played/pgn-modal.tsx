@@ -47,6 +47,8 @@ interface RecoveryPayload {
   bestMoveLists?: unknown;
 }
 
+type RecoveryStatus = "idle" | "loading" | "ready" | "error";
+
 function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
 }
@@ -62,124 +64,6 @@ function readPgnHeaders(pgn: string): Record<string, string> {
 }
 
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
-
-function fenBoard(fen: string): Record<string, string> {
-  const board: Record<string, string> = {};
-  const rows = fen.split(" ")[0]?.split("/") ?? [];
-  rows.forEach((row, rowIndex) => {
-    let file = 0;
-    for (const char of row) {
-      if (/\d/.test(char)) file += Number(char);
-      else { board[`${"abcdefgh"[file]}${8 - rowIndex}`] = char; file += 1; }
-    }
-  });
-  return board;
-}
-
-/** Best-effort FEN diff used only when an e-board omitted a UCI token. */
-function inferUciFromFen(before: string, after: string): string | null {
-  const previous = fenBoard(before);
-  const next = fenBoard(after);
-  const changed = Array.from(new Set([...Object.keys(previous), ...Object.keys(next)])).filter((square) => previous[square] !== next[square]);
-  const targets = changed.filter((square) => next[square] && (!previous[square] || next[square]?.toLowerCase() !== previous[square]?.toLowerCase()));
-  for (const to of targets) {
-    const color = next[to] === next[to]?.toUpperCase();
-    const from = changed.find((square) => previous[square] && (previous[square] === previous[square]?.toUpperCase()) === color && !next[square]);
-    if (from) return `${from}${to}${next[to]?.toLowerCase() !== "p" && previous[from]?.toLowerCase() === "p" ? next[to]?.toLowerCase() : ""}`;
-  }
-  return null;
-}
-
-function formatCustomMove(uci: string, board: Record<string, string>): string {
-  const match = uci.match(/^([a-h][1-8])([a-h][1-8])([qrbn])?$/i);
-  if (!match) return "x";
-  const [, from, to, promotion] = match;
-  const piece = board[from];
-  if (!piece) return "x";
-
-  const type = piece.toLowerCase();
-  const fileDelta = Math.abs(from.charCodeAt(0) - to.charCodeAt(0));
-  if (type === "k" && fileDelta === 2) {
-    const kingSide = to.charCodeAt(0) > from.charCodeAt(0);
-    const rank = from[1];
-    const rookFrom = `${kingSide ? "h" : "a"}${rank}`;
-    const rookTo = `${kingSide ? "f" : "d"}${rank}`;
-    if (board[rookFrom]) { board[rookTo] = board[rookFrom]!; delete board[rookFrom]; }
-    board[to] = piece;
-    delete board[from];
-    return kingSide ? "O-O" : "O-O-O";
-  }
-
-  const isPawn = type === "p";
-  const capture = Boolean(board[to]) || (isPawn && from[0] !== to[0]);
-  const notation = isPawn
-    ? `${capture ? from[0] : ""}${capture ? "x" : ""}${to}${promotion ? `=${promotion.toUpperCase()}` : ""}`
-    : `${type.toUpperCase()}${capture ? "x" : ""}${to}`;
-
-  if (isPawn && capture && !board[to]) delete board[`${to[0]}${from[1]}`];
-  board[to] = promotion ? (piece === piece.toUpperCase() ? promotion.toUpperCase() : promotion.toLowerCase()) : piece;
-  delete board[from];
-  return notation;
-}
-
-function checkSuffix(fen: string | undefined): string {
-  if (!fen) return "";
-  try {
-    const game = new Chess(fen, { skipValidation: true });
-    return game.isCheckmate() ? "#" : game.isCheck() ? "+" : "";
-  } catch {
-    return "";
-  }
-}
-
-function customMoveTokens(game: HistoryGame): string[] {
-  const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
-  const board = fenBoard(game.initialFen ?? DEFAULT_FEN);
-  let previousFen = game.initialFen ?? DEFAULT_FEN;
-  return Array.from({ length: count }, (_, index) => {
-    const uci = game.uciHistory?.[index]?.trim();
-    const recoveredUci = /^([a-h][1-8])([a-h][1-8])([qrbn])?$/i.test(uci ?? "")
-      ? uci!
-      : (game.fenHistory?.[index] ? inferUciFromFen(previousFen, game.fenHistory[index]!) : null);
-    const notation = recoveredUci ? formatCustomMove(recoveredUci, board) : "x";
-    const nextFen = game.fenHistory?.[index];
-    if (nextFen) previousFen = nextFen;
-    return `${notation}${checkSuffix(nextFen)}`;
-  });
-}
-
-function customReviewPgn(game: HistoryGame): string {
-  const count = Math.max(game.uciHistory?.length ?? 0, game.fenHistory?.length ?? 0);
-  // UCI/FEN are the durable source for e-board games. Rebuilding from them
-  // repairs older custom PGN records that omitted check/checkmate suffixes.
-  if (!count) return game.pgn;
-  const moves = customMoveTokens(game);
-  const lines: string[] = [];
-  for (let index = 0; index < moves.length; index += 2) lines.push(`${index / 2 + 1}. ${moves[index]}${moves[index + 1] ? ` ${moves[index + 1]}` : ""}`);
-  const result = game.Result || "*";
-  const savedHeaders = readPgnHeaders(game.pgn ?? "");
-  const knownHeader = (value: string | undefined): string | undefined => {
-    const normalized = value?.trim();
-    return normalized && normalized !== "?" && normalized !== "????.??.??" ? normalized : undefined;
-  };
-  const pgnDate = (value: unknown): string | undefined => {
-    const date = new Date(String(value ?? ""));
-    return Number.isNaN(date.getTime()) ? undefined : date.toISOString().slice(0, 10).replace(/-/g, ".");
-  };
-  const headers = [
-    `[Event "${knownHeader(savedHeaders.Event) || "?"}"]`,
-    `[Site "${game.location?.trim() || knownHeader(savedHeaders.Site) || "?"}"]`,
-    `[Date "${knownHeader(game.Date) || pgnDate(game.startedAt || game.createdAt || game.createAt) || knownHeader(savedHeaders.Date) || "????.??.??"}"]`,
-    `[Round "${game.round ?? knownHeader(savedHeaders.Round) ?? "1"}"]`,
-    `[White "${game.WhiteName || savedHeaders.White || "White"}"]`,
-    `[Black "${game.BlackName || savedHeaders.Black || "Black"}"]`,
-    `[Result "${result}"]`,
-  ];
-  if (game.initialFen) {
-    headers.push(`[SetUp "1"]`, `[FEN "${game.initialFen}"]`);
-  }
-  return [...headers, "", `${lines.join(" ")} ${result}`].join("\n");
-}
 
 function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
@@ -216,6 +100,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [fenCopied, setFenCopied] = useState(false);
   const [cursor, setCursor] = useState(-1);
   const [recoveredPgn, setRecoveredPgn] = useState<string | null>(null);
+  const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
   const [selectedRecoveryLine, setSelectedRecoveryLine] = useState<RecoveryLine | null>(null);
@@ -223,47 +108,56 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
-  // The recovery sidecar is the canonical renderer for historical FEN/UCI
-  // traces. Keep the local renderer only as a compatibility fallback when a
-  // legacy record has no FEN snapshots or the sidecar is temporarily down.
+  // FEN-backed history notation must come exclusively from recover-service.
+  // A failed request is surfaced to the user instead of invoking a local
+  // renderer that could disagree with the canonical recovery algorithm.
   useEffect(() => {
     let cancelled = false;
     setRecoveredPgn(null);
     setRecoverySteps([]);
     setRecoveryLines([]);
     setSelectedRecoveryLine(null);
+    setRecoveryStatus(game.fenHistory?.length ? "loading" : "idle");
     if (!game._id || !game.fenHistory?.length) return () => { cancelled = true; };
 
     fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn`)
       .then(async (response) => {
-        if (!response.ok) return null;
+        if (!response.ok) throw new Error(`Recovery request failed with HTTP ${response.status}`);
         const data = await response.json() as RecoveryPayload;
         return data;
       })
       .then((data) => {
-        if (cancelled || !data) return;
-        if (typeof data.pgn === "string" && data.pgn.trim()) setRecoveredPgn(data.pgn);
+        if (cancelled) return;
+        if (typeof data.pgn !== "string" || !data.pgn.trim()) throw new Error("Recovery response did not include PGN");
+        setRecoveredPgn(data.pgn);
         if (Array.isArray(data.steps)) setRecoverySteps(data.steps as RecoveryStep[]);
         if (Array.isArray(data.bestMoveLists)) setRecoveryLines(data.bestMoveLists as RecoveryLine[]);
+        setRecoveryStatus("ready");
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (!cancelled) setRecoveryStatus("error");
+      });
 
     return () => { cancelled = true; };
   }, [game._id, game.fenHistory]);
 
   const reviewPgn = useMemo(() => {
     if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
-    return recoveredPgn ?? customReviewPgn(game);
+    if (game.fenHistory?.length) return recoveredPgn ?? "";
+    return game.pgn ?? "";
   }, [game, recoveredPgn, selectedRecoveryLine]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null }];
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
+      if (recoveryStatus !== "ready" || !reviewPgn) {
+        return [{ fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null }];
+      }
       // Notation comes from recover-service; FEN snapshots remain authoritative
       // for board navigation, including custom/partially legal device games.
       const serviceMoves = selectedRecoveryLine?.sanMoves ?? extractSanMoves(reviewPgn);
       const selectedFens = selectedRecoveryLine?.assumedFens;
-      const sourceFens = selectedFens?.length ? selectedFens : game.fenHistory;
+      const sourceFens = (selectedFens?.length ? selectedFens : game.fenHistory).slice(0, serviceMoves.length);
       const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; fenFallback?: boolean }> = [
         { fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null },
       ];
@@ -271,7 +165,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       const temp = new Chess(game.initialFen ?? DEFAULT_FEN, { skipValidation: true });
       for (let i = 0; i < sourceFens.length; i++) {
         const nextFen = sourceFens[i];
-        let san = serviceMoves[i] ?? "x";
+        const san = serviceMoves[i]!;
         let lastMove: { from: string; to: string } | null = null;
 
         try {
@@ -309,10 +203,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [{ fen: "start", san: "start", lastMove: null }];
-  }, [game, reviewPgn, selectedRecoveryLine]);
+  }, [game, recoveryStatus, reviewPgn, selectedRecoveryLine]);
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
+  const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
+    ? (recoveryStatus === "loading" ? t("rev.loading") : t("pg.recoveryUnavailable"))
+    : "";
 
   const recoveryAlternatives = useMemo(() => {
     const alternatives = new Map<number, RecoveryLine[]>();
@@ -540,6 +437,11 @@ export function PGNReviewContent({ game }: ReviewProps) {
               </div>
               <ScrollArea className="h-[160px]">
                 <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
+                  {recoveryNotice && (
+                    <p className="col-span-full p-3 text-xs text-muted-foreground">
+                      {recoveryNotice}
+                    </p>
+                  )}
                   {timeline.slice(1).map((m, i) => {
                     const ply = i + 1;
                     const alternatives = recoveryAlternatives.get(ply) ?? [];
@@ -604,7 +506,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
         <div className="px-4 sm:px-5 pb-5 space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">{t("rev.pgnNotation")}</span>
-            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyPGN}>
+            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5" onClick={copyPGN} disabled={!reviewPgn}>
               {copied
                 ? <><Check className="h-3 w-3" />{t("rev.copiedPgn")}</>
                 : <><Copy className="h-3 w-3" />{t("rev.copyPgn")}</>
@@ -615,12 +517,12 @@ export function PGNReviewContent({ game }: ReviewProps) {
           {/* Moves only */}
           <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
             <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-              {movesOnly(reviewPgn)}
+              {reviewPgn ? movesOnly(reviewPgn) : recoveryNotice}
             </pre>
           </ScrollArea>
 
           {/* Full PGN collapsible */}
-          <details className="text-xs">
+          {reviewPgn && <details className="text-xs">
             <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
               {t("rev.showFullPgn")}
             </summary>
@@ -629,7 +531,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 {reviewPgn}
               </pre>
             </ScrollArea>
-          </details>
+          </details>}
 
           {!!game.fenHistory?.length && (
             <details className="relative text-sm">
