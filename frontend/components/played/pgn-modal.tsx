@@ -209,6 +209,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
+  const currentMoveAnalysis = analysisByPly.get(currentIndex);
+  const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
+  const boardMoveAnnotation = currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
+    ? {
+        square: analyzedDestination,
+        classification: currentMoveAnalysis.classification,
+        label: t(`analysis.${currentMoveAnalysis.classification}`),
+      }
+    : null;
   const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
     ? (recoveryStatus === "loading" ? t("rev.loading") : t("pg.recoveryUnavailable"))
     : "";
@@ -430,7 +439,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
               className="w-full max-w-[560px] select-none overscroll-contain"
               title={t("rev.wheelNavigation")}
             >
-              <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} />
+              <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
             </div>
             <div className="flex h-[420px] min-h-0 flex-col overflow-hidden rounded-sm border border-border bg-muted/50 xl:h-[520px]">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">

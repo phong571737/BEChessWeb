@@ -1,8 +1,17 @@
 "use client";
 
+import { forwardRef, useMemo, type CSSProperties, type ReactNode } from "react";
 import { Chessboard } from "react-chessboard";
 import { Chess } from "chess.js";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
+import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
+import type { MoveClassification } from "@/lib/post-game-analysis";
+
+interface MoveAnnotation {
+  square: string;
+  classification: MoveClassification;
+  label: string;
+}
 
 interface Props {
   fen:              string;
@@ -14,6 +23,8 @@ interface Props {
   missingSquares?: string[];
   extraSquares?: string[];
   wrongPieceSquares?: string[];
+  /** Optional Lichess-style analysis mark rendered on the reviewed move's destination square. */
+  moveAnnotation?: MoveAnnotation | null;
 }
 
 export function ChessBoardView({ 
@@ -26,9 +37,32 @@ export function ChessBoardView({
   missingSquares,
   extraSquares,
   wrongPieceSquares,
+  moveAnnotation,
 }: Props) {
   const { flipped, boardColors } = useBoardDisplay();
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
+  const CustomSquare = useMemo(() => {
+    const AnnotatedSquare = forwardRef<HTMLDivElement, {
+      children: ReactNode;
+      square: string;
+      style: CSSProperties;
+    }>(({ children, square, style }, ref) => (
+      <div ref={ref} style={{ ...style, position: "relative" }}>
+        {children}
+        {moveAnnotation?.square === square && (
+          <span
+            className={`pointer-events-none absolute right-[4%] top-[4%] z-20 inline-flex size-[25%] min-h-4 min-w-4 max-h-7 max-w-7 items-center justify-center rounded-full border text-[clamp(9px,1.4vw,12px)] font-black leading-none shadow-sm ${moveClassificationTone[moveAnnotation.classification]}`}
+            title={moveAnnotation.label}
+            aria-label={moveAnnotation.label}
+          >
+            {moveClassificationMark[moveAnnotation.classification]}
+          </span>
+        )}
+      </div>
+    ));
+    AnnotatedSquare.displayName = "AnnotatedChessSquare";
+    return AnnotatedSquare;
+  }, [moveAnnotation]);
 
   // Derive the checked king from the current position. This also covers FEN
   // review, MQTT updates, and restarts; malformed legacy FEN is ignored.
@@ -110,6 +144,7 @@ export function ChessBoardView({
       position={fen || "start"}
       arePiecesDraggable={false}
       customSquareStyles={squareStyles}
+      customSquare={CustomSquare}
       boardWidth={boardWidth}
       boardOrientation={flipped ? "black" : "white"}
       customBoardStyle={{
