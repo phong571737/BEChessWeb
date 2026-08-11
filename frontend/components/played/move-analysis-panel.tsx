@@ -9,17 +9,10 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
+import { moveClassificationSymbol, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
 interface Props { game: HistoryGame; currentPly: number; onSelectPly: (ply: number) => void; }
-
-const tone: Record<MoveAnalysis["classification"], string> = {
-  brilliant: "border-accent/40 bg-accent text-accent-foreground", best: "border-success/40 bg-success/10 text-success",
-  excellent: "border-info/40 bg-info/10 text-info", good: "border-border bg-muted text-foreground",
-  inaccuracy: "border-warning/40 bg-warning/10 text-warning", mistake: "border-warning/60 bg-warning/15 text-warning",
-  blunder: "border-destructive/40 bg-destructive/10 text-destructive",
-  unavailable: "border-border bg-muted text-muted-foreground",
-};
 
 function formatEvaluation(value: number | null): string {
   if (value === null) return "—";
@@ -77,7 +70,10 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
       {!!moves.length && <ScrollArea className="h-56 rounded-sm border border-border bg-muted/40"><div className="divide-y divide-border">
         {moves.map((move) => <button key={move.ply} type="button" onClick={() => onSelectPly(move.ply)} className={`grid w-full grid-cols-[3rem_minmax(4rem,1fr)_minmax(5rem,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${move.ply === currentPly ? "bg-accent/70" : "hover:bg-accent/40"}`}>
           <span className="font-mono text-muted-foreground">{move.ply}.</span><span className="font-medium">{move.san}</span>
-          <span className={`justify-self-end rounded-sm border px-1.5 py-0.5 font-medium ${tone[move.classification]}`}>{t(`analysis.${move.classification}`)}</span>
+          <span className={`inline-flex items-center gap-1 justify-self-end rounded-sm border px-1.5 py-0.5 font-medium ${moveClassificationTone[move.classification]}`}>
+            <span className="font-bold" aria-hidden="true">{moveClassificationSymbol[move.classification]}</span>
+            {t(`analysis.${move.classification}`)}
+          </span>
         </button>)}
       </div></ScrollArea>}
       {!!moves.length && <>

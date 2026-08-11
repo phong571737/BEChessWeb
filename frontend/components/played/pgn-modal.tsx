@@ -19,6 +19,7 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import { extractSanMoves } from "@/lib/custom-chess";
+import { moveClassificationSymbol, moveClassificationTone } from "@/lib/move-classification";
 
 interface Props {
   game:    HistoryGame | null;
@@ -86,6 +87,7 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
 
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
+  const analysisByPly = useMemo(() => new Map((game.analysis?.moves ?? []).map((move) => [move.ply, move])), [game.analysis?.moves]);
   const isFinishedResult = game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" || game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
   const resultText = game.outcomeStatus === "unconfirmed"
     ? t("played.unconfirmed")
@@ -445,6 +447,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   {timeline.slice(1).map((m, i) => {
                     const ply = i + 1;
                     const alternatives = recoveryAlternatives.get(ply) ?? [];
+                    const moveAnalysis = analysisByPly.get(ply);
                     return (
                       <Fragment key={`${m.san}-${i}`}>
                         <button
@@ -455,7 +458,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
                             ? `col-span-full min-h-9 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
                             : `min-h-9 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
                         >
-                          {ply}. {m.san}
+                          <span className="flex items-center justify-between gap-2">
+                            <span>{ply}. {m.san}</span>
+                            {moveAnalysis && moveAnalysis.classification !== "unavailable" && (
+                              <span
+                                className={`inline-flex min-w-7 shrink-0 items-center justify-center rounded-sm border px-1.5 py-0.5 text-xs font-bold ${moveClassificationTone[moveAnalysis.classification]}`}
+                                title={t(`analysis.${moveAnalysis.classification}`)}
+                                aria-label={t(`analysis.${moveAnalysis.classification}`)}
+                              >
+                                {moveClassificationSymbol[moveAnalysis.classification]}
+                              </span>
+                            )}
+                          </span>
                         </button>
                         {alternatives.length > 1 && (
                           <div className="col-span-full flex items-center gap-1 pl-2 -mt-0.5 mb-0.5">

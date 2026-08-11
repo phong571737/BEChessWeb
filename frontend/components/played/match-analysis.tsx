@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n";
 import type { MoveClassification } from "@/lib/post-game-analysis";
+import { moveClassificationSymbol, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
 const classifications: MoveClassification[] = [
@@ -17,17 +18,6 @@ const classifications: MoveClassification[] = [
   "mistake",
   "blunder",
 ];
-
-const tone: Record<MoveClassification, string> = {
-  brilliant: "border-accent/40 bg-accent text-accent-foreground",
-  best: "border-success/40 bg-success/10 text-success",
-  excellent: "border-info/40 bg-info/10 text-info",
-  good: "border-border bg-muted text-foreground",
-  inaccuracy: "border-warning/40 bg-warning/10 text-warning",
-  mistake: "border-warning/60 bg-warning/15 text-warning",
-  blunder: "border-destructive/40 bg-destructive/10 text-destructive",
-  unavailable: "border-border bg-muted text-muted-foreground",
-};
 
 /** Summarizes the persisted Stockfish labels without reparsing legacy PGN data. */
 export function MatchAnalysis({ game }: { game: HistoryGame }) {
@@ -87,9 +77,9 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
               </CardContent>
             </Card>
             {classifications.map((classification) => (
-              <Card key={classification} className={tone[classification]}>
+              <Card key={classification} className={moveClassificationTone[classification]}>
                 <CardContent className="p-3">
-                  <p className="text-xs opacity-80">{t(`analysis.${classification}`)}</p>
+                  <p className="flex items-center gap-1 text-xs opacity-80"><span className="font-bold" aria-hidden="true">{moveClassificationSymbol[classification]}</span>{t(`analysis.${classification}`)}</p>
                   <p className="text-lg font-semibold">{summary.counts[classification].total}</p>
                 </CardContent>
               </Card>
