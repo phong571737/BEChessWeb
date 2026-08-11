@@ -19,6 +19,17 @@ The board can overlay highlighted squares for:
 
 The square overlays are defined via inline styles and use low-opacity colored backgrounds to visually distinguish board-state mismatches.
 
+## Check and checkmate highlighting
+
+`ChessBoardView` derives king threats from the piece placement rather than relying only on the active-color field in FEN. This is important for physical-board and recovered history snapshots, where the active color can be stale or the non-moving king can be absent.
+
+- an attacked king receives the semantic `--state-check` background, inset border, glow, and pulse
+- a king with no legal escape receives the stronger `--state-checkmate` treatment
+- both colors are inspected, with the recorded active color taking priority when both kings appear attacked in malformed legacy data
+- `chess.js` loads the snapshot with validation skipped only for display recovery; live move legality is not changed
+
+The UI does not trust a `+` or `#` character in recovered notation as the source of truth. The displayed board position determines whether the king is visually marked.
+
 ## Loading state
 
 When the board has not yet measured its own width, the board view falls back to a placeholder:

@@ -2,7 +2,7 @@
 
 import { forwardRef, useMemo, type CSSProperties, type ReactNode } from "react";
 import { Chessboard } from "react-chessboard";
-import { Chess } from "chess.js";
+import { Chess, type Color, type Square } from "chess.js";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { moveClassificationBoardTone, moveClassificationMark } from "@/lib/move-classification";
 import type { MoveClassification } from "@/lib/post-game-analysis";
@@ -25,6 +25,45 @@ interface Props {
   wrongPieceSquares?: string[];
   /** Optional Lichess-style analysis mark rendered on the reviewed move's destination square. */
   moveAnnotation?: MoveAnnotation | null;
+}
+
+interface KingThreat {
+  square: Square;
+  checkmate: boolean;
+}
+
+/**
+ * Finds an attacked king from piece geometry instead of trusting the FEN turn.
+ * Persisted physical-board snapshots can contain a stale active color or omit
+ * the opposite king, so strict FEN validation would hide a visible check.
+ */
+export function findKingThreat(fen: string): KingThreat | null {
+  try {
+    const position = new Chess(fen || undefined, { skipValidation: true });
+    const activeColor = position.turn();
+    const colors: Color[] = [activeColor, activeColor === "w" ? "b" : "w"];
+
+    for (const color of colors) {
+      const [kingSquare] = position.findPiece({ type: "k", color });
+      const attackingColor: Color = color === "w" ? "b" : "w";
+
+      if (!kingSquare || !position.isAttacked(kingSquare, attackingColor)) {
+        continue;
+      }
+
+      // Evaluate mate from the attacked king's perspective even when the
+      // persisted active-color field points at the wrong side.
+      position.setTurn(color);
+      return {
+        square: kingSquare,
+        checkmate: position.isCheckmate(),
+      };
+    }
+  } catch {
+    // Keep rendering when even the piece-placement field cannot be parsed.
+  }
+
+  return null;
 }
 
 export function ChessBoardView({ 
@@ -64,27 +103,7 @@ export function ChessBoardView({
     return AnnotatedSquare;
   }, [moveAnnotation]);
 
-  // Derive the checked king from the current position. This also covers FEN
-  // review, MQTT updates, and restarts; malformed legacy FEN is ignored.
-  let checkedKingSquare: string | null = null;
-  let checkmate = false;
-  try {
-    const position = new Chess(fen || "start");
-    if (position.isCheck()) {
-      const checkedColor = position.turn();
-      const files = "abcdefgh";
-      position.board().forEach((rank, rankIndex) => {
-        rank.forEach((piece, fileIndex) => {
-          if (piece?.type === "k" && piece.color === checkedColor) {
-            checkedKingSquare = `${files[fileIndex]}${8 - rankIndex}`;
-          }
-        });
-      });
-      checkmate = position.isCheckmate();
-    }
-  } catch {
-    // Keep rendering even when a legacy/custom snapshot is not valid chess.
-  }
+  const kingThreat = useMemo(() => findKingThreat(fen), [fen]);
 
   // ================ Initcheck =========================
   // Missing piece
@@ -111,13 +130,13 @@ export function ChessBoardView({
     }
   });
 
-  if (checkedKingSquare) {
-    squareStyles[checkedKingSquare] = {
-      ...squareStyles[checkedKingSquare],
-      background: checkmate
+  if (kingThreat) {
+    squareStyles[kingThreat.square] = {
+      ...squareStyles[kingThreat.square],
+      background: kingThreat.checkmate
         ? "hsl(var(--state-checkmate) / 0.78)"
         : "hsl(var(--state-check) / 0.72)",
-      boxShadow: checkmate
+      boxShadow: kingThreat.checkmate
         ? "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 18px hsl(var(--state-checkmate) / 0.72)"
         : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 16px hsl(var(--state-check) / 0.65)",
       animation: "king-check-pulse 1.05s ease-in-out infinite",
