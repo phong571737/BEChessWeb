@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n";
 import type { MoveClassification } from "@/lib/post-game-analysis";
-import { moveClassificationIcon, moveClassificationTone } from "@/lib/move-classification";
+import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
 const classifications: MoveClassification[] = [
@@ -77,10 +77,9 @@ export function MatchAnalysis({ game }: { game: HistoryGame }) {
               </CardContent>
             </Card>
             {classifications.map((classification) => {
-              const ClassificationIcon = moveClassificationIcon[classification];
               return <Card key={classification} className={moveClassificationTone[classification]}>
                   <CardContent className="p-3">
-                    <p className="flex items-center gap-1 text-xs opacity-80"><ClassificationIcon className="size-3.5" aria-hidden="true" />{t(`analysis.${classification}`)}</p>
+                    <p className="flex items-center gap-1 text-xs opacity-80"><span className="min-w-4 text-center font-bold" aria-hidden="true">{moveClassificationMark[classification]}</span>{t(`analysis.${classification}`)}</p>
                     <p className="text-lg font-semibold">{summary.counts[classification].total}</p>
                   </CardContent>
                 </Card>;

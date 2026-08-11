@@ -19,7 +19,7 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import { extractSanMoves } from "@/lib/custom-chess";
-import { moveClassificationIcon, moveClassificationTone } from "@/lib/move-classification";
+import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 
 interface Props {
   game:    HistoryGame | null;
@@ -448,7 +448,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
                     const ply = i + 1;
                     const alternatives = recoveryAlternatives.get(ply) ?? [];
                     const moveAnalysis = analysisByPly.get(ply);
-                    const ClassificationIcon = moveAnalysis ? moveClassificationIcon[moveAnalysis.classification] : null;
                     return (
                       <Fragment key={`${m.san}-${i}`}>
                         <button
@@ -461,13 +460,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
                         >
                           <span className="flex items-center justify-between gap-2">
                             <span>{ply}. {m.san}</span>
-                            {moveAnalysis && ClassificationIcon && moveAnalysis.classification !== "unavailable" && (
+                            {moveAnalysis && moveAnalysis.classification !== "unavailable" && (
                               <span
                                 className={`inline-flex size-6 shrink-0 items-center justify-center rounded-sm border ${moveClassificationTone[moveAnalysis.classification]}`}
                                 title={t(`analysis.${moveAnalysis.classification}`)}
                                 aria-label={t(`analysis.${moveAnalysis.classification}`)}
                               >
-                                <ClassificationIcon className="size-3.5" aria-hidden="true" />
+                                <span className="text-[11px] font-black leading-none" aria-hidden="true">{moveClassificationMark[moveAnalysis.classification]}</span>
                               </span>
                             )}
                           </span>

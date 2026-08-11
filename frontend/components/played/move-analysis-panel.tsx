@@ -9,7 +9,7 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } f
 import { useAuth } from "@/lib/auth-context";
 import { useT } from "@/lib/i18n";
 import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
-import { moveClassificationIcon, moveClassificationTone } from "@/lib/move-classification";
+import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
 interface Props { game: HistoryGame; currentPly: number; onSelectPly: (ply: number) => void; }
@@ -69,11 +69,10 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly }: Props) {
       {!running && !moves.length && <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-xs text-muted-foreground">{t("analysis.empty")}</div>}
       {!!moves.length && <ScrollArea className="h-56 rounded-sm border border-border bg-muted/40"><div className="divide-y divide-border">
         {moves.map((move) => {
-          const ClassificationIcon = moveClassificationIcon[move.classification];
           return <button key={move.ply} type="button" onClick={() => onSelectPly(move.ply)} className={`grid w-full grid-cols-[3rem_minmax(4rem,1fr)_minmax(5rem,auto)] items-center gap-2 px-3 py-2 text-left text-xs transition-colors ${move.ply === currentPly ? "bg-accent/70" : "hover:bg-accent/40"}`}>
             <span className="font-mono text-muted-foreground">{move.ply}.</span><span className="font-medium">{move.san}</span>
             <span className={`inline-flex items-center gap-1 justify-self-end rounded-sm border px-1.5 py-0.5 font-medium ${moveClassificationTone[move.classification]}`}>
-              <ClassificationIcon className="size-3.5" aria-hidden="true" />
+              <span className="min-w-4 text-center font-bold" aria-hidden="true">{moveClassificationMark[move.classification]}</span>
               {t(`analysis.${move.classification}`)}
             </span>
           </button>;
