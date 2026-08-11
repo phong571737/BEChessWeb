@@ -33,6 +33,7 @@ async function main() {
   if (!uri) throw new Error("MONGO_URI is required");
   const apply = process.argv.includes("--apply");
   const requestedId = process.argv.find((value: string) => value.startsWith("--game-id="))?.slice(10);
+  const requestedUciSplit = process.argv.find((value: string) => value.startsWith("--uci-split="))?.slice(12);
   const client = new MongoClient(uri);
 
   try {
@@ -50,11 +51,15 @@ async function main() {
       const uci = Array.isArray(original.uciHistory) ? original.uciHistory : [];
       const firstId = typeof original._id === "string" ? original._id : (original.gameID ?? randomUUID());
       const secondId = randomUUID();
-      const first: Document = { ...original, _id: firstId, gameID: firstId, fenHistory: fens.slice(0, split), uciHistory: uci.slice(0, split), totalMoves: split, pgn: "", Result: "*", historyStatus: "active" };
-      const second: Document = { ...original, _id: secondId, gameID: secondId, fenHistory: fens.slice(split), uciHistory: uci.slice(split), totalMoves: fens.length - split, pgn: "", Result: "*", historyStatus: "active", createdAt: new Date() };
+      const parsedUciSplit = requestedUciSplit === undefined ? split : Number(requestedUciSplit);
+      const uciSplit = Number.isInteger(parsedUciSplit) && parsedUciSplit >= 0 && parsedUciSplit <= uci.length
+        ? parsedUciSplit
+        : Math.min(split, uci.length);
+      const first: Document = { ...original, _id: firstId, gameID: firstId, fenHistory: fens.slice(0, split), uciHistory: uci.slice(0, uciSplit), totalMoves: split, pgn: "", Result: "*", historyStatus: "active" };
+      const second: Document = { ...original, _id: secondId, gameID: secondId, fenHistory: fens.slice(split), uciHistory: uci.slice(uciSplit), totalMoves: fens.length - split, pgn: "", Result: "*", historyStatus: "active", createdAt: new Date() };
       delete first.deletedAt; delete first.deleteAfter;
       delete second.deletedAt; delete second.deleteAfter;
-      console.log(JSON.stringify({ source: firstId, splitAt: split, firstGameID: firstId, secondGameID: secondId, firstPlies: split, secondPlies: fens.length - split, apply }, null, 2));
+      console.log(JSON.stringify({ source: firstId, fenSplitAt: split, uciSplitAt: uciSplit, firstGameID: firstId, secondGameID: secondId, firstPlies: split, secondPlies: fens.length - split, apply }, null, 2));
       if (apply) {
         await backups.insertOne({ sourceId: original._id, backedUpAt: new Date(), document: original });
         await collection.replaceOne({ _id: original._id }, first, { upsert: false });

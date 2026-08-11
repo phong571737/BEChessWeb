@@ -201,6 +201,7 @@ one `fenHistory`, use `npx tsx tools/split-concatenated-history.ts` for a dry
 run. The migration detects the reset from a reduced material position to a new
 starting setup, prints both ply counts and generated IDs, and never writes by
 default. Review the preview, then rerun with `--apply` (optionally
-`--game-id=<id>`). It keeps the first session ID, creates a new ID for the
+`--game-id=<id>` and `--uci-split=<index>` when UCI entries omit unknown
+transitions). It keeps the first session ID, creates a new ID for the
 second session, clears the invalid combined PGN, and leaves both records as
 active snapshots so the recovery service can rebuild their notation from FEN.
