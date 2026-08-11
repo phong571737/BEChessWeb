@@ -22,7 +22,7 @@ type LegacyHistoryGame = HistoryGame & {
 
 function ReviewSkeleton() {
   return (
-    <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
+    <div className="mx-auto max-w-6xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <Skeleton className="h-5 w-28" />
@@ -123,7 +123,7 @@ export default function PlayedReviewPage() {
 
   if (!game) {
     return (
-      <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
+      <div className="mx-auto max-w-6xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
         <Link href="/played" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
           {t("rev.backToHistory")}
@@ -163,7 +163,7 @@ export default function PlayedReviewPage() {
   };
 
   return (
-    <div className="mx-auto max-w-7xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
+    <div className="mx-auto max-w-6xl space-y-3 px-4 py-4 sm:px-5 sm:py-5">
       <div className="flex flex-wrap items-center gap-2 justify-between">
         <Link href="/played" className="inline-flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
           <ArrowLeft className="h-3.5 w-3.5" />
