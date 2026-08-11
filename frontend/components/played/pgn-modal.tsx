@@ -422,7 +422,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
         {/* Review board */}
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          <div className="grid grid-cols-1 xl:grid-cols-[minmax(320px,520px)_1fr] gap-3">
+          <div className="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(360px,560px)_minmax(420px,1fr)]">
             <div
               ref={boardWrapRef}
               className="w-full max-w-[560px] select-none overscroll-contain"
@@ -430,13 +430,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
             >
               <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} />
             </div>
-            <div className="rounded-sm border border-border bg-muted/50 min-h-[200px] flex flex-col">
+            <div className="flex min-h-[360px] flex-col overflow-hidden rounded-sm border border-border bg-muted/50 xl:min-h-[520px]">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
                 <span className="text-xs text-muted-foreground">{t("rev.moveReview")}</span>
                 <span className="text-xs font-mono text-muted-foreground">Ply {currentIndex}/{timeline.length - 1}</span>
               </div>
-              <ScrollArea className="h-[160px]">
-                <div className="p-2 grid grid-cols-2 sm:grid-cols-3 gap-1">
+              <ScrollArea className="min-h-[260px] flex-1">
+                <div className="grid grid-cols-2 gap-1.5 p-2 sm:grid-cols-3">
                   {recoveryNotice && (
                     <p className="col-span-full p-3 text-xs text-muted-foreground">
                       {recoveryNotice}
@@ -452,8 +452,8 @@ export function PGNReviewContent({ game }: ReviewProps) {
                           type="button"
                           onClick={() => goTo(ply)}
                           className={m.fenFallback
-                            ? `col-span-full rounded-sm border px-2 py-1 text-left font-mono text-[10px] transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
-                            : `text-left px-2 py-1 rounded-sm text-xs border ${currentIndex === ply ? "bg-accent border-border text-foreground" : "border-transparent hover:bg-accent/70 text-muted-foreground"}`}
+                            ? `col-span-full min-h-9 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
+                            : `min-h-9 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
                         >
                           {ply}. {m.san}
                         </button>
@@ -484,18 +484,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   })}
                 </div>
               </ScrollArea>
-              <div className="flex items-center justify-center gap-1 p-2 border-t border-border">
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goTo(0)} disabled={currentIndex === 0}>
-                  <ChevronsLeft className="h-3.5 w-3.5" />
+              <div className="flex items-center justify-center gap-3 border-t border-border p-3">
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(0)} disabled={currentIndex === 0}>
+                  <ChevronsLeft className="size-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
-                  <ChevronLeft className="h-3.5 w-3.5" />
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
+                  <ChevronLeft className="size-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronRight className="h-3.5 w-3.5" />
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronRight className="size-5" />
                 </Button>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronsRight className="h-3.5 w-3.5" />
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronsRight className="size-5" />
                 </Button>
               </div>
             </div>
@@ -585,7 +585,7 @@ export function PGNModal({ game, onClose }: Props) {
   if (!game) return null;
   return (
     <Dialog open={!!game} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-3xl p-2 sm:p-3 overflow-hidden">
+      <DialogContent className="max-w-5xl overflow-hidden p-2 sm:p-3">
         <PGNReviewContent game={game} />
       </DialogContent>
     </Dialog>
