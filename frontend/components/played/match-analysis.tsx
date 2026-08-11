@@ -1,118 +1,130 @@
 "use client";
 
 import { useMemo } from "react";
-import { Bar, BarChart, CartesianGrid, Line, LineChart, Pie, PieChart, ResponsiveContainer, XAxis, YAxis, Cell } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import type { HistoryGame } from "@/types/game.types";
 import { useT } from "@/lib/i18n";
-import { analyzeMatch } from "@/lib/match-analysis";
+import type { MoveClassification } from "@/lib/post-game-analysis";
+import type { HistoryGame } from "@/types/game.types";
 
+const classifications: MoveClassification[] = [
+  "brilliant",
+  "best",
+  "excellent",
+  "good",
+  "inaccuracy",
+  "mistake",
+  "blunder",
+];
+
+const tone: Record<MoveClassification, string> = {
+  brilliant: "border-accent/40 bg-accent text-accent-foreground",
+  best: "border-success/40 bg-success/10 text-success",
+  excellent: "border-info/40 bg-info/10 text-info",
+  good: "border-border bg-muted text-foreground",
+  inaccuracy: "border-warning/40 bg-warning/10 text-warning",
+  mistake: "border-warning/60 bg-warning/15 text-warning",
+  blunder: "border-destructive/40 bg-destructive/10 text-destructive",
+  unavailable: "border-border bg-muted text-muted-foreground",
+};
+
+/** Summarizes the persisted Stockfish labels without reparsing legacy PGN data. */
 export function MatchAnalysis({ game }: { game: HistoryGame }) {
   const { t } = useT();
+  const summary = useMemo(() => {
+    const moves = game.analysis?.moves ?? [];
+    const counts = Object.fromEntries(
+      [...classifications, "unavailable"].map((classification) => [
+        classification,
+        { white: 0, black: 0, total: 0 },
+      ]),
+    ) as Record<MoveClassification, { white: number; black: number; total: number }>;
 
-  const chartConfig = {
-    whiteMoves: { label: t("played.white"),      color: "hsl(var(--state-white))" },
-    blackMoves: { label: t("played.black"),      color: "hsl(var(--state-black))" },
-    whiteCaps:  { label: t("rev.whiteCaptures"), color: "hsl(var(--state-white))" },
-    blackCaps:  { label: t("rev.blackCaptures"), color: "hsl(var(--state-black))" },
-  } satisfies ChartConfig;
+    for (const move of moves) {
+      const bucket = counts[move.classification] ?? counts.unavailable;
+      const side = move.ply % 2 === 1 ? "white" : "black";
+      bucket[side] += 1;
+      bucket.total += 1;
+    }
 
-  const data = useMemo(() => analyzeMatch(game, {
-    pieces: { p: t("piece.pawn"), n: t("piece.knight"), b: t("piece.bishop"), r: t("piece.rook"), q: t("piece.queen"), k: t("piece.king") },
-    moveTypes: { normal: t("movetype.normal"), capture: t("movetype.capture"), check: t("movetype.check"), castle: t("movetype.castle"), promotion: t("movetype.promotion") },
-  }), [game, t]);
+    return {
+      counts,
+      total: moves.length,
+      analyzed: moves.length - counts.unavailable.total,
+    };
+  }, [game.analysis?.moves]);
 
   return (
     <div className="space-y-3 p-4 sm:p-5">
-      <h3 className="text-sm font-semibold">{t("rev.analysis")}</h3>
+      <div>
+        <h3 className="text-sm font-semibold">{t("rev.analysis")}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("rev.stockfishSummaryDescription")}</p>
+      </div>
 
-      {data.moves.length === 0 ? (
+      {summary.total === 0 ? (
         <Card>
           <CardContent className="flex min-h-36 items-center justify-center p-5 text-center text-sm text-muted-foreground">
-            {t("rev.noMovesAnalysis")}
+            {t("analysis.empty")}
           </CardContent>
         </Card>
-      ) : <>
-
-      <div className="grid grid-cols-2 lg:grid-cols-6 gap-2">
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.totalPlies")}</p><p className="text-lg font-semibold">{data.moves.length}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.whiteCaptures")}</p><p className="text-lg font-semibold text-state-white">{data.counters.whiteCaptures}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.blackCaptures")}</p><p className="text-lg font-semibold text-state-black">{data.counters.blackCaptures}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.whiteChecks")}</p><p className="text-lg font-semibold">{data.counters.whiteChecks}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.blackChecks")}</p><p className="text-lg font-semibold">{data.counters.blackChecks}</p></CardContent></Card>
-        <Card><CardContent className="p-3"><p className="text-xs text-muted-foreground">{t("rev.castlesPromotions")}</p><p className="text-lg font-semibold">{data.counters.castles} / {data.counters.promotions}</p></CardContent></Card>
-      </div>
-
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-3">
-        <Card>
-          <CardHeader><CardTitle>{t("rev.pieceActivity")}</CardTitle></CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={data.pieceActivity} barGap={6}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="piece" tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Bar dataKey="whiteMoves" fill="var(--color-whiteMoves)" radius={[3, 3, 0, 0]} />
-                  <Bar dataKey="blackMoves" fill="var(--color-blackMoves)" radius={[3, 3, 0, 0]} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </BarChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle>{t("rev.captureTimeline")}</CardTitle></CardHeader>
-          <CardContent>
-            <ChartContainer config={chartConfig} className="h-[280px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={data.timeline}>
-                  <CartesianGrid vertical={false} strokeDasharray="3 3" className="stroke-border" />
-                  <XAxis dataKey="ply" tickLine={false} axisLine={false} />
-                  <YAxis allowDecimals={false} tickLine={false} axisLine={false} />
-                  <Line type="monotone" dataKey="whiteCaps" stroke="var(--color-whiteCaps)" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="blackCaps" stroke="var(--color-blackCaps)" strokeWidth={2} dot={false} />
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </LineChart>
-              </ResponsiveContainer>
-            </ChartContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader><CardTitle>{t("rev.moveTypeDist")}</CardTitle></CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-4 items-center">
-            <div className="h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie data={data.typeDistribution} dataKey="value" nameKey="name" innerRadius={55} outerRadius={90} paddingAngle={2}>
-                    {data.typeDistribution.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <ChartTooltip content={<ChartTooltipContent />} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {data.typeDistribution.map((item) => (
-                <div key={item.name} className="rounded-sm border border-border bg-muted/40 p-2 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <span className="h-2.5 w-2.5 rounded-[2px]" style={{ background: item.color }} />
-                    <span className="capitalize text-muted-foreground">{item.name}</span>
-                  </div>
-                  <div className="mt-1 font-mono text-sm font-semibold">{item.value}</div>
-                </div>
-              ))}
-            </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+            <Card>
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground">{t("rev.analyzedPlies")}</p>
+                <p className="text-lg font-semibold">{summary.analyzed}</p>
+              </CardContent>
+            </Card>
+            {classifications.map((classification) => (
+              <Card key={classification} className={tone[classification]}>
+                <CardContent className="p-3">
+                  <p className="text-xs opacity-80">{t(`analysis.${classification}`)}</p>
+                  <p className="text-lg font-semibold">{summary.counts[classification].total}</p>
+                </CardContent>
+              </Card>
+            ))}
           </div>
-        </CardContent>
-      </Card>
-      </>}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("rev.stockfishBreakdown")}</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <div className="grid grid-cols-[minmax(7rem,1fr)_4rem_4rem] gap-3 px-3 text-xs text-muted-foreground sm:grid-cols-[minmax(9rem,1fr)_5rem_5rem]">
+                <span>{t("rev.classification")}</span>
+                <span className="text-center">{t("played.white")}</span>
+                <span className="text-center">{t("played.black")}</span>
+              </div>
+              {classifications.map((classification) => {
+                const count = summary.counts[classification];
+                const maximum = Math.max(1, summary.analyzed);
+                return (
+                  <div key={classification} className="grid grid-cols-[minmax(7rem,1fr)_4rem_4rem] items-center gap-3 rounded-sm border border-border bg-muted/30 px-3 py-2 sm:grid-cols-[minmax(9rem,1fr)_5rem_5rem]">
+                    <div className="min-w-0">
+                      <div className="mb-1.5 flex items-center justify-between gap-2 text-xs">
+                        <span className={`rounded-sm border px-1.5 py-0.5 font-medium ${tone[classification]}`}>{t(`analysis.${classification}`)}</span>
+                        <span className="font-mono text-muted-foreground">{count.total}</span>
+                      </div>
+                      <div className="flex h-1.5 overflow-hidden rounded-full bg-muted">
+                        <span className="bg-state-white" style={{ width: `${(count.white / maximum) * 100}%` }} />
+                        <span className="bg-state-black" style={{ width: `${(count.black / maximum) * 100}%` }} />
+                      </div>
+                    </div>
+                    <span className="text-center font-mono text-sm font-semibold">{count.white}</span>
+                    <span className="text-center font-mono text-sm font-semibold">{count.black}</span>
+                  </div>
+                );
+              })}
+              {summary.counts.unavailable.total > 0 && (
+                <div className="flex items-center justify-between rounded-sm border border-dashed border-border px-3 py-2 text-xs text-muted-foreground">
+                  <span>{t("analysis.unavailable")}</span>
+                  <span className="font-mono font-semibold">{summary.counts.unavailable.total}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

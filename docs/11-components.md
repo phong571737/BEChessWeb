@@ -50,7 +50,7 @@ Shows engine or evaluation metadata when present in the board state.
 
 ### `match-analysis`
 
-Renders the review-page statistics and charts from real persisted move data. It delegates parsing to [frontend/lib/match-analysis.ts](../frontend/lib/match-analysis.ts): valid PGN is preferred, then UCI history, then recoverable FEN snapshots. The analyzer supports PGN `SetUp`/`FEN` headers, calculates captures/checks/castles/promotions and piece activity from verbose `chess.js` moves, and renders a safe empty state when no valid moves exist.
+Renders the review-page Stockfish summary directly from the persisted `analysis.moves` records. It counts Brilliant, Best, Excellent, Good, Inaccuracy, Mistake, and Blunder labels for White and Black from the saved ply number. It does not reparse legacy PGN/FEN data or present rule-event counts as engine analysis. When no saved engine analysis exists, it renders a safe empty state.
 
 ### `move-analysis-panel`
 

@@ -42,7 +42,7 @@ The board and related review surfaces also encode state through control states s
 
 ## Match Analysis data state
 
-The Move Review Match Analysis surface is derived data, not component-local placeholder state. It re-runs for the selected history game and uses `chess.js` verbose moves from PGN, UCI, or FEN snapshots. If none can produce a valid move sequence, the charts are deliberately replaced with an empty state.
+The Move Review Match Analysis surface is derived from the selected history record's persisted `analysis.moves`. It recalculates classification totals whenever those saved Stockfish moves change, assigns White/Black by the one-based ply number, and does not reparse PGN/FEN to invent engine classifications. If no saved analysis exists, the summary is deliberately replaced with an empty state.
 
 ## Administrator game actions
 
