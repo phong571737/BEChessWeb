@@ -397,7 +397,7 @@ export const vi: Record<TranslationKeys, string> = {
     "result.draw": "Hoà",
     "result.ongoing": "*",
     "analysis.title": "Phân tích nước đi",
-    "analysis.description": "Stockfish phân loại từng nước đi sau khi kết quả phân tích được lưu.",
+    "analysis.description": "Stockfish tự phân tích nhánh đang chọn riêng cho người xem này.",
     "analysis.run": "Phân tích ván cờ",
     "analysis.reanalyze": "Phân tích lại",
     "analysis.running": "Đang phân tích...",

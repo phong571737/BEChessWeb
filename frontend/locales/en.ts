@@ -394,7 +394,7 @@ export const en = {
     "dashboard.blackWins": "Black wins",
     "dashboard.unfinished": "Unfinished",
     "analysis.title": "Move analysis",
-    "analysis.description": "Stockfish labels each recorded move after analysis is saved.",
+    "analysis.description": "Stockfish analyzes the selected review branch locally for this viewer.",
     "analysis.run": "Analyze game",
     "analysis.reanalyze": "Analyze again",
     "analysis.running": "Analyzing...",

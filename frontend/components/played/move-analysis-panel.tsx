@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { BrainCircuit, LoaderCircle } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -34,6 +34,8 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
+  const analysisRunRef = useRef(0);
+  const runningRef = useRef(false);
   const chartConfig = { evaluation: { label: t("analysis.advantage"), color: "hsl(var(--primary))" } } satisfies ChartConfig;
   const chartData = moves.map((move) => ({
     ...move,
@@ -41,17 +43,22 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
   }));
   const selected = moves.find((move) => move.ply === currentPly) ?? moves.at(-1);
 
-  useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setError(null); }, [game._id, game.analysis]);
+  const branchKey = analysisGame?.fenHistory?.length
+    ? `${analysisGame.initialFen ?? ""}|${analysisGame.fenHistory.join("|")}|${analysisGame.uciHistory?.join("|") ?? ""}`
+    : "persisted";
 
-  const runAnalysis = async () => {
-    if (running) return;
+  const runAnalysis = useCallback(async (automatic = false) => {
+    if (runningRef.current) return;
+    const runId = ++analysisRunRef.current;
+    runningRef.current = true;
     setRunning(true); setError(null);
     try {
       const result = await analyzeHistoryMoves(analysisGame ?? game, (completed, total) => setProgress({ completed, total }));
       if (!result.length) return;
-      // Everyone may run local analysis. Persisting the result remains an
-      // authenticated enhancement and is intentionally best-effort.
-      if (token) {
+      // Branch analysis is intentionally client-local. Persisting it against
+      // the game would make one viewer's selected recovery line overwrite
+      // another viewer's line. Only the original, non-branch game may save.
+      if (token && !analysisGame?.fenHistory?.length && !automatic) {
         const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ moves: result, depth: 14 }),
@@ -60,16 +67,30 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
           // The local result is still used immediately below.
         }
       }
+      if (runId !== analysisRunRef.current) return;
       setMoves(result);
       onAnalysisSaved?.(result);
-    } catch { setError(t("analysis.error")); } finally { setRunning(false); }
-  };
+    } catch { setError(t("analysis.error")); } finally { runningRef.current = false; setRunning(false); }
+  }, [analysisGame, game, onAnalysisSaved, t, token]);
+
+  useEffect(() => {
+    analysisRunRef.current += 1;
+    setError(null);
+    setProgress({ completed: 0, total: 0 });
+    if (branchKey !== "persisted") {
+      setMoves([]);
+      void runAnalysis(true);
+    } else {
+      setMoves(game.analysis?.moves ?? []);
+      setRunning(false);
+    }
+  }, [branchKey, game.analysis, game._id, runAnalysis]);
 
   return (
     <section className="px-4 sm:px-5 pb-5 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="text-sm font-medium">{t("analysis.title")}</h3><p className="text-xs text-muted-foreground">{t("analysis.description")}</p></div>
-        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={runAnalysis} disabled={running}>
+        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => void runAnalysis(false)} disabled={running}>
           {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
           {running ? t("analysis.running") : moves.length ? t("analysis.reanalyze") : t("analysis.run")}
         </Button>
