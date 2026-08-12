@@ -13,6 +13,11 @@ interface MoveAnnotation {
   label: string;
 }
 
+export interface PredictedMove {
+  from: Square;
+  to: Square;
+}
+
 interface Props {
   fen:              string;
   lastMove:         { from: string; to: string } | null;
@@ -25,6 +30,8 @@ interface Props {
   wrongPieceSquares?: string[];
   /** Optional Lichess-style analysis mark rendered on the reviewed move's destination square. */
   moveAnnotation?: MoveAnnotation | null;
+  /** Best move returned by Stockfish for the currently displayed FEN. */
+  predictedMove?: PredictedMove | null;
 }
 
 interface KingThreat {
@@ -77,6 +84,7 @@ export function ChessBoardView({
   extraSquares,
   wrongPieceSquares,
   moveAnnotation,
+  predictedMove,
 }: Props) {
   const { flipped, boardColors } = useBoardDisplay();
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
@@ -104,6 +112,10 @@ export function ChessBoardView({
   }, [moveAnnotation]);
 
   const kingThreat = useMemo(() => findKingThreat(fen), [fen]);
+  const predictedArrows = useMemo(() => {
+    if (!predictedMove) return [];
+    return [[predictedMove.from, predictedMove.to, "hsl(var(--accent))"]] as [Square, Square, string][];
+  }, [predictedMove]);
 
   // ================ Initcheck =========================
   // Missing piece
@@ -164,6 +176,9 @@ export function ChessBoardView({
       arePiecesDraggable={false}
       customSquareStyles={squareStyles}
       customSquare={CustomSquare}
+      customArrows={predictedArrows}
+      customArrowColor="hsl(var(--accent))"
+      areArrowsAllowed={false}
       boardWidth={boardWidth}
       boardOrientation={flipped ? "black" : "white"}
       customBoardStyle={{

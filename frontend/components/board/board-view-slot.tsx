@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useGameStore } from "@/lib/store";
 import { useGame } from "@/hooks/use-game";
-import { ChessBoardView } from "@/components/board/chess-board-view";
+import { ChessBoardView, type PredictedMove } from "@/components/board/chess-board-view";
 import { useT } from "@/lib/i18n";
 import { GamePanel } from "@/components/board/game-panel";
 import { useSocket } from "@/components/providers/socket-provider";
@@ -245,6 +245,7 @@ export function BoardViewSlot({
     const startSearchRef = useRef<() => void>(() => undefined);
     const [cp, setCp] = useState<number | null>(null);
     const [mate, setMate] = useState<number | null>(null);
+    const [predictedMove, setPredictedMove] = useState<PredictedMove | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const currentFenRef = useRef<string | null>(null);
     const [offlineNotice, setOfflineNotice] = useState<string | null>(null);
@@ -375,6 +376,11 @@ export function BoardViewSlot({
         onMessageRef.current = (line: string) => {
             const activeSearch = activeSearchRef.current;
             if (line.startsWith("bestmove")) {
+                if (!activeSearch || activeSearch.fen !== currentFenRef.current) return;
+                const bestMove = line.trim().split(/\s+/)[1] ?? "";
+                setPredictedMove(/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)
+                    ? { from: bestMove.slice(0, 2) as PredictedMove["from"], to: bestMove.slice(2, 4) as PredictedMove["to"] }
+                    : null);
                 activeSearchRef.current = null;
                 stopRequestedRef.current = false;
                 startSearchRef.current();
@@ -419,6 +425,7 @@ export function BoardViewSlot({
             activeSearchRef.current = null;
             stopRequestedRef.current = false;
             setIsAnalyzing(false);
+            setPredictedMove(null);
             return;
         }
 
@@ -426,6 +433,7 @@ export function BoardViewSlot({
         pendingFenRef.current = displayFen;
         setCp(null);
         setMate(null);
+        setPredictedMove(null);
 
         const worker = workerRef.current;
         if (activeSearchRef.current) {
@@ -553,6 +561,7 @@ export function BoardViewSlot({
                         missingSquares={missingSquares}
                         extraSquares={extraSquares}
                         wrongPieceSquares={wrongPieceSquares}
+                        predictedMove={predictedMove}
                     />
                 </div>
             </div>
@@ -590,6 +599,7 @@ export function BoardViewSlot({
                                         missingSquares={missingSquares}
                                         extraSquares={extraSquares}
                                         wrongPieceSquares={wrongPieceSquares}
+                                        predictedMove={predictedMove}
                                     />
                                 </div>
 

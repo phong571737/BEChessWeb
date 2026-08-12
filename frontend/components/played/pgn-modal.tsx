@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ChessBoardView } from "@/components/board/chess-board-view";
+import { ChessBoardView, type PredictedMove } from "@/components/board/chess-board-view";
 import { EvalBar } from "@/components/board/eval-bar";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
@@ -377,13 +377,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const { workerRef: reviewWorkerRef, onMessageRef: reviewMessageRef, isReady: reviewEngineReady, hasError: reviewEngineError } = useStockfish(showHistoryEvaluation);
   const [reviewCp, setReviewCp] = useState<number | null>(null);
   const [reviewMate, setReviewMate] = useState<number | null>(null);
+  const [reviewBestMove, setReviewBestMove] = useState<string | null>(null);
   const [reviewAnalyzing, setReviewAnalyzing] = useState(false);
   const reviewSearchRef = useRef<{ fen: string; depth: number } | null>(null);
+  const reviewSearchTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     reviewMessageRef.current = (line: string) => {
       const active = reviewSearchRef.current;
       if (line.startsWith("bestmove")) {
+        if (!active || active.fen !== current.fen) return;
+        const bestMove = line.trim().split(/\s+/)[1] ?? null;
+        setReviewBestMove(bestMove && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove) ? bestMove : null);
         setReviewAnalyzing(false);
         return;
       }
@@ -413,26 +418,50 @@ export function PGNReviewContent({ game }: ReviewProps) {
   useEffect(() => {
     const worker = reviewWorkerRef.current;
     const safeFen = current.fen !== "start" && isEngineSafeFen(current.fen);
+    if (reviewSearchTimerRef.current !== null) {
+      window.clearTimeout(reviewSearchTimerRef.current);
+      reviewSearchTimerRef.current = null;
+    }
     if (!showHistoryEvaluation || !reviewEngineReady || !worker || !safeFen) {
       reviewSearchRef.current = null;
       setReviewCp(null);
       setReviewMate(null);
+      setReviewBestMove(null);
       setReviewAnalyzing(false);
       return;
     }
-    reviewSearchRef.current = { fen: current.fen, depth: -1 };
     setReviewCp(null);
     setReviewMate(null);
-    setReviewAnalyzing(true);
+    setReviewBestMove(null);
     worker.postMessage("stop");
-    worker.postMessage(`position fen ${current.fen}`);
-    worker.postMessage("go depth 16");
+    setReviewAnalyzing(true);
+    const fenToAnalyze = current.fen;
+    // Coalesce rapid move-button clicks so the worker only analyzes the final
+    // position instead of repeatedly restarting expensive WASM searches.
+    reviewSearchTimerRef.current = window.setTimeout(() => {
+      reviewSearchTimerRef.current = null;
+      reviewSearchRef.current = { fen: fenToAnalyze, depth: -1 };
+      worker.postMessage(`position fen ${fenToAnalyze}`);
+      worker.postMessage("go depth 16");
+    }, 120);
     return () => {
       worker.postMessage("stop");
+      if (reviewSearchTimerRef.current !== null) {
+        window.clearTimeout(reviewSearchTimerRef.current);
+        reviewSearchTimerRef.current = null;
+      }
       reviewSearchRef.current = null;
       setReviewAnalyzing(false);
     };
   }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
+
+  const reviewPredictedMove = useMemo<PredictedMove | null>(() => {
+    if (!reviewBestMove) return null;
+    return {
+      from: reviewBestMove.slice(0, 2) as PredictedMove["from"],
+      to: reviewBestMove.slice(2, 4) as PredictedMove["to"],
+    };
+  }, [reviewBestMove]);
 
   useEffect(() => {
     setCursor(-1);
@@ -648,7 +677,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   className="min-w-0 flex-1 select-none overscroll-contain"
                   title={t("rev.wheelNavigation")}
                 >
-                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
+                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} predictedMove={reviewPredictedMove} />
                 </div>
                 {showHistoryEvaluation && (
                   <div className="hidden w-[22px] shrink-0 sm:block">
