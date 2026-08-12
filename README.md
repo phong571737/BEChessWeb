@@ -2,7 +2,7 @@
 
 TTLab Chess Web connects a physical electronic chessboard to a real-time web interface. The repository contains an Express/Socket.IO/MQTT backend and a Next.js frontend, with MongoDB providing durable active-game and history snapshots.
 
-Current release: `v1.1.4-change11`.
+Current release: `v1.1.4-change12`.
 
 ## Runtime architecture
 
@@ -99,7 +99,8 @@ npm --prefix frontend run build
 
 The Compose stack contains:
 
-- `ttlab-chess-app`: backend, published on `${PORT:-80}`
+- `ttlab-chess-app`: Express/Socket.IO backend, published on `${PORT}`
+- `recover-service`: internal Python FEN recovery service on Compose port `8000`
 - `frontend`: Next.js standalone server, published on host port `4000`
 
 Build and start:
@@ -187,3 +188,47 @@ BEChessWeb/
 ## Release policy
 
 The root package, frontend package, and `frontend/lib/app-version.ts` use the same value. Changes are tagged as `v<base>-changeN`; the thirtieth accepted change publishes the next base version and resets the suffix. See [docs/24-versioning.md](docs/24-versioning.md).
+
+## Deployment runbook
+
+The recommended VPS deployment uses Docker Compose. MongoDB and MQTT remain external services; Compose starts the backend, internal FEN recovery service, and frontend.
+
+### Prepare and configure
+
+Clone the repository, or pull the latest commit in an existing checkout. The VPS does not need global Node.js when deploying with Docker.
+
+```bash
+git clone https://github.com/phong571737/BEChessWeb.git
+cd BEChessWeb
+cp .env.example .env
+nano .env
+```
+
+For `/chess`, set these values in the private root `.env` file:
+
+```env
+FRONTEND_BASE_PATH=/chess
+BACKEND_PUBLIC_URL=http://<public-domain>
+BACKEND_INTERNAL_URL=http://ttlab-chess-app:8080
+RECOVER_SERVICE_URL=http://recover-service:8000
+```
+
+Also set real `MONGO_URI`, `JWT_SECRET`, `URL_HIVEMQTT`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASSWORD`, and `CORS_ORIGINS`. `BACKEND_PUBLIC_URL` is the public origin only; do not append `/chess`. Keep `.env` private and do not put secrets in `.env.example` or `docker-compose.yml`.
+
+### Validate, build, and start
+
+Run `docker compose config` first; it must not warn that `BACKEND_INTERNAL_URL` or `RECOVER_SERVICE_URL` is empty. Then run `docker compose build --no-cache`, `docker compose up -d --remove-orphans`, and `docker compose ps`.
+
+The services are: `ttlab-chess-app` backend on `${PORT}`; `chess-recover-service` on internal port `8000`; and `chess-frontend` on host port `4000` forwarding to container port `3000`. Recovery is intentionally not exposed to the internet; the backend reaches it as `http://recover-service:8000`.
+
+### Verify and configure Nginx
+
+Check `curl -i http://127.0.0.1:${PORT}/health`, `curl -i http://127.0.0.1:4000/chess`, and the logs with `docker compose logs --tail=150 ttlab-chess-app`, `docker compose logs --tail=150 recover-service`, and `docker compose logs --tail=150 frontend`. The backend should report MongoDB connected; recovery should report `Application startup complete`.
+
+Configure Nginx using [docs/16-deployment.md](docs/16-deployment.md): `/chess` to `127.0.0.1:4000`, REST routes to the backend port, and `/socket.io/` to the backend with upgrade headers. Validate with `sudo nginx -t` and reload with `sudo systemctl reload nginx`. Do not create a second `/chess` to `/chess/` redirect or expose port 8000.
+
+### Update an existing VPS
+
+Run `git pull origin master`, `docker compose build --no-cache`, and `docker compose up -d --force-recreate --remove-orphans`. If only frontend build-time URLs changed, use `docker compose build --no-cache frontend` followed by `docker compose up -d --force-recreate frontend`; restarting an old container does not change compiled Next.js browser chunks.
+
+Common failures: `503 /games/recover` means recovery is down or its internal URL is wrong; browser calls to `localhost:8080` mean the frontend was built with the wrong public URL; missing `/chess` in assets means `FRONTEND_BASE_PATH` was absent at build time; mixed-content/WSS errors mean the public URL protocol or gateway upgrade configuration is wrong; MongoDB `querySrv ETIMEOUT` means Atlas DNS or outbound network access is unavailable.
