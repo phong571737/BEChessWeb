@@ -99,6 +99,12 @@ export const en = {
     "rev.result": "Result",
     "rev.started": "Started",
     "rev.moveReview": "Move Review",
+    "rev.reviewSource": "Review source",
+    "rev.basePgn": "Base PGN",
+    "rev.recoveryBranch": "Recovery branch {number}",
+    "rev.plyCount": "{count} ply",
+    "rev.plyProgress": "Ply {current}/{total}",
+    "rev.branchDifference": "ply {ply}: {move}",
     "rev.moveDuration": "Move time",
     "rev.showEvaluation": "Show evaluation bar",
     "rev.hideEvaluation": "Hide evaluation bar",
@@ -127,8 +133,6 @@ export const en = {
     "rev.noMovesAnalysis": "No moves are available to analyze yet.",
     "rev.moveEBoard": "The move received from e-board.",
     "rev.wheelNavigation": "Mouse wheel: scroll up/down to navigate moves",
-    "rev.recoveryAlternatives": "Recovered alternatives",
-
     // -------- Played / History -------------------------------------------
     "played.title": "Game History",
     "played.gamesPlayed": "{n} games played",

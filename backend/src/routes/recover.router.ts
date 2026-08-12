@@ -40,7 +40,19 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
             Black: String((game as any).BlackName ?? (game as any).Black ?? "Black"),
             Result: String((game as any).Result ?? "*"),
         };
-        const recovered = await recoverFenHistory(fenHistory, startFen, headers, { includeSteps: true });
+        const debugRecovery = req.query.debugRecovery === "1";
+        if (debugRecovery) {
+            console.log("[FEN RECOVERY 1 - fenHistory backend lấy từ MongoDB]", {
+                gameId: id,
+                count: fenHistory.length,
+                startFen: startFen ?? null,
+                fenHistory,
+            });
+        }
+        const recovered = await recoverFenHistory(fenHistory, startFen, headers, {
+            includeSteps: true,
+            debug: debugRecovery,
+        });
         if (!recovered) return res.status(503).json({ error: "FEN recovery service unavailable" });
         return res.json({ ...recovered, fenHistory, startFen: startFen ?? null });
     } catch (error) {

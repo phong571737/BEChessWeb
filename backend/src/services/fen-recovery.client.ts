@@ -87,25 +87,28 @@ export async function recoverFenHistory(
   fenHistory: string[],
   startFen: string | undefined,
   headers: RecoveryHeaders,
-  options: { includeSteps?: boolean } = {},
+  options: { includeSteps?: boolean; debug?: boolean } = {},
 ): Promise<FenRecoveryResult | null> {
   const baseUrl = env.RECOVER_SERVICE_URL?.trim().replace(/\/$/, "");
   if (!baseUrl || fenHistory.length === 0) return null;
 
   try {
-    const response = await postRecovery(new URL(`${baseUrl}/recover`), {
-        fenHistory,
-        startFen,
-        headers,
-        maxBranches: 2_000,
-        finalOnly: options.includeSteps !== true,
-    });
+    const payload = {
+      fenHistory,
+      startFen,
+      headers,
+      maxBranches: 2_000,
+      finalOnly: options.includeSteps !== true,
+    };
+    if (options.debug) console.log("[FEN RECOVERY 2 - payload backend gửi Python /recover]", payload);
+    const response = await postRecovery(new URL(`${baseUrl}/recover`), payload);
     if (response.status < 200 || response.status >= 300) {
       console.warn(`[FEN RECOVERY] Sidecar returned HTTP ${response.status}`);
       return null;
     }
 
     const data = JSON.parse(response.body) as RecoveryResponse;
+    if (options.debug) console.log("[FEN RECOVERY 3 - raw response Python /recover]", data);
     const pgn = typeof data.originalPgn === "string" ? data.originalPgn.trim() : "";
     if (!pgn) return null;
     const failedPlies = Array.isArray(data.failedPlies)

@@ -220,6 +220,12 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.result": "Kết quả",
     "rev.started": "Bắt đầu lúc",
     "rev.moveReview": "Xem lại nước đi",
+    "rev.reviewSource": "Nguồn xem lại",
+    "rev.basePgn": "PGN gốc",
+    "rev.recoveryBranch": "Nhánh khôi phục {number}",
+    "rev.plyCount": "{count} ply",
+    "rev.plyProgress": "Ply {current}/{total}",
+    "rev.branchDifference": "ply {ply}: {move}",
     "rev.moveDuration": "Thời gian nước đi",
     "rev.showEvaluation": "Hiện thanh đánh giá",
     "rev.hideEvaluation": "Ẩn thanh đánh giá",
@@ -248,8 +254,6 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.noMovesAnalysis": "Chưa có nước đi để phân tích.",
     "rev.moveEBoard": "Nước đi nhận từ bàn cờ điện tử",
     "rev.wheelNavigation": "Dùng con lăn chuột lên/xuống để xem nước đi",
-    "rev.recoveryAlternatives": "Nhánh khôi phục khác",
-
     // ----- Played / History ---------------------------------------------
     "played.title": "Lịch sử ván cờ",
     "played.gamesPlayed": "{n} ván đã chơi",

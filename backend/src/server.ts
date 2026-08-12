@@ -50,7 +50,6 @@ async function StartServer() {
   initSocket(server);
   // stockfishService.init();
   initMqtt();
-
   // Server listen
   server.listen( Number(env.PORT), "0.0.0.0", async () => {
     console.log("Server is running on: ", env.PORT);
