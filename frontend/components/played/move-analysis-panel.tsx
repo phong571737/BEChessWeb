@@ -44,20 +44,22 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
   useEffect(() => { setMoves(game.analysis?.moves ?? []); setRunning(false); setError(null); }, [game._id, game.analysis]);
 
   const runAnalysis = async () => {
-    if (!token || running) return;
+    if (running) return;
     setRunning(true); setError(null);
     try {
       const result = await analyzeHistoryMoves(analysisGame ?? game, (completed, total) => setProgress({ completed, total }));
       if (!result.length) return;
-      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
-        method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ moves: result, depth: 14 }),
-      });
-      if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
-      if (response.status === 401 || response.status === 403) throw new Error(t("analysis.authRequired"));
-      if (response.status === 429) throw new Error(t("analysis.rateLimited"));
-      if (response.status === 400) throw new Error(t("analysis.invalidData"));
-      if (!response.ok) throw new Error(t("analysis.error"));
+      // Everyone may run local analysis. Persisting the result remains an
+      // authenticated enhancement and is intentionally best-effort.
+      if (token) {
+        const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ moves: result, depth: 14 }),
+        });
+        if (response.ok) {
+          // The local result is still used immediately below.
+        }
+      }
       setMoves(result);
       onAnalysisSaved?.(result);
     } catch { setError(t("analysis.error")); } finally { setRunning(false); }
@@ -67,10 +69,10 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
     <section className="px-4 sm:px-5 pb-5 space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div><h3 className="text-sm font-medium">{t("analysis.title")}</h3><p className="text-xs text-muted-foreground">{t("analysis.description")}</p></div>
-        {token && <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={runAnalysis} disabled={running}>
+        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={runAnalysis} disabled={running}>
           {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
           {running ? t("analysis.running") : moves.length ? t("analysis.reanalyze") : t("analysis.run")}
-        </Button>}
+        </Button>
       </div>
       {running && <p className="text-xs text-muted-foreground">{t("analysis.progress", { completed: progress.completed, total: progress.total })}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}

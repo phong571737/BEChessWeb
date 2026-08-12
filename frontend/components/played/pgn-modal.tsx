@@ -430,9 +430,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
       setReviewAnalyzing(false);
       return;
     }
-    setReviewCp(null);
-    setReviewMate(null);
-    setReviewBestMove(null);
     worker.postMessage("stop");
     setReviewAnalyzing(true);
     const fenToAnalyze = current.fen;
@@ -441,9 +438,14 @@ export function PGNReviewContent({ game }: ReviewProps) {
     reviewSearchTimerRef.current = window.setTimeout(() => {
       reviewSearchTimerRef.current = null;
       reviewSearchRef.current = { fen: fenToAnalyze, depth: -1 };
+      // Clear the previous result only when the debounced position is about
+      // to be searched. This prevents visible flicker while stepping quickly.
+      setReviewCp(null);
+      setReviewMate(null);
+      setReviewBestMove(null);
       worker.postMessage(`position fen ${fenToAnalyze}`);
       worker.postMessage("go depth 16");
-    }, 120);
+    }, 220);
     return () => {
       worker.postMessage("stop");
       if (reviewSearchTimerRef.current !== null) {
@@ -451,7 +453,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
         reviewSearchTimerRef.current = null;
       }
       reviewSearchRef.current = null;
-      setReviewAnalyzing(false);
     };
   }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
 
