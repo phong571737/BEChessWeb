@@ -14,6 +14,8 @@ import type { HistoryGame } from "@/types/game.types";
 
 interface Props {
   game: HistoryGame;
+  /** Optional recovered source. When present, analysis must use its FEN/UCI timeline. */
+  analysisGame?: HistoryGame;
   currentPly: number;
   onSelectPly: (ply: number) => void;
   onAnalysisSaved?: (moves: MoveAnalysis[]) => void;
@@ -25,7 +27,7 @@ function formatEvaluation(value: number | null): string {
   return `${value >= 0 ? "+" : ""}${(value / 100).toFixed(1)}`;
 }
 
-export function MoveAnalysisPanel({ game, currentPly, onSelectPly, onAnalysisSaved }: Props) {
+export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly, onAnalysisSaved }: Props) {
   const { t } = useT();
   const { token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
@@ -45,7 +47,7 @@ export function MoveAnalysisPanel({ game, currentPly, onSelectPly, onAnalysisSav
     if (!token || running) return;
     setRunning(true); setError(null);
     try {
-      const result = await analyzeHistoryMoves(game, (completed, total) => setProgress({ completed, total }));
+      const result = await analyzeHistoryMoves(analysisGame ?? game, (completed, total) => setProgress({ completed, total }));
       if (!result.length) return;
       const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
         method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },

@@ -64,6 +64,31 @@ function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
 }
 
+/** Reject malformed/custom snapshots before sending them to the WASM engine. */
+function isEngineSafeFen(fen: string): boolean {
+  const fields = fen.trim().split(/\s+/);
+  if (fields.length !== 6 || !/^[wb]$/.test(fields[1]!)) return false;
+  const ranks = fields[0]!.split("/");
+  if (ranks.length !== 8) return false;
+  let hasWhiteKing = false;
+  let hasBlackKing = false;
+  for (const rank of ranks) {
+    let files = 0;
+    for (const symbol of rank) {
+      if (/^[1-8]$/.test(symbol)) files += Number(symbol);
+      else if (/^[prnbqkPRNBQK]$/.test(symbol)) {
+        files += 1;
+        hasWhiteKing ||= symbol === "K";
+        hasBlackKing ||= symbol === "k";
+      } else return false;
+    }
+    if (files !== 8) return false;
+  }
+  return hasWhiteKing && hasBlackKing && /^(?:-|[KQkq]+)$/.test(fields[2]!)
+    && /^(?:-|[a-h][36])$/.test(fields[3]!)
+    && /^\d+$/.test(fields[4]!) && /^\d+$/.test(fields[5]!);
+}
+
 /**
  * Pairs White and Black SAN under one conventional full-move number without
  * changing any notation or recovery comments returned by recover-service.
@@ -206,6 +231,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
     : null;
+  // Even the "Base PGN" view uses the first recovery-service line as its
+  // analysis source. Raw ESP32 FEN snapshots are never sent to Stockfish.
+  const activeRecoveryLine = selectedRecoveryLine ?? recoveryLines[0] ?? null;
 
   const reviewPgn = useMemo(() => {
     if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
@@ -223,7 +251,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       // Notation comes from recover-service; FEN snapshots remain authoritative
       // for board navigation, including custom/partially legal device games.
       const serviceMoves = selectedRecoveryLine?.sanMoves ?? extractSanMoves(reviewPgn);
-      const selectedFens = selectedRecoveryLine?.assumedFens;
+      const selectedFens = activeRecoveryLine?.assumedFens;
       const sourceFens = (selectedFens?.length ? selectedFens : game.fenHistory).slice(0, serviceMoves.length);
       const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; uci?: string; fenFallback?: boolean }> = [
         { fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null, uci: undefined },
@@ -249,7 +277,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           temp.load(nextFen);
         } catch {}
 
-        const branchUci = selectedRecoveryLine?.uciMoves?.[i];
+        const branchUci = activeRecoveryLine?.uciMoves?.[i];
         out.push({
           fen: nextFen,
           san,
@@ -284,7 +312,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [{ fen: "start", san: "start", lastMove: null, uci: undefined }];
-  }, [game, recoveryStatus, reviewPgn, selectedRecoveryLine]);
+  }, [activeRecoveryLine, game, recoveryStatus, reviewPgn]);
+
+  const recoveredAnalysisGame = useMemo<HistoryGame>(() => {
+    if (!activeRecoveryLine?.assumedFens?.length) return game;
+    return {
+      ...game,
+      fenHistory: activeRecoveryLine.assumedFens,
+      uciHistory: activeRecoveryLine.uciMoves,
+      initialFen: game.initialFen ?? DEFAULT_FEN,
+    };
+  }, [activeRecoveryLine, game]);
 
   useEffect(() => {
     traceRecovery("4 - timeline frontend dùng để render", {
@@ -374,7 +412,8 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   useEffect(() => {
     const worker = reviewWorkerRef.current;
-    if (!showHistoryEvaluation || !reviewEngineReady || !worker || !current.fen || current.fen === "start") {
+    const safeFen = current.fen !== "start" && isEngineSafeFen(current.fen);
+    if (!showHistoryEvaluation || !reviewEngineReady || !worker || !safeFen) {
       reviewSearchRef.current = null;
       setReviewCp(null);
       setReviewMate(null);
@@ -613,13 +652,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 </div>
                 {showHistoryEvaluation && (
                   <div className="hidden w-[22px] shrink-0 sm:block">
-                    <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError} />
+                    <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)} />
                   </div>
                 )}
               </div>
               {showHistoryEvaluation && (
                 <div className="sm:hidden">
-                  <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError} orientation="horizontal" />
+                  <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)} orientation="horizontal" />
                 </div>
               )}
             </div>
@@ -792,7 +831,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
+        <MoveAnalysisPanel game={game} analysisGame={recoveredAnalysisGame} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
     </>
   );
 }
