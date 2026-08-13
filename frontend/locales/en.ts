@@ -212,6 +212,12 @@ export const en = {
     "played.board": "Board",
     "played.location": "Location",
     "played.sortBy": "Sort by",
+    "played.editResult": "Edit result",
+    "played.editResultTitle": "Set game result",
+    "played.editResultDescription": "Set the final result for {players}. This is available to administrators for games without a confirmed result.",
+    "played.saveResult": "Save result",
+    "played.savingResult": "Saving...",
+    "played.updateResultError": "Unable to update the game result.",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Paste UCI or FEN here",

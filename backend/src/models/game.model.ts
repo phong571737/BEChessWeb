@@ -245,6 +245,45 @@ export async function markHistoryUnfinished(gameID: string): Promise<boolean> {
     return result.modifiedCount === 1;
 }
 
+/** Updates the winner result of a saved history record without changing moves. */
+export async function updateHistoryResult(
+    id: string,
+    result: "1-0" | "0-1" | "1/2-1/2",
+): Promise<boolean> {
+    const record = await pgnGames().findOne(historyIdFilter(id, false));
+    if (!record) return false;
+
+    const currentPgn = typeof record.pgn === "string" ? record.pgn : "";
+    const pgn = currentPgn
+        ? (/^\[Result\s+"[^"]*"\]\s*$/m.test(currentPgn)
+            ? currentPgn.replace(/^\[Result\s+"[^"]*"\]\s*$/m, `[Result "${result}"]`)
+            : currentPgn.replace(/\s*$/, `\n[Result "${result}"]\n`))
+        : currentPgn;
+    const now = new Date();
+    const update = await pgnGames().updateOne(
+        historyIdFilter(id, false),
+        {
+            $set: {
+                Result: result,
+                outcomeStatus: "confirmed",
+                historyStatus: "finished",
+                endedAt: record.endedAt ?? now,
+                updatedAt: now,
+                ...(pgn ? { pgn } : {}),
+            },
+        },
+    );
+
+    // Keep a still-live game consistent with its finalized history snapshot.
+    if (typeof record.gameID === "string") {
+        await games().updateOne(
+            { gameID: record.gameID } as Filter<GameDoc>,
+            { $set: { result, status: "finished", updateAt: now } } as UpdateFilter<GameDoc>,
+        );
+    }
+    return update.modifiedCount === 1;
+}
+
 export async function moveHistoryToTrash(id: string): Promise<boolean> {
     const now = new Date();
     const result = await pgnGames().updateOne(

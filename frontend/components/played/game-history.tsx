@@ -7,7 +7,7 @@ import { useT } from "@/lib/i18n";
 import { classifyTimeControl } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2 } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
@@ -70,6 +70,9 @@ export function GameHistory() {
   const [pendingTrashGame, setPendingTrashGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteGame, setPendingPermanentDeleteGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteAll, setPendingPermanentDeleteAll] = useState(false);
+  const [pendingResultGame, setPendingResultGame] = useState<HistoryGame | null>(null);
+  const [resultValue, setResultValue] = useState<"1-0" | "0-1" | "1/2-1/2">("1-0");
+  const [resultError, setResultError] = useState<string | null>(null);
   const [trashActionError, setTrashActionError] = useState<string | null>(null);
   const router = useRouter();
   const { t } = useT();
@@ -234,6 +237,32 @@ export function GameHistory() {
 
   const confirmPermanentDeleteAll = async () => {
     if (await permanentlyDeleteAllFromTrash()) setPendingPermanentDeleteAll(false);
+  };
+
+  const updateGameResult = async () => {
+    if (!pendingResultGame || !token || busyId) return;
+    setBusyId(pendingResultGame._id);
+    setResultError(null);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ result: resultValue }),
+      });
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { error?: string } | null;
+        throw new Error(body?.error ?? t("played.updateResultError"));
+      }
+      setGames((current) => current.map((game) => game._id === pendingResultGame._id
+        ? { ...game, Result: resultValue, historyStatus: "finished", outcomeStatus: "confirmed" }
+        : game));
+      invalidateFetchCache("/games/history");
+      setPendingResultGame(null);
+    } catch (error) {
+      setResultError(error instanceof Error ? error.message : t("played.updateResultError"));
+    } finally {
+      setBusyId(null);
+    }
   };
 
   const analyzeFromHistory = async (game: HistoryGame) => {
@@ -575,6 +604,9 @@ export function GameHistory() {
                             {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>}
+                            {isAdmin && game.Result === "*" && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setResultError(null); setResultValue("1-0"); setPendingResultGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t("played.editResult")}>
+                              <Pencil className="size-3.5" />
+                            </button>}
                           </td>
                         )}
                       </tr>;
@@ -641,6 +673,31 @@ export function GameHistory() {
           <DialogFooter>
             <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingPermanentDeleteAll(false)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">{t("played.cancel")}</button>
             <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmPermanentDeleteAll()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">{busyId ? t("played.deleting") : t("played.deleteAll")}</button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={Boolean(pendingResultGame)} onOpenChange={(open) => { if (!open && !busyId) setPendingResultGame(null); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("played.editResultTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("played.editResultDescription", { players: `${pendingResultGame?.WhiteName ?? ""} vs ${pendingResultGame?.BlackName ?? ""}` })}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="px-5 py-2">
+            <label className="space-y-1 text-sm text-muted-foreground">
+              <span>{t("played.resultLabel")}</span>
+              <select value={resultValue} onChange={(event) => setResultValue(event.target.value as typeof resultValue)} className={INPUT_CLS}>
+                <option value="1-0">{t("result.whiteWin")}</option>
+                <option value="0-1">{t("result.blackWin")}</option>
+                <option value="1/2-1/2">{t("result.draw")}</option>
+              </select>
+            </label>
+          </div>
+          {resultError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{resultError}</p>}
+          <DialogFooter>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingResultGame(null)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">{t("played.cancel")}</button>
+            <button type="button" disabled={Boolean(busyId)} onClick={() => void updateGameResult()} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{busyId ? t("played.savingResult") : t("played.saveResult")}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

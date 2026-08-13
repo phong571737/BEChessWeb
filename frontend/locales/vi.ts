@@ -333,6 +333,12 @@ export const vi: Record<TranslationKeys, string> = {
     "played.board": "Bàn cờ",
     "played.location": "Địa điểm",
     "played.sortBy": "Sắp xếp theo",
+    "played.editResult": "Sửa kết quả",
+    "played.editResultTitle": "Cập nhật kết quả ván cờ",
+    "played.editResultDescription": "Đặt kết quả cuối cùng cho ván {players}. Chỉ quản trị viên được sửa ván chưa có kết quả xác nhận.",
+    "played.saveResult": "Lưu kết quả",
+    "played.savingResult": "Đang lưu...",
+    "played.updateResultError": "Không thể cập nhật kết quả ván cờ.",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Dán UCI hoặc FEN vào đây",

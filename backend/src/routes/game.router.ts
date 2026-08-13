@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getGame, saveGame } from "../models/game.model.js";
+import { endGame, finishGame, getGame, saveGame, updateHistoryResult } from "../models/game.model.js";
 import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
@@ -41,6 +41,21 @@ gameRouter.delete("/history/:id/permanent", gameDestructiveRateLimit, requireAdm
  * This api is used to delete game played
 */
 gameRouter.delete("/history/:id", gameDestructiveRateLimit, requireAdmin, GameController.deleteHistory);
+
+/** Administrator-only correction for a history record that has no confirmed result. */
+gameRouter.put("/history/:id/result", gameMutationRateLimit, requireAdmin, async (req, res) => {
+    try {
+        const result = req.body?.result;
+        if (result !== "1-0" && result !== "0-1" && result !== "1/2-1/2") {
+            return res.status(400).json({ error: "Result must be 1-0, 0-1, or 1/2-1/2" });
+        }
+        const updated = await updateHistoryResult(String(req.params.id ?? ""), result);
+        if (!updated) return res.status(404).json({ error: "History record not found" });
+        return res.json({ success: true, result });
+    } catch (e) {
+        sendInternalError(res, "PUT /games/history/:id/result", e);
+    }
+});
 
 /**
  * GET games/:id
