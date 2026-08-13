@@ -18,15 +18,19 @@ Converts a public FEN timeline into a PGN by forwarding it to the internal
 login because it powers the Paste page. The request contains `fenHistory`
 (one FEN per position), with optional `startFen` and PGN headers. The response
 contains `pgn`, `fullyRecovered`, `failedPlies`, and `longestRecoveredPly`.
+The backend fixes the forwarded recovery attempt count at `nRetry: 5`; browser
+callers do not select that service parameter.
 
 ### `GET /games/history/:id/recovered-pgn`
 
 Rebuilds a saved review record through the Python `recover_service` using its
-persisted ordered `fenHistory` and `initialFen`. The Move Review page uses this
-response for both the move list and PGN notation, so legacy/custom PGN text is
-not treated as the notation source. The endpoint returns the recovered `pgn`,
-recovery metadata, and the FEN timeline. It returns `503` when the sidecar is
-unavailable and `422` when the record has no FEN snapshots.
+persisted ordered `fenHistory` and `initialFen`. The endpoint returns the
+original FEN timeline together with recovery branches and their step metadata.
+Move Review keeps the original board on that FEN timeline; each recovered
+branch is independently rebuilt from its generated PGN. It returns `503` when
+the sidecar is unavailable, `504` when recovery times out, and `422` with
+`RECOVERY_BRANCH_LIMIT` when candidate generation exceeds the configured
+branch limit. A missing FEN history also returns `422`.
 Invalid input returns `400`. If the sidecar is unavailable, the backend uses
 the local unchecked FEN renderer so the user still receives a PGN; unresolved
 transitions are represented as `x` and listed in `failedPlies`.

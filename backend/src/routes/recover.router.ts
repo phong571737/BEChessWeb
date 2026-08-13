@@ -2,7 +2,7 @@ import express, { Router } from "express";
 import { ObjectId } from "mongodb";
 import { Chess } from "chess.js";
 import { gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
-import { recoverFenHistory } from "../services/fen-recovery.client.js";
+import { FenRecoveryServiceError, recoverFenHistory } from "../services/fen-recovery.client.js";
 import { customPGN } from "../utils/custom.chess.js";
 import { inferMoveFromFen } from "../utils/chess.utils.js";
 import { getGame, getPGNCollections } from "../models/game.model.js";
@@ -52,10 +52,14 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
         const recovered = await recoverFenHistory(fenHistory, startFen, headers, {
             includeSteps: true,
             debug: debugRecovery,
+            exposeServiceErrors: true,
         });
         if (!recovered) return res.status(503).json({ error: "FEN recovery service unavailable" });
         return res.json({ ...recovered, fenHistory, startFen: startFen ?? null });
     } catch (error) {
+        if (error instanceof FenRecoveryServiceError) {
+            return res.status(error.httpStatus).json({ error: error.message, code: error.code });
+        }
         sendInternalError(res, "GET /games/history/:id/recovered-pgn", error);
     }
 });
@@ -106,6 +110,7 @@ recoverRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
             fenHistory,
             typeof req.body?.startFen === "string" ? req.body.startFen : undefined,
             typeof req.body?.headers === "object" && req.body.headers !== null ? req.body.headers : {},
+            { nRetry: 5 },
         );
         if (result) return res.json(result);
         if (req.body?.strict === true) {

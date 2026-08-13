@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>FEN Recovery Visualizer - All Branches</title>
+    <!-- Chessboard.js CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f4f4f9;
+        }
+        .container {
+            display: flex;
+            gap: 30px;
+        }
+        .left-panel {
+            flex: 1;
+            max-width: 400px;
+        }
+        .right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 10px;
+            font-family: monospace;
+            box-sizing: border-box;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            box-sizing: border-box;
+        }
+        button {
+            padding: 10px 15px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+            font-size: 16px;
+        }
+        button:hover { background-color: #0056b3; }
+        .controls {
+            margin-top: 15px;
+            display: flex;
+            gap: 10px;
+        }
+        .controls button {
+            width: auto;
+            background-color: #28a745;
+        }
+        .controls button:hover { background-color: #218838; }
+        .controls button:disabled { background-color: #ccc; cursor: not-allowed; }
+        #status {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #333;
+        }
+        .moves-list {
+            margin-top: 15px;
+            background: #fff;
+            padding: 10px;
+            border: 1px solid #ccc;
+            height: 80px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+            font-size: 16px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .branch-summary {
+            margin-top: 15px;
+            padding: 10px;
+            background: #e9ecef;
+            border-left: 4px solid #17a2b8;
+            font-size: 14px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .branch-summary ul {
+            margin: 5px 0 0 20px;
+            padding: 0;
+        }
+        .branch-summary li {
+            margin-bottom: 5px;
+        }
+        .branch-link {
+            color: #007bff;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+
+        /* Hiệu ứng click và hover cho quân cờ ảo */
+        .ghost-square {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10;
+            cursor: pointer; 
+            transition: transform 0.2s;
+        }
+        .ghost-square:hover {
+            transform: scale(1.1);
+            z-index: 12;
+        }
+        .ghost-square img {
+            width: 100%; height: 100%;
+            pointer-events: none;
+        }
+        /* Quân rẽ nhánh mờ nhạt so với FEN gốc */
+        .branch-ghost { 
+            opacity: 0.5; 
+            filter: drop-shadow(0px 0px 3px rgba(0, 0, 0, 0.5)); 
+        }
+
+        /* Style chung cho số thứ tự nhánh (Badge) */
+        .branch-badge {
+            position: absolute;
+            top: -5px; right: -5px;
+            color: white;
+            border-radius: 50%;
+            min-width: 20px; height: 20px;
+            font-size: 12px; font-weight: bold;
+            display: flex; align-items: center; justify-content: center;
+            z-index: 11;
+            box-shadow: 0 0 3px rgba(0,0,0,0.5);
+            padding: 0 4px; box-sizing: border-box;
+        }
+        
+        .alt-badge { background: #ff3b30; }
+
+        .payload-panel {
+            max-width: 1100px;
+            margin: 20px auto;
+            border: 1px solid #d0d7de;
+            border-radius: 8px;
+            background: #fff;
+            overflow: hidden;
+        }
+
+        .step-badge {
+            display: inline-block;
+            margin-left: 8px;
+            padding: 2px 8px;
+            border-radius: 999px;
+            font-size: 12px;
+            color: #fff;
+            vertical-align: middle;
+        }
+        .step-badge.padding { background: #d97706; }
+        .step-badge.observed { background: #2563eb; }
+        .payload-panel summary {
+            cursor: pointer;
+            padding: 12px 16px;
+            font-weight: bold;
+            background: #f6f8fa;
+        }
+        .payload-toolbar {
+            display: flex;
+            justify-content: flex-end;
+            padding: 8px 12px;
+            border-top: 1px solid #d0d7de;
+            border-bottom: 1px solid #d0d7de;
+        }
+        .payload-toolbar button {
+            width: auto;
+            margin: 0;
+            padding: 6px 12px;
+        }
+        #responsePayload {
+            margin: 0;
+            padding: 16px;
+            max-height: 520px;
+            overflow: auto;
+            background: #0d1117;
+            color: #e6edf3;
+            font: 13px/1.5 Consolas, Monaco, monospace;
+            white-space: pre-wrap;
+            overflow-wrap: anywhere;
+        }
+    </style>
+</head>
+<body>
+
+<h2>FEN Recovery & Visualizer (Multi-Branch Ghost Mode)</h2>
+
+<div class="container">
+    <!-- CỘT TRÁI: NHẬP LIỆU -->
+    <div class="left-panel">
+        <label><b>Start FEN (Tùy chọn):</b></label>
+        <input type="text" id="startFen" placeholder="Bỏ trống để dùng FEN mặc định..." value="rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1">
+        
+        <label><b>Danh sách FEN (Mỗi dòng 1 FEN):</b></label>
+        <textarea id="fenHistory" placeholder="Dán các chuỗi FEN vào đây..."></textarea>
+
+        <button onclick="recoverFens()">Thực hiện Recovery</button>
+        <div id="status">Trạng thái: Đang chờ...</div>
+    </div>
+
+    <!-- CỘT PHẢI: BÀN CỜ VÀ ĐIỀU KHIỂN -->
+    <div class="right-panel">
+        
+        <!-- Bàn cờ -->
+        <div id="board" style="width: 450px"></div>
+
+        <!-- Nút điều hướng -->
+        <div class="controls">
+            <button id="btnFirst" onclick="goToMove('first')" disabled>&lt;&lt; Đầu</button>
+            <button id="btnPrev" onclick="goToMove('prev')" disabled>&lt; Lùi</button>
+            <button id="btnNext" onclick="goToMove('next')" disabled>Tiến &gt;</button>
+            <button id="btnLast" onclick="goToMove('last')" disabled>Cuối &gt;&gt;</button>
+        </div>
+        
+        <!-- Thông báo tiến trình -->
+        <div class="moves-list" id="sanMoves">Danh sách FEN sẽ hiển thị ở đây...</div>
+
+        <!-- Bảng tóm tắt các dự đoán -->
+        <div class="branch-summary" id="branchSummary" style="display: none;">
+            <b>Tại vị trí này có các dự đoán khác biệt từ API:</b>
+            <ul id="branchList"></ul>
+        </div>
+
+    </div>
+</div>
+
+<details class="payload-panel" id="payloadPanel">
+    <summary>API Response Payload</summary>
+    <div class="payload-toolbar">
+        <button type="button" onclick="copyResponsePayload()">Copy JSON</button>
+    </div>
+    <pre id="responsePayload">Chưa có response từ API.</pre>
+</details>
+
+<!-- jQuery (bắt buộc cho chessboard.js) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<!-- Chessboard.js JS -->
+<script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
+
+<script>
+    // Khởi tạo bàn cờ rỗng
+    let boardConfig = {
+        pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+        position: 'start'
+    };
+    let board = Chessboard('board', boardConfig);
+    
+    // Các biến lưu trữ trạng thái
+    let effectiveTimeline = [];
+    let currentBranches = []; 
+    let currentMoveIndex = 0;
+
+    function showResponsePayload(data) {
+        const payloadEl = document.getElementById('responsePayload');
+        payloadEl.textContent = typeof data === 'string'
+            ? data
+            : JSON.stringify(data, null, 2);
+        document.getElementById('payloadPanel').open = true;
+    }
+
+    async function copyResponsePayload() {
+        const payloadEl = document.getElementById('responsePayload');
+        try {
+            await navigator.clipboard.writeText(payloadEl.textContent);
+        } catch (_) {
+            const range = document.createRange();
+            range.selectNodeContents(payloadEl);
+            const selection = window.getSelection();
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+    }
+
+    async function recoverFens() {
+        const startFen = document.getElementById('startFen').value.trim();
+        const fenHistoryRaw = document.getElementById('fenHistory').value.trim();
+        const statusEl = document.getElementById('status');
+
+        if (!fenHistoryRaw) {
+            alert("Vui lòng nhập danh sách FEN!");
+            return;
+        }
+
+        // Tách chuỗi text thành mảng các FEN, loại bỏ dòng trống
+        const fenHistory = fenHistoryRaw
+            .split('\n')
+            .map(line => line.trim().replace(/^\d+\s*\.\s*/, ''))
+            .filter(line => line.length > 0);
+            
+        const payload = {
+            fenHistory: fenHistory,
+            // Compact steps v2 được dùng để căn đúng original ply và padding ply.
+            finalOnly: false
+        };
+        
+        if (startFen) payload.startFen = startFen;
+
+        statusEl.innerText = "Trạng thái: Đang gửi API...";
+        document.getElementById('responsePayload').textContent = 'Đang chờ response...';
+        
+        try {
+            // Thay port 8000 nếu FastAPI của bạn chạy ở port khác
+            const response = await fetch('http://localhost:8000/recover', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            const responseText = await response.text();
+            let data;
+            try {
+                data = responseText ? JSON.parse(responseText) : {};
+            } catch (_) {
+                data = responseText || '(Empty response)';
+            }
+            showResponsePayload(data);
+
+            if (!response.ok) {
+                const detail = typeof data === 'object' && data !== null
+                    ? data.detail
+                    : data;
+                throw new Error(detail || "Lỗi API");
+            }
+            
+            // Lấy danh sách các nhánh
+            currentBranches = data.finalMoveLists && data.finalMoveLists.length > 0 
+                                ? data.finalMoveLists 
+                                : data.bestMoveLists;
+
+            if (!currentBranches || currentBranches.length === 0) {
+                statusEl.innerText = "Trạng thái: Không tìm thấy nhánh hợp lệ.";
+                return;
+            }
+
+            const paddingCount = data.retry?.totalPaddingInserted || 0;
+            const paddingStatus = paddingCount > 0
+                ? `, đã chèn ${paddingCount} padding tại ${data.retry.repairs.length} điểm đứt`
+                : ', không cần padding';
+            statusEl.innerText = `Trạng thái: Khôi phục ${currentBranches.length} nhánh${paddingStatus}.`;
+            
+            // assumedFens chạy theo effective ply, tức bao gồm cả padding.
+            currentBranches.forEach(branch => {
+                branch.fullTimeline = [startFen || 'start', ...branch.assumedFens];
+            });
+
+            // Timeline hiển thị lấy từ steps của API để không bị lệch index sau padding.
+            effectiveTimeline = [{
+                effectivePly: 0,
+                originalPly: 0,
+                synthetic: false,
+                observedFen: startFen || 'start',
+                label: 'Start FEN'
+            }];
+            (data.steps || []).forEach(step => {
+                effectiveTimeline.push({
+                    effectivePly: step.effectivePly,
+                    originalPly: step.originalPly,
+                    synthetic: Boolean(step.synthetic),
+                    observedFen: step.observedFen,
+                    detectedMove: step.detectedMove,
+                    candidateCount: step.candidateCount
+                });
+            });
+
+            // Fallback cho response cũ/không có steps.
+            if (effectiveTimeline.length === 1) {
+                const mainBranch = currentBranches[0];
+                mainBranch.assumedFens.forEach((fen, index) => {
+                    effectiveTimeline.push({
+                        effectivePly: index + 1,
+                        originalPly: index + 1,
+                        synthetic: mainBranch.moveSources[index] === 'padding_assumed',
+                        observedFen: fen
+                    });
+                });
+            }
+
+            // Bật các nút điều hướng
+            document.querySelectorAll('.controls button').forEach(btn => btn.disabled = false);
+
+            // Load vị trí ban đầu
+            currentMoveIndex = 0;
+            updateBoard();
+
+        } catch (error) {
+            console.error(error);
+            if (document.getElementById('responsePayload').textContent === 'Đang chờ response...') {
+                showResponsePayload({ networkError: error.message });
+            }
+            statusEl.innerText = "Trạng thái: Lỗi - " + error.message;
+        }
+    }
+
+    function goToMove(action) {
+        if (effectiveTimeline.length === 0) return;
+
+        if (action === 'first') {
+            currentMoveIndex = 0;
+        } else if (action === 'prev' && currentMoveIndex > 0) {
+            currentMoveIndex--;
+        } else if (action === 'next' && currentMoveIndex < effectiveTimeline.length - 1) {
+            currentMoveIndex++;
+        } else if (action === 'last') {
+            currentMoveIndex = effectiveTimeline.length - 1;
+        }
+
+        updateBoard();
+    }
+
+    function updateBoard() {
+        if(effectiveTimeline.length === 0) return;
+
+        const step = effectiveTimeline[currentMoveIndex];
+        // Luôn dùng observed FEN làm nền. Với padding, observed FEN là wildcard
+        // rỗng nên tất cả quân của mọi nhánh (kể cả nhánh 1) được vẽ dạng ghost.
+        const fenToRender = step.observedFen;
+        
+        // Vẽ lại bàn cờ gốc (chưa khôi phục)
+        board.position(fenToRender, false); 
+
+        // Hiển thị tiến trình index
+        const sanMovesEl = document.getElementById('sanMoves');
+        if (currentMoveIndex === 0) {
+            sanMovesEl.innerHTML = `Bước 0: Start FEN`;
+        } else if (step.synthetic) {
+            const move = currentBranches[0]?.sanMoves[currentMoveIndex - 1] || '?';
+            sanMovesEl.innerHTML = `Effective ply ${step.effectivePly} / ${effectiveTimeline.length - 1}: ${move}
+                <span class="step-badge padding">Padding giả định</span>`;
+        } else {
+            const move = currentBranches[0]?.sanMoves[currentMoveIndex - 1] || step.detectedMove || '?';
+            sanMovesEl.innerHTML = `Original ply ${step.originalPly} · Effective ply ${step.effectivePly}
+                · ${move} <span class="step-badge observed">Observed FEN</span>`;
+        }
+
+        // Delay nhẹ để bàn cờ gốc load xong DOM, sau đó vẽ Ghost của tất cả các nhánh lên
+        setTimeout(() => {
+            drawAllBranchesGhosts();
+        }, 50);
+    }
+
+    function drawAllBranchesGhosts() {
+        $('.ghost-square').remove();
+        
+        const step = effectiveTimeline[currentMoveIndex];
+        // Luôn so các nhánh với observed FEN. Padding có observed wildcard rỗng,
+        // vì vậy không nhánh nào bị dùng làm nền và mất khỏi ghost visualization.
+        let baseFen = step?.observedFen;
+        if(!baseFen) return;
+
+        // Chỉ lấy phần định dạng vị trí quân cờ (trước dấu cách đầu tiên)
+        let baseFenPos = baseFen.split(' ')[0];
+        let baseObj = Chessboard.fenToObj(baseFenPos); 
+
+        const branchListEl = document.getElementById('branchList');
+        const branchSummaryEl = document.getElementById('branchSummary');
+        if(branchListEl) branchListEl.innerHTML = ''; 
+        
+        let ghostMap = {};
+
+        // Quét qua toàn bộ các nhánh dự đoán
+        currentBranches.forEach((branch, index) => {
+            let predFen = branch.fullTimeline[currentMoveIndex];
+            if (!predFen) return;
+            
+            let predFenPos = predFen.split(' ')[0];
+            let predObj = Chessboard.fenToObj(predFenPos);
+
+            // Tìm những điểm KHÁC BIỆT giữa FEN dự đoán và FEN gốc
+            for (let sq in predObj) {
+                let p = predObj[sq];
+                // Nếu tại ô 'sq', nhánh dự đoán có quân 'p', mà FEN gốc không có (hoặc là quân khác)
+                if (baseObj[sq] !== p) {
+                    let key = sq + "-" + p; 
+                    if (!ghostMap[key]) {
+                        ghostMap[key] = {
+                            sq: sq, piece: p, branches: [index + 1]
+                        };
+                    } else {
+                        ghostMap[key].branches.push(index + 1);
+                    }
+                }
+            }
+        });
+
+        let hasGhosts = Object.keys(ghostMap).length > 0;
+        if(branchSummaryEl) {
+            branchSummaryEl.style.display = hasGhosts ? 'block' : 'none';
+        }
+
+        // Bơm HTML các quân cờ ảo mờ nhạt (Ghosts)
+        for (let key in ghostMap) {
+            let data = ghostMap[key];
+            let squareEl = $('.square-' + data.sq); 
+            
+            if (squareEl.length === 0) continue;
+
+            let displayNumbers = data.branches.join(',');
+            let ghostOpacityClass = 'branch-ghost';
+            let badgeClass = 'alt-badge'; 
+
+            let ghostHtml = `
+                <div class="ghost-square" title="Nhánh ${displayNumbers} dự đoán quân: ${data.piece}">
+                    <img src="https://chessboardjs.com/img/chesspieces/wikipedia/${data.piece}.png" class="${ghostOpacityClass}" />
+                    <div class="branch-badge ${badgeClass}">${displayNumbers}</div>
+                </div>
+            `;
+            squareEl.append(ghostHtml);
+
+            // Cập nhật text ra bảng tóm tắt
+            if(branchListEl) {
+                let li = document.createElement('li');
+                li.innerHTML = `Tại ô <b>${data.sq}</b>: Nhánh ${displayNumbers} dự đoán có quân <b>${data.piece}</b>`;
+                branchListEl.appendChild(li);
+            }
+        }
+    }
+</script>
+
+</body>
+</html>
