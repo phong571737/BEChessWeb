@@ -231,19 +231,52 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
     : null;
-  // Even the "Base PGN" view uses the first recovery-service line as its
-  // analysis source. Raw ESP32 FEN snapshots are never sent to Stockfish.
-  const activeRecoveryLine = selectedRecoveryLine ?? recoveryLines[0] ?? null;
+  // The original PGN is an independent review source. Do not silently replace
+  // it with recovery branch 1: viewers must be able to inspect the exact line
+  // that was persisted, even when another recovered branch is available.
+  const activeRecoveryLine = selectedRecoveryLine;
 
   const reviewPgn = useMemo(() => {
     if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
+    if (selectedSource === "base") return game.pgn ?? basePgn ?? "";
     if (game.fenHistory?.length) return basePgn ?? "";
     return game.pgn ?? "";
-  }, [basePgn, game, selectedRecoveryLine]);
+  }, [basePgn, game, selectedRecoveryLine, selectedSource]);
   const displayPgn = useMemo(() => formatPgnForDisplay(reviewPgn), [reviewPgn]);
 
   const timeline = useMemo(() => {
     if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null, uci: undefined as string | undefined }];
+    // Review the persisted/original PGN directly when that source is selected.
+    // FEN snapshots belong to recovery branches and can contain skipped or
+    // custom device positions that do not represent the original PGN line.
+    if (selectedSource === "base") {
+      const sourcePgn = game.pgn ?? basePgn ?? "";
+      const tokens = extractSanMoves(sourcePgn);
+      const headers = readPgnHeaders(sourcePgn);
+      const startFen = headers.SetUp === "1" && headers.FEN ? headers.FEN : (game.initialFen ?? DEFAULT_FEN);
+      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; uci?: string; fenFallback?: boolean }> = [
+        { fen: startFen, san: "start", lastMove: null, uci: undefined },
+      ];
+      const temp = new Chess(startFen, { skipValidation: true });
+      for (const san of tokens) {
+        let move: { from: string; to: string; promotion?: string } | null = null;
+        try {
+          const applied = temp.move(san);
+          move = applied ? { from: applied.from, to: applied.to, promotion: applied.promotion } : null;
+        } catch {
+          // Legacy/custom PGNs may contain an unresolvable token. Keep the
+          // notation visible and preserve the last known board position.
+        }
+        out.push({
+          fen: temp.fen(),
+          san,
+          lastMove: move ? { from: move.from, to: move.to } : null,
+          uci: move ? `${move.from}${move.to}${move.promotion ?? ""}` : undefined,
+          fenFallback: !move,
+        });
+      }
+      return out;
+    }
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
       if (recoveryStatus !== "ready" || !reviewPgn) {
         return [{ fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null, uci: undefined }];
@@ -312,7 +345,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [{ fen: "start", san: "start", lastMove: null, uci: undefined }];
-  }, [activeRecoveryLine, game, recoveryStatus, reviewPgn]);
+  }, [activeRecoveryLine, basePgn, game, recoveryStatus, reviewPgn, selectedSource]);
 
   const recoveredAnalysisGame = useMemo<HistoryGame>(() => {
     if (!activeRecoveryLine?.assumedFens?.length) return game;
@@ -712,7 +745,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                       className="h-7 px-2 text-[10px]"
                       onClick={() => selectReviewSource("base")}
                     >
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory?.length ?? extractSanMoves(basePgn).length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: extractSanMoves(game.pgn ?? "").length })}
                     </Button>
                     {recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
