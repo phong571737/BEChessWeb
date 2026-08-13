@@ -339,6 +339,13 @@ export const vi: Record<TranslationKeys, string> = {
     "played.saveResult": "Lưu kết quả",
     "played.savingResult": "Đang lưu...",
     "played.updateResultError": "Không thể cập nhật kết quả ván cờ.",
+    "played.suggestResult": "Gợi ý kết quả bằng Stockfish",
+    "played.suggestingResult": "Đang phân tích thế cờ...",
+    "played.suggestionLabel": "Stockfish gợi ý:",
+    "played.suggestionScore": "Đánh giá {score} · độ sâu {depth}",
+    "played.suggestResultError": "Không thể phân tích thế cờ này.",
+    "played.suggestResultUnavailable": "Stockfish không thể xác định bên thắng.",
+    "played.suggestionUndetermined": "Chưa xác định được bên thắng",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Dán UCI hoặc FEN vào đây",

@@ -73,6 +73,8 @@ export function GameHistory() {
   const [pendingResultGame, setPendingResultGame] = useState<HistoryGame | null>(null);
   const [resultValue, setResultValue] = useState<"1-0" | "0-1" | "1/2-1/2">("1-0");
   const [resultError, setResultError] = useState<string | null>(null);
+  const [suggestingResult, setSuggestingResult] = useState(false);
+  const [resultSuggestion, setResultSuggestion] = useState<{ result: "1-0" | "0-1" | null; cp: number | null; mate: number | null; depth: number } | null>(null);
   const [trashActionError, setTrashActionError] = useState<string | null>(null);
   const router = useRouter();
   const { t } = useT();
@@ -262,6 +264,25 @@ export function GameHistory() {
       setResultError(error instanceof Error ? error.message : t("played.updateResultError"));
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const suggestGameResult = async () => {
+    if (!pendingResultGame || !token || suggestingResult) return;
+    setSuggestingResult(true);
+    setResultError(null);
+    setResultSuggestion(null);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result-suggestion`, { headers: { Authorization: `Bearer ${token}` } });
+      const body = await response.json().catch(() => null) as { result?: "1-0" | "0-1" | null; cp?: number | null; mate?: number | null; depth?: number } | null;
+      if (!response.ok) throw new Error(body?.result === undefined ? t("played.suggestResultError") : t("played.suggestResultUnavailable"));
+      const suggestion = { result: body?.result ?? null, cp: body?.cp ?? null, mate: body?.mate ?? null, depth: body?.depth ?? 0 };
+      setResultSuggestion(suggestion);
+      if (suggestion.result) setResultValue(suggestion.result);
+    } catch (error) {
+      setResultError(error instanceof Error ? error.message : t("played.suggestResultError"));
+    } finally {
+      setSuggestingResult(false);
     }
   };
 
@@ -604,7 +625,7 @@ export function GameHistory() {
                             {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>}
-                            {isAdmin && game.Result === "*" && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setResultError(null); setResultValue("1-0"); setPendingResultGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t("played.editResult")}>
+                            {isAdmin && game.Result === "*" && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setResultError(null); setResultSuggestion(null); setResultValue("1-0"); setPendingResultGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t("played.editResult")}>
                               <Pencil className="size-3.5" />
                             </button>}
                           </td>
@@ -685,6 +706,14 @@ export function GameHistory() {
             </DialogDescription>
           </DialogHeader>
           <div className="px-5 py-2">
+            <button type="button" disabled={suggestingResult || Boolean(busyId)} onClick={() => void suggestGameResult()} className="mb-3 inline-flex w-full items-center justify-center gap-2 rounded-md border border-primary/40 px-3 py-2 text-sm font-medium text-primary hover:bg-primary/10 disabled:opacity-50">
+              {suggestingResult ? <LoaderCircle className="size-4 animate-spin" /> : <BrainCircuit className="size-4" />}
+              {suggestingResult ? t("played.suggestingResult") : t("played.suggestResult")}
+            </button>
+            {resultSuggestion && <div className="mb-3 rounded-md border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+              <p>{t("played.suggestionLabel")} <span className="font-semibold text-foreground">{resultSuggestion.result === "1-0" ? t("result.whiteWin") : resultSuggestion.result === "0-1" ? t("result.blackWin") : t("played.suggestionUndetermined")}</span></p>
+              <p className="mt-1">{t("played.suggestionScore", { score: resultSuggestion.mate !== null ? `M${Math.abs(resultSuggestion.mate)}` : resultSuggestion.cp !== null ? (resultSuggestion.cp / 100).toFixed(2) : "—", depth: resultSuggestion.depth })}</p>
+            </div>}
             <label className="space-y-1 text-sm text-muted-foreground">
               <span>{t("played.resultLabel")}</span>
               <select value={resultValue} onChange={(event) => setResultValue(event.target.value as typeof resultValue)} className={INPUT_CLS}>

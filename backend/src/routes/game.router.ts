@@ -1,6 +1,6 @@
 import express, { Router } from "express";
 import { restorefromDB } from "../game/game.manager.js";
-import { endGame, finishGame, getGame, saveGame, updateHistoryResult } from "../models/game.model.js";
+import { endGame, finishGame, getGame, getHistoryRecord, saveGame, updateHistoryResult } from "../models/game.model.js";
 import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
@@ -8,6 +8,7 @@ import { gameSeq } from "../game/game.repository.js";
 import { requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
+import { evaluatePosition } from "../services/stockfish.service.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -54,6 +55,35 @@ gameRouter.put("/history/:id/result", gameMutationRateLimit, requireAdmin, async
         return res.json({ success: true, result });
     } catch (e) {
         sendInternalError(res, "PUT /games/history/:id/result", e);
+    }
+});
+
+/** Suggests a result from the final persisted position; an admin must confirm it. */
+gameRouter.get("/history/:id/result-suggestion", gameMutationRateLimit, requireAdmin, async (req, res) => {
+    try {
+        const record = await getHistoryRecord(String(req.params.id ?? ""));
+        if (!record) return res.status(404).json({ error: "History record not found" });
+        let fen = Array.isArray(record.fenHistory) ? record.fenHistory.at(-1) : undefined;
+        if (typeof fen !== "string" || !fen.trim()) {
+            try {
+                const chess = new Chess();
+                if (typeof record.pgn === "string" && record.pgn.trim()) {
+                    chess.loadPgn(record.pgn);
+                    fen = chess.fen();
+                }
+            } catch { /* Return a clear unavailable suggestion below. */ }
+        }
+        if (!fen) return res.status(400).json({ error: "No final position available for analysis" });
+        const evaluation = await evaluatePosition(fen);
+        if (!evaluation) return res.status(503).json({ error: "Stockfish evaluation unavailable" });
+        const result = evaluation.mate !== null
+            ? evaluation.mate > 0 ? "1-0" : "0-1"
+            : evaluation.cp !== null && evaluation.cp >= 150 ? "1-0"
+                : evaluation.cp !== null && evaluation.cp <= -150 ? "0-1"
+                    : null;
+        return res.json({ result, cp: evaluation.cp, mate: evaluation.mate, depth: evaluation.depth, fen });
+    } catch (e) {
+        sendInternalError(res, "GET /games/history/:id/result-suggestion", e);
     }
 });
 

@@ -218,6 +218,13 @@ export const en = {
     "played.saveResult": "Save result",
     "played.savingResult": "Saving...",
     "played.updateResultError": "Unable to update the game result.",
+    "played.suggestResult": "Suggest result with Stockfish",
+    "played.suggestingResult": "Analyzing position...",
+    "played.suggestionLabel": "Stockfish suggestion:",
+    "played.suggestionScore": "Evaluation {score} · depth {depth}",
+    "played.suggestResultError": "Unable to analyze this position.",
+    "played.suggestResultUnavailable": "Stockfish could not determine a winner.",
+    "played.suggestionUndetermined": "No clear winner",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Paste UCI or FEN here",

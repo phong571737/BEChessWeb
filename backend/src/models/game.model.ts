@@ -23,6 +23,11 @@ function historyIdFilter(id: string, deleted: boolean): Filter<Document> {
 export function getGameCollections(): Collection<GameDoc> { return games(); }
 export function getPGNCollections(): Collection<Document> { return pgnGames(); }
 
+/** Loads one non-deleted history snapshot by its public id. */
+export async function getHistoryRecord(id: string): Promise<Document | null> {
+    return pgnGames().findOne(historyIdFilter(id, false));
+}
+
 /** Keeps an up-to-date review snapshot while a game is in progress. */
 export async function saveHistorySnapshot(doc: Document): Promise<void> {
     const gameID = doc.gameID;
