@@ -13,7 +13,7 @@ import { GameSetupDialog } from "./game-setup-dialog";
 import { Branch } from "@/types/game.types";
 import type { ClockSide } from "@/hooks/use-chess-clock";
 import { formatClockMs } from "@/hooks/use-chess-clock";
-import { classifyTimeControl } from "@/lib/time-control";
+import { classifyTimeControl, DEFAULT_INITIAL_TIME_MS, DEFAULT_INCREMENT_MS } from "@/lib/time-control";
 
 interface Props {
     gameID: string;
@@ -188,7 +188,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         <div className="flex flex-col min-h-0 sm:h-full border border-border rounded-sm bg-card overflow-hidden">
             <div className="flex items-center justify-between border-b border-border bg-muted/20 px-3 py-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{timeControlLabel}</span>
-                <span className="font-mono text-[10px] text-muted-foreground">{Math.round((initialTimeMs ?? 600_000) / 60_000)}+{Math.round((incrementMs ?? 0) / 1_000)}</span>
+                <span className="font-mono text-[10px] text-muted-foreground">{Math.round((initialTimeMs ?? DEFAULT_INITIAL_TIME_MS) / 60_000)}+{Math.round((incrementMs ?? DEFAULT_INCREMENT_MS) / 1_000)}</span>
             </div>
             <PlayerRow player={firstPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 

@@ -31,13 +31,15 @@ The page tree is organized around the product’s primary user journeys:
 
 The home page renders the dashboard of active games and provides an entry point for creating or opening a game session.
 
+The Start Game dialog includes an Excel import icon beside the player-name fields. Selecting a `.xlsx` pairing workbook parses the first worksheet in the browser without uploading the file. The importer maps column A to the board number, columns E and K to White and Black names, and reads the tournament title and scheduled time when present. A localized row selector is shown when the workbook contains multiple pairings; choosing a row fills the two player names for that board. Missing names remain editable, while location, round, and time-control fields stay available for manual confirmation. Invalid workbooks produce a localized validation message.
+
 ### `/dashboard`
 
 The administrator dashboard summarizes retained history for a selectable 7- or 30-day window. It shows total, active, completed, and duration metrics; board and player activity; result distribution; and a daily game chart. It derives data from the existing history and board endpoints without treating browser metrics as durable game truth. The page is available only in the administrator UI and uses the shared semantic theme tokens.
 
 ### `/board`
 
-The board page is the main interactive experience for gameplay and game state review. Its evaluation bar uses the same `sm` breakpoint as the board/control-panel grid, so any viewport that can show the main two-column layout keeps the bar vertically beside the board; the horizontal bar is reserved for phones. An administrator can open the game settings during any live state to update player names, time control, increment, round, or location. Changing the base time preserves elapsed clock time by applying only the configured-time difference to both clocks; finished and ended games do not expose this control.
+The board page is the main interactive experience for gameplay and game state review. Its evaluation bar uses the same `sm` breakpoint as the board/control-panel grid, so any viewport that can show the main two-column layout keeps the bar vertically beside the board; the horizontal bar is reserved for phones. In split-board mode, each board card displays its own countdown (60:00 + 15 seconds by default), and the player order and active clock follow that card's flip setting. An administrator can open the game settings during any live state to update player names, time control, increment, round, or location. Changing the base time preserves elapsed clock time by applying only the configured-time difference to both clocks; finished and ended games do not expose this control.
 
 It consumes the `gameID` query parameter and loads the corresponding live data through the `useGame` hook.
 

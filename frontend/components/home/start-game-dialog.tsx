@@ -10,6 +10,10 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
+import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-control";
+import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
+import { FileSpreadsheet, Upload } from "lucide-react";
+import { useRef } from "react";
 
 interface Props {
     board: PhysicalBoard | null;
@@ -18,7 +22,7 @@ interface Props {
 }
 
 const CLOCK_OPTIONS = [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000];
-const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000];
+const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
 export function StartGameDialog({ board, gameID , onClose }: Props) {
     const router = useRouter();
@@ -26,14 +30,44 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const { isAdmin, token } = useAuth();
     const [white, setWhite] = useState("");
     const [black, setBlack] = useState("");
-    const [initialTimeMs, setInitialTimeMs] = useState(600_000);
-    const [incrementMs, setIncrementMs] = useState(0);
+    const [initialTimeMs, setInitialTimeMs] = useState(DEFAULT_INITIAL_TIME_MS);
+    const [incrementMs, setIncrementMs] = useState(DEFAULT_INCREMENT_MS);
     const [round, setRound] = useState(1);
     const [location, setLocation] = useState("");
+    const [excelImport, setExcelImport] = useState<ExcelGameImport | null>(null);
+    const [selectedExcelRow, setSelectedExcelRow] = useState("");
+    const [excelError, setExcelError] = useState<string | null>(null);
+    const excelInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const canStart = white.trim().length > 0 && black.trim().length > 0;
+
+    const applyExcelRow = (index: string, imported = excelImport) => {
+        setSelectedExcelRow(index);
+        const row = imported?.rows[Number(index)];
+        if (!row) return;
+        setWhite(row.whiteName);
+        setBlack(row.blackName);
+        setExcelError(null);
+    };
+
+    const handleExcelFile = async (file: File | undefined) => {
+        if (!file) return;
+        setExcelError(null);
+        try {
+            const imported = await parseExcelGameFile(file);
+            if (!imported.rows.length) throw new Error("No player pairings were found in this workbook.");
+            setExcelImport(imported);
+            applyExcelRow("0", imported);
+        } catch (error) {
+            setExcelImport(null);
+            setSelectedExcelRow("");
+            setExcelError(t("sg.excelImportError"));
+        } finally {
+            if (excelInputRef.current) excelInputRef.current.value = "";
+        }
+    };
 
     const handleStart = async () => {
         if (!isAdmin || !token || !board || !gameID || !canStart) return;
@@ -93,6 +127,9 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         if (!open && !loading) {
             setWhite("");
             setBlack("");
+            setExcelImport(null);
+            setSelectedExcelRow("");
+            setExcelError(null);
             setError(null);
             onClose();
         }
@@ -115,9 +152,17 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
 
                     {/* Fill Black name */}
                     <div className="space-y-2">
-                        <Label htmlFor="sg-white">
-                            {t("sg.whiteSide")} <span className="text-destructive">*</span>
-                        </Label>
+                        <div className="flex items-center justify-between gap-2">
+                            <Label htmlFor="sg-white">
+                                {t("sg.whiteSide")} <span className="text-destructive">*</span>
+                            </Label>
+                            <input ref={excelInputRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => void handleExcelFile(event.target.files?.[0])} />
+                            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => excelInputRef.current?.click()} disabled={loading} title={t("sg.excelImport") }>
+                                <FileSpreadsheet className="size-3.5" />
+                                <span className="hidden sm:inline">{t("sg.excelImport")}</span>
+                                <Upload className="size-3.5" />
+                            </Button>
+                        </div>
                         <Input
                             id="sg-white"
                             placeholder={t("sg.playerName")}
@@ -128,6 +173,17 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             onKeyDown={(e) => e.key === "Enter" && canStart && handleStart()}
                         />
                     </div>
+
+                    {excelImport && (
+                        <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
+                            <Label htmlFor="sg-excel-row">{t("sg.excelChooseGame")}</Label>
+                            <select id="sg-excel-row" value={selectedExcelRow} onChange={(event) => applyExcelRow(event.target.value)} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
+                                {excelImport.rows.map((row, index) => <option key={`${row.boardNumber}-${index}`} value={index}>{t("sg.excelGameOption", { n: row.boardNumber || String(index + 1), white: row.whiteName || t("sg.unknownPlayer"), black: row.blackName || t("sg.unknownPlayer") })}</option>)}
+                            </select>
+                            <p className="text-[11px] text-muted-foreground">{[excelImport.tournament, excelImport.scheduledAt].filter(Boolean).join(" · ")}</p>
+                        </div>
+                    )}
+                    {excelError && <p className="text-xs text-destructive">{excelError}</p>}
 
                     {/* Fill White name */}
                     <div className="space-y-2">

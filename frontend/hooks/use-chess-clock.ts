@@ -1,4 +1,5 @@
 import { GAME_STATUS } from "@/lib/constants/game";
+import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-control";
 import { useEffect, useRef, useState } from "react";
 
 export type ClockSide = "white" | "black";
@@ -16,8 +17,7 @@ interface UseChessClockOptions {
 }
 
 // Single fallback for games created before clock fields existed.
-export const DEFAULT_INITIAL_TIME_MS = 10 * 60 * 1_000;
-const DEFAULT_INCREMENT_MS = 0;
+export { DEFAULT_INITIAL_TIME_MS, DEFAULT_INCREMENT_MS } from "@/lib/time-control";
 
 function toClockSide(fen: string): ClockSide {
   const turn = (fen?.split(" ")[1] ?? "w").toLowerCase();

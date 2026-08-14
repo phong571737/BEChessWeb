@@ -128,7 +128,9 @@ The frontend state sync pattern is:
 
 `use-chess-clock.ts` initializes both clocks from the persisted game configuration only after the game data is loaded. The clocks remain displayed but paused at their configured initial values until the first valid move is present. From that first move onward, only the active side decreases and the configured increment is applied to the side that completed a move. If an administrator changes the base time mid-game, the hook applies only the base-time difference to each remaining clock, preserving elapsed play time instead of resetting either clock.
 
-Older game documents with second-based clock fields are converted at the frontend API boundary. Games without any clock fields use the documented 10-minute compatibility fallback.
+Older game documents with second-based clock fields are converted at the frontend API boundary. Games without any clock fields use the tournament compatibility fallback of 60 minutes plus a 15-second increment.
+
+In split-board mode, each `BoardViewSlot` owns a clock instance keyed by its `gameID`. The compact card renders the oriented top and bottom player names with their individual remaining times, highlights the side whose turn is active, and preserves separate session state when two boards are watched simultaneously.
 
 This is why the game page feels live while still being resilient to network or page refresh events.
 

@@ -10,9 +10,10 @@ import { useT } from "@/lib/i18n";
 import { useGameStore } from "@/lib/store";
 import { Settings2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-control";
 
 const CLOCK_OPTIONS = [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000];
-const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000];
+const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
 interface Props {
     gameID: string;
@@ -24,7 +25,7 @@ interface Props {
     location: string;
 }
 
-export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 600_000, incrementMs = 0, round, location }: Props) {
+export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, location }: Props) {
     const { t } = useT();
     const { token } = useAuth();
     const [open, setOpen] = useState(false);

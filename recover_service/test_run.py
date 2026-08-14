@@ -1,17 +1,20 @@
 import json
+
 import requests
 
-# URL endpoint
-URL = "http://localhost:8000/recover"
 
-# Hardcoded FEN history
+URL = "http://localhost:8000/recover"
+START_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+
+# Timeline under test. The first entry is already the position after g2-g4;
+# the initial position is supplied separately as startFen.
 HISTORY = [
     "rnbqkbnr/pppppppp/8/8/6P1/8/PPPPPP1P/RNBQKBNR b KQkq - 0 2",
     "rnbqkbnr/pppp1ppp/8/4p3/6P1/8/PPPPPP1P/RNBQKBNR w KQkq - 0 3",
     "rnbqkbnr/pppp1ppp/8/4p3/1P4P1/8/P1PPPP1P/RNBQKBNR b KQkq - 0 3",
-    "r1bqkbnr/pppp1ppp/2n5/4p3/1P4P1/8/P1PPPP1P/RNBQKBNR w KQkq - 1 4",
-    "r1bqkbnr/pppp1ppp/2n5/4p3/1P4P1/2P5/P2PPP1P/RNBQKBNR b KQkq - 0 4",
-    "r1bqkbnr/ppp2ppp/2n5/3pp3/1P4P1/2P5/P2PPP1P/RNBQKBNR w KQkq - 0 5",
+    "r1bqkbnr/pppp1ppp/2n5/4p3/1P4P1/8/P1PPPP1P/R1BQKBNR w KQkq - 1 4",
+    "r1bqkbnr/pppp1ppp/2n5/4p3/1P4P1/2P5/P2PPP1P/R1BQKBNR b KQkq - 0 4",
+    "r1bqkbnr/ppp2ppp/2n5/3pp3/1P4P1/2P5/P2PPP1P/R1BQKBNR w KQkq - 0 5",
     "r1bqkbnr/ppp2ppp/2n5/3pp3/1P4P1/N1P5/P2PPP1P/R1BQKBNR b KQkq - 1 5",
     "r2qkbnr/ppp2ppp/2n5/3pp3/1P4b1/N1P5/P2PPP1P/R1BQKBNR w KQkq - 0 6",
     "r2qkbnr/ppp2ppp/2n5/3pp3/1P4b1/N1P5/PB1PPP1P/R2QKBNR b KQkq - 1 6",
@@ -64,36 +67,26 @@ HISTORY = [
 def test_recover_api():
     try:
         payload = {"fenHistory": HISTORY, "maxBranches": 2000}
-        print("Đang gửi dữ liệu tới API...")
+        print(f"Sending {len(HISTORY)} FEN snapshots to the recovery API...")
         response = requests.post(URL, json=payload, timeout=30)
-
         print(f"Status Code: {response.status_code}")
         if response.ok:
             data = response.json()
-
-            # Ghi toàn bộ dữ liệu nhận được vào file result.json
             output_file = "result.json"
             with open(output_file, "w", encoding="utf-8") as f:
-                json.dump(data, f, indent=4, ensure_ascii=False)
-
-            print(f"✓ Đã lưu toàn bộ kết quả thành công vào file: {output_file}")
-            print("\nTóm tắt kết quả:")
-            print(" - fullyRecovered:", data.get("fullyRecovered"))
-            print(" - longestRecoveredPly:", data.get("longestRecoveredPly"))
-            print(" - finalMoveLists count:", len(data.get("finalMoveLists", [])))
+                json.dump(data, f, indent=2, ensure_ascii=False)
+            print(f"Saved response to {output_file}")
+            print("fullyRecovered:", data.get("fullyRecovered"))
+            print("longestRecoveredPly:", data.get("longestRecoveredPly"))
+            print("finalMoveLists count:", len(data.get("finalMoveLists", [])))
         else:
-            print("API trả về lỗi:")
             print(response.text)
-
     except requests.exceptions.ConnectionError:
-        print(
-            "Lỗi: Không thể kết nối tới server. "
-            "Hãy chắc chắn FastAPI server ở http://localhost:8000 đang chạy."
-        )
+        print("Cannot connect to http://localhost:8000/recover; start FastAPI first.")
     except requests.exceptions.Timeout:
-        print("Lỗi: Request bị quá thời gian chờ (timeout).")
-    except Exception as e:
-        print(f"Lỗi không xác định: {e}")
+        print("Recovery request timed out.")
+    except Exception as exc:
+        print(f"Unexpected error: {exc}")
 
 
 if __name__ == "__main__":

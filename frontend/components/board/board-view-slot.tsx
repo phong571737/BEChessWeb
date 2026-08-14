@@ -18,7 +18,7 @@ import { GAME_STATUS } from "@/lib/constants/game";
 import { EvalBar } from "@/components/board/eval-bar";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useStockfish } from "@/hooks/use-stockfish";
-import { useChessClock } from "@/hooks/use-chess-clock";
+import { formatClockMs, useChessClock } from "@/hooks/use-chess-clock";
 import { ChessClockCard } from "@/components/board/chess-clock-card";
 import { useAuth } from "@/lib/auth-context";
 
@@ -644,7 +644,12 @@ export function BoardViewSlot({
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center p-1.5">
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
-                        {boardFlipped ? BlackName : WhiteName}
+                        <CompactPlayer
+                            name={boardFlipped ? BlackName : WhiteName}
+                            side={boardFlipped ? "black" : "white"}
+                            timeMs={boardFlipped ? blackMs : whiteMs}
+                            activeSide={activeSide}
+                        />
                     </div>
                     <div className="flex min-h-0 flex-1 items-stretch justify-center">
                     <div ref={boardWrapRef} className="flex min-w-0 flex-1 items-center justify-center">
@@ -666,7 +671,12 @@ export function BoardViewSlot({
                     )}
                     </div>
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
-                        {boardFlipped ? WhiteName : BlackName}
+                        <CompactPlayer
+                            name={boardFlipped ? WhiteName : BlackName}
+                            side={boardFlipped ? "white" : "black"}
+                            timeMs={boardFlipped ? whiteMs : blackMs}
+                            activeSide={activeSide}
+                        />
                     </div>
                 </div>
             </div>
@@ -771,6 +781,34 @@ export function BoardViewSlot({
                     </div>
                 </div>
             </div>
+        </div>
+    );
+}
+
+function CompactPlayer({
+    name,
+    side,
+    timeMs,
+    activeSide,
+}: {
+    name: string;
+    side: "white" | "black";
+    timeMs: number;
+    activeSide: "white" | "black";
+}) {
+    const active = side === activeSide;
+    return (
+        <div className={cn(
+            "mx-auto flex w-full max-w-[240px] items-center justify-center gap-2 rounded-sm px-2 py-1 transition-colors",
+            active && "bg-accent text-foreground"
+        )}>
+            <span className="min-w-0 truncate">{name}</span>
+            <span className={cn(
+                "font-mono text-sm tabular-nums",
+                active ? "font-bold text-foreground" : "text-muted-foreground"
+            )}>
+                {formatClockMs(timeMs)}
+            </span>
         </div>
     );
 }

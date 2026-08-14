@@ -5,12 +5,12 @@ import { executeMove } from "../utils/chess.utils.js";
 import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
 import { MoveLike, Branch } from "../types/chess.types.js";
-import { classifyTimeControl } from "../utils/time-control.js";
+import { classifyTimeControl, DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";
 
 export const GameService = {
   // Only one creator may initialize a physical board at a time. A second
   // request returns the retained active game instead of deleting it.
-  async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "", initialTimeMs?: number, incrementMs?: number) {
+  async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "", initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS) {
     if (!await acquireBoardCreationLock(boardID, gameID)) {
       const existing = await getLatestGameByBoardID(boardID);
       if (existing?.gameID) {

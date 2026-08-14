@@ -375,7 +375,9 @@ export function useGame(gameID: string) {
         socket.on(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
 
         const onUpdateAllGame = (data: any) => {
-            if (data?.gameID && data.gameID !== gameID) return;
+            // Never apply a broadcast without an explicit game identity. A
+            // missing ID must not terminate every open board slot at once.
+            if (!data?.gameID || data.gameID !== gameID) return;
             patchBoard(gameID, {
                 status: GAME_STATUS.ENDED,
                 ...(typeof data?.result === "string" ? { result: data.result } : {}),
@@ -386,15 +388,11 @@ export function useGame(gameID: string) {
         };
 
         const onGameRestart = (data: any) => {
-            if (data?.oldGameID && data.oldGameID !== gameID) return;
-            if (data?.gameID === gameID && data?.oldGameID === gameID) {
+            if (!data?.gameID || data.gameID !== gameID) return;
+            if (data?.oldGameID === gameID) {
                 applyGameReset(data);
                 return;
             }
-            patchBoard(gameID, { status: GAME_STATUS.ENDED });
-            invalidateFetchCache(`/games/${gameID}`);
-            invalidateFetchCache("/games/current");
-            invalidateFetchCache("/games/history");
         };
 
         // MQTT lifecycle commands emit a board-scoped status event after the
