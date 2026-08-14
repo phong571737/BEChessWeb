@@ -47,6 +47,7 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.excelGameOption": "Bàn {n}: {white} vs {black}",
     "sg.excelImportError": "Không thể đọc file Excel. Hãy chọn đúng file .xlsx danh sách ghép cặp.",
     "sg.unknownPlayer": "Chưa có tên",
+    "sg.excelBoard": "Bàn {n}",
     "timeControl.blitz": "Cờ chớp",
     "timeControl.rapid": "Cờ nhanh",
     "timeControl.classical": "Cờ tiêu chuẩn",

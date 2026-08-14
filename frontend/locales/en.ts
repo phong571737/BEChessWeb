@@ -45,6 +45,7 @@ export const en = {
     "sg.excelGameOption": "Board {n}: {white} vs {black}",
     "sg.excelImportError": "Unable to read this Excel file. Please choose a valid .xlsx tournament pairing file.",
     "sg.unknownPlayer": "Unknown player",
+    "sg.excelBoard": "Board {n}",
     "timeControl.blitz": "Blitz",
     "timeControl.rapid": "Rapid",
     "timeControl.classical": "Classical",

@@ -10,6 +10,7 @@ export interface ExcelGameRow {
   blackName: string;
   whitePlayerNumber?: string;
   blackPlayerNumber?: string;
+  location?: string;
   tournament?: string;
   scheduledAt?: string;
 }
@@ -69,6 +70,10 @@ function parseSchedule(value: string): string | undefined {
   return match ? `${match[1]} ${match[2]}` : undefined;
 }
 
+function normalizedHeader(value: string): string {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+}
+
 /** Parse the tournament pairing worksheet into rows usable by the game form. */
 export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   const entries = await readZipEntries(await file.arrayBuffer());
@@ -85,6 +90,8 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   const rows: ExcelGameRow[] = [];
   let tournament: string | undefined;
   let scheduledAt: string | undefined;
+  let locationColumn: number | undefined;
+  let boardColumn: number | undefined;
 
   for (const row of Array.from(document.getElementsByTagNameNS("*", "row"))) {
     const cells = new Map<number, string>();
@@ -98,6 +105,11 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     }
 
     const firstCell = cells.get(1) ?? "";
+    for (const [column, value] of cells) {
+      const header = normalizedHeader(value);
+      if (/^(dia diem|location|venue)$/.test(header)) locationColumn = column;
+      if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
+    }
     if (firstCell.startsWith("Giải ")) tournament = firstCell;
     const schedule = parseSchedule(firstCell);
     if (schedule) scheduledAt = schedule;
@@ -106,11 +118,12 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     const blackName = cells.get(11) ?? "";
     if (!whiteName && !blackName) continue;
     rows.push({
-      boardNumber: cells.get(1) ?? "",
+      boardNumber: cells.get(boardColumn ?? 1) ?? "",
       whitePlayerNumber: cells.get(2) || undefined,
       whiteName,
       blackPlayerNumber: cells.get(14) || undefined,
       blackName,
+      location: locationColumn ? cells.get(locationColumn) || undefined : undefined,
       tournament,
       scheduledAt,
     });
