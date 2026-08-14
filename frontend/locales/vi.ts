@@ -217,6 +217,7 @@ export const vi: Record<TranslationKeys, string> = {
     "board.slotN": "Bàn {n}",
     "board.applyLayout": "Áp dụng",
     "board.noOtherGames": "Không còn ván nào khác để hiển thị",
+    "board.landscapeUnavailable": "Trình duyệt không cho phép tự xoay. Hãy xoay điện thoại sang ngang.",
     "board.removeSlot": "Gỡ bàn cờ",
 
 

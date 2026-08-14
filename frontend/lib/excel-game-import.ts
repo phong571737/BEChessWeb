@@ -19,6 +19,7 @@ export interface ExcelGameImport {
   rows: ExcelGameRow[];
   tournament?: string;
   scheduledAt?: string;
+  location?: string;
 }
 
 const LOCAL_FILE_HEADER = 0x04034b50;
@@ -90,6 +91,7 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   const rows: ExcelGameRow[] = [];
   let tournament: string | undefined;
   let scheduledAt: string | undefined;
+  let location: string | undefined;
   let locationColumn: number | undefined;
   let boardColumn: number | undefined;
 
@@ -111,6 +113,8 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
       if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
     }
     if (firstCell.startsWith("Giải ")) tournament = firstCell;
+    const locationMatch = firstCell.match(/^Địa điểm(?: thi đấu)?\s*:\s*(.+)$/i);
+    if (locationMatch?.[1]?.trim()) location = locationMatch[1].trim();
     const schedule = parseSchedule(firstCell);
     if (schedule) scheduledAt = schedule;
 
@@ -123,11 +127,11 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
       whiteName,
       blackPlayerNumber: cells.get(14) || undefined,
       blackName,
-      location: locationColumn ? cells.get(locationColumn) || undefined : undefined,
+      location: (locationColumn ? cells.get(locationColumn) : undefined) || location,
       tournament,
       scheduledAt,
     });
   }
 
-  return { rows, tournament, scheduledAt };
+  return { rows, tournament, scheduledAt, location };
 }

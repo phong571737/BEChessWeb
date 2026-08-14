@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { decodeGameID, encodeGameID } from "@/lib/id-utils";
 import { useActiveGames } from "@/hooks/use-active-games";
@@ -61,18 +61,6 @@ function BoardContent() {
     // browser switches to landscape orientation.
     const effectiveLayout: BoardLayoutMode = urlLayout;
     const slotCount = effectiveLayout;
-
-    useEffect(() => {
-        if (urlLayout === 1 || typeof window === "undefined") return;
-
-        // Mobile browsers may reject orientation locking unless the page is
-        // fullscreen/PWA. Ignore that rejection and leave the normal layout
-        // usable when the browser does not grant the permission.
-        const orientation = window.screen.orientation;
-        if (typeof orientation?.lock === "function") {
-            void orientation.lock("landscape").catch(() => undefined);
-        }
-    }, [urlLayout]);
 
     const slots = useMemo(
         () => (primaryID ? buildSlots(primaryID, extraIDs, slotCount) : []),

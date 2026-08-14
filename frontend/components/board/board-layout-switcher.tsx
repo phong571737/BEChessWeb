@@ -133,8 +133,10 @@ export function BoardLayoutSwitcher({
 }: Props) {
     const { t } = useT();
     const rootRef = useRef<HTMLDivElement>(null);
+    const enteredFullscreenRef = useRef(false);
     const [openPanel, setOpenPanel] = useState<BoardLayoutMode | null>(null);
     const [draft, setDraft] = useState<string[]>([]);
+    const [orientationWarning, setOrientationWarning] = useState(false);
 
     const pickerGames = useMemo(() => games.slice(0, 3), [games]);
     const gameLookup = useMemo(() => pickerGameMap(pickerGames), [pickerGames]);
@@ -158,8 +160,52 @@ export function BoardLayoutSwitcher({
         return () => document.removeEventListener("mousedown", onDoc);
     }, [openPanel]);
 
+    /**
+     * Mobile browsers only allow an orientation lock during a direct user
+     * gesture and commonly require fullscreen first. Keep this call in the
+     * layout button handler instead of delaying it to a page effect.
+     */
+    const requestMobileLandscape = useCallback(async () => {
+        if (typeof window === "undefined" || !window.matchMedia("(max-width: 1023px)").matches) {
+            return;
+        }
+
+        setOrientationWarning(false);
+        try {
+            if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
+                await document.documentElement.requestFullscreen();
+                enteredFullscreenRef.current = true;
+            }
+
+            const orientation = window.screen.orientation;
+            if (typeof orientation?.lock !== "function") {
+                setOrientationWarning(true);
+                return;
+            }
+            await orientation.lock("landscape");
+        } catch {
+            setOrientationWarning(true);
+        }
+    }, []);
+
+    /** Release an orientation/fullscreen session created by this switcher. */
+    const releaseMobileLandscape = useCallback(() => {
+        if (typeof window === "undefined") return;
+        try {
+            window.screen.orientation?.unlock?.();
+        } catch {
+            // Some browsers expose the API but reject unlock outside a PWA.
+        }
+        if (enteredFullscreenRef.current && document.fullscreenElement && document.exitFullscreen) {
+            void document.exitFullscreen().catch(() => undefined);
+        }
+        enteredFullscreenRef.current = false;
+        setOrientationWarning(false);
+    }, []);
+
     const openPicker = useCallback(
         (mode: 2 | 4) => {
+            void requestMobileLandscape();
             const count = mode === 2 ? 2 : 4;
             const initial = [...slotIds];
             while (initial.length < count) {
@@ -171,7 +217,7 @@ export function BoardLayoutSwitcher({
             setOpenPanel(mode);
             if (layout !== mode) onLayoutChange(mode);
         },
-        [slotIds, pickerGames, layout, onLayoutChange]
+        [slotIds, pickerGames, layout, onLayoutChange, requestMobileLandscape]
     );
 
     const applyDraft = useCallback(
@@ -237,6 +283,7 @@ export function BoardLayoutSwitcher({
                     )}
                     onClick={() => {
                         setOpenPanel(null);
+                        releaseMobileLandscape();
                         onLayoutChange(1);
                     }}
                 >
@@ -291,6 +338,11 @@ export function BoardLayoutSwitcher({
             {openPanel && (openPanel === 2 || openPanel === 4) && (
                 <div className="absolute right-0 top-full z-[60] mt-1 w-[min(300px,calc(100vw-2rem))] rounded-md border border-border bg-popover shadow-lg p-3 space-y-3">
                     <p className="text-xs font-semibold text-foreground">{t("board.pickBoards")}</p>
+                    {orientationWarning && (
+                        <p className="text-xs text-warning" role="status">
+                            {t("board.landscapeUnavailable")}
+                        </p>
+                    )}
                     {pickerGames.length === 0 ? (
                         <p className="text-xs text-muted-foreground">{t("board.noOtherGames")}</p>
                     ) : (

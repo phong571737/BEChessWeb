@@ -97,6 +97,7 @@ export const en = {
     "board.slotN": "Board {n}",
     "board.applyLayout": "Apply",
     "board.noOtherGames": "No other active games to show",
+    "board.landscapeUnavailable": "Automatic rotation is unavailable in this browser. Rotate your phone to landscape.",
     "board.removeSlot": "Remove board",
     
     // ----- Review page --------------------------------------------------

@@ -49,7 +49,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         if (!row) return;
         setWhite(row.whiteName);
         setBlack(row.blackName);
-        if (row.location) setLocation(row.location);
+        if (row.location || imported?.location) setLocation(row.location ?? imported?.location ?? "");
         setExcelError(null);
     };
 

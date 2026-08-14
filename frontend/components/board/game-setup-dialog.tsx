@@ -67,7 +67,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         if (!row) return;
         setWhite(row.whiteName);
         setBlack(row.blackName);
-        if (row.location) setGameLocation(row.location);
+        if (row.location || imported?.location) setGameLocation(row.location ?? imported?.location ?? "");
         setExcelError(null);
     };
 
