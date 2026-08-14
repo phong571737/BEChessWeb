@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+import hashlib
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, Mapping
@@ -18,6 +19,10 @@ from .fen_to_pgn import (
     fens_to_pgn,
     infer_move_from_fen,
 )
+from .preprocessing import PreprocessedFenHistory, preprocess_fen_history
+
+
+WILDCARD_FEN = "8/8/8/8/8/8/8/8 w - - 0 1"
 
 
 class RecoveryLimitError(RuntimeError):
@@ -69,10 +74,13 @@ class RecoveryLine:
 @dataclass(frozen=True)
 class RecoveryStep:
     ply: int
+    original_ply: int | None
+    synthetic: bool
     observed_fen: str
     detected_move: str | None
     detection_error: str | None
     candidates: tuple[RecoveryLine, ...]
+    rejected_branches: Mapping[str, int]
 
     @property
     def used_assumption(self) -> bool:
@@ -80,13 +88,16 @@ class RecoveryStep:
 
     def to_dict(self) -> dict[str, object]:
         return {
-            "ply": self.ply,
+            "effectivePly": self.ply,
+            "originalPly": self.original_ply,
+            "synthetic": self.synthetic,
             "observedFen": self.observed_fen,
             "detectedMove": self.detected_move,
             "detectionError": self.detection_error,
             "usedAssumption": self.used_assumption,
             "candidateCount": len(self.candidates),
-            "moveLists": [candidate.to_dict() for candidate in self.candidates],
+            "rejectedBranches": dict(self.rejected_branches),
+            "candidates": [_compact_candidate(candidate) for candidate in self.candidates],
         }
 
 
@@ -96,6 +107,8 @@ class RecoveryResult:
     detections: tuple[DetectedTransition, ...]
     steps: tuple[RecoveryStep, ...]
     initial_line: RecoveryLine
+    preprocessing: Mapping[str, object]
+    retry: Mapping[str, object]
 
     @property
     def lines(self) -> tuple[RecoveryLine, ...]:
@@ -121,6 +134,16 @@ class RecoveryResult:
         return 0
 
     @property
+    def longest_recovered_original_ply(self) -> int:
+        recovered = 0
+        for step in self.steps:
+            if not step.candidates:
+                break
+            if step.original_ply is not None:
+                recovered = step.original_ply
+        return recovered
+
+    @property
     def best_lines(self) -> tuple[RecoveryLine, ...]:
         if self.fully_recovered:
             return self.lines
@@ -131,12 +154,17 @@ class RecoveryResult:
 
     def to_dict(self, *, include_steps: bool = True) -> dict[str, object]:
         data: dict[str, object] = {
+            "schemaVersion": 2,
             "originalPgn": self.original_pgn,
             "failedPlies": list(self.failed_plies),
             "detections": [item.to_dict() for item in self.detections],
             "survivorCounts": [len(step.candidates) for step in self.steps],
             "fullyRecovered": self.fully_recovered,
-            "longestRecoveredPly": self.longest_recovered_ply,
+            "longestRecoveredPly": self.longest_recovered_original_ply,
+            "longestRecoveredOriginalPly": self.longest_recovered_original_ply,
+            "longestRecoveredEffectivePly": self.longest_recovered_ply,
+            "preprocessing": dict(self.preprocessing),
+            "retry": dict(self.retry),
             "finalMoveLists": [line.to_dict() for line in self.lines],
             "bestMoveLists": [line.to_dict() for line in self.best_lines],
         }
@@ -162,6 +190,57 @@ class _Branch:
         )
 
 
+def _candidate_id(line: RecoveryLine) -> str:
+    payload = "\0".join((*line.uci_moves, line.assumed_fens[-1] if line.assumed_fens else ""))
+    return "c_" + hashlib.sha1(payload.encode("utf-8")).hexdigest()[:16]
+
+
+def _compact_candidate(line: RecoveryLine) -> dict[str, object]:
+    parent = RecoveryLine(
+        line.uci_moves[:-1],
+        line.san_moves[:-1],
+        line.move_sources[:-1],
+        line.assumed_fens[:-1],
+    )
+    return {
+        "id": _candidate_id(line),
+        "parentId": _candidate_id(parent) if line.uci_moves else None,
+        "uci": line.uci_moves[-1] if line.uci_moves else None,
+        "san": line.san_moves[-1] if line.san_moves else None,
+        "source": line.move_sources[-1] if line.move_sources else None,
+        "assumedFen": line.assumed_fens[-1] if line.assumed_fens else None,
+    }
+
+
+@dataclass(frozen=True)
+class BranchValidation:
+    valid: bool
+    reason: str | None = None
+
+
+def validate_assumed_board(board: chess.Board) -> BranchValidation:
+    """Validate material and king invariants on a recovered full board."""
+    white_kings = len(board.pieces(chess.KING, chess.WHITE))
+    black_kings = len(board.pieces(chess.KING, chess.BLACK))
+    if white_kings != 1 or black_kings != 1:
+        return BranchValidation(False, "kingCount")
+
+    white_king = board.king(chess.WHITE)
+    black_king = board.king(chess.BLACK)
+    if white_king is not None and black_king in chess.SquareSet(chess.BB_KING_ATTACKS[white_king]):
+        return BranchValidation(False, "adjacentKings")
+
+    back_ranks = chess.BB_RANK_1 | chess.BB_RANK_8
+    if board.pawns & back_ranks:
+        return BranchValidation(False, "pawnOnBackRank")
+    for color in chess.COLORS:
+        if len(board.pieces(chess.PAWN, color)) > 8:
+            return BranchValidation(False, "tooManyPawns")
+        if chess.popcount(board.occupied_co[color]) > 16:
+            return BranchValidation(False, "tooManyPieces")
+    return BranchValidation(True)
+
+
 def fen_is_compatible(observed_fen: str, assumed_fen: str) -> bool:
     observed = _piece_board(observed_fen)
     assumed = _piece_board(assumed_fen)
@@ -176,17 +255,10 @@ def detect_transitions(
     history = list(fen_history)
     detections: list[DetectedTransition] = []
     before_fen = start_fen
-    start_fields = start_fen.split()
-    initial_color = chess.BLACK if len(start_fields) > 1 and start_fields[1] == "b" else chess.WHITE
 
     for ply, after_fen in enumerate(history, start=1):
-        expected_color = initial_color if ply % 2 == 1 else not initial_color
         try:
-            move = infer_move_from_fen(
-                before_fen,
-                after_fen,
-                expected_color=expected_color,
-            )
+            move = infer_move_from_fen(before_fen, after_fen)
             error = None if move is not None else "No piece-placement change"
         except (FenConversionError, ValueError) as exc:
             move = None
@@ -241,40 +313,197 @@ def recover_fens(
     start_fen: str = chess.STARTING_FEN,
     headers: Mapping[str, str] | None = None,
     max_branches: int | None = None,
+    n_retry: int = 5,
+    deduplicate_positions: bool = True,
+    max_repair_gaps: int = 10,
+    max_total_padding: int = 20,
 ) -> RecoveryResult:
-    history = list(fen_history)
+    """Recover FENs, retrying broken gaps with wildcard observations."""
     if max_branches is not None and max_branches < 1:
         raise ValueError("max_branches must be at least 1")
+    if n_retry < 0:
+        raise ValueError("n_retry must be at least 0")
+    if max_repair_gaps < 0:
+        raise ValueError("max_repair_gaps must be at least 0")
+    if max_total_padding < 0:
+        raise ValueError("max_total_padding must be at least 0")
 
+    preprocessed = preprocess_fen_history(
+        fen_history,
+        deduplicate_positions=deduplicate_positions,
+    )
+    # Validate every real observation before potentially expensive retries.
+    for fen in preprocessed.history:
+        _piece_board(fen)
+
+    observations = [
+        _Observation(fen=fen, original_ply=index, synthetic=False)
+        for index, fen in enumerate(preprocessed.history, start=1)
+    ]
+    original_pgn = fens_to_pgn(
+        preprocessed.history,
+        start_fen=start_fen,
+        headers=headers,
+    )
+    repairs: list[dict[str, int]] = []
+    attempt_count = 0
+
+    result = _recover_once(
+        observations,
+        start_fen=start_fen,
+        original_pgn=original_pgn,
+        preprocessing=preprocessed,
+        max_branches=max_branches,
+        retry_metadata={},
+    )
+
+    while not result.fully_recovered and n_retry:
+        if len(repairs) >= max_repair_gaps:
+            break
+        remaining_padding = max_total_padding - sum(
+            item["paddingCount"] for item in repairs
+        )
+        if remaining_padding <= 0:
+            break
+        failed_index = next(
+            (index for index, step in enumerate(result.steps) if not step.candidates),
+            None,
+        )
+        if failed_index is None:
+            break
+        failed_step = result.steps[failed_index]
+        if failed_step.original_ply is None:
+            break
+
+        repaired: RecoveryResult | None = None
+        repaired_observations: list[_Observation] | None = None
+        for padding_count in range(1, min(n_retry, remaining_padding) + 1):
+            attempt_count += 1
+            padding = [
+                _Observation(WILDCARD_FEN, None, True)
+                for _ in range(padding_count)
+            ]
+            candidate_observations = [
+                *observations[:failed_index],
+                *padding,
+                *observations[failed_index:],
+            ]
+            candidate = _recover_once(
+                candidate_observations,
+                start_fen=start_fen,
+                original_pgn=original_pgn,
+                preprocessing=preprocessed,
+                max_branches=max_branches,
+                retry_metadata={},
+            )
+            target = next(
+                step for step in candidate.steps
+                if step.original_ply == failed_step.original_ply
+            )
+            if target.candidates:
+                repaired = candidate
+                repaired_observations = candidate_observations
+                repairs.append(
+                    {
+                        "afterOriginalPly": failed_step.original_ply - 1,
+                        "paddingCount": padding_count,
+                        "attemptsUsed": padding_count,
+                    }
+                )
+                break
+
+        if repaired is None or repaired_observations is None:
+            break
+        observations = repaired_observations
+        result = repaired
+
+    retry_metadata: dict[str, object] = {
+        "enabled": n_retry > 0,
+        "nRetry": n_retry,
+        "maxRepairGaps": max_repair_gaps,
+        "maxTotalPadding": max_total_padding,
+        "attemptCount": attempt_count,
+        "totalPaddingInserted": sum(item["paddingCount"] for item in repairs),
+        "repairs": repairs,
+    }
+    return RecoveryResult(
+        original_pgn=result.original_pgn,
+        detections=result.detections,
+        steps=result.steps,
+        initial_line=result.initial_line,
+        preprocessing=result.preprocessing,
+        retry=retry_metadata,
+    )
+
+
+@dataclass(frozen=True)
+class _Observation:
+    fen: str
+    original_ply: int | None
+    synthetic: bool
+
+
+def _recover_once(
+    observations: list[_Observation],
+    *,
+    start_fen: str,
+    original_pgn: str,
+    preprocessing: PreprocessedFenHistory,
+    max_branches: int | None,
+    retry_metadata: Mapping[str, object],
+) -> RecoveryResult:
+    history = [item.fen for item in observations]
     observed_boards = [_piece_board(fen) for fen in history]
     initial_board = _load_start_board(start_fen)
     detections = detect_transitions(history, start_fen=start_fen)
-    original_pgn = fens_to_pgn(history, start_fen=start_fen, headers=headers)
 
     initial_line = RecoveryLine((), (), (), ())
     branches = [_Branch(initial_board, [], [], [], [])]
     steps: list[RecoveryStep] = []
 
-    for detection, observed in zip(detections, observed_boards):
+    for index, (detection, observed, observation) in enumerate(
+        zip(detections, observed_boards, observations)
+    ):
         next_branches: list[_Branch] = []
+        rejected: dict[str, int] = {}
+
+        def reject(reason: str) -> None:
+            rejected[reason] = rejected.get(reason, 0) + 1
 
         for branch in branches:
-            if detection.move is None:
+            forced_move = None if observation.synthetic else detection.move
+            if forced_move is None:
                 moves = list(branch.board.legal_moves)
-                source = "assumed"
-            elif detection.move in branch.board.legal_moves:
-                moves = [detection.move]
+                if observation.synthetic:
+                    source = "padding_assumed"
+                elif index and observations[index - 1].synthetic:
+                    source = "retry_assumed"
+                else:
+                    source = "assumed"
+                if branch.board.is_check() and not moves:
+                    reject("unresolvedCheck")
+            elif forced_move in branch.board.legal_moves:
+                moves = [forced_move]
                 source = "detected"
             else:
                 moves = []
                 source = "detected"
+                reject(
+                    "unresolvedCheck" if branch.board.is_check()
+                    else "illegalDetectedMove"
+                )
 
             for move in moves:
                 san = branch.board.san(move)
                 next_board = branch.board.copy(stack=False)
                 next_board.push(move)
 
+                validation = validate_assumed_board(next_board)
+                if not validation.valid:
+                    reject(validation.reason or "invalidPosition")
+                    continue
                 if not _observed_board_matches(observed, next_board):
+                    reject("observedMismatch")
                     continue
 
                 next_branches.append(
@@ -299,12 +528,15 @@ def recover_fens(
         steps.append(
             RecoveryStep(
                 ply=detection.ply,
+                original_ply=observation.original_ply,
+                synthetic=observation.synthetic,
                 observed_fen=detection.after_fen,
                 detected_move=(
                     detection.move.uci() if detection.move is not None else None
                 ),
                 detection_error=detection.error,
                 candidates=tuple(branch.freeze() for branch in branches),
+                rejected_branches=rejected,
             )
         )
 
@@ -313,6 +545,8 @@ def recover_fens(
         detections=detections,
         steps=tuple(steps),
         initial_line=initial_line,
+        preprocessing=preprocessing.to_dict(),
+        retry=retry_metadata,
     )
 
 
@@ -384,8 +618,8 @@ def recovery_line_to_pgn(
             )
 
         node = node.add_variation(move)
-        if source == "assumed":
-            node.comment = "assumed"
+        if source != "detected":
+            node.comment = source
         board.push(move)
 
     if recovered_plies < total_plies:

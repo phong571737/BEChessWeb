@@ -3,8 +3,11 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest } from "node:https";
 
 interface RecoveryResponse {
+  schemaVersion?: unknown;
   originalPgn?: unknown;
   steps?: unknown;
+  preprocessing?: unknown;
+  retry?: unknown;
   bestMoveLists?: unknown;
   finalMoveLists?: unknown;
   fullyRecovered?: unknown;
@@ -13,11 +16,14 @@ interface RecoveryResponse {
 }
 
 export interface FenRecoveryResult {
+  schemaVersion?: number;
   pgn: string;
   fullyRecovered: boolean;
   failedPlies: number[];
   longestRecoveredPly: number;
   steps?: unknown[];
+  preprocessing?: Record<string, unknown>;
+  retry?: Record<string, unknown>;
   bestMoveLists?: unknown[];
   finalMoveLists?: unknown[];
 }
@@ -32,6 +38,19 @@ interface RecoveryHeaders {
   Result?: string;
   SetUp?: string;
   FEN?: string;
+}
+
+export type FenRecoveryFailureCode = "RECOVERY_BRANCH_LIMIT" | "RECOVERY_TIMEOUT" | "RECOVERY_UNAVAILABLE" | "RECOVERY_REJECTED";
+
+export class FenRecoveryServiceError extends Error {
+  constructor(
+    public readonly code: FenRecoveryFailureCode,
+    public readonly httpStatus: number,
+    message: string,
+  ) {
+    super(message);
+    this.name = "FenRecoveryServiceError";
+  }
 }
 
 const RECOVERY_TIMEOUT_MS = 8_000;
@@ -87,7 +106,7 @@ export async function recoverFenHistory(
   fenHistory: string[],
   startFen: string | undefined,
   headers: RecoveryHeaders,
-  options: { includeSteps?: boolean; debug?: boolean } = {},
+  options: { includeSteps?: boolean; debug?: boolean; nRetry?: number; exposeServiceErrors?: boolean } = {},
 ): Promise<FenRecoveryResult | null> {
   const baseUrl = env.RECOVER_SERVICE_URL?.trim().replace(/\/$/, "");
   if (!baseUrl || fenHistory.length === 0) return null;
@@ -97,13 +116,27 @@ export async function recoverFenHistory(
       fenHistory,
       startFen,
       headers,
-      maxBranches: 2_000,
+      maxBranches: 10000,
+      ...(options.nRetry === undefined ? {} : { nRetry: options.nRetry }),
       finalOnly: options.includeSteps !== true,
     };
     if (options.debug) console.log("[FEN RECOVERY 2 - payload backend gửi Python /recover]", payload);
     const response = await postRecovery(new URL(`${baseUrl}/recover`), payload);
     if (response.status < 200 || response.status >= 300) {
-      console.warn(`[FEN RECOVERY] Sidecar returned HTTP ${response.status}`);
+      let detail = "FEN recovery request was rejected";
+      try {
+        const errorBody = JSON.parse(response.body) as { detail?: unknown };
+        if (typeof errorBody.detail === "string" && errorBody.detail.trim()) detail = errorBody.detail.trim();
+      } catch {}
+      console.warn(`[FEN RECOVERY] Sidecar returned HTTP ${response.status}: ${detail}`);
+      if (options.exposeServiceErrors) {
+        const branchLimit = /more than\s+\d+\s+compatible branches/i.test(detail);
+        throw new FenRecoveryServiceError(
+          branchLimit ? "RECOVERY_BRANCH_LIMIT" : "RECOVERY_REJECTED",
+          branchLimit ? 422 : 502,
+          detail,
+        );
+      }
       return null;
     }
 
@@ -115,16 +148,33 @@ export async function recoverFenHistory(
       ? data.failedPlies.filter((value): value is number => Number.isInteger(value))
       : [];
     return {
+      schemaVersion: typeof data.schemaVersion === "number" ? data.schemaVersion : undefined,
       pgn,
       fullyRecovered: data.fullyRecovered === true,
       failedPlies,
       longestRecoveredPly: typeof data.longestRecoveredPly === "number" ? data.longestRecoveredPly : 0,
       steps: options.includeSteps === true && Array.isArray(data.steps) ? data.steps : undefined,
+      preprocessing: options.includeSteps === true && data.preprocessing && typeof data.preprocessing === "object"
+        ? data.preprocessing as Record<string, unknown>
+        : undefined,
+      retry: options.includeSteps === true && data.retry && typeof data.retry === "object"
+        ? data.retry as Record<string, unknown>
+        : undefined,
       bestMoveLists: options.includeSteps === true && Array.isArray(data.bestMoveLists) ? data.bestMoveLists : undefined,
       finalMoveLists: options.includeSteps === true && Array.isArray(data.finalMoveLists) ? data.finalMoveLists : undefined,
     };
   } catch (error) {
-    console.warn("[FEN RECOVERY] Sidecar unavailable; using local fallback", error instanceof Error ? error.message : error);
+    if (error instanceof FenRecoveryServiceError) throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    if (options.exposeServiceErrors) {
+      const timedOut = /timed out/i.test(message);
+      throw new FenRecoveryServiceError(
+        timedOut ? "RECOVERY_TIMEOUT" : "RECOVERY_UNAVAILABLE",
+        timedOut ? 504 : 503,
+        message,
+      );
+    }
+    console.warn("[FEN RECOVERY] Sidecar unavailable; using local fallback", message);
     return null;
   }
 }

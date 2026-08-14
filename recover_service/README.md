@@ -3,6 +3,25 @@ Run a small REST wrapper around the FEN recovery service.
 
 API (concise)
 - Endpoint: `POST /recover`
+
+## Recovery v2 options
+
+The service preprocesses observations before recovery. Consecutive FENs with
+the same piece placement are collapsed by the standalone
+`service/preprocessing.py` module; non-consecutive repetitions are preserved.
+
+Optional request fields:
+
+- `deduplicatePositions` (`true` by default): enable consecutive-position deduplication.
+- `nRetry` (`5` by default): maximum wildcard padding count tried at each broken gap; use `0` to disable retry.
+- `maxBranches`: fail rather than silently truncate compatible branches.
+- `maxRepairGaps` (`10` by default): maximum repaired boundaries.
+- `maxTotalPadding` (`20` by default): maximum wildcard FENs for the request.
+- `finalOnly`: omit per-step candidate deltas.
+
+Responses use `schemaVersion: 2`. `steps[].candidates` contains one-move deltas
+with `id` and `parentId`; complete histories remain in `finalMoveLists` and
+`bestMoveLists`.
 - Method: POST
 - Request payload (JSON):
   - `fenHistory`: array[string] — required, ordered FEN snapshots (one per observed ply)
@@ -23,7 +42,7 @@ pip install -r requirements.txt
 2. Run server from the repository root so package imports resolve:
 
 ```bash
-uvicorn recover_service.app:app --reload --port 8000
+uvicorn main.app:app --reload --port 8000
 ```
 
 
