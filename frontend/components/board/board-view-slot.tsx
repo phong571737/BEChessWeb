@@ -478,7 +478,19 @@ export function BoardViewSlot({
             return;
         }
         startNextSearch();
-    }, [displayFen, isReady, evaluationEnabled, startNextSearch, workerRef]);
+        // Re-run the current position when either live output is toggled back
+        // on.  The engine remains enabled while only one output is hidden,
+        // so depending solely on `evaluationEnabled` would leave the cleared
+        // score/suggestion empty until a page reload or a new move.
+    }, [
+        displayFen,
+        isReady,
+        evaluationEnabled,
+        showLiveEvaluation,
+        showLiveSuggestions,
+        startNextSearch,
+        workerRef,
+    ]);
 
     useEffect(() => {
         const el = boardWrapRef.current;
