@@ -397,6 +397,24 @@ export function useGame(gameID: string) {
             invalidateFetchCache("/games/history");
         };
 
+        // MQTT lifecycle commands emit a board-scoped status event after the
+        // resignation is persisted. Handle it as a second source of truth so
+        // an ESP32 resignation updates the currently open board immediately.
+        const onGameStatusUpdate = (data: any) => {
+            if (!data || data.gameID !== gameID) return;
+            const status = data.status === GAME_STATUS.FINISHED
+                ? GAME_STATUS.ENDED
+                : data.status;
+            if (status !== GAME_STATUS.ENDED && typeof data.result !== "string") return;
+            patchBoard(gameID, {
+                ...(status === GAME_STATUS.ENDED ? { status: GAME_STATUS.ENDED } : {}),
+                ...(typeof data.result === "string" ? { result: data.result } : {}),
+            });
+            invalidateFetchCache(`/games/${gameID}`);
+            invalidateFetchCache("/games/current");
+            invalidateFetchCache("/games/history");
+        };
+
         const onGameReset = (data: any) => {
             if (data?.gameID !== gameID) return;
             applyGameReset(data);
@@ -406,6 +424,7 @@ export function useGame(gameID: string) {
         };
 
         socket.on("update_all_game", onUpdateAllGame);
+        socket.on("game_status_update", onGameStatusUpdate);
         socket.on("game_restart", onGameRestart);
         socket.on("game:reset", onGameReset);
 
@@ -414,6 +433,7 @@ export function useGame(gameID: string) {
             socket.off(CLIENT_EVENT.RESTORED, onRestore);
             socket.off(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
             socket.off("update_all_game", onUpdateAllGame);
+            socket.off("game_status_update", onGameStatusUpdate);
             socket.off("game_restart", onGameRestart);
             socket.off("game:reset", onGameReset);
         }
