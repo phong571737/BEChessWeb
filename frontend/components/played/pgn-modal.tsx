@@ -309,26 +309,24 @@ export function PGNReviewContent({ game }: ReviewProps) {
       }
 
       if (selectedSource === "base") {
-        // The original source is reviewed from the persisted PGN itself. This
-        // keeps the original move count/notation independent from recovery
-        // snapshots, which may contain skipped or synthetic observations.
-        const serviceMoves = extractSanMoves(reviewPgn);
+        // The original FEN source must render the persisted snapshots exactly.
+        // Do not replay the recovered/custom PGN here: malformed snapshots are
+        // intentionally visible so users can inspect the raw board sequence.
         const out: ReviewMove[] = [initial];
-        const temp = new Chess(initialFen, { skipValidation: true });
-        for (const san of serviceMoves) {
-          let lastMove: { from: string; to: string } | null = null;
-          try {
-            const move = temp.move(san);
-            if (move) lastMove = { from: move.from, to: move.to };
-          } catch {}
+        game.fenHistory.forEach((rawFen, index) => {
+          const fen = typeof rawFen === "string" ? rawFen.trim() : "";
+          if (!fen) return;
+          const uci = game.uciHistory?.[index];
+          const lastMove = uci && /^[a-h][1-8][a-h][1-8]/.test(uci)
+            ? { from: uci.slice(0, 2), to: uci.slice(2, 4) }
+            : null;
           out.push({
-            fen: temp.fen(),
-            san,
+            fen,
+            san: uci || t("rev.fenPosition", { number: index + 1 }),
             lastMove,
-            originalPly: out.length,
-            fenFallback: !lastMove,
+            originalPly: index + 1,
           });
-        }
+        });
         return out;
       }
 
@@ -385,7 +383,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [initial];
-  }, [game, processedToInputIndexes, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource]);
+  }, [game, processedToInputIndexes, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource, t]);
 
   useEffect(() => {
     traceRecovery("4 - timeline frontend dùng để render", {
@@ -405,15 +403,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const reviewRows = useMemo(() => {
     type ReviewCell = { move: ReviewMove; ply: number; side: "w" | "b"; number: number };
     const rows: Array<{ number: number; white?: ReviewCell; black?: ReviewCell }> = [];
+    const initialFields = (timeline[0]?.fen ?? "").trim().split(/\s+/);
+    const initialSide: "w" | "b" = initialFields[1] === "b" ? "b" : "w";
+    const initialNumber = Number(initialFields[5]);
+    const baseNumber = Number.isInteger(initialNumber) && initialNumber > 0 ? initialNumber : 1;
     timeline.slice(1).forEach((move, index) => {
       const ply = index + 1;
       const beforeFen = timeline[ply - 1]?.fen ?? "";
       const fields = beforeFen.trim().split(/\s+/);
       const side: "w" | "b" = fields[1] === "b" ? "b" : "w";
-      const parsedNumber = Number(fields[5]);
-      const number = Number.isInteger(parsedNumber) && parsedNumber > 0
-        ? parsedNumber
-        : Math.ceil(ply / 2);
+      // FEN fullmove counters from recovered/legacy data may repeat or be invalid.
+      // Number the displayed PGN by ply order so every move remains sequential.
+      const number = baseNumber + Math.floor((ply + (initialSide === "b" ? 0 : -1)) / 2);
       let row = rows[rows.length - 1];
       const occupied = row && (side === "w" ? row.white : row.black);
       if (!row || row.number !== number || occupied) {

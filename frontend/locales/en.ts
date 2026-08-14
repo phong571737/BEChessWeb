@@ -128,6 +128,7 @@ export const en = {
     "rev.copiedPgn": "Copied!",
     "rev.copyFen": "Copy FEN",
     "rev.fenTimeline": "FEN List",
+    "rev.fenPosition": "FEN {number}",
     "rev.downloadFenText": "Download as text file",
     "rev.copiedFen": "Copied!",
     "rev.showFullPgn": "Show full PGN",
