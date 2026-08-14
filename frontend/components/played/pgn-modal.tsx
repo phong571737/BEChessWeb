@@ -13,8 +13,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ChessBoardView } from "@/components/board/chess-board-view";
+import { ChessBoardView, type PredictedMove } from "@/components/board/chess-board-view";
 import { EvalBar } from "@/components/board/eval-bar";
+import { useStockfish } from "@/hooks/use-stockfish";
 import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
@@ -97,6 +98,32 @@ function traceRecovery(stage: string, value: unknown): void {
 
 function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
+}
+
+/** Reject malformed/custom snapshots before sending them to the WASM engine. */
+function isEngineSafeFen(fen: string): boolean {
+  const fields = fen.trim().split(/\s+/);
+  if (fields.length !== 6 || !/^[wb]$/.test(fields[1]!)) return false;
+  const ranks = fields[0]!.split("/");
+  if (ranks.length !== 8) return false;
+  let whiteKing = false;
+  let blackKing = false;
+  for (const rank of ranks) {
+    let files = 0;
+    for (const symbol of rank) {
+      if (/^[1-8]$/.test(symbol)) files += Number(symbol);
+      else if (/^[prnbqkPRNBQK]$/.test(symbol)) {
+        files += 1;
+        whiteKing ||= symbol === "K";
+        blackKing ||= symbol === "k";
+      } else return false;
+    }
+    if (files !== 8) return false;
+  }
+  return whiteKing && blackKing
+    && /^(?:-|[KQkq]+)$/.test(fields[2]!)
+    && /^(?:-|[a-h][36])$/.test(fields[3]!)
+    && /^\d+$/.test(fields[4]!) && /^\d+$/.test(fields[5]!);
 }
 
 /**
@@ -276,32 +303,24 @@ export function PGNReviewContent({ game }: ReviewProps) {
       }
 
       if (selectedSource === "base") {
-        // The original source keeps every persisted observation. Its board is
-        // driven by FEN history even when its notation could not identify a ply.
+        // The original source is reviewed from the persisted PGN itself. This
+        // keeps the original move count/notation independent from recovery
+        // snapshots, which may contain skipped or synthetic observations.
         const serviceMoves = extractSanMoves(reviewPgn);
         const out: ReviewMove[] = [initial];
         const temp = new Chess(initialFen, { skipValidation: true });
-        for (let i = 0; i < game.fenHistory.length; i++) {
-          const nextFen = game.fenHistory[i]!;
+        for (const san of serviceMoves) {
           let lastMove: { from: string; to: string } | null = null;
           try {
-            const previousFen = temp.fen();
-            for (const move of temp.moves({ verbose: true })) {
-              temp.load(previousFen, { skipValidation: true });
-              temp.move({ from: move.from, to: move.to, promotion: move.promotion });
-              if (temp.fen().split(" ")[0] === nextFen.split(" ")[0]) {
-                lastMove = { from: move.from, to: move.to };
-                break;
-              }
-            }
-            temp.load(nextFen, { skipValidation: true });
+            const move = temp.move(san);
+            if (move) lastMove = { from: move.from, to: move.to };
           } catch {}
           out.push({
-            fen: nextFen,
-            san: serviceMoves[i] ?? "—",
+            fen: temp.fen(),
+            san,
             lastMove,
-            fenFallback: true,
-            originalPly: i + 1,
+            originalPly: out.length,
+            fenFallback: !lastMove,
           });
         }
         return out;
@@ -380,6 +399,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const currentMoveAnalysis = selectedSource === "base"
     ? analysisByPly.get(current.originalPly ?? currentIndex)
     : undefined;
+  const analysisGame = useMemo<HistoryGame>(() => {
+    if (!selectedRecoveryLine?.assumedFens?.length) return game;
+    return {
+      ...game,
+      fenHistory: selectedRecoveryLine.assumedFens,
+      uciHistory: selectedRecoveryLine.uciMoves,
+      initialFen: game.initialFen ?? DEFAULT_FEN,
+    };
+  }, [game, selectedRecoveryLine]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
   const boardMoveAnnotation = currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
@@ -388,11 +416,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
         label: t(`analysis.${currentMoveAnalysis.classification}`),
       }
     : null;
-  const savedEvaluation = currentMoveAnalysis?.evaluationAfterCp ?? null;
-  const savedMate = savedEvaluation !== null && Math.abs(savedEvaluation) >= 100_000
-    ? Math.sign(savedEvaluation)
-    : null;
-  const savedCentipawns = savedMate === null ? savedEvaluation : null;
   const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
     ? recoveryStatus === "loading"
       ? t("rev.loading")
@@ -420,6 +443,101 @@ export function PGNReviewContent({ game }: ReviewProps) {
     setCursor(currentIndex);
     setSelectedSource(source);
   }, [currentIndex, selectedSource]);
+
+  // Analyze the position currently selected by this viewer. This is kept
+  // separate from persisted game analysis so each client can step through a
+  // different branch without changing shared data.
+  const {
+    workerRef: reviewWorkerRef,
+    onMessageRef: reviewMessageRef,
+    isReady: reviewEngineReady,
+    hasError: reviewEngineError,
+  } = useStockfish(showHistoryEvaluation);
+  const [reviewCp, setReviewCp] = useState<number | null>(null);
+  const [reviewMate, setReviewMate] = useState<number | null>(null);
+  const [reviewBestMove, setReviewBestMove] = useState<string | null>(null);
+  const [reviewAnalyzing, setReviewAnalyzing] = useState(false);
+  const reviewSearchRef = useRef<{ fen: string; depth: number } | null>(null);
+  const reviewSearchTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    reviewMessageRef.current = (line: string) => {
+      const active = reviewSearchRef.current;
+      if (line.startsWith("bestmove")) {
+        if (!active || active.fen !== current.fen) return;
+        const bestMove = line.trim().split(/\s+/)[1] ?? null;
+        setReviewBestMove(bestMove && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove) ? bestMove : null);
+        setReviewAnalyzing(false);
+        return;
+      }
+      if (!active || active.fen !== current.fen || !line.startsWith("info ")) return;
+      const depthMatch = line.match(/\bdepth (\d+)/);
+      const depth = depthMatch ? Number(depthMatch[1]) : -1;
+      if (depth < active.depth) return;
+      active.depth = depth;
+      const blackToMove = active.fen.split(" ")[1] === "b";
+      const cpMatch = line.match(/\bscore cp (-?\d+)/);
+      if (cpMatch) {
+        const value = Number(cpMatch[1]);
+        setReviewCp(blackToMove ? -value : value);
+        setReviewMate(null);
+        return;
+      }
+      const mateMatch = line.match(/\bscore mate (-?\d+)/);
+      if (mateMatch) {
+        const value = Number(mateMatch[1]);
+        setReviewMate(blackToMove ? -value : value);
+        setReviewCp(null);
+      }
+    };
+    return () => { reviewMessageRef.current = null; };
+  }, [current.fen, reviewMessageRef]);
+
+  useEffect(() => {
+    const worker = reviewWorkerRef.current;
+    const safeFen = current.fen !== "start" && isEngineSafeFen(current.fen);
+    if (reviewSearchTimerRef.current !== null) {
+      window.clearTimeout(reviewSearchTimerRef.current);
+      reviewSearchTimerRef.current = null;
+    }
+    if (!showHistoryEvaluation || !reviewEngineReady || !worker || !safeFen) {
+      reviewSearchRef.current = null;
+      setReviewCp(null);
+      setReviewMate(null);
+      setReviewBestMove(null);
+      setReviewAnalyzing(false);
+      return;
+    }
+
+    worker.postMessage("stop");
+    setReviewAnalyzing(true);
+    const fenToAnalyze = current.fen;
+    reviewSearchTimerRef.current = window.setTimeout(() => {
+      reviewSearchTimerRef.current = null;
+      reviewSearchRef.current = { fen: fenToAnalyze, depth: -1 };
+      setReviewCp(null);
+      setReviewMate(null);
+      setReviewBestMove(null);
+      worker.postMessage(`position fen ${fenToAnalyze}`);
+      worker.postMessage("go depth 16");
+    }, 220);
+    return () => {
+      worker.postMessage("stop");
+      if (reviewSearchTimerRef.current !== null) {
+        window.clearTimeout(reviewSearchTimerRef.current);
+        reviewSearchTimerRef.current = null;
+      }
+      reviewSearchRef.current = null;
+    };
+  }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
+
+  const reviewPredictedMove = useMemo<PredictedMove | null>(() => {
+    if (!reviewBestMove) return null;
+    return {
+      from: reviewBestMove.slice(0, 2) as PredictedMove["from"],
+      to: reviewBestMove.slice(2, 4) as PredictedMove["to"],
+    };
+  }, [reviewBestMove]);
 
   useEffect(() => {
     setCursor(-1);
@@ -635,17 +753,34 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   className="min-w-0 flex-1 select-none overscroll-contain"
                   title={t("rev.wheelNavigation")}
                 >
-                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
+                  <ChessBoardView
+                    fen={current.fen}
+                    lastMove={current.lastMove}
+                    boardWidth={boardWidth}
+                    moveAnnotation={boardMoveAnnotation}
+                    predictedMove={reviewPredictedMove}
+                  />
                 </div>
                 {showHistoryEvaluation && (
                   <div className="hidden w-[22px] shrink-0 sm:block">
-                    <EvalBar cp={savedCentipawns} mate={savedMate} />
+                    <EvalBar
+                      cp={reviewCp}
+                      mate={reviewMate}
+                      isAnalyzing={reviewAnalyzing}
+                      engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)}
+                    />
                   </div>
                 )}
               </div>
               {showHistoryEvaluation && (
                 <div className="sm:hidden">
-                  <EvalBar cp={savedCentipawns} mate={savedMate} orientation="horizontal" />
+                  <EvalBar
+                    cp={reviewCp}
+                    mate={reviewMate}
+                    isAnalyzing={reviewAnalyzing}
+                    engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)}
+                    orientation="horizontal"
+                  />
                 </div>
               )}
             </div>
@@ -669,7 +804,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                       className="h-7 px-2 text-[10px]"
                       onClick={() => selectReviewSource("base")}
                     >
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: extractSanMoves(game.pgn ?? "").length })}
                     </Button>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
@@ -827,7 +962,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
+        <MoveAnalysisPanel game={game} analysisGame={analysisGame} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
     </>
   );
 }
