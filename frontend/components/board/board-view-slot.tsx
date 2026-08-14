@@ -588,10 +588,7 @@ export function BoardViewSlot({
                         title={onChangeGame ? t("board.changeGame") : undefined}
                         disabled={!onChangeGame}
                     >
-                        <span className="mr-2 font-semibold text-primary">{boardLabel}</span>
-                        <span className="font-medium">{WhiteName}</span>
-                        <span className="text-muted-foreground mx-1">vs</span>
-                        <span className="font-medium">{BlackName}</span>
+                        <span className="font-semibold text-primary">{boardLabel}</span>
                     </button>
                     <div className="flex items-center gap-0.5 shrink-0">
                         <Button variant="ghost" size="icon" className="size-6" onClick={toggleBoardFlip} title={t("settings.flipBoard")} aria-label={t("settings.flipBoard")}>
@@ -645,7 +642,11 @@ export function BoardViewSlot({
                         )}
                     </div>
                 </div>
-                <div className="flex min-h-0 flex-1 items-stretch justify-center p-1.5">
+                <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center p-1.5">
+                    <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
+                        {boardFlipped ? BlackName : WhiteName}
+                    </div>
+                    <div className="flex min-h-0 flex-1 items-stretch justify-center">
                     <div ref={boardWrapRef} className="flex min-w-0 flex-1 items-center justify-center">
                                         <ChessBoardView
                                             fen={displayFen}
@@ -663,6 +664,10 @@ export function BoardViewSlot({
                             <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                         </div>
                     )}
+                    </div>
+                    <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
+                        {boardFlipped ? WhiteName : BlackName}
+                    </div>
                 </div>
             </div>
         );
