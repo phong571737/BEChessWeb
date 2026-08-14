@@ -75,6 +75,9 @@ owns its Stockfish worker, search state, evaluation bar, and suggestion toggle.
 There is no global evaluation-bar switch in Settings; one board can be analysed
 or hidden without changing another board. Its header
 contains independent controls for the evaluation bar and best-move arrow.
+Board orientation is also stored per game (`board-flipped-{gameID}`) and is
+controlled from that board's header, including the orientation of its clocks
+and evaluation bar.
 
 The `FEN gốc` review source is deliberately different from recovered branches:
 it renders the persisted `fenHistory` snapshots verbatim. It does not replay a

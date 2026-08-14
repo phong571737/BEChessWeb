@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Check, Download, FlipHorizontal, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -151,7 +151,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const { setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
     const { user, isAuthenticated, logout } = useAuth();
-    const { flipped, boardColorTheme, boardColors, toggleFlipped, setBoardColorTheme, setCustomBoardColors } = useBoardDisplay();
+    const { boardColorTheme, boardColors, setBoardColorTheme, setCustomBoardColors } = useBoardDisplay();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -329,9 +329,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                 <BoardLayoutHeaderControl />
                                             </div>
                                             <div className="my-1 border-t border-border" />
-                                            <button type="button" role="menuitem" onClick={() => { toggleFlipped(); setSettingsMenuOpen(false); }} className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
-                                                <span className="flex items-center gap-2"><FlipHorizontal className="size-3.5" />{t("settings.flipBoard")}</span>{flipped && <Check className="size-3.5 text-primary" />}
-                                            </button>
                                             <div className="my-1 border-t border-border" />
                                             <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Smartphone className="size-3.5" />{t("settings.mobileApp")}</p>
                                             <a href={publicPath("/downloads/TTLab_v1.1.apk")} download className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">

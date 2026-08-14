@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb, FlipHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -233,18 +233,18 @@ export function BoardViewSlot({
     className,
 }: Props) {
     const { t } = useT();
-    const { flipped } = useBoardDisplay();
     const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
-    // This switch is local to the currently viewed game. The shared display
-    // preference remains a master switch, while a player can hide suggestions
-    // and the evaluation bar for one active game without changing review pages.
+    // These switches are local to the currently viewed game, so multi-board
+    // layouts can configure each board independently.
     const [showLiveEvaluation, setShowLiveEvaluation] = useState(true);
     const [showLiveSuggestions, setShowLiveSuggestions] = useState(true);
+    const [boardFlipped, setBoardFlipped] = useState(false);
     useEffect(() => {
         setShowLiveEvaluation(localStorage.getItem(`live-show-evaluation-${gameID}`) !== "false");
         setShowLiveSuggestions(localStorage.getItem(`live-show-suggestions-${gameID}`) !== "false");
+        setBoardFlipped(localStorage.getItem(`board-flipped-${gameID}`) === "true");
     }, [gameID]);
     // Evaluation and suggestions are controlled independently per board slot.
     const evaluationEnabled = enableEval && (showLiveEvaluation || showLiveSuggestions);
@@ -270,6 +270,8 @@ export function BoardViewSlot({
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
         initialTimeMs, incrementMs, resetRevision, round, location,
     } = useGame(gameID);
+    const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
+    const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
         gameID,
@@ -291,6 +293,14 @@ export function BoardViewSlot({
 
     const displayFen = navigationState.fen ?? fen;
     const displayLastMove = navigationState.fen ? navigationState.lastMove : lastMove;
+
+    const toggleBoardFlip = useCallback(() => {
+        setBoardFlipped((value) => {
+            const next = !value;
+            localStorage.setItem(`board-flipped-${gameID}`, String(next));
+            return next;
+        });
+    }, [gameID]);
     const initNotice = !compact && isAuthenticated
         ? initStatus === GAME_STATUS.READY
             ? { icon: CircleCheckBig, className: "border-success/35 bg-success/10 text-success", text: t("board.initReady") }
@@ -566,11 +576,15 @@ export function BoardViewSlot({
                         title={onChangeGame ? t("board.changeGame") : undefined}
                         disabled={!onChangeGame}
                     >
+                        <span className="mr-2 font-semibold text-primary">{boardLabel}</span>
                         <span className="font-medium">{WhiteName}</span>
                         <span className="text-muted-foreground mx-1">vs</span>
                         <span className="font-medium">{BlackName}</span>
                     </button>
                     <div className="flex items-center gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon" className="size-6" onClick={toggleBoardFlip} title={t("settings.flipBoard")} aria-label={t("settings.flipBoard")}>
+                            <FlipHorizontal className="size-3.5" />
+                        </Button>
                         {enableEval && (
                             <>
                                 <Button
@@ -621,19 +635,20 @@ export function BoardViewSlot({
                 </div>
                 <div className="flex min-h-0 flex-1 items-stretch justify-center p-1.5">
                     <div ref={boardWrapRef} className="flex min-w-0 flex-1 items-center justify-center">
-                        <ChessBoardView
-                            fen={displayFen}
+                                        <ChessBoardView
+                                            fen={displayFen}
                             lastMove={displayLastMove}
                             boardWidth={boardWidth}
                             missingSquares={missingSquares}
                             extraSquares={extraSquares}
                             wrongPieceSquares={wrongPieceSquares}
-                            predictedMove={predictedMove}
+                                            predictedMove={predictedMove}
+                                            flipped={boardFlipped}
                         />
                     </div>
                     {evaluationBarVisible && (
                         <div className="w-[18px] shrink-0">
-                            <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                            <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                         </div>
                     )}
                 </div>
@@ -651,6 +666,10 @@ export function BoardViewSlot({
             )}
             {enableEval && (
                 <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:px-3">
+                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
+                        <FlipHorizontal className="size-3.5" />
+                        {t("settings.flipBoard")}
+                    </Button>
                     <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
                         <BarChart3 className="size-3.5" />
                         {showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
@@ -685,19 +704,20 @@ export function BoardViewSlot({
                                         extraSquares={extraSquares}
                                         wrongPieceSquares={wrongPieceSquares}
                                         predictedMove={predictedMove}
+                                        flipped={boardFlipped}
                                     />
                                 </div>
 
                                 {evaluationBarVisible && (
                                     <div className="hidden sm:block w-[22px] shrink-0 self-stretch min-h-0">
-                                        <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                                    <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
                             </div>
 
                             {evaluationBarVisible && (
                                 <div className="sm:hidden">
-                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                 </div>
                             )}
                         </div>
@@ -724,7 +744,7 @@ export function BoardViewSlot({
                                 activeClockSide={activeSide}
                                 isAuthenticated={isAuthenticated}
                                 isAdmin={isAdmin}
-                                flipped={flipped}
+                                flipped={boardFlipped}
                                 initialTimeMs={initialTimeMs}
                                 incrementMs={incrementMs}
                                 round={round}

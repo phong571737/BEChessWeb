@@ -32,6 +32,8 @@ interface Props {
   moveAnnotation?: MoveAnnotation | null;
   /** Best move returned by Stockfish for the currently displayed FEN. */
   predictedMove?: PredictedMove | null;
+  /** Board orientation controlled by the owning board slot. */
+  flipped?: boolean;
 }
 
 interface KingThreat {
@@ -85,8 +87,10 @@ export function ChessBoardView({
   wrongPieceSquares,
   moveAnnotation,
   predictedMove,
+  flipped: flippedOverride,
 }: Props) {
-  const { flipped, boardColors } = useBoardDisplay();
+  const { flipped: contextFlipped, boardColors } = useBoardDisplay();
+  const flipped = flippedOverride ?? contextFlipped;
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
   const CustomSquare = useMemo(() => {
     const AnnotatedSquare = forwardRef<HTMLDivElement, {
