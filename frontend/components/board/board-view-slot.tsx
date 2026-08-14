@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -237,7 +237,14 @@ export function BoardViewSlot({
     const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
-    const evaluationEnabled = enableEval && showEvaluation;
+    // This switch is local to the currently viewed game. The shared display
+    // preference remains a master switch, while a player can hide suggestions
+    // and the evaluation bar for one active game without changing review pages.
+    const [showLiveEvaluation, setShowLiveEvaluation] = useState(true);
+    useEffect(() => {
+        setShowLiveEvaluation(localStorage.getItem(`live-show-evaluation-${gameID}`) !== "false");
+    }, [gameID]);
+    const evaluationEnabled = enableEval && showEvaluation && showLiveEvaluation;
     const { workerRef, onMessageRef, isReady, hasError: stockfishUnavailable } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
     const activeSearchRef = useRef<{ fen: string; depth: number } | null>(null);
@@ -376,7 +383,16 @@ export function BoardViewSlot({
         onMessageRef.current = (line: string) => {
             const activeSearch = activeSearchRef.current;
             if (line.startsWith("bestmove")) {
-                if (!activeSearch || activeSearch.fen !== currentFenRef.current) return;
+                if (!activeSearch) return;
+                // A stopped search may still emit its bestmove after the
+                // board has advanced. Discard that stale result and start the
+                // pending search instead of leaving the old position active.
+                if (activeSearch.fen !== currentFenRef.current) {
+                    activeSearchRef.current = null;
+                    stopRequestedRef.current = false;
+                    startSearchRef.current();
+                    return;
+                }
                 const bestMove = line.trim().split(/\s+/)[1] ?? "";
                 setPredictedMove(/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)
                     ? { from: bestMove.slice(0, 2) as PredictedMove["from"], to: bestMove.slice(2, 4) as PredictedMove["to"] }
@@ -481,6 +497,14 @@ export function BoardViewSlot({
         setNavigationState({ fen: nextFen, lastMove: lm });
     }, []);
 
+    const toggleLiveEvaluation = useCallback(() => {
+        setShowLiveEvaluation((visible) => {
+            const next = !visible;
+            localStorage.setItem(`live-show-evaluation-${gameID}`, String(next));
+            return next;
+        });
+    }, [gameID]);
+
     if (offlineNotice && !compact) {
         return (
             <div className="p-6 min-h-[calc(100vh-var(--header-h))] flex flex-col items-center justify-center text-center">
@@ -574,6 +598,14 @@ export function BoardViewSlot({
                 <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", initNotice.className)} role="status">
                     <initNotice.icon className="size-4 shrink-0" />
                     <span>{initNotice.text}</span>
+                </div>
+            )}
+            {enableEval && (
+                <div className="flex justify-end px-2 pt-2 sm:px-3">
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleLiveEvaluation}>
+                        <BarChart3 className="size-3.5" />
+                        {showLiveEvaluation ? t("board.hideSuggestions") : t("board.showSuggestions")}
+                    </Button>
                 </div>
             )}
             <div className="flex-1 min-h-0 p-2 sm:p-3">

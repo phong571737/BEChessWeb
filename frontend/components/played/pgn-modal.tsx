@@ -21,6 +21,7 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import { extractSanMoves } from "@/lib/custom-chess";
+import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
 interface Props {
   game:    HistoryGame | null;
@@ -190,8 +191,12 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
 
 export function PGNReviewContent({ game }: ReviewProps) {
   const { t } = useT();
-  const [reviewAnalysisMoves, setReviewAnalysisMoves] = useState(game.analysis?.moves ?? []);
-  const analysisByPly = useMemo(() => new Map(reviewAnalysisMoves.map((move) => [move.ply, move])), [reviewAnalysisMoves]);
+  // Keep analysis isolated per review source. A recovered branch is a
+  // client-local line, so its classifications must never overwrite (or be
+  // confused with) the persisted analysis of the original PGN.
+  const [baseAnalysisMoves, setBaseAnalysisMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
+  const [branchAnalysisBySource, setBranchAnalysisBySource] = useState<Record<string, MoveAnalysis[]>>({});
+  const analysisByPly = useMemo(() => new Map(baseAnalysisMoves.map((move) => [move.ply, move])), [baseAnalysisMoves]);
   const isFinishedResult = game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" || game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
   const resultText = game.outcomeStatus === "unconfirmed"
     ? t("played.unconfirmed")
@@ -396,9 +401,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
-  const currentMoveAnalysis = selectedSource === "base"
-    ? analysisByPly.get(current.originalPly ?? currentIndex)
-    : undefined;
+  const branchAnalysis = typeof selectedSource === "number"
+    ? branchAnalysisBySource[String(selectedSource)] ?? []
+    : [];
+  const selectedAnalysisByPly = selectedSource === "base"
+    ? analysisByPly
+    : new Map(branchAnalysis.map((move) => [move.ply, move]));
+  const currentMoveAnalysis = selectedAnalysisByPly.get(
+    selectedSource === "base" ? current.originalPly ?? currentIndex : currentIndex,
+  );
   const analysisGame = useMemo<HistoryGame>(() => {
     if (!selectedRecoveryLine?.assumedFens?.length) return game;
     return {
@@ -532,17 +543,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
   }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
 
   const reviewPredictedMove = useMemo<PredictedMove | null>(() => {
-    if (!reviewBestMove) return null;
+    if (!showHistoryEvaluation || !reviewBestMove) return null;
     return {
       from: reviewBestMove.slice(0, 2) as PredictedMove["from"],
       to: reviewBestMove.slice(2, 4) as PredictedMove["to"],
     };
-  }, [reviewBestMove]);
+  }, [reviewBestMove, showHistoryEvaluation]);
 
   useEffect(() => {
     setCursor(-1);
     setSelectedSource("base");
-    setReviewAnalysisMoves(game.analysis?.moves ?? []);
+    setBaseAnalysisMoves(game.analysis?.moves ?? []);
+    setBranchAnalysisBySource({});
   }, [game?._id, game.analysis?.moves]);
 
   useEffect(() => {
@@ -555,6 +567,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
       return !visible;
     });
   };
+
+  const handleAnalysisSaved = useCallback((moves: MoveAnalysis[]) => {
+    if (selectedSource === "base") {
+      setBaseAnalysisMoves(moves);
+      return;
+    }
+    setBranchAnalysisBySource((previous) => ({
+      ...previous,
+      [String(selectedSource)]: moves,
+    }));
+  }, [selectedSource]);
 
   useEffect(() => {
     activeMoveRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -742,7 +765,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           <div className="flex justify-end">
             <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
-              {showHistoryEvaluation ? t("rev.hideEvaluation") : t("rev.showEvaluation")}
+              {showHistoryEvaluation ? t("rev.hideSuggestions") : t("rev.showSuggestions")}
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
@@ -962,7 +985,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} analysisGame={analysisGame} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
+        <MoveAnalysisPanel
+          game={game}
+          // The original source uses persisted analysis; only a selected
+          // recovery branch receives a client-local analysis timeline.
+          analysisGame={selectedSource === "base" ? undefined : analysisGame}
+          currentPly={currentIndex}
+          onSelectPly={goTo}
+          onAnalysisSaved={handleAnalysisSaved}
+        />
     </>
   );
 }
