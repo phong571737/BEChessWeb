@@ -13,9 +13,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
-import { ChessBoardView, type PredictedMove } from "@/components/board/chess-board-view";
+import { ChessBoardView } from "@/components/board/chess-board-view";
 import { EvalBar } from "@/components/board/eval-bar";
-import { useStockfish } from "@/hooks/use-stockfish";
 import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
@@ -38,12 +37,31 @@ interface RecoveryLine {
   moveSources?: string[];
 }
 
+interface RecoveryStep {
+  effectivePly?: number;
+  originalPly?: number | null;
+  synthetic?: boolean;
+}
+
 interface RecoveryPayload {
   pgn?: unknown;
   bestMoveLists?: unknown;
+  steps?: unknown;
+  preprocessing?: unknown;
 }
 
-type RecoveryStatus = "idle" | "loading" | "ready" | "error";
+interface ReviewMove {
+  fen: string;
+  san: string;
+  lastMove: { from: string; to: string } | null;
+  fenFallback?: boolean;
+  originalPly?: number | null;
+  padding?: boolean;
+  assumed?: boolean;
+  deduplicatedFenCount?: number;
+}
+
+type RecoveryStatus = "idle" | "loading" | "ready" | "unavailable" | "branch_limit" | "timeout" | "error";
 type ReviewSource = "base" | number;
 
 function isRecoveryLine(value: unknown): value is RecoveryLine {
@@ -54,6 +72,23 @@ function isRecoveryLine(value: unknown): value is RecoveryLine {
     && Array.isArray(line.assumedFens);
 }
 
+function isRecoveryStep(value: unknown): value is RecoveryStep {
+  if (!value || typeof value !== "object") return false;
+  const step = value as RecoveryStep;
+  return (step.originalPly === undefined || step.originalPly === null || Number.isInteger(step.originalPly))
+    && (step.effectivePly === undefined || Number.isInteger(step.effectivePly));
+}
+
+function readProcessedIndexes(value: unknown): number[][] {
+  if (!value || typeof value !== "object") return [];
+  const indexes = (value as { processedToInputIndexes?: unknown }).processedToInputIndexes;
+  if (!Array.isArray(indexes)) return [];
+  return indexes.map((group) => Array.isArray(group)
+    ? group.filter((index): index is number => Number.isInteger(index) && index >= 0)
+    : []
+  );
+}
+
 function traceRecovery(stage: string, value: unknown): void {
   if (typeof window === "undefined") return;
   if (new URLSearchParams(window.location.search).get("debugRecovery") !== "1") return;
@@ -62,31 +97,6 @@ function traceRecovery(stage: string, value: unknown): void {
 
 function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
-}
-
-/** Reject malformed/custom snapshots before sending them to the WASM engine. */
-function isEngineSafeFen(fen: string): boolean {
-  const fields = fen.trim().split(/\s+/);
-  if (fields.length !== 6 || !/^[wb]$/.test(fields[1]!)) return false;
-  const ranks = fields[0]!.split("/");
-  if (ranks.length !== 8) return false;
-  let hasWhiteKing = false;
-  let hasBlackKing = false;
-  for (const rank of ranks) {
-    let files = 0;
-    for (const symbol of rank) {
-      if (/^[1-8]$/.test(symbol)) files += Number(symbol);
-      else if (/^[prnbqkPRNBQK]$/.test(symbol)) {
-        files += 1;
-        hasWhiteKing ||= symbol === "K";
-        hasBlackKing ||= symbol === "k";
-      } else return false;
-    }
-    if (files !== 8) return false;
-  }
-  return hasWhiteKing && hasBlackKing && /^(?:-|[KQkq]+)$/.test(fields[2]!)
-    && /^(?:-|[a-h][36])$/.test(fields[3]!)
-    && /^\d+$/.test(fields[4]!) && /^\d+$/.test(fields[5]!);
 }
 
 /**
@@ -131,21 +141,24 @@ const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
-  const headers = [
-    `[Event "${savedHeaders.Event || "?"}"]`,
-    `[Site "${game.location?.trim() || savedHeaders.Site || "?"}"]`,
-    `[Date "${savedHeaders.Date || game.Date || "????.??.??"}"]`,
-    `[Round "${game.round ?? savedHeaders.Round ?? "1"}"]`,
-    `[White "${game.WhiteName || savedHeaders.White || "White"}"]`,
-    `[Black "${game.BlackName || savedHeaders.Black || "Black"}"]`,
-    `[Result "${game.Result || "*"}"]`,
-  ];
-  if (game.initialFen) headers.push(`[SetUp "1"]`, `[FEN "${game.initialFen}"]`);
-  const moves = line.sanMoves.map((san, index) => index % 2 === 0
-    ? `${Math.floor(index / 2) + 1}. ${san}`
-    : `${Math.floor(index / 2) + 1}... ${san}`
-  ).join(" ");
-  return [...headers, "", `${moves} ${game.Result || "*"}`].join("\n");
+  const initialFen = game.initialFen ?? DEFAULT_FEN;
+  const chess = new Chess(initialFen, { skipValidation: true });
+  chess.setHeader("Event", savedHeaders.Event || "?");
+  chess.setHeader("Site", game.location?.trim() || savedHeaders.Site || "?");
+  chess.setHeader("Date", savedHeaders.Date || game.Date || "????.??.??");
+  chess.setHeader("Round", String(game.round ?? savedHeaders.Round ?? "1"));
+  chess.setHeader("White", game.WhiteName || savedHeaders.White || "White");
+  chess.setHeader("Black", game.BlackName || savedHeaders.Black || "Black");
+  chess.setHeader("Result", game.Result || "*");
+  if (game.initialFen) {
+    chess.setHeader("SetUp", "1");
+    chess.setHeader("FEN", game.initialFen);
+  }
+  for (const uci of line.uciMoves) {
+    if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci)) continue;
+    chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4, 5) || undefined });
+  }
+  return chess.pgn();
 }
 
 export function PGNReviewContent({ game }: ReviewProps) {
@@ -168,7 +181,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
-  const [selectedSource, setSelectedSource] = useState<ReviewSource>(0);
+  const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
+  const [processedToInputIndexes, setProcessedToInputIndexes] = useState<number[][]>([]);
+  const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
@@ -181,7 +196,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
     let cancelled = false;
     setBasePgn(null);
     setRecoveryLines([]);
-    setSelectedSource(0);
+    setRecoverySteps([]);
+    setProcessedToInputIndexes([]);
+    setSelectedSource("base");
     setRecoveryStatus(game.fenHistory?.length ? "loading" : "idle");
     if (!game._id || !game.fenHistory?.length) return () => { cancelled = true; };
 
@@ -198,7 +215,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
       : "";
     fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn${debugQuery}`)
       .then(async (response) => {
-        if (!response.ok) throw new Error(`Recovery request failed with HTTP ${response.status}`);
+        if (!response.ok) {
+          const body = await response.json().catch(() => null) as { code?: unknown } | null;
+          if (body?.code === "RECOVERY_BRANCH_LIMIT") throw new Error("branch_limit");
+          if (body?.code === "RECOVERY_TIMEOUT") throw new Error("timeout");
+          if (response.status === 503) throw new Error("unavailable");
+          throw new Error("failed");
+        }
         const data = await response.json() as RecoveryPayload;
         return data;
       })
@@ -209,6 +232,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
         const bestMoveLists = Array.isArray(data.bestMoveLists)
           ? data.bestMoveLists.filter(isRecoveryLine)
           : [];
+        const steps = Array.isArray(data.steps) ? data.steps.filter(isRecoveryStep) : [];
         const defaultRecoveryLine = bestMoveLists[0] ?? null;
 
         traceRecovery("3 - bestMoveLists[0] frontend chọn", {
@@ -218,11 +242,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
         });
         setBasePgn(data.pgn);
         setRecoveryLines(bestMoveLists);
-        setSelectedSource(defaultRecoveryLine ? 0 : "base");
+        setRecoverySteps(steps);
+        setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
+        setSelectedSource("base");
         setRecoveryStatus("ready");
       })
-      .catch(() => {
-        if (!cancelled) setRecoveryStatus("error");
+      .catch((error: unknown) => {
+        if (cancelled) return;
+        const reason = error instanceof Error ? error.message : "failed";
+        setRecoveryStatus(reason === "branch_limit" || reason === "timeout" || reason === "unavailable" ? reason : "error");
       });
 
     return () => { cancelled = true; };
@@ -231,97 +259,89 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
     : null;
-  // The original PGN is an independent review source. Do not silently replace
-  // it with recovery branch 1: viewers must be able to inspect the exact line
-  // that was persisted, even when another recovered branch is available.
-  const activeRecoveryLine = selectedRecoveryLine;
 
   const reviewPgn = useMemo(() => {
     if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
-    if (selectedSource === "base") return game.pgn ?? basePgn ?? "";
-    if (game.fenHistory?.length) return basePgn ?? "";
+    if (game.fenHistory?.length) return basePgn ?? game.pgn ?? "";
     return game.pgn ?? "";
-  }, [basePgn, game, selectedRecoveryLine, selectedSource]);
+  }, [basePgn, game, selectedRecoveryLine]);
   const displayPgn = useMemo(() => formatPgnForDisplay(reviewPgn), [reviewPgn]);
 
   const timeline = useMemo(() => {
-    if (!game) return [{ fen: "start", san: "start", lastMove: null as { from: string; to: string } | null, uci: undefined as string | undefined }];
-    // Review the persisted/original PGN directly when that source is selected.
-    // FEN snapshots belong to recovery branches and can contain skipped or
-    // custom device positions that do not represent the original PGN line.
-    if (selectedSource === "base") {
-      const sourcePgn = game.pgn ?? basePgn ?? "";
-      const tokens = extractSanMoves(sourcePgn);
-      const headers = readPgnHeaders(sourcePgn);
-      const startFen = headers.SetUp === "1" && headers.FEN ? headers.FEN : (game.initialFen ?? DEFAULT_FEN);
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; uci?: string; fenFallback?: boolean }> = [
-        { fen: startFen, san: "start", lastMove: null, uci: undefined },
-      ];
-      const temp = new Chess(startFen, { skipValidation: true });
-      for (const san of tokens) {
-        let move: { from: string; to: string; promotion?: string } | null = null;
-        try {
-          const applied = temp.move(san);
-          move = applied ? { from: applied.from, to: applied.to, promotion: applied.promotion } : null;
-        } catch {
-          // Legacy/custom PGNs may contain an unresolvable token. Keep the
-          // notation visible and preserve the last known board position.
-        }
-        out.push({
-          fen: temp.fen(),
-          san,
-          lastMove: move ? { from: move.from, to: move.to } : null,
-          uci: move ? `${move.from}${move.to}${move.promotion ?? ""}` : undefined,
-          fenFallback: !move,
-        });
-      }
-      return out;
-    }
+    const initialFen = game.initialFen ?? DEFAULT_FEN;
+    const initial: ReviewMove = { fen: initialFen, san: "start", lastMove: null, originalPly: 0 };
     if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
-      if (recoveryStatus !== "ready" || !reviewPgn) {
-        return [{ fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null, uci: undefined }];
+      if (selectedSource !== "base" && (recoveryStatus !== "ready" || !reviewPgn)) {
+        return [initial];
       }
-      // Notation comes from recover-service; FEN snapshots remain authoritative
-      // for board navigation, including custom/partially legal device games.
-      const serviceMoves = selectedRecoveryLine?.sanMoves ?? extractSanMoves(reviewPgn);
-      const selectedFens = activeRecoveryLine?.assumedFens;
-      const sourceFens = (selectedFens?.length ? selectedFens : game.fenHistory).slice(0, serviceMoves.length);
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; uci?: string; fenFallback?: boolean }> = [
-        { fen: game.initialFen ?? DEFAULT_FEN, san: "start", lastMove: null, uci: undefined },
-      ];
 
-      const temp = new Chess(game.initialFen ?? DEFAULT_FEN, { skipValidation: true });
-      for (let i = 0; i < sourceFens.length; i++) {
-        const nextFen = sourceFens[i];
-        const san = serviceMoves[i]!;
-        let lastMove: { from: string; to: string } | null = null;
-
-        try {
-          const prevFen = temp.fen();
-          const legal = temp.moves({ verbose: true });
-          for (const mv of legal) {
-            temp.load(prevFen);
-            temp.move({ from: mv.from, to: mv.to, promotion: mv.promotion });
-            if (temp.fen() === nextFen) {
-              lastMove = { from: mv.from, to: mv.to };
-              break;
+      if (selectedSource === "base") {
+        // The original source keeps every persisted observation. Its board is
+        // driven by FEN history even when its notation could not identify a ply.
+        const serviceMoves = extractSanMoves(reviewPgn);
+        const out: ReviewMove[] = [initial];
+        const temp = new Chess(initialFen, { skipValidation: true });
+        for (let i = 0; i < game.fenHistory.length; i++) {
+          const nextFen = game.fenHistory[i]!;
+          let lastMove: { from: string; to: string } | null = null;
+          try {
+            const previousFen = temp.fen();
+            for (const move of temp.moves({ verbose: true })) {
+              temp.load(previousFen, { skipValidation: true });
+              temp.move({ from: move.from, to: move.to, promotion: move.promotion });
+              if (temp.fen().split(" ")[0] === nextFen.split(" ")[0]) {
+                lastMove = { from: move.from, to: move.to };
+                break;
+              }
             }
-          }
-          temp.load(nextFen);
-        } catch {}
-
-        const branchUci = activeRecoveryLine?.uciMoves?.[i];
-        out.push({
-          fen: nextFen,
-          san,
-          lastMove: branchUci && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(branchUci)
-            ? { from: branchUci.slice(0, 2), to: branchUci.slice(2, 4) }
-            : lastMove,
-          uci: branchUci ?? (lastMove ? `${lastMove.from}${lastMove.to}` : undefined),
-          fenFallback: true,
-        });
+            temp.load(nextFen, { skipValidation: true });
+          } catch {}
+          out.push({
+            fen: nextFen,
+            san: serviceMoves[i] ?? "—",
+            lastMove,
+            fenFallback: true,
+            originalPly: i + 1,
+          });
+        }
+        return out;
       }
-      return out;
+
+      // A recovered branch is an independent legal game line. Rebuild every
+      // board from its generated PGN instead of pairing it with original FENs.
+      try {
+        const parsed = new Chess();
+        parsed.loadPgn(reviewPgn);
+        const pgnStartFen = readPgnHeaders(reviewPgn).FEN || DEFAULT_FEN;
+        const temp = new Chess(pgnStartFen, { skipValidation: true });
+        const out: ReviewMove[] = [
+          { fen: temp.fen(), san: "start", lastMove: null, originalPly: 0 },
+        ];
+        const moves = parsed.history({ verbose: true });
+        moves.forEach((move, index) => {
+          const applied = temp.move({ from: move.from, to: move.to, promotion: move.promotion });
+          const step = recoverySteps[index];
+          const moveSource = selectedRecoveryLine?.moveSources?.[index];
+          const processedIndexes = step?.originalPly
+            ? processedToInputIndexes[step.originalPly - 1] ?? []
+            : [];
+          out.push({
+            fen: temp.fen(),
+            san: move.san,
+            lastMove: applied ? { from: applied.from, to: applied.to } : null,
+            originalPly: processedIndexes.length > 0
+              ? processedIndexes[0]! + 1
+              : step?.originalPly ?? null,
+            fenFallback: true,
+            padding: step?.synthetic === true || moveSource === "padding_assumed",
+            assumed: moveSource === "assumed" || moveSource === "retry_assumed",
+            deduplicatedFenCount: processedIndexes.length > 1 ? processedIndexes.length : 0,
+          });
+        });
+        return out;
+      } catch {
+        return [initial];
+      }
     }
     // Records without FEN snapshots can only be displayed from the recovered
     // PGN text itself. This path is uncommon and still uses the sidecar PGN
@@ -330,32 +350,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
       const c = new Chess();
       c.loadPgn(reviewPgn);
       const temp = new Chess();
-      const out: Array<{ fen: string; san: string; lastMove: { from: string; to: string } | null; uci?: string; fenFallback?: boolean }> = [
-        { fen: temp.fen(), san: "start", lastMove: null, uci: undefined },
+      const out: ReviewMove[] = [
+        { fen: temp.fen(), san: "start", lastMove: null, originalPly: 0 },
       ];
-      for (const san of c.history()) {
-        const mv = temp.move(san);
-        out.push({
-          fen: temp.fen(),
-          san,
-          lastMove: mv ? { from: mv.from, to: mv.to } : null,
-          uci: mv ? `${mv.from}${mv.to}${mv.promotion ?? ""}` : undefined,
-        });
+      for (const [index, san] of c.history().entries()) {
+        const move = temp.move(san);
+        out.push({ fen: temp.fen(), san, lastMove: move ? { from: move.from, to: move.to } : null, originalPly: index + 1 });
       }
       if (out.length > 1) return out;
     } catch {}
-    return [{ fen: "start", san: "start", lastMove: null, uci: undefined }];
-  }, [activeRecoveryLine, basePgn, game, recoveryStatus, reviewPgn, selectedSource]);
-
-  const recoveredAnalysisGame = useMemo<HistoryGame>(() => {
-    if (!activeRecoveryLine?.assumedFens?.length) return game;
-    return {
-      ...game,
-      fenHistory: activeRecoveryLine.assumedFens,
-      uciHistory: activeRecoveryLine.uciMoves,
-      initialFen: game.initialFen ?? DEFAULT_FEN,
-    };
-  }, [activeRecoveryLine, game]);
+    return [initial];
+  }, [game, processedToInputIndexes, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource]);
 
   useEffect(() => {
     traceRecovery("4 - timeline frontend dùng để render", {
@@ -365,28 +370,39 @@ export function PGNReviewContent({ game }: ReviewProps) {
         ply: index + 1,
         san: move.san,
         fen: move.fen,
-        durationMs: game.moveDurationsMs?.[index] ?? null,
+        durationMs: move.originalPly ? game.moveDurationsMs?.[move.originalPly - 1] ?? null : null,
       })),
     });
   }, [game.moveDurationsMs, selectedSource, timeline]);
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
-  const currentMoveAnalysis = analysisByPly.get(currentIndex);
-  const currentUci = current.uci?.toLowerCase() ?? "";
-  // The recovery service/timeline is the source of truth for the square. The
-  // persisted Stockfish result only supplies the label; its UCI may belong to
-  // the original line and must never move the marker to another square.
-  const recoveredDestination = currentUci.slice(2, 4);
-  const boardMoveAnnotation = currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(recoveredDestination)
+  const currentMoveAnalysis = selectedSource === "base"
+    ? analysisByPly.get(current.originalPly ?? currentIndex)
+    : undefined;
+  const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
+  const boardMoveAnnotation = currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
-        square: recoveredDestination,
+        square: analyzedDestination,
         classification: currentMoveAnalysis.classification,
         label: t(`analysis.${currentMoveAnalysis.classification}`),
       }
     : null;
+  const savedEvaluation = currentMoveAnalysis?.evaluationAfterCp ?? null;
+  const savedMate = savedEvaluation !== null && Math.abs(savedEvaluation) >= 100_000
+    ? Math.sign(savedEvaluation)
+    : null;
+  const savedCentipawns = savedMate === null ? savedEvaluation : null;
   const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
-    ? (recoveryStatus === "loading" ? t("rev.loading") : t("pg.recoveryUnavailable"))
+    ? recoveryStatus === "loading"
+      ? t("rev.loading")
+      : recoveryStatus === "branch_limit"
+        ? t("rev.recoveryBranchLimit")
+        : recoveryStatus === "timeout"
+          ? t("rev.recoveryTimeout")
+          : recoveryStatus === "unavailable"
+            ? t("pg.recoveryUnavailable")
+            : t("pg.recoveryError")
     : "";
 
   const branchDifferences = useMemo(() => recoveryLines.map((line, lineIndex) => {
@@ -405,101 +421,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
     setSelectedSource(source);
   }, [currentIndex, selectedSource]);
 
-  // The review evaluation is calculated for the currently displayed FEN.
-  // It is deliberately independent from persisted analysis and permissions.
-  const { workerRef: reviewWorkerRef, onMessageRef: reviewMessageRef, isReady: reviewEngineReady, hasError: reviewEngineError } = useStockfish(showHistoryEvaluation);
-  const [reviewCp, setReviewCp] = useState<number | null>(null);
-  const [reviewMate, setReviewMate] = useState<number | null>(null);
-  const [reviewBestMove, setReviewBestMove] = useState<string | null>(null);
-  const [reviewAnalyzing, setReviewAnalyzing] = useState(false);
-  const reviewSearchRef = useRef<{ fen: string; depth: number } | null>(null);
-  const reviewSearchTimerRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    reviewMessageRef.current = (line: string) => {
-      const active = reviewSearchRef.current;
-      if (line.startsWith("bestmove")) {
-        if (!active || active.fen !== current.fen) return;
-        const bestMove = line.trim().split(/\s+/)[1] ?? null;
-        setReviewBestMove(bestMove && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove) ? bestMove : null);
-        setReviewAnalyzing(false);
-        return;
-      }
-      if (!active || !line.startsWith("info ") || active.fen !== current.fen) return;
-      const depthMatch = line.match(/\bdepth (\d+)/);
-      const depth = depthMatch ? Number(depthMatch[1]) : -1;
-      if (depth < active.depth) return;
-      active.depth = depth;
-      const blackToMove = active.fen.split(" ")[1] === "b";
-      const cpMatch = line.match(/\bscore cp (-?\d+)/);
-      if (cpMatch) {
-        const value = Number(cpMatch[1]);
-        setReviewCp(blackToMove ? -value : value);
-        setReviewMate(null);
-        return;
-      }
-      const mateMatch = line.match(/\bscore mate (-?\d+)/);
-      if (mateMatch) {
-        const value = Number(mateMatch[1]);
-        setReviewMate(blackToMove ? -value : value);
-        setReviewCp(null);
-      }
-    };
-    return () => { reviewMessageRef.current = null; };
-  }, [current.fen, reviewMessageRef]);
-
-  useEffect(() => {
-    const worker = reviewWorkerRef.current;
-    const safeFen = current.fen !== "start" && isEngineSafeFen(current.fen);
-    if (reviewSearchTimerRef.current !== null) {
-      window.clearTimeout(reviewSearchTimerRef.current);
-      reviewSearchTimerRef.current = null;
-    }
-    if (!showHistoryEvaluation || !reviewEngineReady || !worker || !safeFen) {
-      reviewSearchRef.current = null;
-      setReviewCp(null);
-      setReviewMate(null);
-      setReviewBestMove(null);
-      setReviewAnalyzing(false);
-      return;
-    }
-    worker.postMessage("stop");
-    setReviewAnalyzing(true);
-    const fenToAnalyze = current.fen;
-    // Coalesce rapid move-button clicks so the worker only analyzes the final
-    // position instead of repeatedly restarting expensive WASM searches.
-    reviewSearchTimerRef.current = window.setTimeout(() => {
-      reviewSearchTimerRef.current = null;
-      reviewSearchRef.current = { fen: fenToAnalyze, depth: -1 };
-      // Clear the previous result only when the debounced position is about
-      // to be searched. This prevents visible flicker while stepping quickly.
-      setReviewCp(null);
-      setReviewMate(null);
-      setReviewBestMove(null);
-      worker.postMessage(`position fen ${fenToAnalyze}`);
-      worker.postMessage("go depth 16");
-    }, 220);
-    return () => {
-      worker.postMessage("stop");
-      if (reviewSearchTimerRef.current !== null) {
-        window.clearTimeout(reviewSearchTimerRef.current);
-        reviewSearchTimerRef.current = null;
-      }
-      reviewSearchRef.current = null;
-    };
-  }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
-
-  const reviewPredictedMove = useMemo<PredictedMove | null>(() => {
-    if (!reviewBestMove) return null;
-    return {
-      from: reviewBestMove.slice(0, 2) as PredictedMove["from"],
-      to: reviewBestMove.slice(2, 4) as PredictedMove["to"],
-    };
-  }, [reviewBestMove]);
-
   useEffect(() => {
     setCursor(-1);
-    setSelectedSource(0);
+    setSelectedSource("base");
     setReviewAnalysisMoves(game.analysis?.moves ?? []);
   }, [game?._id, game.analysis?.moves]);
 
@@ -711,17 +635,17 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   className="min-w-0 flex-1 select-none overscroll-contain"
                   title={t("rev.wheelNavigation")}
                 >
-                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} predictedMove={reviewPredictedMove} />
+                  <ChessBoardView fen={current.fen} lastMove={current.lastMove} boardWidth={boardWidth} moveAnnotation={boardMoveAnnotation} />
                 </div>
                 {showHistoryEvaluation && (
                   <div className="hidden w-[22px] shrink-0 sm:block">
-                    <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)} />
+                    <EvalBar cp={savedCentipawns} mate={savedMate} />
                   </div>
                 )}
               </div>
               {showHistoryEvaluation && (
                 <div className="sm:hidden">
-                  <EvalBar cp={reviewCp} mate={reviewMate} isAnalyzing={reviewAnalyzing} engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)} orientation="horizontal" />
+                  <EvalBar cp={savedCentipawns} mate={savedMate} orientation="horizontal" />
                 </div>
               )}
             </div>
@@ -732,7 +656,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   {t("rev.plyProgress", { current: currentIndex, total: timeline.length - 1 })}
                 </span>
               </div>
-              {recoveryStatus === "ready" && basePgn && (
+              {!!game.fenHistory?.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
                   <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                     {t("rev.reviewSource")}
@@ -745,9 +669,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
                       className="h-7 px-2 text-[10px]"
                       onClick={() => selectReviewSource("base")}
                     >
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: extractSanMoves(game.pgn ?? "").length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
                     </Button>
-                    {recoveryLines.map((line, index) => {
+                    {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
                       return (
                         <Button
@@ -776,7 +700,16 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   )}
                   {timeline.slice(1).map((m, i) => {
                     const ply = i + 1;
-                    const moveDuration = game.moveDurationsMs?.[i];
+                    const moveDuration = m.originalPly
+                      ? game.moveDurationsMs?.[m.originalPly - 1]
+                      : undefined;
+                    const notes = [
+                      m.padding ? t("rev.paddingNote") : null,
+                      m.assumed ? t("rev.assumedNote") : null,
+                      m.deduplicatedFenCount
+                        ? t("rev.deduplicatedFenNote", { count: m.deduplicatedFenCount })
+                        : null,
+                    ].filter((note): note is string => Boolean(note));
                     return (
                       <button
                         key={`${m.san}-${i}`}
@@ -788,7 +721,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                           : `min-h-9 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
                       >
                         <span className="flex items-center justify-between gap-2">
-                          <span>{ply}. {m.san}</span>
+                          <span>{ply}. {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
                           <span
                             className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
                             title={t("rev.moveDuration")}
@@ -894,7 +827,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
           )}
 
         </div>
-        <MoveAnalysisPanel game={game} analysisGame={recoveredAnalysisGame} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
+        <MoveAnalysisPanel game={game} currentPly={currentIndex} onSelectPly={goTo} onAnalysisSaved={setReviewAnalysisMoves} />
     </>
   );
 }
