@@ -326,7 +326,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                 {t("settings.boardLayout")}
                                             </div>
                                             <div className="px-1 pb-1">
-                                                <BoardLayoutHeaderControl />
+                                                <BoardLayoutHeaderControl
+                                                    onLayoutSelected={() => setSettingsMenuOpen(false)}
+                                                />
                                             </div>
                                             <div className="my-1 border-t border-border" />
                                             <div className="my-1 border-t border-border" />

@@ -57,7 +57,7 @@ function pushBoardUrl(
     router.replace(`/board?${params.toString()}`, { scroll: false });
 }
 
-function BoardLayoutHeaderInner() {
+function BoardLayoutHeaderInner({ onLayoutSelected }: { onLayoutSelected?: () => void }) {
     const pathname = usePathname();
     const router = useRouter();
     const searchParams = useSearchParams();
@@ -113,12 +113,14 @@ function BoardLayoutHeaderInner() {
             if (!primaryID) return;
             if (next === 1) {
                 pushBoardUrl(router, [primaryID], 1);
+                onLayoutSelected?.();
                 return;
             }
             const filled = fillDefaults(pickerIds, primaryID, extraIDs, next);
             pushBoardUrl(router, filled, next);
+            onLayoutSelected?.();
         },
-        [primaryID, extraIDs, pickerIds, router]
+        [primaryID, extraIDs, pickerIds, router, onLayoutSelected]
     );
 
     const handleSlotsApply = useCallback(
@@ -143,10 +145,10 @@ function BoardLayoutHeaderInner() {
 }
 
 /** Layout icons in the app header (left of language). Laptop only. */
-export function BoardLayoutHeaderControl() {
+export function BoardLayoutHeaderControl({ onLayoutSelected }: { onLayoutSelected?: () => void } = {}) {
     return (
         <Suspense fallback={null}>
-            <BoardLayoutHeaderInner />
+            <BoardLayoutHeaderInner onLayoutSelected={onLayoutSelected} />
         </Suspense>
     );
 }
