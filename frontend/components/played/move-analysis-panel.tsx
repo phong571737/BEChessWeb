@@ -58,7 +58,7 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
       // Branch analysis is intentionally client-local. Persisting it against
       // the game would make one viewer's selected recovery line overwrite
       // another viewer's line. Only the original, non-branch game may save.
-      if (token && !analysisGame?.fenHistory?.length && !automatic) {
+      if (token && !analysisGame?.fenHistory?.length) {
         const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
           method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ moves: result, depth: 14 }),
@@ -81,8 +81,20 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
       setMoves([]);
       void runAnalysis(true);
     } else {
-      setMoves(game.analysis?.moves ?? []);
-      setRunning(false);
+      const savedMoves = game.analysis?.moves ?? [];
+      setMoves(savedMoves);
+      const hasGameMoves = Boolean(
+        game.uciHistory?.length
+        || game.fenHistory?.length
+        || game.totalPlies
+        || game.totalMoves
+        || game.pgn?.trim(),
+      );
+      if (!savedMoves.length && hasGameMoves) {
+        void runAnalysis(true);
+      } else {
+        setRunning(false);
+      }
     }
   }, [branchKey, game.analysis, game._id, runAnalysis]);
 
