@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, Sparkles } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -621,13 +621,13 @@ export function BoardViewSlot({
                 </div>
             )}
             {enableEval && (
-                <div className="flex flex-wrap justify-end gap-2 px-2 pt-2 sm:px-3">
-                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleLiveEvaluation}>
+                <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:px-3">
+                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
                         <BarChart3 className="size-3.5" />
                         {showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
                     </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleLiveSuggestions}>
-                        <Sparkles className="size-3.5" />
+                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
+                        {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                         {showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
                     </Button>
                 </div>

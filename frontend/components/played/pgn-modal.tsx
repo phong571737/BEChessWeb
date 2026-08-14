@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3, Sparkles } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3, EyeOff, Lightbulb } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { classifyTimeControl } from "@/lib/time-control";
@@ -425,6 +425,10 @@ export function PGNReviewContent({ game }: ReviewProps) {
     });
     return rows;
   }, [timeline]);
+  const reviewCells = useMemo(
+    () => reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell))),
+    [reviewRows],
+  );
   const branchAnalysis = typeof selectedSource === "number"
     ? branchAnalysisBySource[String(selectedSource)] ?? []
     : [];
@@ -795,13 +799,13 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
         {/* Review board */}
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistoryEvaluation}>
+          <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto">
+            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
               {showHistoryEvaluation ? t("rev.hideEvaluation") : t("rev.showEvaluation")}
             </Button>
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistorySuggestions}>
-              <Sparkles className="size-3.5" />
+            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
+              {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
               {showHistorySuggestions ? t("rev.hideSuggestionsOnly") : t("rev.showSuggestionsOnly")}
             </Button>
           </div>
@@ -893,46 +897,41 @@ export function PGNReviewContent({ game }: ReviewProps) {
                       {recoveryNotice}
                     </p>
                   )}
-                  {reviewRows.map((row) => (
-                    <div key={row.number} className="grid grid-cols-2 gap-1.5">
-                      {[row.white, row.black].map((cell) => {
-                        if (!cell) return <div key={`${row.number}-empty`} className="min-h-9" aria-hidden="true" />;
-                        const { move: m, ply, side } = cell;
-                        const moveDuration = m.originalPly
-                          ? game.moveDurationsMs?.[m.originalPly - 1]
-                          : undefined;
-                        const notes = [
-                          m.padding ? t("rev.paddingNote") : null,
-                          m.assumed ? t("rev.assumedNote") : null,
-                          m.deduplicatedFenCount
-                            ? t("rev.deduplicatedFenNote", { count: m.deduplicatedFenCount })
-                            : null,
-                        ].filter((note): note is string => Boolean(note));
-                        return (
-                          <button
-                            key={`${m.san}-${ply}`}
-                            ref={currentIndex === ply ? activeMoveRef : undefined}
-                            type="button"
-                            onClick={() => goTo(ply)}
-                            className={m.fenFallback
-                              ? `min-h-9 min-w-0 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
-                              : `min-h-9 min-w-0 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
+                  {reviewCells.map((cell) => {
+                    const { move: m, ply, side, number } = cell;
+                    const moveDuration = m.originalPly
+                      ? game.moveDurationsMs?.[m.originalPly - 1]
+                      : undefined;
+                    const notes = [
+                      m.padding ? t("rev.paddingNote") : null,
+                      m.assumed ? t("rev.assumedNote") : null,
+                      m.deduplicatedFenCount
+                        ? t("rev.deduplicatedFenNote", { count: m.deduplicatedFenCount })
+                        : null,
+                    ].filter((note): note is string => Boolean(note));
+                    return (
+                      <button
+                        key={`${m.san}-${ply}`}
+                        ref={currentIndex === ply ? activeMoveRef : undefined}
+                        type="button"
+                        onClick={() => goTo(ply)}
+                        className={`w-full min-h-9 rounded-sm border px-3 py-2 text-left ${m.fenFallback ? "font-mono text-xs" : "text-sm"} transition-colors ${m.fenFallback
+                          ? currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
+                          : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
+                      >
+                        <span className="flex items-center justify-between gap-2">
+                          <span className="min-w-0 truncate">{number}{side === "w" ? "." : "..."} {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
+                          <span
+                            className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                            title={t("rev.moveDuration")}
+                            aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
                           >
-                            <span className="flex items-center justify-between gap-2">
-                              <span className="min-w-0 truncate">{row.number}{side === "w" ? "." : "..."} {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
-                              <span
-                                className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-                                title={t("rev.moveDuration")}
-                                aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
-                              >
-                                {formatMoveDuration(moveDuration)}
-                              </span>
-                            </span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ))}
+                            {formatMoveDuration(moveDuration)}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               </ScrollArea>
               <div className="flex items-center justify-center gap-3 border-t border-border p-3">
