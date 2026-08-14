@@ -233,7 +233,7 @@ export function BoardViewSlot({
     className,
 }: Props) {
     const { t } = useT();
-    const { showEvaluation, flipped } = useBoardDisplay();
+    const { flipped } = useBoardDisplay();
     const { isAdmin, isAuthenticated } = useAuth();
     const router = useRouter();
     const socket = useSocket();
@@ -246,7 +246,8 @@ export function BoardViewSlot({
         setShowLiveEvaluation(localStorage.getItem(`live-show-evaluation-${gameID}`) !== "false");
         setShowLiveSuggestions(localStorage.getItem(`live-show-suggestions-${gameID}`) !== "false");
     }, [gameID]);
-    const evaluationEnabled = enableEval && showEvaluation && (showLiveEvaluation || showLiveSuggestions);
+    // Evaluation and suggestions are controlled independently per board slot.
+    const evaluationEnabled = enableEval && (showLiveEvaluation || showLiveSuggestions);
     const evaluationBarVisible = evaluationEnabled && showLiveEvaluation;
     const { workerRef, onMessageRef, isReady, hasError: stockfishUnavailable } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
@@ -570,6 +571,30 @@ export function BoardViewSlot({
                         <span className="font-medium">{BlackName}</span>
                     </button>
                     <div className="flex items-center gap-0.5 shrink-0">
+                        {enableEval && (
+                            <>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-6"
+                                    onClick={toggleLiveEvaluation}
+                                    title={showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                                    aria-label={showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                                >
+                                    <BarChart3 className="size-3.5" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="size-6"
+                                    onClick={toggleLiveSuggestions}
+                                    title={showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
+                                    aria-label={showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
+                                >
+                                    {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
+                                </Button>
+                            </>
+                        )}
                         {onChangeGame && (
                             <Button
                                 variant="ghost"
@@ -594,19 +619,23 @@ export function BoardViewSlot({
                         )}
                     </div>
                 </div>
-                <div
-                    ref={boardWrapRef}
-                    className="flex-1 min-h-0 flex items-center justify-center p-1.5"
-                >
-                    <ChessBoardView
-                        fen={displayFen}
-                        lastMove={displayLastMove}
-                        boardWidth={boardWidth}
-                        missingSquares={missingSquares}
-                        extraSquares={extraSquares}
-                        wrongPieceSquares={wrongPieceSquares}
-                        predictedMove={predictedMove}
-                    />
+                <div className="flex min-h-0 flex-1 items-stretch justify-center p-1.5">
+                    <div ref={boardWrapRef} className="flex min-w-0 flex-1 items-center justify-center">
+                        <ChessBoardView
+                            fen={displayFen}
+                            lastMove={displayLastMove}
+                            boardWidth={boardWidth}
+                            missingSquares={missingSquares}
+                            extraSquares={extraSquares}
+                            wrongPieceSquares={wrongPieceSquares}
+                            predictedMove={predictedMove}
+                        />
+                    </div>
+                    {evaluationBarVisible && (
+                        <div className="w-[18px] shrink-0">
+                            <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                        </div>
+                    )}
                 </div>
             </div>
         );

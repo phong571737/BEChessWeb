@@ -20,7 +20,6 @@ import { resultVariant, formatDateTime, formatDuration, resolveDurationSeconds }
 import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
-import { extractSanMoves } from "@/lib/custom-chess";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
 interface Props {
@@ -322,7 +321,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
             : null;
           out.push({
             fen,
-            san: uci || t("rev.fenPosition", { number: index + 1 }),
+            san: fen,
             lastMove,
             originalPly: index + 1,
           });
@@ -449,14 +448,14 @@ export function PGNReviewContent({ game }: ReviewProps) {
     };
   }, [game, selectedRecoveryLine]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
-  const boardMoveAnnotation = currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
+  const boardMoveAnnotation = selectedSource !== "base" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
         square: analyzedDestination,
         classification: currentMoveAnalysis.classification,
         label: t(`analysis.${currentMoveAnalysis.classification}`),
       }
     : null;
-  const recoveryNotice = game.fenHistory?.length && recoveryStatus !== "ready"
+  const recoveryNotice = selectedSource !== "base" && game.fenHistory?.length && recoveryStatus !== "ready"
     ? recoveryStatus === "loading"
       ? t("rev.loading")
       : recoveryStatus === "branch_limit"
@@ -869,7 +868,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                       className="h-7 px-2 text-[10px]"
                       onClick={() => selectReviewSource("base")}
                     >
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: extractSanMoves(game.pgn ?? "").length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
                     </Button>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
@@ -921,14 +920,18 @@ export function PGNReviewContent({ game }: ReviewProps) {
                           : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
                       >
                         <span className="flex items-center justify-between gap-2">
-                          <span className="min-w-0 truncate">{number}{side === "w" ? "." : "..."} {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
-                          <span
-                            className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-                            title={t("rev.moveDuration")}
-                            aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
-                          >
-                            {formatMoveDuration(moveDuration)}
+                          <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
+                            {selectedSource === "base" ? m.fen : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
                           </span>
+                          {selectedSource !== "base" && (
+                            <span
+                              className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                              title={t("rev.moveDuration")}
+                              aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                            >
+                              {formatMoveDuration(moveDuration)}
+                            </span>
+                          )}
                         </span>
                       </button>
                     );

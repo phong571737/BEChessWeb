@@ -178,7 +178,7 @@ function BoardContent() {
                                         <BoardViewSlot
                                             gameID={gameID}
                                             compact
-                                            enableEval={false}
+                                            enableEval
                                             onChangeGame={
                                                 canChange ? () => setEditingSlot(index) : undefined
                                             }

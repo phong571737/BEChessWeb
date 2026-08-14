@@ -16,11 +16,9 @@ export type BoardColors = { light: string; dark: string };
 
 type BoardDisplayContextValue = {
   flipped: boolean;
-  showEvaluation: boolean;
   boardColorTheme: BoardColorTheme;
   boardColors: BoardColors;
   toggleFlipped: () => void;
-  toggleEvaluation: () => void;
   setBoardColorTheme: (theme: Exclude<BoardColorTheme, "custom">) => void;
   setCustomBoardColors: (colors: BoardColors) => void;
 };
@@ -29,13 +27,11 @@ const BoardDisplayContext = createContext<BoardDisplayContextValue | undefined>(
 
 export function BoardDisplayProvider({ children }: { children: React.ReactNode }) {
   const [flipped, setFlipped] = useState(false);
-  const [showEvaluation, setShowEvaluation] = useState(true);
   const [boardColorTheme, setBoardColorThemeState] = useState<BoardColorTheme>("classic");
   const [customBoardColors, setCustomBoardColorsState] = useState<BoardColors>(BOARD_COLOR_PRESETS.classic);
 
   useEffect(() => {
     setFlipped(localStorage.getItem("board-flipped") === "true");
-    setShowEvaluation(localStorage.getItem("board-show-evaluation") !== "false");
     const savedTheme = localStorage.getItem("board-color-theme") as BoardColorTheme | null;
     if (savedTheme && (savedTheme === "custom" || savedTheme in BOARD_COLOR_PRESETS)) {
       setBoardColorThemeState(savedTheme);
@@ -52,10 +48,6 @@ export function BoardDisplayProvider({ children }: { children: React.ReactNode }
     localStorage.setItem("board-flipped", String(!value));
     return !value;
   });
-  const toggleEvaluation = () => setShowEvaluation((value) => {
-    localStorage.setItem("board-show-evaluation", String(!value));
-    return !value;
-  });
   const setBoardColorTheme = (theme: Exclude<BoardColorTheme, "custom">) => {
     setBoardColorThemeState(theme);
     localStorage.setItem("board-color-theme", theme);
@@ -68,7 +60,7 @@ export function BoardDisplayProvider({ children }: { children: React.ReactNode }
   };
   const boardColors = boardColorTheme === "custom" ? customBoardColors : BOARD_COLOR_PRESETS[boardColorTheme];
 
-  return <BoardDisplayContext.Provider value={{ flipped, showEvaluation, boardColorTheme, boardColors, toggleFlipped, toggleEvaluation, setBoardColorTheme, setCustomBoardColors }}>{children}</BoardDisplayContext.Provider>;
+  return <BoardDisplayContext.Provider value={{ flipped, boardColorTheme, boardColors, toggleFlipped, setBoardColorTheme, setCustomBoardColors }}>{children}</BoardDisplayContext.Provider>;
 }
 
 export function useBoardDisplay() {

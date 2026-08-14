@@ -67,3 +67,17 @@ The visual language emphasizes:
 ## Source-grounded interpretation
 
 This document should be understood as a map of how the frontend expresses runtime state through appearance. The actual state is still managed in the store and hooks; the visual layer only translates that state into a tangible interface signal.
+
+## Multi-board evaluation and raw FEN review
+
+When the board page is configured for two or four slots, each `BoardViewSlot`
+owns its Stockfish worker, search state, evaluation bar, and suggestion toggle.
+There is no global evaluation-bar switch in Settings; one board can be analysed
+or hidden without changing another board. Its header
+contains independent controls for the evaluation bar and best-move arrow.
+
+The `FEN gốc` review source is deliberately different from recovered branches:
+it renders the persisted `fenHistory` snapshots verbatim. It does not replay a
+custom PGN, attach Stockfish classification markers, or show recovery notes.
+Recovered branches continue to use the recovery service's legal move line and
+may include branch metadata.
