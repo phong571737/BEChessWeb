@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb, FlipHorizontal } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb, FlipHorizontal, Settings2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -264,6 +264,8 @@ export function BoardViewSlot({
     const boardWrapRef = useRef<HTMLDivElement | null>(null);
     const [boardWidth, setBoardWidth] = useState(0);
     const unavailableHandled = useRef(false);
+    const compactSettingsRef = useRef<HTMLDivElement | null>(null);
+    const [compactSettingsOpen, setCompactSettingsOpen] = useState(false);
 
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
@@ -517,6 +519,17 @@ export function BoardViewSlot({
     }, [isLoaded, compact]);
 
     useEffect(() => {
+        if (!compactSettingsOpen) return;
+        const onDocumentMouseDown = (event: MouseEvent) => {
+            if (compactSettingsRef.current && !compactSettingsRef.current.contains(event.target as Node)) {
+                setCompactSettingsOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", onDocumentMouseDown);
+        return () => document.removeEventListener("mousedown", onDocumentMouseDown);
+    }, [compactSettingsOpen]);
+
+    useEffect(() => {
         if (fen !== prevFenRef.current) {
             prevFenRef.current = fen;
             setNavigationState({ fen: null, lastMove: null });
@@ -590,34 +603,32 @@ export function BoardViewSlot({
                     >
                         <span className="font-semibold text-primary">{boardLabel}</span>
                     </button>
+                    <div className="min-w-0 flex-1 flex items-center justify-center gap-1 text-[11px] truncate">
+                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? BlackName : WhiteName}</span>
+                        <span className="shrink-0 text-muted-foreground">vs</span>
+                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? WhiteName : BlackName}</span>
+                    </div>
                     <div className="flex items-center gap-0.5 shrink-0">
-                        <Button variant="ghost" size="icon" className="size-6" onClick={toggleBoardFlip} title={t("settings.flipBoard")} aria-label={t("settings.flipBoard")}>
-                            <FlipHorizontal className="size-3.5" />
-                        </Button>
-                        {enableEval && (
-                            <>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-6"
-                                    onClick={toggleLiveEvaluation}
-                                    title={showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
-                                    aria-label={showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
-                                >
-                                    <BarChart3 className="size-3.5" />
-                                </Button>
-                                <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    className="size-6"
-                                    onClick={toggleLiveSuggestions}
-                                    title={showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
-                                    aria-label={showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
-                                >
-                                    {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
-                                </Button>
-                            </>
-                        )}
+                        <div ref={compactSettingsRef} className="relative">
+                            <Button variant="ghost" size="icon" className="size-6" onClick={() => setCompactSettingsOpen((open) => !open)} title={t("settings.open")} aria-label={t("settings.open")} aria-expanded={compactSettingsOpen}>
+                                <Settings2 className="size-3.5" />
+                            </Button>
+                            {compactSettingsOpen && (
+                                <div className="absolute right-0 top-full z-[70] mt-1 w-52 rounded-md border border-border bg-popover p-1.5 shadow-lg">
+                                    <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleBoardFlip(); setCompactSettingsOpen(false); }}>
+                                        <FlipHorizontal className="size-3.5" />{t("settings.flipBoard")}
+                                    </button>
+                                    {enableEval && <>
+                                        <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveEvaluation(); setCompactSettingsOpen(false); }}>
+                                            <BarChart3 className="size-3.5" />{showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                                        </button>
+                                        <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveSuggestions(); setCompactSettingsOpen(false); }}>
+                                            {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
+                                        </button>
+                                    </>}
+                                </div>
+                            )}
+                        </div>
                         {onChangeGame && (
                             <Button
                                 variant="ghost"
