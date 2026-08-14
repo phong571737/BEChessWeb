@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3 } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3, Sparkles } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { classifyTimeControl } from "@/lib/time-control";
@@ -217,6 +217,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [processedToInputIndexes, setProcessedToInputIndexes] = useState<number[][]>([]);
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
+  const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
@@ -401,6 +402,29 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
+  const reviewRows = useMemo(() => {
+    type ReviewCell = { move: ReviewMove; ply: number; side: "w" | "b"; number: number };
+    const rows: Array<{ number: number; white?: ReviewCell; black?: ReviewCell }> = [];
+    timeline.slice(1).forEach((move, index) => {
+      const ply = index + 1;
+      const beforeFen = timeline[ply - 1]?.fen ?? "";
+      const fields = beforeFen.trim().split(/\s+/);
+      const side: "w" | "b" = fields[1] === "b" ? "b" : "w";
+      const parsedNumber = Number(fields[5]);
+      const number = Number.isInteger(parsedNumber) && parsedNumber > 0
+        ? parsedNumber
+        : Math.ceil(ply / 2);
+      let row = rows[rows.length - 1];
+      const occupied = row && (side === "w" ? row.white : row.black);
+      if (!row || row.number !== number || occupied) {
+        row = { number };
+        rows.push(row);
+      }
+      if (side === "w") row.white = { move, ply, side, number };
+      else row.black = { move, ply, side, number };
+    });
+    return rows;
+  }, [timeline]);
   const branchAnalysis = typeof selectedSource === "number"
     ? branchAnalysisBySource[String(selectedSource)] ?? []
     : [];
@@ -463,7 +487,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
     onMessageRef: reviewMessageRef,
     isReady: reviewEngineReady,
     hasError: reviewEngineError,
-  } = useStockfish(showHistoryEvaluation);
+  } = useStockfish(showHistoryEvaluation || showHistorySuggestions);
   const [reviewCp, setReviewCp] = useState<number | null>(null);
   const [reviewMate, setReviewMate] = useState<number | null>(null);
   const [reviewBestMove, setReviewBestMove] = useState<string | null>(null);
@@ -477,7 +501,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
       if (line.startsWith("bestmove")) {
         if (!active || active.fen !== current.fen) return;
         const bestMove = line.trim().split(/\s+/)[1] ?? null;
-        setReviewBestMove(bestMove && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove) ? bestMove : null);
+        setReviewBestMove(showHistorySuggestions && bestMove && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove) ? bestMove : null);
         setReviewAnalyzing(false);
         return;
       }
@@ -490,19 +514,19 @@ export function PGNReviewContent({ game }: ReviewProps) {
       const cpMatch = line.match(/\bscore cp (-?\d+)/);
       if (cpMatch) {
         const value = Number(cpMatch[1]);
-        setReviewCp(blackToMove ? -value : value);
+        if (showHistoryEvaluation) setReviewCp(blackToMove ? -value : value);
         setReviewMate(null);
         return;
       }
       const mateMatch = line.match(/\bscore mate (-?\d+)/);
       if (mateMatch) {
         const value = Number(mateMatch[1]);
-        setReviewMate(blackToMove ? -value : value);
+        if (showHistoryEvaluation) setReviewMate(blackToMove ? -value : value);
         setReviewCp(null);
       }
     };
     return () => { reviewMessageRef.current = null; };
-  }, [current.fen, reviewMessageRef]);
+  }, [current.fen, reviewMessageRef, showHistoryEvaluation, showHistorySuggestions]);
 
   useEffect(() => {
     const worker = reviewWorkerRef.current;
@@ -511,7 +535,8 @@ export function PGNReviewContent({ game }: ReviewProps) {
       window.clearTimeout(reviewSearchTimerRef.current);
       reviewSearchTimerRef.current = null;
     }
-    if (!showHistoryEvaluation || !reviewEngineReady || !worker || !safeFen) {
+    const engineEnabled = showHistoryEvaluation || showHistorySuggestions;
+    if (!engineEnabled || !reviewEngineReady || !worker || !safeFen) {
       reviewSearchRef.current = null;
       setReviewCp(null);
       setReviewMate(null);
@@ -540,15 +565,15 @@ export function PGNReviewContent({ game }: ReviewProps) {
       }
       reviewSearchRef.current = null;
     };
-  }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation]);
+  }, [current.fen, reviewEngineReady, reviewWorkerRef, showHistoryEvaluation, showHistorySuggestions]);
 
   const reviewPredictedMove = useMemo<PredictedMove | null>(() => {
-    if (!showHistoryEvaluation || !reviewBestMove) return null;
+    if (!showHistorySuggestions || !reviewBestMove) return null;
     return {
       from: reviewBestMove.slice(0, 2) as PredictedMove["from"],
       to: reviewBestMove.slice(2, 4) as PredictedMove["to"],
     };
-  }, [reviewBestMove, showHistoryEvaluation]);
+  }, [reviewBestMove, showHistorySuggestions]);
 
   useEffect(() => {
     setCursor(-1);
@@ -559,11 +584,19 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
   useEffect(() => {
     setShowHistoryEvaluation(localStorage.getItem("history-show-evaluation") !== "false");
+    setShowHistorySuggestions(localStorage.getItem("history-show-suggestions") !== "false");
   }, []);
 
   const toggleHistoryEvaluation = () => {
     setShowHistoryEvaluation((visible) => {
       localStorage.setItem("history-show-evaluation", String(!visible));
+      return !visible;
+    });
+  };
+
+  const toggleHistorySuggestions = () => {
+    setShowHistorySuggestions((visible) => {
+      localStorage.setItem("history-show-suggestions", String(!visible));
       return !visible;
     });
   };
@@ -762,10 +795,14 @@ export function PGNReviewContent({ game }: ReviewProps) {
 
         {/* Review board */}
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          <div className="flex justify-end">
+          <div className="flex flex-wrap justify-end gap-2">
             <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
-              {showHistoryEvaluation ? t("rev.hideSuggestions") : t("rev.showSuggestions")}
+              {showHistoryEvaluation ? t("rev.hideEvaluation") : t("rev.showEvaluation")}
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleHistorySuggestions}>
+              <Sparkles className="size-3.5" />
+              {showHistorySuggestions ? t("rev.hideSuggestionsOnly") : t("rev.showSuggestionsOnly")}
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
@@ -850,47 +887,52 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 </div>
               )}
               <ScrollArea className="min-h-0 flex-1">
-                <div className="grid grid-cols-2 gap-1.5 p-2 sm:grid-cols-3">
+                <div className="space-y-1.5 p-2">
                   {recoveryNotice && (
                     <p className="col-span-full p-3 text-xs text-muted-foreground">
                       {recoveryNotice}
                     </p>
                   )}
-                  {timeline.slice(1).map((m, i) => {
-                    const ply = i + 1;
-                    const moveDuration = m.originalPly
-                      ? game.moveDurationsMs?.[m.originalPly - 1]
-                      : undefined;
-                    const notes = [
-                      m.padding ? t("rev.paddingNote") : null,
-                      m.assumed ? t("rev.assumedNote") : null,
-                      m.deduplicatedFenCount
-                        ? t("rev.deduplicatedFenNote", { count: m.deduplicatedFenCount })
-                        : null,
-                    ].filter((note): note is string => Boolean(note));
-                    return (
-                      <button
-                        key={`${m.san}-${i}`}
-                        ref={currentIndex === ply ? activeMoveRef : undefined}
-                        type="button"
-                        onClick={() => goTo(ply)}
-                        className={m.fenFallback
-                          ? `col-span-full min-h-9 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
-                          : `min-h-9 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span>{ply}. {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
-                          <span
-                            className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-                            title={t("rev.moveDuration")}
-                            aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                  {reviewRows.map((row) => (
+                    <div key={row.number} className="grid grid-cols-2 gap-1.5">
+                      {[row.white, row.black].map((cell) => {
+                        if (!cell) return <div key={`${row.number}-empty`} className="min-h-9" aria-hidden="true" />;
+                        const { move: m, ply, side } = cell;
+                        const moveDuration = m.originalPly
+                          ? game.moveDurationsMs?.[m.originalPly - 1]
+                          : undefined;
+                        const notes = [
+                          m.padding ? t("rev.paddingNote") : null,
+                          m.assumed ? t("rev.assumedNote") : null,
+                          m.deduplicatedFenCount
+                            ? t("rev.deduplicatedFenNote", { count: m.deduplicatedFenCount })
+                            : null,
+                        ].filter((note): note is string => Boolean(note));
+                        return (
+                          <button
+                            key={`${m.san}-${ply}`}
+                            ref={currentIndex === ply ? activeMoveRef : undefined}
+                            type="button"
+                            onClick={() => goTo(ply)}
+                            className={m.fenFallback
+                              ? `min-h-9 min-w-0 rounded-sm border px-3 py-2 text-left font-mono text-xs transition-colors ${currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"}`
+                              : `min-h-9 min-w-0 rounded-sm border px-3 py-2 text-left text-sm ${currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
                           >
-                            {formatMoveDuration(moveDuration)}
-                          </span>
-                        </span>
-                      </button>
-                    );
-                  })}
+                            <span className="flex items-center justify-between gap-2">
+                              <span className="min-w-0 truncate">{row.number}{side === "w" ? "." : "..."} {m.san}{notes.length > 0 ? ` (${notes.join(", ")})` : ""}</span>
+                              <span
+                                className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                                title={t("rev.moveDuration")}
+                                aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                              >
+                                {formatMoveDuration(moveDuration)}
+                              </span>
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
                 </div>
               </ScrollArea>
               <div className="flex items-center justify-center gap-3 border-t border-border p-3">

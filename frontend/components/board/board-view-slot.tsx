@@ -11,7 +11,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3 } from "lucide-react";
+import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
@@ -241,10 +241,13 @@ export function BoardViewSlot({
     // preference remains a master switch, while a player can hide suggestions
     // and the evaluation bar for one active game without changing review pages.
     const [showLiveEvaluation, setShowLiveEvaluation] = useState(true);
+    const [showLiveSuggestions, setShowLiveSuggestions] = useState(true);
     useEffect(() => {
         setShowLiveEvaluation(localStorage.getItem(`live-show-evaluation-${gameID}`) !== "false");
+        setShowLiveSuggestions(localStorage.getItem(`live-show-suggestions-${gameID}`) !== "false");
     }, [gameID]);
-    const evaluationEnabled = enableEval && showEvaluation && showLiveEvaluation;
+    const evaluationEnabled = enableEval && showEvaluation && (showLiveEvaluation || showLiveSuggestions);
+    const evaluationBarVisible = evaluationEnabled && showLiveEvaluation;
     const { workerRef, onMessageRef, isReady, hasError: stockfishUnavailable } = useStockfish(evaluationEnabled);
     const pendingFenRef = useRef<string | null>(null);
     const activeSearchRef = useRef<{ fen: string; depth: number } | null>(null);
@@ -394,7 +397,7 @@ export function BoardViewSlot({
                     return;
                 }
                 const bestMove = line.trim().split(/\s+/)[1] ?? "";
-                setPredictedMove(/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)
+                setPredictedMove(showLiveSuggestions && /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(bestMove)
                     ? { from: bestMove.slice(0, 2) as PredictedMove["from"], to: bestMove.slice(2, 4) as PredictedMove["to"] }
                     : null);
                 activeSearchRef.current = null;
@@ -417,8 +420,10 @@ export function BoardViewSlot({
             if (cpMatch) {
                 let val = Number(cpMatch[1]);
                 if (isBlackToMove) val = -val;
-                setCp(val);
-                setMate(null);
+                if (showLiveEvaluation) {
+                    setCp(val);
+                    setMate(null);
+                }
                 return;
             }
 
@@ -426,14 +431,16 @@ export function BoardViewSlot({
             if (mateMatch) {
                 let mateIn = Number(mateMatch[1]);
                 if (isBlackToMove) mateIn = -mateIn;
-                setMate(mateIn);
-                setCp(null);
+                if (showLiveEvaluation) {
+                    setMate(mateIn);
+                    setCp(null);
+                }
             }
         };
         return () => {
             onMessageRef.current = null;
         };
-    }, [evaluationEnabled, onMessageRef]);
+    }, [evaluationEnabled, onMessageRef, showLiveEvaluation, showLiveSuggestions]);
 
     useEffect(() => {
         if (!evaluationEnabled || !displayFen) {
@@ -501,6 +508,19 @@ export function BoardViewSlot({
         setShowLiveEvaluation((visible) => {
             const next = !visible;
             localStorage.setItem(`live-show-evaluation-${gameID}`, String(next));
+            if (!next) {
+                setCp(null);
+                setMate(null);
+            }
+            return next;
+        });
+    }, [gameID]);
+
+    const toggleLiveSuggestions = useCallback(() => {
+        setShowLiveSuggestions((visible) => {
+            const next = !visible;
+            localStorage.setItem(`live-show-suggestions-${gameID}`, String(next));
+            if (!next) setPredictedMove(null);
             return next;
         });
     }, [gameID]);
@@ -601,10 +621,14 @@ export function BoardViewSlot({
                 </div>
             )}
             {enableEval && (
-                <div className="flex justify-end px-2 pt-2 sm:px-3">
+                <div className="flex flex-wrap justify-end gap-2 px-2 pt-2 sm:px-3">
                     <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleLiveEvaluation}>
                         <BarChart3 className="size-3.5" />
-                        {showLiveEvaluation ? t("board.hideSuggestions") : t("board.showSuggestions")}
+                        {showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                    </Button>
+                    <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={toggleLiveSuggestions}>
+                        <Sparkles className="size-3.5" />
+                        {showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
                     </Button>
                 </div>
             )}
@@ -635,14 +659,14 @@ export function BoardViewSlot({
                                     />
                                 </div>
 
-                                {evaluationEnabled && (
+                                {evaluationBarVisible && (
                                     <div className="hidden sm:block w-[22px] shrink-0 self-stretch min-h-0">
                                         <EvalBar cp={cp} mate={mate} flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
                             </div>
 
-                            {evaluationEnabled && (
+                            {evaluationBarVisible && (
                                 <div className="sm:hidden">
                                     <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={flipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                 </div>
