@@ -1,10 +1,9 @@
 "use client"
 
-import { Suspense, useCallback, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { decodeGameID, encodeGameID } from "@/lib/id-utils";
 import { useActiveGames } from "@/hooks/use-active-games";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import { BoardViewSlot, BoardSlotSkeleton } from "@/components/board/board-view-slot";
 import type { BoardLayoutMode } from "@/components/board/board-layout-switcher";
 import { BoardSlotPicker } from "@/components/board/board-slot-picker";
@@ -31,7 +30,6 @@ function buildSlots(primary: string, extras: string[], count: number): (string |
 function BoardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const isDesktop = useMediaQuery("(min-width: 1024px)");
     const { activeGames } = useActiveGames();
     /** Which slot is open for pick / replace */
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
@@ -58,8 +56,23 @@ function BoardContent() {
     );
 
     const urlLayout = parseLayout(searchParams.get("layout"));
-    const effectiveLayout: BoardLayoutMode = isDesktop ? urlLayout : 1;
+    // Multi-board mode is supported on mobile too. The two-column grid is
+    // intentionally kept compact so users can monitor both boards after the
+    // browser switches to landscape orientation.
+    const effectiveLayout: BoardLayoutMode = urlLayout;
     const slotCount = effectiveLayout;
+
+    useEffect(() => {
+        if (urlLayout === 1 || typeof window === "undefined") return;
+
+        // Mobile browsers may reject orientation locking unless the page is
+        // fullscreen/PWA. Ignore that rejection and leave the normal layout
+        // usable when the browser does not grant the permission.
+        const orientation = window.screen.orientation;
+        if (typeof orientation?.lock === "function") {
+            void orientation.lock("landscape").catch(() => undefined);
+        }
+    }, [urlLayout]);
 
     const slots = useMemo(
         () => (primaryID ? buildSlots(primaryID, extraIDs, slotCount) : []),
