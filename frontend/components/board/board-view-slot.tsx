@@ -656,9 +656,9 @@ export function BoardViewSlot({
                 <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center p-1.5">
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
                         <CompactPlayer
-                            name={boardFlipped ? BlackName : WhiteName}
-                            side={boardFlipped ? "black" : "white"}
-                            timeMs={boardFlipped ? blackMs : whiteMs}
+                            name={boardFlipped ? WhiteName : BlackName}
+                            side={boardFlipped ? "white" : "black"}
+                            timeMs={boardFlipped ? whiteMs : blackMs}
                             activeSide={activeSide}
                         />
                     </div>
@@ -683,9 +683,9 @@ export function BoardViewSlot({
                     </div>
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
                         <CompactPlayer
-                            name={boardFlipped ? WhiteName : BlackName}
-                            side={boardFlipped ? "white" : "black"}
-                            timeMs={boardFlipped ? whiteMs : blackMs}
+                            name={boardFlipped ? BlackName : WhiteName}
+                            side={boardFlipped ? "black" : "white"}
+                            timeMs={boardFlipped ? blackMs : whiteMs}
                             activeSide={activeSide}
                         />
                     </div>
