@@ -33,7 +33,7 @@ The home page renders the dashboard of active games and provides an entry point 
 
 The Start Game dialog includes an Excel import icon beside the player-name fields. Selecting a `.xlsx` pairing workbook parses the first worksheet in the browser without uploading the file. The importer maps column A (or a detected board header) to the board number, columns E and K to White and Black names, and reads the tournament title and scheduled time when present. Chess-Results exports may store the venue as a metadata line such as `Địa điểm: ...` in column A (for example cell A8); that header is mapped to the playing-location field too. A dedicated `Địa điểm`, `Location`, or `Venue` column is also supported. A localized row selector is shown when the workbook contains multiple pairings; choosing a row fills the board, player names, and optional location. Missing names remain editable, while location, round, and time-control fields stay available for manual confirmation. Invalid workbooks produce a localized validation message.
 
-The same Excel picker is available in the in-game **Cài đặt trận / Game settings** dialog, so an administrator can replace the names of an active board by selecting another pairing without leaving the board page.
+The same Excel picker is available in the in-game **Cài đặt trận / Game settings** dialog, so an administrator can replace the names of an active board by selecting another pairing without leaving the board page. The start-game and live-game settings dialogs share one base-clock option list, including the 45-minute tournament choice.
 
 ### `/dashboard`
 

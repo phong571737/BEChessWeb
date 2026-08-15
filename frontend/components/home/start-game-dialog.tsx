@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useAuth } from "@/lib/auth-context";
-import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-control";
+import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Upload } from "lucide-react";
 import { useRef } from "react";
@@ -21,7 +21,6 @@ interface Props {
     onClose: () => void;
 }
 
-const CLOCK_OPTIONS = [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000];
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
 export function StartGameDialog({ board, gameID , onClose }: Props) {
@@ -212,7 +211,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                                 disabled={loading}
                                 className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                             >
-                                {CLOCK_OPTIONS.map(value => (
+                                {INITIAL_TIME_OPTIONS_MS.map(value => (
                                     <option key={value} value={value}>{value === 3_600_000 ? t("sg.hourOption", { n: 1 }) : t(value === 60_000 ? "sg.minuteOption" : "sg.minutesOption", { n: value / 60_000 })}</option>
                                 ))}
                             </select>

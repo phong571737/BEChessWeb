@@ -11,9 +11,8 @@ import { useGameStore } from "@/lib/store";
 import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-control";
+import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 
-const CLOCK_OPTIONS = [60_000, 180_000, 300_000, 600_000, 900_000, 1_800_000, 3_600_000];
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
 interface Props {
@@ -159,7 +158,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                         <div className="space-y-2"><Label htmlFor="board-setup-black">{t("sg.blackSide")}</Label><Input id="board-setup-black" value={black} onChange={(event) => setBlack(event.target.value)} disabled={loading} /></div>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                        <div className="space-y-2"><Label htmlFor="board-setup-time">{t("sg.time")}</Label><select id="board-setup-time" value={time} onChange={(event) => setTime(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{CLOCK_OPTIONS.map((option) => <option key={option} value={option}>{clockLabel(option)}</option>)}</select></div>
+                        <div className="space-y-2"><Label htmlFor="board-setup-time">{t("sg.time")}</Label><select id="board-setup-time" value={time} onChange={(event) => setTime(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{INITIAL_TIME_OPTIONS_MS.map((option) => <option key={option} value={option}>{clockLabel(option)}</option>)}</select></div>
                         <div className="space-y-2"><Label htmlFor="board-setup-increment">{t("sg.increment")}</Label><select id="board-setup-increment" value={increment} onChange={(event) => setIncrement(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{INCREMENT_OPTIONS.map((option) => <option key={option} value={option}>{incrementLabel(option)}</option>)}</select></div>
                     </div>
                     <div className="space-y-2"><Label htmlFor="board-setup-round">{t("sg.round")}</Label><select id="board-setup-round" value={selectedRound} onChange={(event) => setSelectedRound(Number(event.target.value))} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm">{Array.from({ length: 10 }, (_, index) => index + 1).map((value) => <option key={value} value={value}>{t("sg.roundOption", { n: value })}</option>)}</select></div>
