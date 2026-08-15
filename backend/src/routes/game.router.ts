@@ -31,6 +31,9 @@ gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
 
 gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthenticated, GameController.saveHistoryAnalysis);
 
+/** Administrator-only correction of one persisted FEN snapshot. */
+gameRouter.delete("/history/:id/fens/:index", gameDestructiveRateLimit, requireAdmin, GameController.deleteHistoryFen);
+
 /** Administrator-only recycle bin for recoverable history deletion. */
 gameRouter.get("/history/trash", gameReadRateLimit, requireAdmin, GameController.getHistoryTrash);
 gameRouter.delete("/history/trash/permanent", gameDestructiveRateLimit, requireAdmin, GameController.permanentlyDeleteAllHistory);

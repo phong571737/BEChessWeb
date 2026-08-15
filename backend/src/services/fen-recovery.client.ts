@@ -53,7 +53,6 @@ export class FenRecoveryServiceError extends Error {
   }
 }
 
-const RECOVERY_TIMEOUT_MS = 8_000;
 const MAX_RESPONSE_BYTES = 16 * 1024 * 1024;
 
 /**
@@ -90,7 +89,7 @@ function postRecovery(url: URL, payload: object): Promise<{ status: number; body
       }));
     });
 
-    request.setTimeout(RECOVERY_TIMEOUT_MS, () => {
+    request.setTimeout(env.RECOVERY_TIMEOUT_MS, () => {
       request.destroy(new Error("FEN recovery request timed out"));
     });
     request.on("error", reject);

@@ -67,7 +67,7 @@ Administrator credentials are not hard-coded in source control or documentation.
 
 Admin identity is exposed to the frontend as `role: "admin"` and `isAdmin: true` in the auth response. Some operational controls are visible after sign-in, and administrator-only areas such as Dashboard and History deletion additionally use `isAdmin`. The backend independently enforces authenticated game actions and administrator-only mutations, so UI visibility cannot grant a permission.
 
-History deletion is administrator-only at both layers. The frontend hides and disables moving records to trash, viewing/restoring trash, permanent deletion, and empty-trash actions for standard users. Every corresponding backend route also uses `requireAdmin`; a valid `user` JWT therefore receives HTTP `403` even if the endpoint is called manually.
+History deletion is administrator-only at both layers. The frontend hides and disables moving records to trash, viewing/restoring trash, permanent deletion, empty-trash actions, and per-FEN history correction for standard users. Every corresponding backend route also uses `requireAdmin`; a valid `user` JWT therefore receives HTTP `403` even if the endpoint is called manually. Removing a FEN snapshot uses the destructive-operation rate limit and an exact-array write guard to prevent concurrent corrections from overwriting each other.
 
 ### Data exposure rules
 

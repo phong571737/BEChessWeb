@@ -128,7 +128,7 @@ For a VPS deployment under `/chess`, Nginx proxies `/chess` to port `4000`, back
 - `ADMIN_*` can bootstrap a private developer administrator.
 - `USER_*` can bootstrap a standard account.
 - Administrator REST mutations require `Authorization: Bearer <JWT>`.
-- Standard users cannot delete, restore, permanently delete, or view trashed history records.
+- Standard users cannot delete, restore, permanently delete, edit individual FEN snapshots, or view trashed history records.
 - Hiding controls in the frontend is only presentation; the backend independently checks the JWT role.
 
 ## MQTT contract
@@ -211,6 +211,7 @@ FRONTEND_BASE_PATH=/chess
 BACKEND_PUBLIC_URL=http://<public-domain>
 BACKEND_INTERNAL_URL=http://ttlab-chess-app:8080
 RECOVER_SERVICE_URL=http://recover-service:8000
+RECOVERY_TIMEOUT_MS=60000
 ```
 
 Also set real `MONGO_URI`, `JWT_SECRET`, `URL_HIVEMQTT`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASSWORD`, and `CORS_ORIGINS`. `BACKEND_PUBLIC_URL` is the public origin only; do not append `/chess`. Keep `.env` private and do not put secrets in `.env.example` or `docker-compose.yml`.
@@ -231,4 +232,4 @@ Configure Nginx using [docs/16-deployment.md](docs/16-deployment.md): `/chess` t
 
 Run `git pull origin master`, `docker compose build --no-cache`, and `docker compose up -d --force-recreate --remove-orphans`. If only frontend build-time URLs changed, use `docker compose build --no-cache frontend` followed by `docker compose up -d --force-recreate frontend`; restarting an old container does not change compiled Next.js browser chunks.
 
-Common failures: `503 /games/recover` means recovery is down or its internal URL is wrong; browser calls to `localhost:8080` mean the frontend was built with the wrong public URL; missing `/chess` in assets means `FRONTEND_BASE_PATH` was absent at build time; mixed-content/WSS errors mean the public URL protocol or gateway upgrade configuration is wrong; MongoDB `querySrv ETIMEOUT` means Atlas DNS or outbound network access is unavailable.
+Common failures: `503 /games/recover` means recovery is down or its internal URL is wrong; `504 /games/history/:id/recovered-pgn` means recovery exceeded `RECOVERY_TIMEOUT_MS` (60 seconds by default), usually because a long or damaged FEN history creates too many possible branches; browser calls to `localhost:8080` mean the frontend was built with the wrong public URL; missing `/chess` in assets means `FRONTEND_BASE_PATH` was absent at build time; mixed-content/WSS errors mean the public URL protocol or gateway upgrade configuration is wrong; MongoDB `querySrv ETIMEOUT` means Atlas DNS or outbound network access is unavailable.

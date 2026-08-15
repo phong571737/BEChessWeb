@@ -15,6 +15,7 @@ Optional request fields:
 - `deduplicatePositions` (`true` by default): enable consecutive-position deduplication.
 - `nRetry` (`5` by default): maximum wildcard padding count tried at each broken gap; use `0` to disable retry.
 - `maxBranches`: fail rather than silently truncate compatible branches.
+- The standalone `index.html` visualizer sends `maxBranches: 10000` and aborts after 60 seconds so a damaged history cannot leave the browser waiting indefinitely. The backend timeout remains configurable through `RECOVERY_TIMEOUT_MS`.
 - `maxRepairGaps` (`10` by default): maximum repaired boundaries.
 - `maxTotalPadding` (`20` by default): maximum wildcard FENs for the request.
 - `finalOnly`: omit per-step candidate deltas.

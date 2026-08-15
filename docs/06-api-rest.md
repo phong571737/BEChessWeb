@@ -158,6 +158,16 @@ The route accepts either a history document `_id` or a live `gameID` and returns
 
 Authenticated users can save the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result. A valid request may include `unavailable` rows with depth `0` and null evaluations when a persisted physical-board position cannot be reconstructed safely.
 
+### `DELETE /games/history/:id/fens/:index`
+
+Administrator-only. Removes the zero-based FEN snapshot at `index` from the
+visible history record. The operation deliberately leaves PGN, UCI history,
+move timing, and the result unchanged. It clears saved Stockfish analysis
+because that analysis was calculated from the previous FEN sequence. The
+update compares the complete stored array before writing, so two concurrent
+administrator corrections cannot silently overwrite each other; a stale edit
+returns `409 Conflict` and must be retried after reloading the record.
+
 ### `GET /games/history/trash`
 
 Administrator-only. Returns soft-deleted history records that can still be restored.

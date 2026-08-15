@@ -185,7 +185,7 @@ export default function PlayedReviewPage() {
         </div>
       </div>
       <div className="rounded-sm border border-border bg-background overflow-hidden">
-        <PGNReviewContent game={game} />
+        <PGNReviewContent game={game} onGameUpdate={setGame} />
         <div className="px-4 sm:px-5 pb-5">
           <MatchAnalysis game={game} />
         </div>

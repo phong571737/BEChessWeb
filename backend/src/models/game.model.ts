@@ -97,6 +97,40 @@ export async function saveHistoryAnalysis(id: string, analysis: Document): Promi
     return result.modifiedCount === 1;
 }
 
+export type DeleteHistoryFenResult =
+    | { status: "deleted"; fenHistory: string[] }
+    | { status: "not_found" | "invalid_index" | "conflict" };
+
+/**
+ * Removes one persisted FEN snapshot without changing UCI history or PGN.
+ * The exact-array predicate prevents two concurrent admin edits from
+ * overwriting each other, and stale Stockfish analysis is cleared because it
+ * was calculated from the previous position sequence.
+ */
+export async function deleteHistoryFen(id: string, index: number): Promise<DeleteHistoryFenResult> {
+    const filter = historyIdFilter(id, false);
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    if (!record) return { status: "not_found" };
+
+    const fenHistory = Array.isArray(record.fenHistory)
+        ? record.fenHistory.filter((fen): fen is string => typeof fen === "string")
+        : [];
+    if (!Number.isInteger(index) || index < 0 || index >= fenHistory.length) {
+        return { status: "invalid_index" };
+    }
+
+    const nextFenHistory = fenHistory.filter((_, fenIndex) => fenIndex !== index);
+    const result = await pgnGames().updateOne(
+        { $and: [filter, { fenHistory }] } as unknown as Filter<Document>,
+        {
+            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
+            $unset: { analysis: "" },
+        },
+    );
+    if (result.modifiedCount !== 1) return { status: "conflict" };
+    return { status: "deleted", fenHistory: nextFenHistory };
+}
+
 // Save game state
 export async function saveGame(
     gameID: string,

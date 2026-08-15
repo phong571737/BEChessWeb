@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis } from "../models/game.model.js";
+import { deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -140,6 +140,34 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to save history analysis" });
+        }
+    },
+
+    /** Deletes one FEN snapshot from a non-deleted history record. */
+    async deleteHistoryFen(req: Request<GameIdParams & { index: string }>, res: Response): Promise<void> {
+        try {
+            const index = Number(req.params.index);
+            const result = await deleteHistoryFen(req.params.id, index);
+            if (result.status === "not_found") {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "invalid_index") {
+                res.status(400).json({ error: "Invalid FEN index" });
+                return;
+            }
+            if (result.status === "conflict") {
+                res.status(409).json({ error: "FEN history changed; reload and try again" });
+                return;
+            }
+            if (result.status === "deleted") {
+                res.json({ success: true, fenHistory: result.fenHistory });
+                return;
+            }
+            res.status(500).json({ error: "Unable to delete FEN snapshot" });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to delete FEN snapshot" });
         }
     },
 

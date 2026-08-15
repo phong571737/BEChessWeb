@@ -22,6 +22,7 @@ The environment contract is declared in [backend/src/config/environment.ts](../b
 - `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO; local development also allows localhost:3000/3001 automatically
 - `BACKEND_INTERNAL_URL` – backend URL used by the frontend container through the internal Compose network; it must be defined in the deployment `.env`
 - `RECOVER_SERVICE_URL` – internal URL of the FEN recovery service; it must be defined in the deployment `.env`
+- `RECOVERY_TIMEOUT_MS` – maximum wait for one FEN recovery request in milliseconds; defaults to `60000` and must be a positive integer
 - `VERCEL_WEB` – additional allowed frontend origin retained for compatible deployments
 - `SERVER_NAME` – server identity label
 - `MQTT_USER` – broker username when authentication is enabled

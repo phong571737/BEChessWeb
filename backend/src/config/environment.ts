@@ -16,6 +16,18 @@ function optionalEnv(key: string): string | undefined {
   return process.env[key];
 }
 
+/** Read a positive integer setting or use its documented default. */
+function positiveIntegerEnv(key: string, fallback: number): number {
+  const rawValue = optionalEnv(key);
+  if (rawValue === undefined) return fallback;
+
+  const value = Number(rawValue);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error(`Environment variable ${key} must be a positive integer`);
+  }
+  return value;
+}
+
 export interface Env {
   MONGO_URI: string;
   /** Mandatory signing key for authentication tokens. */
@@ -40,6 +52,8 @@ export interface Env {
   USER_PASSWORD?: string;
   /** Internal URL of the optional Python FEN recovery sidecar. */
   RECOVER_SERVICE_URL?: string;
+  /** Maximum duration allowed for one FEN recovery request. */
+  RECOVERY_TIMEOUT_MS: number;
 }
 
 export const env: Env = {
@@ -63,4 +77,5 @@ export const env: Env = {
   USER_EMAIL: optionalEnv("USER_EMAIL"),
   USER_PASSWORD: optionalEnv("USER_PASSWORD"),
   RECOVER_SERVICE_URL: optionalEnv("RECOVER_SERVICE_URL"),
+  RECOVERY_TIMEOUT_MS: positiveIntegerEnv("RECOVERY_TIMEOUT_MS", 60_000),
 };

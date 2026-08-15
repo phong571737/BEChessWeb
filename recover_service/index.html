@@ -249,6 +249,9 @@
 <script src="https://unpkg.com/@chrisoakman/chessboardjs@1.0.0/dist/chessboard-1.0.0.min.js"></script>
 
 <script>
+    const RECOVERY_MAX_BRANCHES = 10000;
+    const RECOVERY_TIMEOUT_MS = 60000;
+
     // Khởi tạo bàn cờ rỗng
     let boardConfig = {
         pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
@@ -301,7 +304,9 @@
         const payload = {
             fenHistory: fenHistory,
             // Compact steps v2 được dùng để căn đúng original ply và padding ply.
-            finalOnly: false
+            finalOnly: false,
+            // Keep the standalone visualizer consistent with the backend client.
+            maxBranches: RECOVERY_MAX_BRANCHES
         };
         
         if (startFen) payload.startFen = startFen;
@@ -309,12 +314,16 @@
         statusEl.innerText = "Trạng thái: Đang gửi API...";
         document.getElementById('responsePayload').textContent = 'Đang chờ response...';
         
+        const controller = new AbortController();
+        const timeoutId = window.setTimeout(() => controller.abort(), RECOVERY_TIMEOUT_MS);
+
         try {
             // Thay port 8000 nếu FastAPI của bạn chạy ở port khác
             const response = await fetch('http://localhost:8000/recover', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
+                body: JSON.stringify(payload),
+                signal: controller.signal
             });
 
             const responseText = await response.text();
@@ -395,10 +404,15 @@
 
         } catch (error) {
             console.error(error);
+            const message = error.name === 'AbortError'
+                ? `Recovery vượt quá ${RECOVERY_TIMEOUT_MS / 1000} giây.`
+                : error.message;
             if (document.getElementById('responsePayload').textContent === 'Đang chờ response...') {
-                showResponsePayload({ networkError: error.message });
+                showResponsePayload({ networkError: message });
             }
-            statusEl.innerText = "Trạng thái: Lỗi - " + error.message;
+            statusEl.innerText = "Trạng thái: Lỗi - " + message;
+        } finally {
+            window.clearTimeout(timeoutId);
         }
     }
 

@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb, Trash2 } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +25,7 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
+import { useAuth } from "@/lib/auth-context";
 
 interface Props {
   game:    HistoryGame | null;
@@ -29,6 +34,7 @@ interface Props {
 
 interface ReviewProps {
   game: HistoryGame;
+  onGameUpdate?: (game: HistoryGame) => void;
 }
 
 interface RecoveryLine {
@@ -188,8 +194,9 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   return chess.pgn();
 }
 
-export function PGNReviewContent({ game }: ReviewProps) {
+export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const { t } = useT();
+  const { isAdmin, token } = useAuth();
   // Keep analysis isolated per review source. A recovered branch is a
   // client-local line, so its classifications must never overwrite (or be
   // confused with) the persisted analysis of the original PGN.
@@ -208,6 +215,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
         : t("played.unfinished");
   const [copied, setCopied] = useState(false);
   const [fenCopied, setFenCopied] = useState(false);
+  const [pendingFenIndex, setPendingFenIndex] = useState<number | null>(null);
+  const [deletingFen, setDeletingFen] = useState(false);
+  const [fenDeleteError, setFenDeleteError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
@@ -742,6 +752,29 @@ export function PGNReviewContent({ game }: ReviewProps) {
     link.remove();
   };
 
+  /** Deletes only the selected persisted FEN snapshot after admin confirmation. */
+  const deleteFenSnapshot = async () => {
+    if (pendingFenIndex === null || !token || deletingFen) return;
+    setDeletingFen(true);
+    setFenDeleteError(null);
+    try {
+      const response = await fetch(
+        `/games/history/${encodeURIComponent(game._id)}/fens/${pendingFenIndex}`,
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+      );
+      const body = await response.json().catch(() => null) as { fenHistory?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistory)) throw new Error("delete_failed");
+      const fenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      setBaseAnalysisMoves([]);
+      setPendingFenIndex(null);
+      onGameUpdate?.({ ...game, fenHistory, analysis: undefined });
+    } catch {
+      setFenDeleteError(t("rev.deleteFenFailed"));
+    } finally {
+      setDeletingFen(false);
+    }
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -1003,8 +1036,21 @@ export function PGNReviewContent({ game }: ReviewProps) {
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
                   <div className="p-3 space-y-1.5">
                     {game.fenHistory.map((f, i) => (
-                      <div key={`fh-${i}`} className="font-mono text-xs border border-border/60 rounded-sm px-2.5 py-1.5">
-                        <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
+                      <div key={`fh-${i}`} className="group flex items-center gap-2 font-mono text-xs border border-border/60 rounded-sm px-2.5 py-1.5">
+                        <span className="min-w-0 flex-1 break-all">
+                          <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
+                        </span>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            title={t("rev.deleteFen")}
+                            aria-label={t("rev.deleteFenPosition", { number: i + 1 })}
+                            onClick={() => { setFenDeleteError(null); setPendingFenIndex(i); }}
+                          >
+                            <Trash2 className="size-3.5" />
+                          </button>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -1035,6 +1081,25 @@ export function PGNReviewContent({ game }: ReviewProps) {
           onSelectPly={goTo}
           onAnalysisSaved={handleAnalysisSaved}
         />
+        <Dialog open={pendingFenIndex !== null} onOpenChange={(open) => !open && !deletingFen && setPendingFenIndex(null)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>{t("rev.deleteFenTitle")}</DialogTitle>
+              <DialogDescription>
+                {t("rev.deleteFenDescription", { number: (pendingFenIndex ?? 0) + 1 })}
+              </DialogDescription>
+            </DialogHeader>
+            {fenDeleteError && <p className="px-5 py-3 text-sm text-destructive">{fenDeleteError}</p>}
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setPendingFenIndex(null)} disabled={deletingFen}>
+                {t("played.cancel")}
+              </Button>
+              <Button variant="destructive" onClick={() => void deleteFenSnapshot()} disabled={deletingFen}>
+                {deletingFen ? t("rev.deletingFen") : t("rev.deleteFen")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
     </>
   );
 }
