@@ -101,6 +101,68 @@ export type DeleteHistoryFenResult =
     | { status: "deleted"; fenHistory: string[] }
     | { status: "not_found" | "invalid_index" | "conflict" };
 
+export type AppendHistoryFenResult =
+    | { status: "saved"; fenHistory: string[] }
+    | { status: "not_found" }
+    | { status: "conflict" };
+
+export type UpdateHistoryFenResult = AppendHistoryFenResult | { status: "invalid_index" };
+
+/**
+ * Appends one administrator-corrected FEN snapshot. The original array is
+ * included in the update predicate so concurrent editors cannot silently
+ * overwrite each other.
+ */
+export async function appendHistoryFen(id: string, fen: string): Promise<AppendHistoryFenResult> {
+    const filter = historyIdFilter(id, false);
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    if (!record) return { status: "not_found" };
+
+    const hasFenHistory = Array.isArray(record.fenHistory);
+    const fenHistory = hasFenHistory
+        ? (record.fenHistory as unknown[]).filter((value): value is string => typeof value === "string")
+        : [];
+    const nextFenHistory = [...fenHistory, fen];
+    const fenPredicate = hasFenHistory
+        ? { fenHistory: record.fenHistory }
+        : { fenHistory: { $exists: false } };
+    const result = await pgnGames().updateOne(
+        { $and: [filter, fenPredicate] } as unknown as Filter<Document>,
+        {
+            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
+            $unset: { analysis: "" },
+        },
+    );
+    if (result.modifiedCount !== 1) return { status: "conflict" };
+    return { status: "saved", fenHistory: nextFenHistory };
+}
+
+/** Replaces one FEN snapshot while preserving every other history field. */
+export async function updateHistoryFen(id: string, index: number, fen: string): Promise<UpdateHistoryFenResult> {
+    const filter = historyIdFilter(id, false);
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    if (!record) return { status: "not_found" };
+
+    const fenHistory = Array.isArray(record.fenHistory)
+        ? record.fenHistory.filter((value): value is string => typeof value === "string")
+        : [];
+    if (!Number.isInteger(index) || index < 0 || index >= fenHistory.length) {
+        return { status: "invalid_index" };
+    }
+
+    const nextFenHistory = [...fenHistory];
+    nextFenHistory[index] = fen;
+    const result = await pgnGames().updateOne(
+        { $and: [filter, { fenHistory: record.fenHistory }] } as unknown as Filter<Document>,
+        {
+            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
+            $unset: { analysis: "" },
+        },
+    );
+    if (result.modifiedCount !== 1) return { status: "conflict" };
+    return { status: "saved", fenHistory: nextFenHistory };
+}
+
 /**
  * Removes one persisted FEN snapshot without changing UCI history or PGN.
  * The exact-array predicate prevents two concurrent admin edits from

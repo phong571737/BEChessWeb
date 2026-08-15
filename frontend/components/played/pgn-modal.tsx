@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2 } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -14,6 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
@@ -218,6 +219,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [pendingFenIndex, setPendingFenIndex] = useState<number | null>(null);
   const [deletingFen, setDeletingFen] = useState(false);
   const [fenDeleteError, setFenDeleteError] = useState<string | null>(null);
+  const [fenEditor, setFenEditor] = useState<{ mode: "add" | "edit"; index: number | null; value: string } | null>(null);
+  const [savingFen, setSavingFen] = useState(false);
+  const [fenSaveError, setFenSaveError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
@@ -775,6 +779,37 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  /** Adds or replaces one FEN snapshot through the administrator API. */
+  const saveFenSnapshot = async () => {
+    if (!fenEditor || !token || savingFen) return;
+    setSavingFen(true);
+    setFenSaveError(null);
+    try {
+      const editing = fenEditor.mode === "edit" && fenEditor.index !== null;
+      const endpoint = editing
+        ? `/games/history/${encodeURIComponent(game._id)}/fens/${fenEditor.index}`
+        : `/games/history/${encodeURIComponent(game._id)}/fens`;
+      const response = await fetch(endpoint, {
+        method: editing ? "PUT" : "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fen: fenEditor.value }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistory?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistory)) {
+        if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
+        throw new Error("save_failed");
+      }
+      const fenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      setBaseAnalysisMoves([]);
+      setFenEditor(null);
+      onGameUpdate?.({ ...game, fenHistory, analysis: undefined });
+    } catch (error) {
+      setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
+    } finally {
+      setSavingFen(false);
+    }
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -888,20 +923,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   {t("rev.plyProgress", { current: currentIndex, total: timeline.length - 1 })}
                 </span>
               </div>
-              <div className="flex items-center justify-center gap-3 border-b border-border p-3">
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(0)} disabled={currentIndex === 0}>
-                  <ChevronsLeft className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
-                  <ChevronLeft className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronRight className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronsRight className="size-5" />
-                </Button>
-              </div>
               {!!game.fenHistory?.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
                   <div className="flex items-center justify-between gap-2">
@@ -933,6 +954,20 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   </select>
                 </div>
               )}
+              <div className="flex items-center justify-center gap-3 border-b border-border p-3">
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(0)} disabled={currentIndex === 0}>
+                  <ChevronsLeft className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
+                  <ChevronLeft className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronRight className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronsRight className="size-5" />
+                </Button>
+              </div>
               <ScrollArea className="min-h-0 flex-1">
                 <div className="space-y-1.5 p-2">
                   {recoveryNotice && (
@@ -964,7 +999,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                       >
                         <span className="flex items-center justify-between gap-2">
                           <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
-                            {selectedSource === "base" ? m.fen : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
+                            {selectedSource === "base"
+                              ? `${t("rev.fenPosition", { number: m.originalPly ?? ply })}: ${m.fen}`
+                              : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
                           </span>
                           {selectedSource !== "base" && (
                             <span
@@ -1016,40 +1053,61 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </ScrollArea>
           </details>}
 
-          {!!game.fenHistory?.length && (
+          {(isAdmin || !!game.fenHistory?.length) && (
             <details className="relative text-sm">
               <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
-                {t("rev.fenTimeline")} ({game.fenHistory.length})
+                {t("rev.fenTimeline")} ({game.fenHistory?.length ?? 0})
               </summary>
               <div className="absolute left-0 top-8 flex max-w-full flex-wrap items-center gap-1.5 sm:left-auto sm:right-0 sm:top-[-4px] sm:flex-nowrap">
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline}>
+                {isAdmin && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    onClick={() => { setFenSaveError(null); setFenEditor({ mode: "add", index: null, value: "" }); }}
+                  >
+                    <Plus className="h-3.5 w-3.5" />{t("rev.addFen")}
+                  </Button>
+                )}
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline} disabled={!game.fenHistory?.length}>
                   {fenCopied
                     ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFen")}</>
                     : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFen")}</>
                   }
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadFenTimeline}>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadFenTimeline} disabled={!game.fenHistory?.length}>
                   <Download className="h-3.5 w-3.5" />{t("rev.downloadFenText")}
                 </Button>
               </div>
               <div className="mt-2">
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
                   <div className="p-3 space-y-1.5">
-                    {game.fenHistory.map((f, i) => (
+                    {(game.fenHistory ?? []).map((f, i) => (
                       <div key={`fh-${i}`} className="group flex items-center gap-2 font-mono text-xs border border-border/60 rounded-sm px-2.5 py-1.5">
                         <span className="min-w-0 flex-1 break-all">
                           <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
                         </span>
                         {isAdmin && (
-                          <button
-                            type="button"
-                            className="inline-flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                            title={t("rev.deleteFen")}
-                            aria-label={t("rev.deleteFenPosition", { number: i + 1 })}
-                            onClick={() => { setFenDeleteError(null); setPendingFenIndex(i); }}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </button>
+                          <div className="flex shrink-0 items-center gap-0.5">
+                            <button
+                              type="button"
+                              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              title={t("rev.editFen")}
+                              aria-label={t("rev.editFenPosition", { number: i + 1 })}
+                              onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index: i, value: f }); }}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                              title={t("rev.deleteFen")}
+                              aria-label={t("rev.deleteFenPosition", { number: i + 1 })}
+                              onClick={() => { setFenDeleteError(null); setPendingFenIndex(i); }}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </div>
                         )}
                       </div>
                     ))}
@@ -1096,6 +1154,41 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               </Button>
               <Button variant="destructive" onClick={() => void deleteFenSnapshot()} disabled={deletingFen}>
                 {deletingFen ? t("rev.deletingFen") : t("rev.deleteFen")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={fenEditor !== null} onOpenChange={(open) => !open && !savingFen && setFenEditor(null)}>
+          <DialogContent className="max-w-xl">
+            <DialogHeader>
+              <DialogTitle>{t(fenEditor?.mode === "edit" ? "rev.editFenTitle" : "rev.addFenTitle")}</DialogTitle>
+              <DialogDescription>
+                {fenEditor?.mode === "edit"
+                  ? t("rev.editFenDescription", { number: (fenEditor.index ?? 0) + 1 })
+                  : t("rev.addFenDescription")}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 px-5 py-3">
+              <label htmlFor="history-fen-value" className="text-sm font-medium">{t("rev.fenValue")}</label>
+              <Input
+                id="history-fen-value"
+                className="font-mono text-xs"
+                value={fenEditor?.value ?? ""}
+                placeholder={t("rev.fenPlaceholder")}
+                onChange={(event) => setFenEditor((current) => current ? { ...current, value: event.target.value } : current)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && !savingFen) void saveFenSnapshot();
+                }}
+                autoFocus
+              />
+              {fenSaveError && <p className="text-sm text-destructive">{fenSaveError}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFenEditor(null)} disabled={savingFen}>
+                {t("played.cancel")}
+              </Button>
+              <Button onClick={() => void saveFenSnapshot()} disabled={savingFen || !fenEditor?.value.trim()}>
+                {savingFen ? t("rev.savingFen") : t("rev.saveFen")}
               </Button>
             </DialogFooter>
           </DialogContent>

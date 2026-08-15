@@ -158,6 +158,19 @@ The route accepts either a history document `_id` or a live `gameID` and returns
 
 Authenticated users can save the bounded, browser-generated Stockfish move analysis for one history record. The request requires an `Authorization: Bearer <JWT>` header and contains `{ moves, depth }`. It replaces the prior saved analysis for that record; it does not change the game PGN, board state, or result. A valid request may include `unavailable` rows with depth `0` and null evaluations when a persisted physical-board position cannot be reconstructed safely.
 
+### `POST /games/history/:id/fens`
+
+Administrator-only. Appends a validated six-field chess FEN to the end of the
+history record. The JSON body is `{ "fen": "..." }`. Invalid positions return
+`400` with code `INVALID_FEN`; concurrent history edits return `409`.
+
+### `PUT /games/history/:id/fens/:index`
+
+Administrator-only. Replaces the zero-based FEN snapshot at `index` with the
+validated FEN in `{ "fen": "..." }`. PGN, UCI history, timing, and result are
+not rewritten. Saved Stockfish analysis is cleared because it belongs to the
+previous position sequence.
+
 ### `DELETE /games/history/:id/fens/:index`
 
 Administrator-only. Removes the zero-based FEN snapshot at `index` from the

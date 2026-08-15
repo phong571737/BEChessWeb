@@ -128,7 +128,7 @@ For a VPS deployment under `/chess`, Nginx proxies `/chess` to port `4000`, back
 - `ADMIN_*` can bootstrap a private developer administrator.
 - `USER_*` can bootstrap a standard account.
 - Administrator REST mutations require `Authorization: Bearer <JWT>`.
-- Standard users cannot delete, restore, permanently delete, edit individual FEN snapshots, or view trashed history records.
+- Standard users cannot delete, restore, permanently delete, add/edit/delete individual FEN snapshots, or view trashed history records.
 - Hiding controls in the frontend is only presentation; the backend independently checks the JWT role.
 
 ## MQTT contract

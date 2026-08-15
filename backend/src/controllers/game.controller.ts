@@ -1,11 +1,25 @@
 import { Request, Response } from "express";
-import { deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis } from "../models/game.model.js";
+import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
+import { Chess } from "chess.js";
+
+/** Returns a trimmed, legal standard FEN or null for malformed input. */
+function validatedFen(value: unknown): string | null {
+    if (typeof value !== "string") return null;
+    const fen = value.trim();
+    if (!fen || fen.length > 128) return null;
+    try {
+        new Chess(fen);
+        return fen;
+    } catch {
+        return null;
+    }
+}
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
     return {
@@ -168,6 +182,59 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to delete FEN snapshot" });
+        }
+    },
+
+    /** Appends one validated FEN snapshot to a history record. */
+    async appendHistoryFen(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            const fen = validatedFen(req.body?.fen);
+            if (!fen) {
+                res.status(400).json({ error: "Invalid FEN", code: "INVALID_FEN" });
+                return;
+            }
+            const result = await appendHistoryFen(req.params.id, fen);
+            if (result.status === "not_found") {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "conflict") {
+                res.status(409).json({ error: "FEN history changed; reload and try again" });
+                return;
+            }
+            res.json({ success: true, fenHistory: result.fenHistory });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to append FEN snapshot" });
+        }
+    },
+
+    /** Replaces one validated FEN snapshot at its persisted array index. */
+    async updateHistoryFen(req: Request<GameIdParams & { index: string }>, res: Response): Promise<void> {
+        try {
+            const index = Number(req.params.index);
+            const fen = validatedFen(req.body?.fen);
+            if (!fen) {
+                res.status(400).json({ error: "Invalid FEN", code: "INVALID_FEN" });
+                return;
+            }
+            const result = await updateHistoryFen(req.params.id, index, fen);
+            if (result.status === "not_found") {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "invalid_index") {
+                res.status(400).json({ error: "Invalid FEN index" });
+                return;
+            }
+            if (result.status === "conflict") {
+                res.status(409).json({ error: "FEN history changed; reload and try again" });
+                return;
+            }
+            res.json({ success: true, fenHistory: result.fenHistory });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to update FEN snapshot" });
         }
     },
 
