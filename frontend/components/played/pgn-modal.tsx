@@ -439,10 +439,20 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     });
     return rows;
   }, [timeline]);
-  const reviewCells = useMemo(
-    () => reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell))),
-    [reviewRows],
-  );
+  const reviewCells = useMemo(() => {
+    // Raw FEN snapshots are an ordered sensor timeline, not PGN move pairs.
+    // Preserve their database array order even when legacy side-to-move or
+    // full-move fields are duplicated, invalid, or out of sequence.
+    if (selectedSource === "base") {
+      return timeline.slice(1).map((move, index) => ({
+        move,
+        ply: index + 1,
+        side: "w" as const,
+        number: index + 1,
+      }));
+    }
+    return reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell)));
+  }, [reviewRows, selectedSource, timeline]);
   const branchAnalysis = typeof selectedSource === "number"
     ? branchAnalysisBySource[String(selectedSource)] ?? []
     : [];

@@ -15,7 +15,7 @@ Move Review requests `/games/history/:id/recovered-pgn`. Its original source pre
 
 Administrators can append, edit, or delete individual entries in the FEN list. Add and edit validate a complete legal FEN before persistence; every mutation clears stale saved Stockfish analysis and refreshes recovery from the corrected list. PGN, UCI history, move timing, and game result remain unchanged.
 
-The Move Review panel follows a fixed vertical order: review header, compact branch/source selector, navigation controls, then the independently scrollable move list. This keeps the selected source visible before replay actions even when recovery returns many branches. Original FEN-source rows are labeled sequentially as `FEN 1`, `FEN 2`, and so on before the exact persisted snapshot; recovered sources retain conventional PGN move numbering.
+The Move Review panel follows a fixed vertical order: review header, compact branch/source selector, navigation controls, then the independently scrollable move list. This keeps the selected source visible before replay actions even when recovery returns many branches. Original FEN-source rows preserve the exact `fenHistory` array order and are labeled sequentially as `FEN 1`, `FEN 2`, and so on before the persisted snapshot; their order never depends on possibly malformed side-to-move or full-move FEN fields. Recovered sources retain conventional PGN move numbering.
 
 ## Page model
 
