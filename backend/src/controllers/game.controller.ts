@@ -5,12 +5,13 @@ import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
-import { classifyTimeControl } from "../utils/time-control.js";
+import { resolveTimeControlType } from "../utils/time-control.js";
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
     return {
         ...record,
         _id: typeof record._id === "string" ? record._id : record._id?.toString?.() ?? "",
+        timeControlType: resolveTimeControlType(record.initialTimeMs, record.incrementMs, record.timeControlType),
     };
 }
 
@@ -23,7 +24,10 @@ export const GameController = {
                 res.json(null);
                 return;
             }
-            res.json(game);
+            res.json(game.map((record) => ({
+                ...record,
+                timeControlType: resolveTimeControlType(record.initialTimeMs, record.incrementMs, record.timeControlType),
+            })));
         } catch (e) {
             console.log(e);
         }
@@ -80,7 +84,13 @@ export const GameController = {
                     startedAt: live.startedAt || snapshot.startedAt,
                     lastMoveAt: live.lastMoveAt || snapshot.lastMoveAt,
                     durationSec: live.durationSec ?? snapshot.durationSec,
-                    timeControlType: snapshot.timeControlType ?? live.timeControlType ?? classifyTimeControl(live.initialTimeMs ?? snapshot.initialTimeMs, live.incrementMs ?? snapshot.incrementMs),
+                    initialTimeMs: live.initialTimeMs ?? snapshot.initialTimeMs,
+                    incrementMs: live.incrementMs ?? snapshot.incrementMs,
+                    timeControlType: resolveTimeControlType(
+                        live.initialTimeMs ?? snapshot.initialTimeMs,
+                        live.incrementMs ?? snapshot.incrementMs,
+                        snapshot.timeControlType ?? live.timeControlType,
+                    ),
                 };
             });
 

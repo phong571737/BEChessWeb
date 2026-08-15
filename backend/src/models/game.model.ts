@@ -83,7 +83,7 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         durationSec: game.durationSec ?? 0,
         initialTimeMs: game.initialTimeMs,
         incrementMs: game.incrementMs,
-        timeControlType: game.timeControlType ?? classifyTimeControl(game.initialTimeMs, game.incrementMs),
+        timeControlType: classifyTimeControl(game.initialTimeMs, game.incrementMs),
         createdAt: game.createdAt ?? now,
     });
 }
@@ -423,7 +423,14 @@ export async function renamePlayer(
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
     if (initialTimeMs !== undefined || incrementMs !== undefined) {
-        update.timeControlType = classifyTimeControl(initialTimeMs, incrementMs);
+        const current = await games().findOne(
+            { gameID } as Filter<GameDoc>,
+            { projection: { initialTimeMs: 1, incrementMs: 1 } },
+        );
+        update.timeControlType = classifyTimeControl(
+            initialTimeMs ?? current?.initialTimeMs,
+            incrementMs ?? current?.incrementMs,
+        );
     }
     if (round !== undefined) update.round = round;
     if (location !== undefined) update.location = location;

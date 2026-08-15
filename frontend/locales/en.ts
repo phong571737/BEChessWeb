@@ -113,6 +113,8 @@ export const en = {
     "rev.started": "Started",
     "rev.moveReview": "Move Review",
     "rev.reviewSource": "Review source",
+    "rev.chooseReviewSource": "Choose a review source",
+    "rev.sourceCount": "{count} sources",
     "rev.basePgn": "Original FEN",
     "rev.recoveryBranch": "Recovery branch {number}",
     "rev.plyCount": "{count} ply",

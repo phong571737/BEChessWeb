@@ -234,6 +234,8 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.started": "Bắt đầu lúc",
     "rev.moveReview": "Xem lại nước đi",
     "rev.reviewSource": "Nguồn xem lại",
+    "rev.chooseReviewSource": "Chọn nguồn xem lại",
+    "rev.sourceCount": "{count} nguồn",
     "rev.basePgn": "FEN gốc",
     "rev.recoveryBranch": "Nhánh khôi phục {number}",
     "rev.plyCount": "{count} ply",

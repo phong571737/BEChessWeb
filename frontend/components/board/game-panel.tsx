@@ -60,7 +60,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location,
 }, ref) {
     const { t } = useT();
-    const timeControl = classifyTimeControl(initialTimeMs);
+    const timeControl = classifyTimeControl(initialTimeMs, incrementMs);
     const timeControlLabel = {
         blitz: t("timeControl.blitz"),
         rapid: t("timeControl.rapid"),

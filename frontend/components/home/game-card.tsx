@@ -8,7 +8,7 @@ import { useRef, useState, useEffect } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
-import { classifyTimeControl } from "@/lib/time-control";
+import { resolveTimeControlType } from "@/lib/time-control";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -26,7 +26,7 @@ export function GameCard({ game }: Props) {
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors } = useBoardDisplay();
   const { t } = useT();
-  const timeControl = game.timeControlType ?? classifyTimeControl(game.initialTimeMs);
+  const timeControl = resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType);
   const timeControlLabel = {
     blitz: t("timeControl.blitz"),
     rapid: t("timeControl.rapid"),

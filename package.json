@@ -1,6 +1,6 @@
 {
   "name": "bechessweb",
-  "version": "1.1.4-change16",
+  "version": "1.1.4-change17",
   "description": "A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.",
   "main": "dist/server.js",
   "type": "module",
@@ -26,6 +26,7 @@
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/start-dev.ps1",
     "build": "tsc",
+    "test:time-control": "node --experimental-strip-types tools/verify-time-control.ts",
     "start": "node dist/server.js"
   },
   "repository": {

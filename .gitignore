@@ -18,6 +18,17 @@ frontend/.next
 # package
 package-lock.json
 
+# Python local environments and generated caches
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
 mongodb_data/
 .DS_Store
 dist/

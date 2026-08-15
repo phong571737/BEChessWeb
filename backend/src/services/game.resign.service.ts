@@ -141,7 +141,7 @@ export const GameResignService = {
             durationSec,
             initialTimeMs: game.initialTimeMs,
             incrementMs: game.incrementMs,
-            timeControlType: game.timeControlType ?? classifyTimeControl(game.initialTimeMs, game.incrementMs),
+            timeControlType: classifyTimeControl(game.initialTimeMs, game.incrementMs),
         }
 
         await endGame(doc);

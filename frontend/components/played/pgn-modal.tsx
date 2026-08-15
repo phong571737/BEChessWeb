@@ -1,10 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, GitBranch, BarChart3, EyeOff, Lightbulb } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb } from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
-import { classifyTimeControl } from "@/lib/time-control";
+import { resolveTimeControlType } from "@/lib/time-control";
 import {
   Dialog,
   DialogContent,
@@ -753,7 +753,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
               {resultText}
             </Badge>
             <Badge variant="outline" className="shrink-0 border-primary/20 bg-primary/5 text-primary">
-              {t(`timeControl.${game.timeControlType ?? classifyTimeControl(game.initialTimeMs)}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical")}
+              {t(`timeControl.${resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType)}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical")}
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
@@ -857,37 +857,33 @@ export function PGNReviewContent({ game }: ReviewProps) {
               </div>
               {!!game.fenHistory?.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("rev.reviewSource")}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      type="button"
-                      variant={selectedSource === "base" ? "secondary" : "outline"}
-                      size="sm"
-                      className="h-7 px-2 text-[10px]"
-                      onClick={() => selectReviewSource("base")}
-                    >
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("rev.reviewSource")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 1 : 1 })}
+                    </span>
+                  </div>
+                  <select
+                    value={selectedSource === "base" ? "base" : String(selectedSource)}
+                    onChange={(event) => selectReviewSource(event.target.value === "base" ? "base" : Number(event.target.value))}
+                    aria-label={t("rev.chooseReviewSource")}
+                    className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="base">
                       {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
-                    </Button>
+                    </option>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
                       return (
-                        <Button
-                          key={`recovery-source-${index}`}
-                          type="button"
-                          variant={selectedSource === index ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-7 gap-1 px-2 text-[10px]"
-                          onClick={() => selectReviewSource(index)}
-                        >
-                          <GitBranch className="size-3" />
+                        <option key={`recovery-source-${index}`} value={index}>
                           {t("rev.recoveryBranch", { number: index + 1 })} · {t("rev.plyCount", { count: line.sanMoves.length })}
                           {difference ? ` · ${t("rev.branchDifference", difference)}` : ""}
-                        </Button>
+                        </option>
                       );
                     })}
-                  </div>
+                  </select>
                 </div>
               )}
               <ScrollArea className="min-h-0 flex-1">

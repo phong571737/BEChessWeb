@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { HistoryGame } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
-import { classifyTimeControl } from "@/lib/time-control";
+import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil } from "lucide-react";
@@ -327,7 +327,7 @@ export function GameHistory() {
     .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g) : isFinishedResult(g))
     .filter((g) => !boardFilter || g.boardID === boardFilter)
     .filter((g) => !locationFilter || g.location?.trim() === locationFilter)
-    .filter((g) => timeControlFilter === "all" || (g.timeControlType ?? classifyTimeControl(g.initialTimeMs)) === timeControlFilter)
+    .filter((g) => timeControlFilter === "all" || resolveTimeControlType(g.initialTimeMs, g.incrementMs, g.timeControlType) === timeControlFilter)
     .filter((g) => {
       const date = new Date(g.createdAt || g.startedAt || g.endedAt || g.Date);
       if (Number.isNaN(date.getTime())) return !dateFrom && !dateTo;
@@ -599,7 +599,7 @@ export function GameHistory() {
                         </td>
                         <td className="px-4 py-3">
                           {(() => {
-                            const type = game.timeControlType ?? classifyTimeControl(game.initialTimeMs);
+                            const type = resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType);
                             return <Badge variant="outline" className={cn("w-[118px] justify-center text-[11px]", timeControlBadgeClass(type))}>
                               {t(`timeControl.${type}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical")}
                             </Badge>;
