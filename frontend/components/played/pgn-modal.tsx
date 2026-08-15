@@ -855,6 +855,20 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   {t("rev.plyProgress", { current: currentIndex, total: timeline.length - 1 })}
                 </span>
               </div>
+              <div className="flex items-center justify-center gap-3 border-b border-border p-3">
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(0)} disabled={currentIndex === 0}>
+                  <ChevronsLeft className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
+                  <ChevronLeft className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronRight className="size-5" />
+                </Button>
+                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
+                  <ChevronsRight className="size-5" />
+                </Button>
+              </div>
               {!!game.fenHistory?.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
                   <div className="flex items-center justify-between gap-2">
@@ -934,20 +948,6 @@ export function PGNReviewContent({ game }: ReviewProps) {
                   })}
                 </div>
               </ScrollArea>
-              <div className="flex items-center justify-center gap-3 border-t border-border p-3">
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(0)} disabled={currentIndex === 0}>
-                  <ChevronsLeft className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex - 1)} disabled={currentIndex === 0}>
-                  <ChevronLeft className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(currentIndex + 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronRight className="size-5" />
-                </Button>
-                <Button variant="outline" size="icon" className="h-10 w-12" onClick={() => goTo(timeline.length - 1)} disabled={currentIndex >= timeline.length - 1}>
-                  <ChevronsRight className="size-5" />
-                </Button>
-              </div>
             </div>
           </div>
         </div>
