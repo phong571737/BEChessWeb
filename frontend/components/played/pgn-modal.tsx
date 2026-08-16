@@ -256,7 +256,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
     traceRecovery("1 - fenHistory frontend nhận từ GET /games/history", {
       gameId: game._id,
-      count: game.fenHistory.length,
+      count: Math.max(0, game.fenHistory.length - 1),
       initialFen: game.initialFen ?? DEFAULT_FEN,
       fenHistory: game.fenHistory,
     });
@@ -908,7 +908,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               <Hash className="h-3 w-3" />
                         {t("common.moves")}
             </div>
-            <span className="text-sm font-medium">{Math.max(game.totalMoves ?? 0, timeline.length, game.fenHistory?.length ?? 0)}</span>
+            <span className="text-sm font-medium">{Math.max(0, timeline.length - 1)}</span>
           </div>
           {/* Round */}
           <div className="rounded-sm border border-border bg-muted p-3">
@@ -1024,7 +1024,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                     className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
                   >
                     <option value="base">
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, game.fenHistory.length - 1) })}
                     </option>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];

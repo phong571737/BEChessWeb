@@ -85,7 +85,9 @@ export default function DashboardPage() {
             const id = game.boardID || t("dashboard.unknownBoard");
             const current = map.get(id) ?? { id, games: 0, moves: 0, duration: 0 };
             current.games += 1;
-            current.moves += game.totalMoves ?? game.fenHistory?.length ?? game.uciHistory?.length ?? 0;
+            current.moves += game.totalMoves
+                ?? (Array.isArray(game.fenHistory) ? Math.max(0, game.fenHistory.length - 1) : game.uciHistory?.length)
+                ?? 0;
             current.duration += durationOf(game);
             map.set(id, current);
             return map;
@@ -128,7 +130,17 @@ export default function DashboardPage() {
             <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.resultBreakdown")}</h2><div className="mt-5 space-y-4">{[[t("dashboard.whiteWins"), data.results.white, "bg-muted-foreground"], [t("dashboard.blackWins"), data.results.black, "bg-foreground"], [t("dashboard.draws"), data.results.draw, "bg-warning"], [t("dashboard.unfinished"), data.results.active, "bg-info"]].map(([label, value, color]) => <div key={String(label)}><div className="mb-1.5 flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-medium tabular-nums">{value}</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${color}`} style={{ width: `${(Number(value) / data.maxResult) * 100}%` }} /></div></div>)}</div></article>
         </section>
         <section className="grid gap-5 lg:grid-cols-2">
-            <article className="rounded-lg border border-border bg-card shadow-sm"><div className="border-b border-border p-4"><h2 className="font-semibold">{t("dashboard.boardActivity")}</h2></div><div className="divide-y divide-border">{data.boardStats.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : data.boardStats.map((board) => { const online = boards.some((item) => item.boardID === board.id); return <div key={board.id} className="flex items-center justify-between gap-3 p-4"><div><div className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${online ? "bg-success" : "bg-muted-foreground"}`} />{board.id}</div><p className="mt-1 text-xs text-muted-foreground">{board.games} {t("dashboard.games")} · {board.moves} {t("common.moves")}</p></div><div className="text-right"><p className="text-xs font-medium">{formatDuration(board.duration)}</p><p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div></div>; })}</div></article>
+            <article className="rounded-lg border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-4">
+                    <h2 className="font-semibold">
+                        {t("dashboard.boardActivity")}
+                    </h2>
+                </div>
+                <div className="divide-y divide-border">
+                    {data.boardStats.length === 0 ?
+                        <p className="p-6 text-center text-sm text-muted-foreground">
+                            {t("dashboard.noData")}</p> : data.boardStats.map((board) =>
+                                { const online = boards.some((item) => item.boardID === board.id); return <div key={board.id} className="flex items-center justify-between gap-3 p-4"><div><div className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${online ? "bg-success" : "bg-muted-foreground"}`} />{board.id}</div><p className="mt-1 text-xs text-muted-foreground">{board.games} {t("dashboard.games")} · {board.moves} {t("common.moves")}</p></div><div className="text-right"><p className="text-xs font-medium">{formatDuration(board.duration)}</p><p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div></div>; })}</div></article>
             <article className="rounded-lg border border-border bg-card shadow-sm"><div className="border-b border-border p-4"><h2 className="font-semibold">{t("dashboard.playerActivity")}</h2></div><div className="divide-y divide-border">{data.players.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : data.players.map((player) => <div key={player.name} className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground"><Users className="size-3.5" /></span><div><p className="text-sm font-medium">{player.name}</p><p className="text-xs text-muted-foreground">{player.games} {t("dashboard.games")}</p></div></div><div className="flex gap-3 text-right text-xs"><span><b className="block text-foreground">{player.wins}</b><span className="text-muted-foreground">{t("dashboard.wins")}</span></span><span><b className="block text-foreground">{player.draws}</b><span className="text-muted-foreground">{t("dashboard.draws")}</span></span></div></div>)}</div></article>
         </section>
     </main>;

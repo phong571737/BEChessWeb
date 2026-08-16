@@ -100,7 +100,9 @@ export default function PlayedReviewPage() {
           Result: (raws.Result || headers["Result"] || "*") as HistoryGame["Result"],
           Date: raws.Date || headers["Date"] || raws.createdAt || "",
           createdAt: raws.createdAt || raws.startedAt || raws.createAt,
-          totalMoves: raws.fenHistory?.length ?? raws.uciHistory?.length ?? legacy.lastSeq ?? 0,
+          totalMoves: Array.isArray(raws.fenHistory)
+            ? Math.max(0, raws.fenHistory.length - 1)
+            : raws.uciHistory?.length ?? legacy.lastSeq ?? 0,
         });
       })
       .catch(() => {
