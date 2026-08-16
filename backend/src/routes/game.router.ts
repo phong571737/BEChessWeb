@@ -33,6 +33,7 @@ gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthentic
 
 /** Administrator-only correction of one persisted FEN snapshot. */
 gameRouter.post("/history/:id/fens", gameMutationRateLimit, requireAdmin, GameController.appendHistoryFen);
+gameRouter.put("/history/:id/fens", gameMutationRateLimit, requireAdmin, GameController.replaceHistoryFens);
 gameRouter.put("/history/:id/fens/:index", gameMutationRateLimit, requireAdmin, GameController.updateHistoryFen);
 gameRouter.delete("/history/:id/fens/:index", gameDestructiveRateLimit, requireAdmin, GameController.deleteHistoryFen);
 
@@ -48,7 +49,7 @@ gameRouter.delete("/history/:id/permanent", gameDestructiveRateLimit, requireAdm
 */
 gameRouter.delete("/history/:id", gameDestructiveRateLimit, requireAdmin, GameController.deleteHistory);
 
-/** Administrator-only correction for a history record that has no confirmed result. */
+/** Administrator-only correction for either unfinished or completed history. */
 gameRouter.put("/history/:id/result", gameMutationRateLimit, requireAdmin, async (req, res) => {
     try {
         const result = req.body?.result;

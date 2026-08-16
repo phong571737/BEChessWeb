@@ -25,6 +25,7 @@ interface GameStoreState {
 
 const defaultBoard = (): BoardState => ({
     fen: "start",
+    fenHistory: [],
     pgn: "",
     cp: null,
     WhiteName: "White",

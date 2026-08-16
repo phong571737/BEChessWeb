@@ -222,6 +222,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [fenEditor, setFenEditor] = useState<{ mode: "add" | "edit"; index: number | null; value: string } | null>(null);
   const [savingFen, setSavingFen] = useState(false);
   const [fenSaveError, setFenSaveError] = useState<string | null>(null);
+  const [bulkFenEditor, setBulkFenEditor] = useState<string | null>(null);
+  const [savingBulkFens, setSavingBulkFens] = useState(false);
+  const [bulkFenError, setBulkFenError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
@@ -820,6 +823,48 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  /** Replaces the entire FEN sequence pasted by an administrator. */
+  const replaceFenHistory = async () => {
+    if (bulkFenEditor === null || !token || savingBulkFens) return;
+    const fenHistory = bulkFenEditor
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .filter((line) => line && !line.startsWith("#"))
+      .map((line) => line.replace(/^\s*\d+\s*[.)]\s*/, "").trim());
+    if (fenHistory.length === 0) {
+      setBulkFenError(t("rev.bulkFenEmpty"));
+      return;
+    }
+
+    setSavingBulkFens(true);
+    setBulkFenError(null);
+    try {
+      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ fenHistory }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistory?: unknown; code?: unknown; index?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistory)) {
+        if (body?.code === "INVALID_FEN" && Number.isInteger(body.index)) {
+          throw new Error(`invalid_fen:${Number(body.index) + 1}`);
+        }
+        throw new Error("save_failed");
+      }
+      const savedFenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      setBaseAnalysisMoves([]);
+      setBulkFenEditor(null);
+      onGameUpdate?.({ ...game, fenHistory: savedFenHistory, analysis: undefined });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "save_failed";
+      setBulkFenError(message.startsWith("invalid_fen:")
+        ? t("rev.bulkFenInvalid", { number: message.split(":")[1] ?? "?" })
+        : t("rev.bulkFenFailed"));
+    } finally {
+      setSavingBulkFens(false);
+    }
+  };
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -1070,14 +1115,27 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               </summary>
               <div className="absolute left-0 top-8 flex max-w-full flex-wrap items-center gap-1.5 sm:left-auto sm:right-0 sm:top-[-4px] sm:flex-nowrap">
                 {isAdmin && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="h-8 text-xs gap-1.5"
-                    onClick={() => { setFenSaveError(null); setFenEditor({ mode: "add", index: null, value: "" }); }}
-                  >
-                    <Plus className="h-3.5 w-3.5" />{t("rev.addFen")}
-                  </Button>
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => { setFenSaveError(null); setFenEditor({ mode: "add", index: null, value: "" }); }}
+                    >
+                      <Plus className="h-3.5 w-3.5" />{t("rev.addFen")}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                      onClick={() => {
+                        setBulkFenError(null);
+                        setBulkFenEditor((game.fenHistory ?? []).map((fen, index) => `${index + 1}. ${fen}`).join("\n"));
+                      }}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />{t("rev.replaceFenList")}
+                    </Button>
+                  </>
                 )}
                 <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline} disabled={!game.fenHistory?.length}>
                   {fenCopied
@@ -1199,6 +1257,34 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               </Button>
               <Button onClick={() => void saveFenSnapshot()} disabled={savingFen || !fenEditor?.value.trim()}>
                 {savingFen ? t("rev.savingFen") : t("rev.saveFen")}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+        <Dialog open={bulkFenEditor !== null} onOpenChange={(open) => !open && !savingBulkFens && setBulkFenEditor(null)}>
+          <DialogContent className="max-w-3xl">
+            <DialogHeader>
+              <DialogTitle>{t("rev.replaceFenListTitle")}</DialogTitle>
+              <DialogDescription>{t("rev.replaceFenListDescription")}</DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2 px-5 py-3">
+              <label htmlFor="history-fen-list" className="text-sm font-medium">{t("rev.fenListValue")}</label>
+              <textarea
+                id="history-fen-list"
+                className="min-h-72 w-full resize-y rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring"
+                value={bulkFenEditor ?? ""}
+                placeholder={t("rev.fenListPlaceholder")}
+                onChange={(event) => setBulkFenEditor(event.target.value)}
+                autoFocus
+              />
+              {bulkFenError && <p className="text-sm text-destructive">{bulkFenError}</p>}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setBulkFenEditor(null)} disabled={savingBulkFens}>
+                {t("played.cancel")}
+              </Button>
+              <Button onClick={() => void replaceFenHistory()} disabled={savingBulkFens || !bulkFenEditor?.trim()}>
+                {savingBulkFens ? t("rev.savingFenList") : t("rev.replaceFenListConfirm")}
               </Button>
             </DialogFooter>
           </DialogContent>

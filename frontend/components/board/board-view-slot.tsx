@@ -270,7 +270,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, resetRevision, round, location,
+        initialTimeMs, incrementMs, resetRevision, round, location, initialFen, fenHistory,
     } = useGame(gameID);
     const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
     const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
@@ -767,6 +767,8 @@ export function BoardViewSlot({
                                 BlackName={BlackName}
                                 fen={displayFen}
                                 pgn={pgn}
+                                initialFen={initialFen}
+                                timelineFens={fenHistory}
                                 status={status}
                                 lastMoveAt={lastMoveAt}
                                 onRestart={restart}

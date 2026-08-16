@@ -1,6 +1,6 @@
 {
   "name": "bechessweb",
-  "version": "1.1.4-change21",
+  "version": "1.1.4-change22",
   "description": "A real-time online chess application with a web interface, backend API, and socket communication for live gameplay.",
   "main": "dist/server.js",
   "type": "module",

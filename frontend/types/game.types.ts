@@ -25,6 +25,7 @@ export interface ActiveGame {
     fen: string;
     pgn: string;
     initialFen?: string;
+    fenHistory?: string[];
     lastMove?: lastMove | null;
     lastSeq: number;
     round?: number;
@@ -80,6 +81,8 @@ export interface HistoryGame {
 /** Per-game live state stored in Zustand */
 export interface BoardState {
     fen: string,
+    initialFen?: string;
+    fenHistory: string[];
     pgn: string,
     cp: number | null,
     WhiteName: string,

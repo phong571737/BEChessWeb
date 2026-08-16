@@ -105,6 +105,17 @@ export function GameHistory() {
     return t("played.unfinished");
   };
 
+  /** Opens the administrator result editor with the record's current result selected. */
+  const openResultEditor = (game: HistoryGame) => {
+    const currentResult = game.Result === "0-1" || game.Result === "1/2-1/2"
+      ? game.Result
+      : "1-0";
+    setResultError(null);
+    setResultSuggestion(null);
+    setResultValue(currentResult);
+    setPendingResultGame(game);
+  };
+
   useEffect(() => {
     fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
       .then((data: HistoryGame[]) => setGames(data.map(normalizeGame)))
@@ -625,7 +636,7 @@ export function GameHistory() {
                             {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>}
-                            {isAdmin && game.Result === "*" && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setResultError(null); setResultSuggestion(null); setResultValue("1-0"); setPendingResultGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t("played.editResult")}>
+                            {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); openResultEditor(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t("played.editResult")}>
                               <Pencil className="size-3.5" />
                             </button>}
                           </td>

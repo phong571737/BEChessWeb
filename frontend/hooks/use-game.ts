@@ -81,18 +81,6 @@ export function useGame(gameID: string) {
     // ------ Load initial game from REST API -------------------------------
     useEffect(() => {
         if (!gameID) return;
-        if (cachedBoard?.fen) {
-            try {
-                chessRef.current.load(cachedBoard.fen);
-                // if (cachedBoard.pgn) chessRef.current.loadPgn(cachedBoard.pgn);
-            } catch { }
-
-            initialMoveCountRef.current = chessRef.current.history().length;
-            sessionTs.current = [];
-            setIsLoaded(true);
-            return;
-        }
-
         setIsLoaded(false);
         setLoadError(null);
         let cancelled = false;
@@ -140,6 +128,8 @@ export function useGame(gameID: string) {
 
                 patchBoard(gameID, {
                     fen: game.fen || chessRef.current.fen(),
+                    initialFen: game.initialFen,
+                    fenHistory: Array.isArray(game.fenHistory) ? game.fenHistory : [],
                     WhiteName: game.WhiteName || "White",
                     BlackName: game.BlackName || "Black",
                     pgn: game.pgn || "",
@@ -169,7 +159,7 @@ export function useGame(gameID: string) {
             cancelled = true;
             controller.abort();
         }
-    }, [gameID, cachedBoard?.fen, cachedBoard?.pgn]);
+    }, [applyBranches, gameID, patchBoard, storageKey]);
 
     // ---------------Polling initial check state ----------------------------
     useEffect(() => {
@@ -240,6 +230,8 @@ export function useGame(gameID: string) {
         }
         patchBoard(gameID, {
             fen: chessRef.current.fen(),
+            initialFen: chessRef.current.fen(),
+            fenHistory: [],
             pgn: "",
             lastMove: null,
             result: undefined,
@@ -321,6 +313,13 @@ export function useGame(gameID: string) {
 
             patchBoard(gameID, {
                 fen: data.fen || chessRef.current.fen(),
+                fenHistory: Array.isArray(data.fenHistory)
+                    ? data.fenHistory
+                    : (() => {
+                        const current = useGameStore.getState().boards[gameID]?.fenHistory ?? [];
+                        const nextFen = typeof data.fen === "string" ? data.fen.trim() : "";
+                        return nextFen && current.at(-1) !== nextFen ? [...current, nextFen] : current;
+                    })(),
                 pgn: data.pgn || chessRef.current.pgn(),
                 lastMove: data.lastMove || null,
                 // branches: incomingBranches ?? board?.branches ?? [],
@@ -337,6 +336,7 @@ export function useGame(gameID: string) {
         // Restore game 
         const onRestore = (data: any) => {
             if (data.game != gameID) return;
+            const currentBoard = useGameStore.getState().boards[gameID];
 
             try {
                 // if (data.pgn) chessRef.current.loadPgn(data.pgn);
@@ -350,6 +350,10 @@ export function useGame(gameID: string) {
             initialMoveCountRef.current = chessRef.current.history().length;
             patchBoard(gameID, {
                 fen: data.fen || chessRef.current.fen(),
+                initialFen: data.initialFen ?? currentBoard?.initialFen,
+                fenHistory: Array.isArray(data.fenHistory)
+                    ? data.fenHistory
+                    : (currentBoard?.fenHistory ?? []),
                 pgn: data.pgn || "",
                 WhiteName: data.WhiteName || "White",
                 BlackName: data.BlackName || "Black",
@@ -544,6 +548,8 @@ export function useGame(gameID: string) {
 
     return {
         fen: board?.fen ?? "start",
+        initialFen: board?.initialFen,
+        fenHistory: board?.fenHistory ?? [],
         pgn: selectedBranch?.pgn ?? board?.pgn ?? "",
         cp: board?.cp ?? null,
         WhiteName: board?.WhiteName ?? "White",

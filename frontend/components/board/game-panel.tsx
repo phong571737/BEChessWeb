@@ -21,6 +21,9 @@ interface Props {
     BlackName: string;
     fen: string;
     pgn: string;
+    initialFen?: string;
+    /** Persisted live positions used when PGN is incomplete or non-standard. */
+    timelineFens?: string[];
     // boardConnected: boolean;
     status: string;
     /** Timestamp of the last move — drives the live thinking clock */
@@ -55,7 +58,7 @@ export interface GamePanelHandle {
 }
 
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
-    gameID, WhiteName, BlackName, fen, pgn, lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
+    gameID, WhiteName, BlackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
     whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location,
 }, ref) {
@@ -87,26 +90,37 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     // Build FEN history from the active PGN view shown on the board
     const {fenHistory, moveHistory} = useMemo(() => {
-        if (!activePGN?.trim()) return { fenHistory: [], moveHistory: [] };
-        try {
-            const c = new Chess();
-            const tmp = new Chess();
-            c.loadPgn(activePGN);
-            const hist = c.history({verbose: true});
+        const pgnTimeline = () => {
+            if (!activePGN?.trim()) return { fenHistory: [] as string[], moveHistory: [] as ({ from: string; to: string } | null)[] };
+            try {
+                const c = new Chess();
+                const tmp = new Chess();
+                c.loadPgn(activePGN);
+                const hist = c.history({verbose: true});
 
-            const fens: string[] = ["start"];
-            const moves: (any | null)[] = [null];
+                const fens: string[] = ["start"];
+                const moves: ({ from: string; to: string } | null)[] = [null];
 
-            for (const m of hist) {
-                tmp.move(m);
-                fens.push(tmp.fen());
-                moves.push({ from: m.from, to: m.to });
+                for (const m of hist) {
+                    tmp.move(m);
+                    fens.push(tmp.fen());
+                    moves.push({ from: m.from, to: m.to });
+                }
+                return { fenHistory: fens, moveHistory: moves };
+            } catch {
+                return { fenHistory: [] as string[], moveHistory: [] as ({ from: string; to: string } | null)[] };
             }
-            return { fenHistory: fens, moveHistory: moves };
-        } catch {
-            return { fenHistory: [], moveHistory: [] };
-        }
-    }, [activePGN]);
+        };
+
+        const parsed = pgnTimeline();
+        if (selectedBranchId || timelineFens.length === 0) return parsed;
+
+        const firstFen = initialFen?.trim() || "start";
+        const snapshots = timelineFens.map((value) => value.trim()).filter(Boolean);
+        const fens = snapshots[0] === firstFen ? snapshots : [firstFen, ...snapshots];
+        const moves = fens.map((_, index) => parsed.moveHistory[index] ?? null);
+        return { fenHistory: fens, moveHistory: moves };
+    }, [activePGN, initialFen, selectedBranchId, timelineFens]);
 
     const totalMoves = Math.max(0, fenHistory.length - 1);
     const activeCursor = cursor === -1 ? totalMoves : cursor;
@@ -138,12 +152,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
         // onNavigate(clamped === totalMoves ? null : fenHistory[clamped] ?? "start");
         onNavigate(targetFen, targetMove);
-    }, [fenHistory, totalMoves, onNavigate]);
+    }, [fenHistory, moveHistory, onNavigate, selectedBranchId, totalMoves]);
 
     const goStart = useCallback(() => goTo(0), [goTo]);
     const goBack = useCallback(() => goTo(activeCursor - 1), [goTo, activeCursor]);
     const goNext = useCallback(() => goTo(activeCursor + 1), [goTo, activeCursor]);
-    const goEnd = useCallback(() => goTo(totalMoves), [totalMoves]);
+    const goEnd = useCallback(() => goTo(totalMoves), [goTo, totalMoves]);
 
     // Expose navigation to parent
     useImperativeHandle(ref, () => ({ goBack, goNext, goStart, goEnd }), [goBack, goNext, goStart, goEnd]);

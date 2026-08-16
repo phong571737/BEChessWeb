@@ -1,24 +1,17 @@
 import { Request, Response } from "express";
-import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen } from "../models/game.model.js";
+import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
-import { Chess } from "chess.js";
 
-/** Returns a trimmed, legal standard FEN or null for malformed input. */
-function validatedFen(value: unknown): string | null {
+/** Normalizes an administrator-supplied snapshot without enforcing chess legality. */
+function storedFen(value: unknown): string | null {
     if (typeof value !== "string") return null;
     const fen = value.trim();
-    if (!fen || fen.length > 128) return null;
-    try {
-        new Chess(fen);
-        return fen;
-    } catch {
-        return null;
-    }
+    return fen || null;
 }
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
@@ -185,12 +178,12 @@ export const GameController = {
         }
     },
 
-    /** Appends one validated FEN snapshot to a history record. */
+    /** Appends one administrator-supplied FEN snapshot without legality checks. */
     async appendHistoryFen(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
-            const fen = validatedFen(req.body?.fen);
+            const fen = storedFen(req.body?.fen);
             if (!fen) {
-                res.status(400).json({ error: "Invalid FEN", code: "INVALID_FEN" });
+                res.status(400).json({ error: "FEN value must be a non-empty string", code: "INVALID_FEN" });
                 return;
             }
             const result = await appendHistoryFen(req.params.id, fen);
@@ -209,13 +202,13 @@ export const GameController = {
         }
     },
 
-    /** Replaces one validated FEN snapshot at its persisted array index. */
+    /** Replaces one FEN snapshot without enforcing chess legality. */
     async updateHistoryFen(req: Request<GameIdParams & { index: string }>, res: Response): Promise<void> {
         try {
             const index = Number(req.params.index);
-            const fen = validatedFen(req.body?.fen);
+            const fen = storedFen(req.body?.fen);
             if (!fen) {
-                res.status(400).json({ error: "Invalid FEN", code: "INVALID_FEN" });
+                res.status(400).json({ error: "FEN value must be a non-empty string", code: "INVALID_FEN" });
                 return;
             }
             const result = await updateHistoryFen(req.params.id, index, fen);
@@ -235,6 +228,35 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to update FEN snapshot" });
+        }
+    },
+
+    /** Replaces a complete FEN sequence without enforcing chess legality. */
+    async replaceHistoryFens(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            if (!Array.isArray(req.body?.fenHistory) || req.body.fenHistory.length === 0 || req.body.fenHistory.length > 1000) {
+                res.status(400).json({ error: "Invalid FEN history", code: "INVALID_FEN_HISTORY" });
+                return;
+            }
+            const fenHistory = req.body.fenHistory.map((value: unknown) => storedFen(value));
+            const invalidIndex = fenHistory.findIndex((fen: string | null) => fen === null);
+            if (invalidIndex >= 0) {
+                res.status(400).json({ error: "FEN value must be a non-empty string", code: "INVALID_FEN", index: invalidIndex });
+                return;
+            }
+            const result = await replaceHistoryFenList(req.params.id, fenHistory as string[]);
+            if (result.status === "not_found") {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "conflict") {
+                res.status(409).json({ error: "FEN history changed; reload and try again" });
+                return;
+            }
+            res.json({ success: true, fenHistory: result.fenHistory });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to replace FEN history" });
         }
     },
 

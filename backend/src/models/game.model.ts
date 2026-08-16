@@ -108,6 +108,8 @@ export type AppendHistoryFenResult =
 
 export type UpdateHistoryFenResult = AppendHistoryFenResult | { status: "invalid_index" };
 
+export type ReplaceHistoryFensResult = AppendHistoryFenResult;
+
 /**
  * Appends one administrator-corrected FEN snapshot. The original array is
  * included in the update predicate so concurrent editors cannot silently
@@ -161,6 +163,27 @@ export async function updateHistoryFen(id: string, index: number, fen: string): 
     );
     if (result.modifiedCount !== 1) return { status: "conflict" };
     return { status: "saved", fenHistory: nextFenHistory };
+}
+
+/** Atomically replaces the complete persisted FEN sequence for an administrator correction. */
+export async function replaceHistoryFens(id: string, fens: string[]): Promise<ReplaceHistoryFensResult> {
+    const filter = historyIdFilter(id, false);
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    if (!record) return { status: "not_found" };
+
+    const hasFenHistory = Array.isArray(record.fenHistory);
+    const fenPredicate = hasFenHistory
+        ? { fenHistory: record.fenHistory }
+        : { fenHistory: { $exists: false } };
+    const result = await pgnGames().updateOne(
+        { $and: [filter, fenPredicate] } as unknown as Filter<Document>,
+        {
+            $set: { fenHistory: fens, updatedAt: new Date() },
+            $unset: { analysis: "" },
+        },
+    );
+    if (result.matchedCount !== 1) return { status: "conflict" };
+    return { status: "saved", fenHistory: fens };
 }
 
 /**
@@ -346,7 +369,22 @@ export async function markHistoryUnfinished(gameID: string): Promise<boolean> {
     return result.modifiedCount === 1;
 }
 
-/** Updates the winner result of a saved history record without changing moves. */
+/** Rewrites both PGN result locations while preserving headers and move text. */
+function replacePgnResult(pgn: string, result: "1-0" | "0-1" | "1/2-1/2"): string {
+    if (!pgn.trim()) return pgn;
+
+    const withHeader = /^\[Result\s+"[^"]*"\]\s*$/m.test(pgn)
+        ? pgn.replace(/^\[Result\s+"[^"]*"\]\s*$/m, `[Result "${result}"]`)
+        : `[Result "${result}"]\n${pgn}`;
+
+    // A standard PGN repeats Result at the end of the movetext. Replace an
+    // existing terminal marker or append one when legacy records omitted it.
+    return /(?:1-0|0-1|1\/2-1\/2|\*)\s*$/.test(withHeader)
+        ? withHeader.replace(/(?:1-0|0-1|1\/2-1\/2|\*)\s*$/, result)
+        : `${withHeader.trimEnd()} ${result}`;
+}
+
+/** Updates a saved history result without changing its moves or board trace. */
 export async function updateHistoryResult(
     id: string,
     result: "1-0" | "0-1" | "1/2-1/2",
@@ -355,11 +393,7 @@ export async function updateHistoryResult(
     if (!record) return false;
 
     const currentPgn = typeof record.pgn === "string" ? record.pgn : "";
-    const pgn = currentPgn
-        ? (/^\[Result\s+"[^"]*"\]\s*$/m.test(currentPgn)
-            ? currentPgn.replace(/^\[Result\s+"[^"]*"\]\s*$/m, `[Result "${result}"]`)
-            : currentPgn.replace(/\s*$/, `\n[Result "${result}"]\n`))
-        : currentPgn;
+    const pgn = replacePgnResult(currentPgn, result);
     const now = new Date();
     const update = await pgnGames().updateOne(
         historyIdFilter(id, false),
@@ -382,7 +416,7 @@ export async function updateHistoryResult(
             { $set: { result, status: "finished", updateAt: now } } as UpdateFilter<GameDoc>,
         );
     }
-    return update.modifiedCount === 1;
+    return update.matchedCount === 1;
 }
 
 export async function moveHistoryToTrash(id: string): Promise<boolean> {
