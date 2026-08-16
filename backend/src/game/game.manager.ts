@@ -161,18 +161,6 @@ export async function makeMove(
   return { status: ERROR_STATUS.INVALID };
 }
 
-/**
- * ESP board snapshots may contain a stale FEN active-color field. When a UCI
- * move is available, the in-memory game is the source of truth for whose turn
- * it was before that move, so the next side is always the opposite color.
- */
-function withExpectedTurn(fen: string, expectedTurn: "w" | "b"): string {
-  const fields = fen.trim().split(/\s+/);
-  if (fields.length < 2) return fen;
-  fields[1] = expectedTurn;
-  return fields.join(" ");
-}
-
 // This function is used to for NFC
 function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], seq: number, fen?: string): MoveState {
   const uci = candidates[0];
@@ -186,14 +174,12 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     ensureRawHistory(gameID, mainGame);
 
     if (fen) {
-      // Board provided a complete FEN — the position is already correct.
-      // Load it directly so the engine matches the physical board.
-      // The UCI describes what was played; do not apply it a second time.
-      // Normalize its turn field because some ESP snapshots retain the
-      // pre-move active color, which would make the web clock run backwards.
-      const expectedTurn = mainGame.turn() === "w" ? "b" : "w";
+      // The board provided the complete position. Load it for in-memory
+      // calculations only; never rewrite any FEN field from the payload.
+      // In particular, the active-color field is owned by the board clock.
+      // The UCI describes what was played, so do not apply it a second time.
       try {
-        mainGame.load(withExpectedTurn(fen, expectedTurn), { skipValidation: true });
+        mainGame.load(fen, { skipValidation: true });
       } catch (e) {
         console.error("[NFC MOVE] Failed to load fen:", fen, e);
       }
@@ -209,7 +195,10 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
 
     // Always record the UCI for PGN generation
     rawMoveHistory.get(gameID)!.push({ from: from as Square, to: to as Square, promotion: promotion as PieceSymbol });
-    rawFenHistory.get(gameID)!.push(mainGame.fen());
+    // Preserve the exact snapshot received from the board. Do not replace it
+    // with chess.js' normalized FEN, which can change counters/turn fields.
+    if (fen) rawFenHistory.get(gameID)!.push(fen);
+    else rawFenHistory.get(gameID)!.push(mainGame.fen());
 
     const baseFen = pgnBaseFen.get(gameID);
     const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen, {}, rawFenHistory.get(gameID));
@@ -218,7 +207,7 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     return {
       status: MOVE_STATUS.OK,
       gameID,
-      fen: mainGame.fen(),
+      fen: fen ?? mainGame.fen(),
       pgn: customPgn,
       lastSeq: seq,
       lastMove: {
@@ -260,7 +249,8 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
       });
     }
 
-    rawFenHistory.get(gameID)!.push(mainGame.fen());
+    // Keep the incoming snapshot unchanged in the durable raw history.
+    rawFenHistory.get(gameID)!.push(fen);
 
     const baseFen = pgnBaseFen.get(gameID);
     const { pgn: customPgn } = customPGN(rawMoveHistory.get(gameID)!, baseFen, {}, rawFenHistory.get(gameID));
@@ -269,7 +259,7 @@ function handleNFCMove(gameID: string, mainGame: Chess, candidates: string[], se
     return {
       status: MOVE_STATUS.OK,
       gameID,
-      fen: mainGame.fen(),
+      fen,
       pgn: customPgn,
       lastSeq: seq,
       lastMove: null,
