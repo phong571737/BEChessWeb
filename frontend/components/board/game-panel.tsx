@@ -47,6 +47,7 @@ interface Props {
     initialTimeMs?: number;
     incrementMs?: number;
     round: number;
+    boardNumber?: string;
     location: string;
 }
 
@@ -60,7 +61,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber,
 }, ref) {
     const { t } = useT();
     const timeControl = classifyTimeControl(initialTimeMs, incrementMs);
@@ -253,6 +254,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                         initialTimeMs={initialTimeMs}
                         incrementMs={incrementMs}
                         round={round}
+                        boardNumber={boardNumber}
                         location={location}
                     />
                 </div>

@@ -10,17 +10,26 @@ export interface GameBranch {
     initialFen?: string;
 }
 
-export interface GameDoc extends Document {
+// Common interface for both active, state and history games
+export interface GameSetupMetadata {
+    /** Chess clock: initial time per side in milliseconds. */
+    initialTimeMs?: number;
+    /** Chess clock increment per move in milliseconds. */
+    incrementMs?: number;
+    round?: number;
+    location?: string;
+    boardNumber?: string;
+}
+
+export interface GameDoc extends Document, GameSetupMetadata {
     gameID: string;
     boardID?: string;
     BlackName?: string;
     WhiteName?: string;
-    location?: string;
     fen?: string;
     pgn?: string;
     lastMove?: unknown;
     lastSeq?: number;
-    round?: number;
     status?: string;
     /** Optimistic-concurrency revision; incremented by every guarded game transition. */
     version?: number;
@@ -43,10 +52,6 @@ export interface GameDoc extends Document {
     /** Legacy chess clock fields in seconds, retained for old documents only. */
     clockSeconds?: number;
     clockIncrement?: number;
-    /** Chess clock: initial time per side in milliseconds. */
-    initialTimeMs?: number;
-    /** Chess clock increment per move in milliseconds. */
-    incrementMs?: number;
     timeControlType?: "blitz" | "rapid" | "classical";
     [key: string]: unknown;
 }
@@ -104,11 +109,8 @@ export interface ResignBody {
     branchId?: string | null;
 }
 
-export interface RenameBody {
+// RenameBody is used to rename information about a game
+export interface RenameBody extends GameSetupMetadata {
     color: string;
     name: string;
-    initialTimeMs?: number;
-    incrementMs?: number;
-    round?: number;
-    location?: string;
 }

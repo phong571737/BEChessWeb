@@ -16,28 +16,34 @@ export interface PhysicalBoard {
     ip?: string | null;
 }
 
+// Common interface for both active, state and history games
+export interface GameSetupMetadata {
+    /** Chess clock configuration in milliseconds. */
+    initialTimeMs?: number;
+    incrementMs?: number;
+    round?: number;
+    location?: string;
+    boardNumber?: string;
+}
+
 /** Active game returned by GET /games/current */
-export interface ActiveGame {
+export interface ActiveGame extends GameSetupMetadata {
     gameID: string;
     WhiteName: string;
     BlackName: string;
-    location?: string;
     fen: string;
     pgn: string;
     initialFen?: string;
     fenHistory?: string[];
     lastMove?: lastMove | null;
     lastSeq: number;
-    round?: number;
     createdAt: string;
     status?: string | null;
     timeControlType?: "blitz" | "rapid" | "classical";
-    initialTimeMs?: number;
-    incrementMs?: number;
 }
 
 /** Completed game returned by GET /games/history */
-export interface HistoryGame {
+export interface HistoryGame extends GameSetupMetadata {
     _id: string;
     WhiteName: string;
     BlackName: string;
@@ -57,8 +63,6 @@ export interface HistoryGame {
     createAt?: string;
     durationSec?: number | null;
     boardID?: string;
-    location?: string;
-    round?: number;
     fenHistory?: string [];
     uciHistory?: string [];
     /** Elapsed thinking time for each ply, aligned with the move histories. */
@@ -74,12 +78,10 @@ export interface HistoryGame {
         moves: MoveAnalysis[];
     };
     timeControlType?: "blitz" | "rapid" | "classical";
-    initialTimeMs?: number;
-    incrementMs?: number;
 }
 
 /** Per-game live state stored in Zustand */
-export interface BoardState {
+export interface BoardState extends GameSetupMetadata {
     fen: string,
     initialFen?: string;
     fenHistory: string[];
@@ -111,12 +113,6 @@ export interface BoardState {
     errorSquares: string[];
     /** Changes on an in-place restart so local UI state, including clocks, can reset. */
     resetRevision?: number;
-
-    /** Chess clock configuration in milliseconds. */
-    initialTimeMs?: number;
-    incrementMs?: number;
-    round?: number;
-    location?: string;
     /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;

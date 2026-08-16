@@ -267,7 +267,7 @@ export function BoardLayoutSwitcher({
             <div
                 className="inline-flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5"
                 role="group"
-                aria-label={t("board.layoutSwitcher")}
+                aria-label={t("settings.boardLayout")}
             >
                 <Button
                     type="button"
@@ -354,7 +354,7 @@ export function BoardLayoutSwitcher({
                                         ? i === 0
                                             ? t("board.slotLeft")
                                             : t("board.slotRight")
-                                        : t("board.slotN", { n: i + 1 })
+                                        : t("common.boardNumber", { n: i + 1 })
                                 }
                                 value={draft[i] ?? ""}
                                 options={pickerGames}

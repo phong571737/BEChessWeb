@@ -62,6 +62,7 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
     await saveHistorySnapshot({
         gameID: game.gameID,
         boardID: game.boardID,
+        boardNumber: game.boardNumber,
         location: game.location,
         pgn: game.pgn ?? "",
         fen: game.fen,
@@ -547,6 +548,7 @@ export async function renamePlayer(
     incrementMs?: number,
     round?: number,
     location?: string,
+    boardNumber?: string
 ) {
     const field = color === "Black" ? "BlackName" : "WhiteName";
     const update: Record<string, unknown> = { [field]: name, updateAt: new Date() };
@@ -563,6 +565,7 @@ export async function renamePlayer(
         );
     }
     if (round !== undefined) update.round = round;
+    if (boardNumber !== undefined) update.boardNumber = boardNumber.trim();
     if (location !== undefined) update.location = location;
     return games().updateOne({ gameID } as Filter<GameDoc>, {
         $set: update,

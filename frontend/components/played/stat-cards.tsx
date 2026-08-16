@@ -30,7 +30,7 @@ export function StatCards({ games }: Props) {
 
   const chartConfig = {
     white: { label: t("played.white"), color: "hsl(var(--state-white))", icon: Crown },
-    draw:  { label: t("played.draw"),  color: "hsl(var(--state-draw))",  icon: Minus },
+    draw:  { label: t("result.draw"),  color: "hsl(var(--state-draw))",  icon: Minus },
     black: { label: t("played.black"), color: "hsl(var(--state-black))", icon: Crown },
   } satisfies ChartConfig;
 
@@ -152,7 +152,7 @@ export function StatCards({ games }: Props) {
               <span className="inline-block w-2 h-2 rounded-full bg-state-white" />{t("played.white")}
             </span>
             <span className="flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-state-draw" />{t("played.draw")}
+          <span className="inline-block w-2 h-2 rounded-full bg-state-draw" />{t("result.draw")}
             </span>
             <span className="flex items-center gap-1">
               <span className="inline-block w-2 h-2 rounded-full bg-state-black" />{t("played.black")}

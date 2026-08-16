@@ -478,22 +478,22 @@ export function GameHistory() {
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                   <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("played.filterPlayers")} className={cn(INPUT_CLS, "pl-8")} />
                 </div></label>
-                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.resultLabel")}</span><select
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("common.result")}</span><select
                   value={resultFilter}
                   onChange={(e) => setResultFilter(e.target.value as "all" | "1-0" | "0-1" | "1/2-1/2")}
                   className={cn(INPUT_CLS, "cursor-pointer")}
                 >
                   <option value="all">{t("played.allResults")}</option>
-                  <option value="1-0">{t("played.whiteWin")}</option>
-                  <option value="0-1">{t("played.blackWin")}</option>
-                  <option value="1/2-1/2">{t("played.draw")}</option>
+                    <option value="1-0">{t("result.whiteWin")}</option>
+                    <option value="0-1">{t("result.blackWin")}</option>
+                    <option value="1/2-1/2">{t("result.draw")}</option>
                 </select></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.status")}</span><select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as "all" | "finished" | "unfinished")} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="all">{t("played.allStatuses")}</option>
                   <option value="finished">{t("played.finished")}</option>
                   <option value="unfinished">{t("played.unfinished")}</option>
                 </select></label>
-                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.board")}</span><select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("common.chessboard")}</span><select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="">{t("played.allBoards")}</option>
                   {boardOptions.map((board) => <option key={board} value={board}>{board}</option>)}
                 </select></label>
@@ -551,7 +551,7 @@ export function GameHistory() {
                       </th>
                       <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         <button type="button" onClick={() => toggleSort("result")} className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "result" && "text-foreground")}>
-                          {t("played.colResult")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "result" ? "opacity-100" : "opacity-40")} />
+                        {t("common.result")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "result" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
                       <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[240px]">
@@ -564,7 +564,7 @@ export function GameHistory() {
                       </th>
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
                         <button type="button" onClick={() => toggleSort("moves")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "moves" && "text-foreground")}>
-                          {t("played.colMoves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
+                        {t("common.moves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
@@ -574,7 +574,7 @@ export function GameHistory() {
                       </th>
                       <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
                         <button type="button" onClick={() => toggleSort("duration")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "duration" && "text-foreground")}>
-                          {t("played.colDuration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
+                        {t("common.duration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
                       {(isAdmin || token) && <th className="w-[116px] px-4 py-2.5" aria-label={t("played.actions")} />}
@@ -690,7 +690,7 @@ export function GameHistory() {
               {t("played.cancel")}
             </button>
             <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmPermanentDelete()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">
-              {busyId ? t("played.deleting") : t("played.deletePermanently")}
+                            {busyId ? t("common.deleting") : t("played.deletePermanently")}
             </button>
           </DialogFooter>
         </DialogContent>
@@ -704,7 +704,7 @@ export function GameHistory() {
           {trashActionError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{trashActionError}</p>}
           <DialogFooter>
             <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingPermanentDeleteAll(false)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">{t("played.cancel")}</button>
-            <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmPermanentDeleteAll()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">{busyId ? t("played.deleting") : t("played.deleteAll")}</button>
+                        <button type="button" disabled={Boolean(busyId)} onClick={() => void confirmPermanentDeleteAll()} className="rounded-md bg-destructive px-3 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50">{busyId ? t("common.deleting") : t("played.deleteAll")}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -726,7 +726,7 @@ export function GameHistory() {
               <p className="mt-1">{t("played.suggestionScore", { score: resultSuggestion.mate !== null ? `M${Math.abs(resultSuggestion.mate)}` : resultSuggestion.cp !== null ? (resultSuggestion.cp / 100).toFixed(2) : "—", depth: resultSuggestion.depth })}</p>
             </div>}
             <label className="space-y-1 text-sm text-muted-foreground">
-              <span>{t("played.resultLabel")}</span>
+                                <span>{t("common.result")}</span>
               <select value={resultValue} onChange={(event) => setResultValue(event.target.value as typeof resultValue)} className={INPUT_CLS}>
                 <option value="1-0">{t("result.whiteWin")}</option>
                 <option value="0-1">{t("result.blackWin")}</option>
@@ -737,7 +737,7 @@ export function GameHistory() {
           {resultError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{resultError}</p>}
           <DialogFooter>
             <button type="button" disabled={Boolean(busyId)} onClick={() => setPendingResultGame(null)} className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted disabled:opacity-50">{t("played.cancel")}</button>
-            <button type="button" disabled={Boolean(busyId)} onClick={() => void updateGameResult()} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{busyId ? t("played.savingResult") : t("played.saveResult")}</button>
+                            <button type="button" disabled={Boolean(busyId)} onClick={() => void updateGameResult()} className="rounded-md bg-primary px-3 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50">{busyId ? t("common.saving") : t("played.saveResult")}</button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

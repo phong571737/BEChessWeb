@@ -36,6 +36,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const [excelImport, setExcelImport] = useState<ExcelGameImport | null>(null);
     const [selectedExcelRow, setSelectedExcelRow] = useState("");
     const [excelError, setExcelError] = useState<string | null>(null);
+    const [boardNumber, setBoardNumber] = useState("");
     const excelInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -48,6 +49,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         if (!row) return;
         setWhite(row.whiteName);
         setBlack(row.blackName);
+        setBoardNumber(row.boardNumber || "");
         if (row.location || imported?.location) setLocation(row.location ?? imported?.location ?? "");
         setExcelError(null);
     };
@@ -86,6 +88,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     incrementMs,
                     round,
                     location: location.trim(),
+                    boardNumber: boardNumber.trim(),
                 }),
             });
             if (!whiteResponse.ok) {
@@ -96,7 +99,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
             const blackResponse = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ color: "Black", name: black.trim() }),
+                body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim() }),
             });
             if (!blackResponse.ok) {
                 const body = await blackResponse.json().catch(() => null);
@@ -110,6 +113,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 incrementMs,
                 round,
                 location: location.trim(),
+                boardNumber: boardNumber.trim(),
             });
 
             invalidateFetchCache(`/games/${gameID}`);
@@ -146,7 +150,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 <div className="space-y-5 py-2 px-0 5">
                     {board && (
                         <p className="text-xs text-muted-foreground">
-                            {t("sg.board")}: <span className="font-medium text-foreground">{board.boardID}</span>
+                    {t("common.chessboard")}: <span className="font-medium text-foreground">{board.boardID}</span>
                         </p>
                     )}
 
@@ -180,7 +184,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             <select id="sg-excel-row" value={selectedExcelRow} onChange={(event) => applyExcelRow(event.target.value)} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
                                 {excelImport.rows.map((row, index) => <option key={`${row.boardNumber}-${index}`} value={index}>{t("sg.excelGameOption", { n: row.boardNumber || String(index + 1), white: row.whiteName || t("sg.unknownPlayer"), black: row.blackName || t("sg.unknownPlayer") })}</option>)}
                             </select>
-                            <p className="text-[11px] text-muted-foreground">{[t("sg.excelBoard", { n: excelImport.rows[Number(selectedExcelRow)]?.boardNumber || t("sg.unknownPlayer") }), excelImport.tournament, excelImport.scheduledAt, excelImport.rows[Number(selectedExcelRow)]?.location].filter(Boolean).join(" · ")}</p>
+                            <p className="text-[11px] text-muted-foreground">{[t("common.boardNumber", { n: excelImport.rows[Number(selectedExcelRow)]?.boardNumber || t("sg.unknownPlayer") }), excelImport.tournament, excelImport.scheduledAt, excelImport.rows[Number(selectedExcelRow)]?.location].filter(Boolean).join(" · ")}</p>
                         </div>
                     )}
                     {excelError && <p className="text-xs text-destructive">{excelError}</p>}
@@ -217,7 +221,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                             </select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="sg-increment">{t("sg.addTime")}</Label>
+                            <Label htmlFor="sg-increment">{t("sg.increment")}</Label>
                             <select
                                 id="sg-increment"
                                 value={incrementMs}

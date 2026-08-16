@@ -180,7 +180,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         paste: t("nav.import"),
         guide: t("nav.guide"),
         // device: t("nav.device"),
-        board: t("app.board"),
+        board: t("common.chessboard"),
         review: t("rev.moveReview"),
         };
         const segs = pathname.split("/").filter(Boolean);

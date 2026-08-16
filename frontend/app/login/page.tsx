@@ -68,7 +68,7 @@ export default function LoginPage() {
                     )}
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">{t("login.email")}</Label>
+                        <Label htmlFor="email">{t("auth.email")}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -81,7 +81,7 @@ export default function LoginPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="password">{t("login.password")}</Label>
+                        <Label htmlFor="password">{t("auth.password")}</Label>
                         <div className="relative">
                             <Input
                                 id="password"
@@ -109,7 +109,7 @@ export default function LoginPage() {
                     </div>
 
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? t("login.loading") : t("login.submit")}
+                        {loading ? t("login.loading") : t("auth.signIn")}
                     </Button>
                 </form>
 

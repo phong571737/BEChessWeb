@@ -80,10 +80,15 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name, initialTimeMs, incrementMs, round, location } = req.body;
+            const { color, name, initialTimeMs, incrementMs, round, boardNumber, location } = req.body;
 
             const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
             const maxIncrementMs = 60 * 60 * 1_000;
+            // Check input validation for optional fields
+            if (boardNumber !== undefined && (typeof boardNumber !== "string" || boardNumber.trim().length > 40)) {
+                res.status(400).json({ error: "boardNumber must be a string no longer than 40 characters" });
+                return;
+            }
             if (initialTimeMs !== undefined && (!Number.isFinite(initialTimeMs) || initialTimeMs <= 0 || initialTimeMs > maxInitialTimeMs)) {
                 res.status(400).json({ error: "initialTimeMs must be a positive number no greater than 24 hours" });
                 return;
@@ -101,7 +106,7 @@ export const GameActionController = {
                 return;
             }
 
-            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim());
+            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim(), boardNumber?.trim(),);
 
             res.json({
                 ok: true

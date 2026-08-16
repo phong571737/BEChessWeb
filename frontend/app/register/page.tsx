@@ -60,7 +60,7 @@ export default function RegisterPage() {
         <div className="min-h-screen flex items-center justify-center p-4">
             <div className="w-full max-w-md space-y-6">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold">{t("register.title")}</h1>
+                    <h1 className="text-2xl font-bold">{t("auth.signUp")}</h1>
                     <p className="text-muted-foreground mt-2">
                         {t("register.subtitle")}
                     </p>
@@ -87,7 +87,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">{t("register.email")}</Label>
+                        <Label htmlFor="email">{t("auth.email")}</Label>
                         <Input
                             id="email"
                             type="email"
@@ -100,7 +100,7 @@ export default function RegisterPage() {
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="password">{t("register.password")}</Label>
+                        <Label htmlFor="password">{t("auth.password")}</Label>
                         <Input
                             id="password"
                             type="password"
@@ -126,14 +126,14 @@ export default function RegisterPage() {
                     </div>
 
                     <Button type="submit" className="w-full" disabled={loading}>
-                        {loading ? t("register.loading") : t("register.submit")}
+                        {loading ? t("register.loading") : t("auth.signUp")}
                     </Button>
                 </form>
 
                 <p className="text-center text-sm text-muted-foreground">
                     {t("register.hasAccount")}{" "}
                     <Link href="/login" className="text-primary hover:underline">
-                        {t("register.loginLink")}
+                        {t("auth.signIn")}
                     </Link>
                 </p>
             </div>

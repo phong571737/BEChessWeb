@@ -270,7 +270,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, resetRevision, round, location, initialFen, fenHistory,
+        initialTimeMs, incrementMs, resetRevision, round, location, initialFen, fenHistory, boardNumber,
     } = useGame(gameID);
     const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
     const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
@@ -620,10 +620,10 @@ export function BoardViewSlot({
                                     </button>
                                     {enableEval && <>
                                         <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveEvaluation(); setCompactSettingsOpen(false); }}>
-                                            <BarChart3 className="size-3.5" />{showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                                            <BarChart3 className="size-3.5" />{showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
                                         </button>
                                         <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveSuggestions(); setCompactSettingsOpen(false); }}>
-                                            {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
+                                            {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
                                         </button>
                                     </>}
                                 </div>
@@ -710,11 +710,11 @@ export function BoardViewSlot({
                     </Button>
                     <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
                         <BarChart3 className="size-3.5" />
-                        {showLiveEvaluation ? t("board.hideEvaluation") : t("board.showEvaluation")}
+                        {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
                     </Button>
                     <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
                         {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
-                        {showLiveSuggestions ? t("board.hideSuggestionsOnly") : t("board.showSuggestionsOnly")}
+                        {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
                     </Button>
                 </div>
             )}
@@ -788,6 +788,7 @@ export function BoardViewSlot({
                                 initialTimeMs={initialTimeMs}
                                 incrementMs={incrementMs}
                                 round={round}
+                                boardNumber={boardNumber}
                                 location={location}
                             />
                         </div>

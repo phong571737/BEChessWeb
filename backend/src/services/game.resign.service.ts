@@ -121,6 +121,7 @@ export const GameResignService = {
         const doc = {
             gameID,
             boardID: game.boardID,
+            boardNumber: game.boardNumber,
             location: game.location,
             pgn: finalPGN,
             initialFen: game.initialFen,

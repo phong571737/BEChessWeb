@@ -141,6 +141,7 @@ export function useGame(gameID: string) {
                     initialTimeMs: game.initialTimeMs ?? (Number.isFinite(game.clockSeconds) ? game.clockSeconds * 1_000 : undefined),
                     incrementMs: game.incrementMs ?? (Number.isFinite(game.clockIncrement) ? game.clockIncrement * 1_000 : undefined),
                     round: game.round ?? 1,
+                    boardNumber: game.boardNumber ?? "",
                     location: game.location ?? "",
                 })
                 setIsLoaded(true);
@@ -364,12 +365,13 @@ export function useGame(gameID: string) {
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number, round: number, location: string }> = {};
+            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string }> = {};
             if (data.WhiteName !== undefined) patch.WhiteName = data.WhiteName;
             if (data.BlackName !== undefined) patch.BlackName = data.BlackName;
             if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
             if (data.incrementMs !== undefined) patch.incrementMs = data.incrementMs;
             if (data.round !== undefined) patch.round = data.round;
+            if (data.boardNumber !== undefined) patch.boardNumber = data.boardNumber;
             if (data.location !== undefined) patch.location = data.location;
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
@@ -586,6 +588,7 @@ export function useGame(gameID: string) {
         incrementMs: board?.incrementMs,
         round: board?.round ?? 1,
         location: board?.location ?? "",
+        boardNumber: board?.boardNumber ?? "",
         resetRevision: board?.resetRevision,
     }
 }

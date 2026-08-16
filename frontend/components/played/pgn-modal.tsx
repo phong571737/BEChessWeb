@@ -1,7 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Copy, Download, Clock, Hash, Trophy, Calendar, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Download, Clock, Hash, Trophy, 
+  Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
+  ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
+  CircuitBoard} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -865,6 +868,11 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  const resultScore = game.Result === "1-0" ||
+   game.Result === "0-1" || 
+   game.Result === "1/2-1/2" 
+   ? game.Result : "*";
+
   return (
     <>
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
@@ -885,28 +893,48 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         </div>
 
         {/* Info grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 px-4 sm:px-5 pt-4">
+        <div className="grid grid-cols-2 gap-2 px-4 pt-4 sm:px-5 md:grid-cols-3 2xl:grid-cols-6">
+          {/* Duration */}
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <Clock className="h-3 w-3" />
-              {t("rev.duration")}
+                        {t("common.duration")}
             </div>
             <span className="text-sm font-medium font-mono">{formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}</span>
           </div>
+          {/* Moves */}
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <Hash className="h-3 w-3" />
-              {t("rev.moves")}
+                        {t("common.moves")}
             </div>
             <span className="text-sm font-medium">{Math.max(game.totalPlies ?? 0, game.totalMoves ?? 0, Math.max(0, timeline.length - 1), Math.max(0, (game.fenHistory?.length ?? 0)))}</span>
           </div>
+          {/* Round */}
+          <div className="rounded-sm border border-border bg-muted p-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+              <ListOrdered className="h-3 w-3" />
+              {t("rev.round")}
+            </div>
+            <span className="text-sm font-medium">{game.round ?? "-"}</span>
+          </div>
+          {/* Board */}
+          <div className="rounded-sm border border-border bg-muted p-3">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+              <CircuitBoard className="h-3 w-3" />
+              {t("rev.board")}
+            </div>
+            <span className="text-sm font-medium">{game.boardNumber?.trim() || "-"}</span>
+          </div>
+          {/* Result */}
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <Trophy className="h-3 w-3" />
-              {t("rev.result")}
+                        {t("common.result")}
             </div>
-            <span className="text-sm font-medium">{resultText}</span>
+            <span className="text-sm font-medium">{resultScore}</span>
           </div>
+          {/* Started */}
           <div className="rounded-sm border border-border bg-muted p-3">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
               <Calendar className="h-3 w-3" />
@@ -914,6 +942,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </div>
             <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date)}</span>
           </div>
+
         </div>
 
         <div className="px-4 sm:px-5 py-3">
@@ -925,11 +954,11 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
           <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto">
             <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
-              {showHistoryEvaluation ? t("rev.hideEvaluation") : t("rev.showEvaluation")}
+                            {showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
             </Button>
             <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
               {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
-              {showHistorySuggestions ? t("rev.hideSuggestionsOnly") : t("rev.showSuggestionsOnly")}
+                            {showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
@@ -1221,7 +1250,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                 {t("played.cancel")}
               </Button>
               <Button variant="destructive" onClick={() => void deleteFenSnapshot()} disabled={deletingFen}>
-                {deletingFen ? t("rev.deletingFen") : t("rev.deleteFen")}
+                                {deletingFen ? t("common.deleting") : t("rev.deleteFen")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -1256,7 +1285,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                 {t("played.cancel")}
               </Button>
               <Button onClick={() => void saveFenSnapshot()} disabled={savingFen || !fenEditor?.value.trim()}>
-                {savingFen ? t("rev.savingFen") : t("rev.saveFen")}
+                                {savingFen ? t("common.saving") : t("rev.saveFen")}
               </Button>
             </DialogFooter>
           </DialogContent>
