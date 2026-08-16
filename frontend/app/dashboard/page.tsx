@@ -85,7 +85,7 @@ export default function DashboardPage() {
             const id = game.boardID || t("dashboard.unknownBoard");
             const current = map.get(id) ?? { id, games: 0, moves: 0, duration: 0 };
             current.games += 1;
-            current.moves += game.totalMoves ?? game.totalPlies ?? 0;
+            current.moves += game.totalMoves ?? game.fenHistory?.length ?? game.uciHistory?.length ?? 0;
             current.duration += durationOf(game);
             map.set(id, current);
             return map;

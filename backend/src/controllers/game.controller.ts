@@ -6,6 +6,7 @@ import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
+import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
 
 /** Normalizes an administrator-supplied snapshot without enforcing chess legality. */
 function storedFen(value: unknown): string | null {
@@ -15,9 +16,20 @@ function storedFen(value: unknown): string | null {
 }
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
+    const { totalMoves: _legacyTotalMoves, totalPlies: _legacyTotalPlies, ...storedRecord } = record;
+    const whiteName = String(record.whiteName ?? record.WhiteName ?? record.White ?? "White");
+    const blackName = String(record.blackName ?? record.BlackName ?? record.Black ?? "Black");
+    const result = String(record.result ?? record.Result ?? "*");
     return {
-        ...record,
+        ...storedRecord,
         _id: typeof record._id === "string" ? record._id : record._id?.toString?.() ?? "",
+        whiteName,
+        blackName,
+        WhiteName: whiteName,
+        BlackName: blackName,
+        result,
+        Result: result,
+        currentFen: currentHistoryFen(record),
         timeControlType: resolveTimeControlType(record.initialTimeMs, record.incrementMs, record.timeControlType),
     };
 }
@@ -48,12 +60,7 @@ export const GameController = {
                 .sort({ createdAt: -1 }) // newest
                 .toArray())
                 .filter((row) => {
-                    const totalPlies = Math.max(
-                        Number(row.totalMoves ?? 0),
-                        Number(row.totalPlies ?? 0),
-                        Array.isArray(row.uciHistory) ? row.uciHistory.length : 0,
-                        Array.isArray(row.fenHistory) ? row.fenHistory.length : 0,
-                    );
+                    const totalPlies = countHistoryPlies(row);
                     return Number.isFinite(totalPlies) && totalPlies > 0;
                 });
 
@@ -75,8 +82,10 @@ export const GameController = {
                 if (!live) return snapshot;
                 return {
                     ...snapshot,
-                    WhiteName: live.WhiteName || snapshot.WhiteName || "White",
-                    BlackName: live.BlackName || snapshot.BlackName || "Black",
+                    whiteName: live.whiteName || live.WhiteName || snapshot.whiteName || snapshot.WhiteName || "White",
+                    blackName: live.blackName || live.BlackName || snapshot.blackName || snapshot.BlackName || "Black",
+                    WhiteName: live.whiteName || live.WhiteName || snapshot.whiteName || snapshot.WhiteName || "White",
+                    BlackName: live.blackName || live.BlackName || snapshot.blackName || snapshot.BlackName || "Black",
                     pgn: live.pgn || snapshot.pgn || "",
                     initialFen: live.initialFen || snapshot.initialFen,
                     uciHistory: Array.isArray(live.uciHistory) && live.uciHistory.length ? live.uciHistory : snapshot.uciHistory ?? [],
@@ -86,8 +95,6 @@ export const GameController = {
                     location: live.location || snapshot.location,
                     Date: snapshot.Date || live.startedAt || live.createdAt,
                     round: live.round ?? snapshot.round,
-                    totalMoves: live.lastSeq ?? live.totalMoves ?? snapshot.totalMoves ?? 0,
-                    totalPlies: live.lastSeq ?? live.totalMoves ?? snapshot.totalPlies ?? 0,
                     startedAt: live.startedAt || snapshot.startedAt,
                     lastMoveAt: live.lastMoveAt || snapshot.lastMoveAt,
                     durationSec: live.durationSec ?? snapshot.durationSec,

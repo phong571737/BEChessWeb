@@ -93,7 +93,7 @@ export function GameHistory() {
       Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
       Date: g.Date || headers["Date"] || g.createdAt || "",
       createdAt: g.createdAt || g.startedAt || g.createAt,
-      totalMoves: g.totalMoves ?? legacy.lastSeq ?? g.totalPlies ?? g.uciHistory?.length ?? g.fenHistory?.length ?? 0,
+      totalMoves: g.fenHistory?.length ?? g.uciHistory?.length ?? legacy.lastSeq ?? 0,
     };
   }, []);
 

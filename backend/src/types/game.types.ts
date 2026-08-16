@@ -26,7 +26,11 @@ export interface GameDoc extends Document, GameSetupMetadata {
     boardID?: string;
     BlackName?: string;
     WhiteName?: string;
+    /** Canonical names for new records; legacy capitalized fields remain readable. */
+    whiteName?: string;
+    blackName?: string;
     fen?: string;
+    currentFen?: string;
     pgn?: string;
     lastMove?: unknown;
     lastSeq?: number;
@@ -36,7 +40,6 @@ export interface GameDoc extends Document, GameSetupMetadata {
     /** Temporary atomic state used while a resignation is being finalized. */
     resigningAt?: Date | null;
     result?: string;
-    totalMoves?: number;
     branches?: GameBranch[];
     uciHistory?: string[];
     fenHistory?: string[];

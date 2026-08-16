@@ -908,7 +908,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               <Hash className="h-3 w-3" />
                         {t("common.moves")}
             </div>
-            <span className="text-sm font-medium">{Math.max(game.totalPlies ?? 0, game.totalMoves ?? 0, Math.max(0, timeline.length - 1), Math.max(0, (game.fenHistory?.length ?? 0)))}</span>
+            <span className="text-sm font-medium">{Math.max(game.totalMoves ?? 0, timeline.length, game.fenHistory?.length ?? 0)}</span>
           </div>
           {/* Round */}
           <div className="rounded-sm border border-border bg-muted p-3">

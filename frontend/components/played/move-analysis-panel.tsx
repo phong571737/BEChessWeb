@@ -86,7 +86,6 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
       const hasGameMoves = Boolean(
         game.uciHistory?.length
         || game.fenHistory?.length
-        || game.totalPlies
         || game.totalMoves
         || game.pgn?.trim(),
       );

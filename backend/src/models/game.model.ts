@@ -2,6 +2,7 @@ import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
 import { GameDoc, SaveGameOptions } from "../types/game.types.js"
 import { classifyTimeControl } from "../utils/time-control.js";
+import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
 
 
 const games = (): Collection<GameDoc> => getDB().collection<GameDoc>("games");
@@ -36,6 +37,9 @@ export async function saveHistorySnapshot(doc: Document): Promise<void> {
     const now = new Date();
     const { createdAt, ...historyFields } = doc;
     delete historyFields._id;
+    // Counter fields are derived from fenHistory and are not persisted.
+    delete historyFields.totalMoves;
+    delete historyFields.totalPlies;
     await pgnGames().updateOne(
         { _id: gameID, deletedAt: { $exists: false } } as unknown as Filter<Document>,
         {
@@ -55,7 +59,7 @@ function pgnDate(value: unknown, fallback = new Date()): string {
 /** Mirrors durable live-game metadata into its in-progress history record. */
 export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void> {
     const now = new Date();
-    const totalPlies = game.lastSeq ?? game.uciHistory?.length ?? game.fenHistory?.length ?? 0;
+    const totalPlies = countHistoryPlies(game);
     // Do not create history rows for a game that has not accepted its first
     // move yet. Such rows are setup/restart placeholders, not playable games.
     if (totalPlies <= 0) return;
@@ -65,17 +69,21 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         boardNumber: game.boardNumber,
         location: game.location,
         pgn: game.pgn ?? "",
-        fen: game.fen,
+        fen: currentHistoryFen(game),
+        currentFen: currentHistoryFen(game),
         initialFen: game.initialFen,
         lastMove: game.lastMove ?? null,
         lastSeq: totalPlies,
-        totalMoves: totalPlies,
-        totalPlies,
         uciHistory: game.uciHistory ?? [],
         fenHistory: game.fenHistory ?? [],
         moveDurationsMs: game.moveDurationsMs ?? [],
-        WhiteName: game.WhiteName ?? "White",
-        BlackName: game.BlackName ?? "Black",
+        whiteName: game.whiteName ?? game.WhiteName ?? "White",
+        blackName: game.blackName ?? game.BlackName ?? "Black",
+        // Legacy aliases are retained in the snapshot response during the
+        // migration window; new canonical data is stored in lowercase fields.
+        WhiteName: game.whiteName ?? game.WhiteName ?? "White",
+        BlackName: game.blackName ?? game.BlackName ?? "Black",
+        result: "*",
         Result: "*",
         Date: pgnDate(game.startedAt ?? game.createdAt, now),
         round: game.round ?? 1,
@@ -332,15 +340,11 @@ export async function removeGameByBoardID(boardID: string) {
 export async function endGame(doc: Document) {
     const gameID = doc.gameID;
     if (typeof gameID !== "string" || !gameID) {
-        return getPGNCollections().insertOne(doc);
+        const { totalMoves: _legacyTotalMoves, totalPlies: _legacyTotalPlies, ...cleanDoc } = doc;
+        return getPGNCollections().insertOne(cleanDoc);
     }
 
-    const totalPlies = Math.max(
-        Number(doc.totalMoves ?? 0),
-        Number(doc.totalPlies ?? 0),
-        Array.isArray(doc.uciHistory) ? doc.uciHistory.length : 0,
-        Array.isArray(doc.fenHistory) ? doc.fenHistory.length : 0,
-    );
+    const totalPlies = countHistoryPlies(doc as GameDoc);
     if (!Number.isFinite(totalPlies) || totalPlies <= 0) {
         // A resign/draw received before the first move must not leave an
         // empty history record behind.
@@ -349,6 +353,8 @@ export async function endGame(doc: Document) {
 
     const { createdAt, ...historyFields } = doc;
     delete historyFields._id;
+    delete historyFields.totalMoves;
+    delete historyFields.totalPlies;
     // A move may already have created a live snapshot. Finalization updates
     // that same deterministic record instead of creating another history row.
     return getPGNCollections().updateOne(
@@ -365,7 +371,7 @@ export async function endGame(doc: Document) {
 export async function markHistoryUnfinished(gameID: string): Promise<boolean> {
     const result = await pgnGames().updateOne(
         { _id: gameID } as unknown as Filter<Document>,
-        { $set: { Result: "*", historyStatus: "finished", outcomeStatus: "unconfirmed", updatedAt: new Date() } },
+        { $set: { result: "*", Result: "*", historyStatus: "finished", outcomeStatus: "unconfirmed", updatedAt: new Date() } },
     );
     return result.modifiedCount === 1;
 }
@@ -401,6 +407,7 @@ export async function updateHistoryResult(
         {
             $set: {
                 Result: result,
+                result,
                 outcomeStatus: "confirmed",
                 historyStatus: "finished",
                 endedAt: record.endedAt ?? now,
@@ -551,7 +558,12 @@ export async function renamePlayer(
     boardNumber?: string
 ) {
     const field = color === "Black" ? "BlackName" : "WhiteName";
-    const update: Record<string, unknown> = { [field]: name, updateAt: new Date() };
+    const canonicalField = color === "Black" ? "blackName" : "whiteName";
+    const update: Record<string, unknown> = {
+        [field]: name,
+        [canonicalField]: name,
+        updateAt: new Date(),
+    };
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
     if (initialTimeMs !== undefined || incrementMs !== undefined) {

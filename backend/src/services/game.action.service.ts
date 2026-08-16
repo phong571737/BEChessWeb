@@ -30,7 +30,6 @@ export const GameActionService = {
             pgn: "",
             lastMove: null,
             lastSeq: 0,
-            totalMoves: 0,
             result: "*",
             status: "waiting",
             startedAt: null,

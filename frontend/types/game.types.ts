@@ -50,7 +50,6 @@ export interface HistoryGame extends GameSetupMetadata {
     Result: "1-0" | "0-1" | "1/2-1/2" | "*";
     Date: string;
     totalMoves: number;
-    totalPlies?: number;
     pgn: string;
     initialFen?: string;
     createdAt?: string;
