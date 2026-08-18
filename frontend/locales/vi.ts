@@ -223,6 +223,8 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.reviewSource": "Nguồn xem lại",
     "rev.basePgn": "FEN gốc",
     "rev.recoveryBranch": "Nhánh khôi phục {number}",
+    "recovery.showMoreBranches": "Xem thêm {count} nhánh",
+    "recovery.showFewerBranches": "Thu gọn danh sách nhánh",
     "rev.plyCount": "{count} ply",
     "rev.plyProgress": "Ply {current}/{total}",
     "rev.branchDifference": "ply {ply}: {move}",

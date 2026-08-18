@@ -75,6 +75,9 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
         if moving_piece is None or after.piece_at(from_square) == moving_piece:
             continue
         for to_square in changed:
+            destination_piece = before.piece_at(to_square)
+            if destination_piece is not None and destination_piece.color == moving_piece.color:
+                continue
             arrived_piece = after.piece_at(to_square)
             if arrived_piece is None or not _same_moving_piece(moving_piece, arrived_piece):
                 continue

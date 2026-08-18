@@ -23,6 +23,8 @@ import {
 import { parseUciBranches, BranchResult, ParseUciResult } from "./parse-uci";
 import { cn } from "@/lib/utils";
 
+const MAX_VISIBLE_RECOVERY_BRANCHES = 5;
+
 function extractFenHistory(input: string): string[] | null {
     const lines = input.split(/\r?\n|;\s*/).map((line) => line.trim()).filter(Boolean);
     if (lines.length === 0) return null;
@@ -41,6 +43,76 @@ function pgnMoves(pgn: string): string[] {
         .replace(/\{[^}]*\}/g, "").split(/\s+/).filter((token) => token && !/^\d+\.{1,3}$/.test(token));
 }
 
+interface RecoveryApiLine {
+    uciMoves: string[];
+    sanMoves: string[];
+    movetext?: string;
+}
+
+interface RecoveryApiResponse {
+    pgn?: string;
+    fullyRecovered?: boolean;
+    failedPlies?: number[];
+    longestRecoveredPly?: number;
+    bestMoveLists?: unknown;
+}
+
+function isRecoveryApiLine(value: unknown): value is RecoveryApiLine {
+    if (!value || typeof value !== "object") return false;
+    const line = value as Partial<RecoveryApiLine>;
+    return Array.isArray(line.uciMoves) && Array.isArray(line.sanMoves);
+}
+
+function recoveryLinePgn(basePgn: string, line: RecoveryApiLine): string {
+    const headers = basePgn
+        .split(/\r?\n/)
+        .filter((row) => row.trim().startsWith("["))
+        .join("\n");
+    const movetext = line.movetext?.trim() || line.sanMoves.map((san, index) => {
+        const moveNumber = Math.floor(index / 2) + 1;
+        return `${index % 2 === 0 ? `${moveNumber}.` : `${moveNumber}...`} ${san}`;
+    }).join("\n");
+    return `${headers}\n\n${movetext}`;
+}
+
+function recoveryResult(data: RecoveryApiResponse, fenHistory: string[]): ParseUciResult {
+    if (!data.pgn) throw new Error("empty");
+    const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
+    const recoveryLines = Array.isArray(data.bestMoveLists)
+        ? data.bestMoveLists.filter(isRecoveryApiLine)
+        : [];
+    const branches: BranchResult[] = recoveryLines.map((line) => {
+        const skipped = line.uciMoves.flatMap((token, index) =>
+            token === "X" ? [{ token, ply: index + 1 }] : []
+        );
+        return {
+            pgn: recoveryLinePgn(data.pgn!, line),
+            sanHistory: line.sanMoves,
+            skipped,
+            appliedCount: line.uciMoves.length - skipped.length,
+            totalTokens: line.uciMoves.length,
+            underpromotions: 0,
+        };
+    });
+    if (branches.length === 0) {
+        branches.push({
+            pgn: data.pgn,
+            sanHistory: pgnMoves(data.pgn),
+            skipped: failedPlies.map((ply) => ({ token: "X", ply })),
+            appliedCount: Math.max(0, fenHistory.length - failedPlies.length),
+            totalTokens: fenHistory.length,
+            underpromotions: 0,
+        });
+    }
+    return {
+        branches,
+        mode: "fen",
+        fullyRecovered: data.fullyRecovered === true,
+        failedPlies,
+        longestRecoveredPly: data.longestRecoveredPly,
+    };
+}
+
 export function PasteGame() {
     const { t } = useT();
     const [rawInput, setRawInput] = useState("");
@@ -53,6 +125,7 @@ export function PasteGame() {
     const [parseError, setParseError] = useState<string | null>(null);
     const [fenError, setFenError] = useState<string | null>(null);
     const [isFenRecovering, setIsFenRecovering] = useState(false);
+    const [showAllRecoveryBranches, setShowAllRecoveryBranches] = useState(false);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -70,6 +143,10 @@ export function PasteGame() {
     }
 
     const activeBranch = useMemo(() => result?.branches[selectedBranch], [result, selectedBranch]);
+    const visibleBranches = useMemo(() => {
+        if (!result || result.mode !== "fen" || showAllRecoveryBranches) return result?.branches ?? [];
+        return result.branches.slice(0, MAX_VISIBLE_RECOVERY_BRANCHES);
+    }, [result, showAllRecoveryBranches]);
 
     const tokenCount = useMemo(() => {
         return rawInput.trim().split(/\s+/).filter(Boolean).length;
@@ -83,6 +160,7 @@ export function PasteGame() {
         setCopiedBranch(null);
         setParseError(null);
         setFenError(null);
+        setShowAllRecoveryBranches(false);
         textareaRef.current?.focus();
     }
 
@@ -93,18 +171,9 @@ export function PasteGame() {
             body: JSON.stringify({ fenHistory }),
         });
         if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
-        const data = await response.json() as { pgn?: string; fullyRecovered?: boolean; failedPlies?: number[]; longestRecoveredPly?: number };
-        if (!data.pgn) throw new Error("empty");
-        const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
-        const branch: BranchResult = {
-            pgn: data.pgn,
-            sanHistory: pgnMoves(data.pgn),
-            skipped: failedPlies.map((ply) => ({ token: "X", ply })),
-            appliedCount: Math.max(0, fenHistory.length - failedPlies.length),
-            totalTokens: fenHistory.length,
-            underpromotions: 0,
-        };
-        setResult({ branches: [branch], mode: "fen", fullyRecovered: data.fullyRecovered === true, failedPlies, longestRecoveredPly: data.longestRecoveredPly });
+        const data = await response.json() as RecoveryApiResponse;
+        setResult(recoveryResult(data, fenHistory));
+        setShowAllRecoveryBranches(false);
     }
 
     async function handleParse() {
@@ -137,18 +206,9 @@ export function PasteGame() {
                 body: JSON.stringify({ fenHistory, strict: true }),
             });
             if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
-            const data = await response.json() as { pgn?: string; fullyRecovered?: boolean; failedPlies?: number[]; longestRecoveredPly?: number };
-            if (!data.pgn) throw new Error("failed");
-            const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
-            const branch: BranchResult = {
-                pgn: data.pgn,
-                sanHistory: pgnMoves(data.pgn),
-                skipped: failedPlies.map((ply) => ({ token: "X", ply })),
-                appliedCount: Math.max(0, fenHistory.length - failedPlies.length),
-                totalTokens: fenHistory.length,
-                underpromotions: 0,
-            };
-            setResult({ branches: [branch], mode: "fen", fullyRecovered: data.fullyRecovered === true, failedPlies, longestRecoveredPly: data.longestRecoveredPly });
+            const data = await response.json() as RecoveryApiResponse;
+            setResult(recoveryResult(data, fenHistory));
+            setShowAllRecoveryBranches(false);
             setSelectedBranch(0);
             setCopiedBranch(null);
         } catch (error) {
@@ -528,7 +588,7 @@ export function PasteGame() {
                                             {t("pg.listbranch")} ({result.branches.length})
                                         </span>
                                         <div className="flex flex-col gap-1.5 max-h-[220px] overflow-y-auto pr-0.5">
-                                            {result.branches.map((branch, idx) => (
+                                            {visibleBranches.map((branch, idx) => (
                                                 <button
                                                     key={idx}
                                                     type="button"
@@ -572,6 +632,20 @@ export function PasteGame() {
                                                     </span>
                                                 </button>
                                             ))}
+                                            {result.mode === "fen" && result.branches.length > MAX_VISIBLE_RECOVERY_BRANCHES && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (showAllRecoveryBranches && selectedBranch >= MAX_VISIBLE_RECOVERY_BRANCHES) setSelectedBranch(0);
+                                                        setShowAllRecoveryBranches((expanded) => !expanded);
+                                                    }}
+                                                    className="self-center rounded-sm border border-border bg-background-secondary px-3 py-1.5 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                                                >
+                                                    {showAllRecoveryBranches
+                                                        ? t("recovery.showFewerBranches")
+                                                        : t("recovery.showMoreBranches", { count: result.branches.length - MAX_VISIBLE_RECOVERY_BRANCHES })}
+                                                </button>
+                                            )}
                                         </div>
                                     </div>
                                 )}

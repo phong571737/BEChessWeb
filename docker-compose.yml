@@ -13,7 +13,8 @@ services:
 
   recover-service:
     build:
-      context: ./recover_service
+      context: .
+      dockerfile: recover_service/Dockerfile
     container_name: chess-recover-service
     expose:
       - "8000"

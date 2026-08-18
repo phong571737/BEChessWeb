@@ -22,3 +22,4 @@ class RecoverRequest(BaseModel):
 
 class ErrorResponse(BaseModel):
     detail: str
+    code: str

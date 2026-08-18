@@ -2,10 +2,11 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-COPY requirements.txt ./
+COPY recover_service/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . ./recover_service
+COPY recover_service ./recover_service
+COPY recover_service_v2/__init__.py recover_service_v2/recovery.py ./recover_service_v2/
 
 EXPOSE 8000
 

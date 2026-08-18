@@ -35,6 +35,7 @@ interface RecoveryLine {
   sanMoves: string[];
   assumedFens: string[];
   moveSources?: string[];
+  movetext?: string;
 }
 
 interface RecoveryStep {
@@ -63,6 +64,7 @@ interface ReviewMove {
 
 type RecoveryStatus = "idle" | "loading" | "ready" | "unavailable" | "branch_limit" | "timeout" | "error";
 type ReviewSource = "base" | number;
+const MAX_VISIBLE_RECOVERY_BRANCHES = 5;
 
 function isRecoveryLine(value: unknown): value is RecoveryLine {
   if (!value || typeof value !== "object") return false;
@@ -141,24 +143,28 @@ const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
-  const initialFen = game.initialFen ?? DEFAULT_FEN;
-  const chess = new Chess(initialFen, { skipValidation: true });
-  chess.setHeader("Event", savedHeaders.Event || "?");
-  chess.setHeader("Site", game.location?.trim() || savedHeaders.Site || "?");
-  chess.setHeader("Date", savedHeaders.Date || game.Date || "????.??.??");
-  chess.setHeader("Round", String(game.round ?? savedHeaders.Round ?? "1"));
-  chess.setHeader("White", game.WhiteName || savedHeaders.White || "White");
-  chess.setHeader("Black", game.BlackName || savedHeaders.Black || "Black");
-  chess.setHeader("Result", game.Result || "*");
+  const headerValues: Record<string, string> = {
+    Event: savedHeaders.Event || "?",
+    Site: game.location?.trim() || savedHeaders.Site || "?",
+    Date: savedHeaders.Date || game.Date || "????.??.??",
+    Round: String(game.round ?? savedHeaders.Round ?? "1"),
+    White: game.WhiteName || savedHeaders.White || "White",
+    Black: game.BlackName || savedHeaders.Black || "Black",
+    Result: game.Result || "*",
+  };
   if (game.initialFen) {
-    chess.setHeader("SetUp", "1");
-    chess.setHeader("FEN", game.initialFen);
+    headerValues.SetUp = "1";
+    headerValues.FEN = game.initialFen;
   }
-  for (const uci of line.uciMoves) {
-    if (!/^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci)) continue;
-    chess.move({ from: uci.slice(0, 2), to: uci.slice(2, 4), promotion: uci.slice(4, 5) || undefined });
-  }
-  return chess.pgn();
+  const headers = Object.entries(headerValues)
+    .map(([name, value]) => `[${name} "${value.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"]`)
+    .join("\n");
+  const movetext = line.movetext?.trim() || line.sanMoves.reduce<string[]>((rows, san, index) => {
+    const moveNumber = Math.floor(index / 2) + 1;
+    rows.push(`${index % 2 === 0 ? `${moveNumber}.` : `${moveNumber}...`} ${san}`);
+    return rows;
+  }, []).join("\n");
+  return `${headers}\n\n${movetext}`;
 }
 
 export function PGNReviewContent({ game }: ReviewProps) {
@@ -185,6 +191,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   const [processedToInputIndexes, setProcessedToInputIndexes] = useState<number[][]>([]);
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
+  const [showAllRecoveryBranches, setShowAllRecoveryBranches] = useState(false);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
@@ -245,6 +252,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
         setSelectedSource("base");
+        setShowAllRecoveryBranches(false);
         setRecoveryStatus("ready");
       })
       .catch((error: unknown) => {
@@ -307,41 +315,34 @@ export function PGNReviewContent({ game }: ReviewProps) {
         return out;
       }
 
-      // A recovered branch is an independent legal game line. Rebuild every
-      // board from its generated PGN instead of pairing it with original FENs.
-      try {
-        const parsed = new Chess();
-        parsed.loadPgn(reviewPgn);
-        const pgnStartFen = readPgnHeaders(reviewPgn).FEN || DEFAULT_FEN;
-        const temp = new Chess(pgnStartFen, { skipValidation: true });
-        const out: ReviewMove[] = [
-          { fen: temp.fen(), san: "start", lastMove: null, originalPly: 0 },
-        ];
-        const moves = parsed.history({ verbose: true });
-        moves.forEach((move, index) => {
-          const applied = temp.move({ from: move.from, to: move.to, promotion: move.promotion });
-          const step = recoverySteps[index];
-          const moveSource = selectedRecoveryLine?.moveSources?.[index];
-          const processedIndexes = step?.originalPly
-            ? processedToInputIndexes[step.originalPly - 1] ?? []
-            : [];
-          out.push({
-            fen: temp.fen(),
-            san: move.san,
-            lastMove: applied ? { from: applied.from, to: applied.to } : null,
-            originalPly: processedIndexes.length > 0
-              ? processedIndexes[0]! + 1
-              : step?.originalPly ?? null,
-            fenFallback: true,
-            padding: step?.synthetic === true || moveSource === "padding_assumed",
-            assumed: moveSource === "assumed" || moveSource === "retry_assumed",
-            deduplicatedFenCount: processedIndexes.length > 1 ? processedIndexes.length : 0,
-          });
+      // V2 branches may contain X. Their FEN references remain navigable even
+      // when a continuous legal PGN replay is impossible.
+      if (!selectedRecoveryLine) return [initial];
+      const out: ReviewMove[] = [initial];
+      selectedRecoveryLine.sanMoves.forEach((san, index) => {
+        const step = recoverySteps[index];
+        const moveSource = selectedRecoveryLine.moveSources?.[index];
+        const originalPly = step?.originalPly ?? null;
+        const processedIndex = originalPly === null
+          ? -1
+          : processedToInputIndexes.findIndex((indexes) => indexes.includes(originalPly - 1));
+        const processedIndexes = processedIndex >= 0 ? processedToInputIndexes[processedIndex] ?? [] : [];
+        const uci = selectedRecoveryLine.uciMoves[index] ?? "X";
+        const fen = selectedRecoveryLine.assumedFens[index] ?? out[out.length - 1]!.fen;
+        out.push({
+          fen,
+          san,
+          lastMove: /^[a-h][1-8][a-h][1-8][qrbn]?$/.test(uci)
+            ? { from: uci.slice(0, 2), to: uci.slice(2, 4) }
+            : null,
+          originalPly,
+          fenFallback: true,
+          padding: step?.synthetic === true || moveSource === "padded" || moveSource === "padding_assumed",
+          assumed: moveSource === "assumed" || moveSource === "unresolved" || moveSource === "retry_assumed",
+          deduplicatedFenCount: processedIndexes.length > 1 ? processedIndexes.length : 0,
         });
-        return out;
-      } catch {
-        return [initial];
-      }
+      });
+      return out;
     }
     // Records without FEN snapshots can only be displayed from the recovered
     // PGN text itself. This path is uncommon and still uses the sidecar PGN
@@ -414,6 +415,9 @@ export function PGNReviewContent({ game }: ReviewProps) {
     }
     return null;
   }), [recoveryLines]);
+  const visibleRecoveryLines = showAllRecoveryBranches
+    ? recoveryLines
+    : recoveryLines.slice(0, MAX_VISIBLE_RECOVERY_BRANCHES);
 
   const selectReviewSource = useCallback((source: ReviewSource) => {
     if (source === selectedSource) return;
@@ -424,6 +428,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
   useEffect(() => {
     setCursor(-1);
     setSelectedSource("base");
+    setShowAllRecoveryBranches(false);
     setReviewAnalysisMoves(game.analysis?.moves ?? []);
   }, [game?._id, game.analysis?.moves]);
 
@@ -671,7 +676,7 @@ export function PGNReviewContent({ game }: ReviewProps) {
                     >
                       {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
                     </Button>
-                    {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
+                    {recoveryStatus === "ready" && visibleRecoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
                       return (
                         <Button
@@ -688,6 +693,24 @@ export function PGNReviewContent({ game }: ReviewProps) {
                         </Button>
                       );
                     })}
+                    {recoveryStatus === "ready" && recoveryLines.length > MAX_VISIBLE_RECOVERY_BRANCHES && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[10px] text-muted-foreground"
+                        onClick={() => {
+                          if (showAllRecoveryBranches && typeof selectedSource === "number" && selectedSource >= MAX_VISIBLE_RECOVERY_BRANCHES) {
+                            selectReviewSource("base");
+                          }
+                          setShowAllRecoveryBranches((expanded) => !expanded);
+                        }}
+                      >
+                        {showAllRecoveryBranches
+                          ? t("recovery.showFewerBranches")
+                          : t("recovery.showMoreBranches", { count: recoveryLines.length - MAX_VISIBLE_RECOVERY_BRANCHES })}
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
