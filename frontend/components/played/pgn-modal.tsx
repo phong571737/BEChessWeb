@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard} from "lucide-react";
+  CircuitBoard, GitBranch} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -245,6 +245,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
   const [showAllRecoveryBranches, setShowAllRecoveryBranches] = useState(false);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
+  // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
+  const reviewViewportRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
@@ -652,7 +654,17 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   }, [selectedSource]);
 
   useEffect(() => {
-    activeMoveRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    const moveElement = activeMoveRef.current;
+    const viewport = reviewViewportRef.current;
+    if (!moveElement || !viewport) return;
+    const moveRect = moveElement.getBoundingClientRect();
+    const viewportRect = viewport.getBoundingClientRect();
+    const padding = 8;
+    if (moveRect.top < viewportRect.top + padding) {
+      viewport.scrollBy({ top: moveRect.top - viewportRect.top - padding, behavior: "smooth" });
+    } else if (moveRect.bottom > viewportRect.bottom - padding) {
+      viewport.scrollBy({ top: moveRect.bottom - viewportRect.bottom + padding, behavior: "smooth" });
+    }
   }, [currentIndex]);
 
   useEffect(() => {
@@ -1079,7 +1091,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   <ChevronsRight className="size-5" />
                 </Button>
               </div>
-              <ScrollArea className="min-h-0 flex-1">
+              <ScrollArea className="min-h-0 flex-1" viewportRef={reviewViewportRef}>
                 <div className="space-y-1.5 p-2">
                   {recoveryNotice && (
                     <p className="col-span-full p-3 text-xs text-muted-foreground">
