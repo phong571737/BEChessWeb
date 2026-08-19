@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard, GitBranch} from "lucide-react";
+  CircuitBoard} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -75,7 +75,6 @@ interface ReviewMove {
 
 type RecoveryStatus = "idle" | "loading" | "ready" | "unavailable" | "branch_limit" | "timeout" | "error";
 type ReviewSource = "base" | number;
-const MAX_VISIBLE_RECOVERY_BRANCHES = 5;
 
 function isRecoveryLine(value: unknown): value is RecoveryLine {
   if (!value || typeof value !== "object") return false;
@@ -243,7 +242,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
-  const [showAllRecoveryBranches, setShowAllRecoveryBranches] = useState(false);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -306,7 +304,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
         setSelectedSource("base");
-        setShowAllRecoveryBranches(false);
         setRecoveryStatus("ready");
       })
       .catch((error: unknown) => {
@@ -509,10 +506,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
     return null;
   }), [recoveryLines]);
-  const visibleRecoveryLines = showAllRecoveryBranches
-    ? recoveryLines
-    : recoveryLines.slice(0, MAX_VISIBLE_RECOVERY_BRANCHES);
-
   const selectReviewSource = useCallback((source: ReviewSource) => {
     if (source === selectedSource) return;
     setCursor(currentIndex);
@@ -620,7 +613,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     setSelectedSource("base");
     setBaseAnalysisMoves(game.analysis?.moves ?? []);
     setBranchAnalysisBySource({});
-    setShowAllRecoveryBranches(false);
   }, [game?._id, game.analysis?.moves]);
 
   useEffect(() => {
@@ -1026,55 +1018,33 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               </div>
               {!!game.fenHistory?.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
-                  <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {t("rev.reviewSource")}
-                  </span>
-                  <div className="flex flex-wrap gap-1.5">
-                    <Button
-                      type="button"
-                      variant={selectedSource === "base" ? "secondary" : "outline"}
-                      size="sm"
-                      className="h-7 px-2 text-[10px]"
-                      onClick={() => selectReviewSource("base")}
-                    >
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: game.fenHistory.length })}
-                    </Button>
-                    {recoveryStatus === "ready" && visibleRecoveryLines.map((line, index) => {
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {t("rev.reviewSource")}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 1 : 1 })}
+                    </span>
+                  </div>
+                  <select
+                    value={selectedSource === "base" ? "base" : String(selectedSource)}
+                    onChange={(event) => selectReviewSource(event.target.value === "base" ? "base" : Number(event.target.value))}
+                    aria-label={t("rev.chooseReviewSource")}
+                    className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
+                  >
+                    <option value="base">
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, game.fenHistory.length - 1) })}
+                    </option>
+                    {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
                       return (
-                        <Button
-                          key={`recovery-source-${index}`}
-                          type="button"
-                          variant={selectedSource === index ? "secondary" : "outline"}
-                          size="sm"
-                          className="h-7 gap-1 px-2 text-[10px]"
-                          onClick={() => selectReviewSource(index)}
-                        >
-                          <GitBranch className="size-3" />
+                        <option key={`recovery-source-${index}`} value={index}>
                           {t("rev.recoveryBranch", { number: index + 1 })} · {t("rev.plyCount", { count: line.sanMoves.length })}
                           {difference ? ` · ${t("rev.branchDifference", difference)}` : ""}
-                        </Button>
+                        </option>
                       );
                     })}
-                    {recoveryStatus === "ready" && recoveryLines.length > MAX_VISIBLE_RECOVERY_BRANCHES && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 px-2 text-[10px] text-muted-foreground"
-                        onClick={() => {
-                          if (showAllRecoveryBranches && typeof selectedSource === "number" && selectedSource >= MAX_VISIBLE_RECOVERY_BRANCHES) {
-                            selectReviewSource("base");
-                          }
-                          setShowAllRecoveryBranches((expanded) => !expanded);
-                        }}
-                      >
-                        {showAllRecoveryBranches
-                          ? t("recovery.showFewerBranches")
-                          : t("recovery.showMoreBranches", { count: recoveryLines.length - MAX_VISIBLE_RECOVERY_BRANCHES })}
-                      </Button>
-                    )}
-                  </div>
+                  </select>
                 </div>
               )}
               <div className="flex items-center justify-center gap-3 border-b border-border p-3">
