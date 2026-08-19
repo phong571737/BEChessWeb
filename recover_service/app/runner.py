@@ -2,9 +2,18 @@ from __future__ import annotations
 
 from typing import Any, Dict, Mapping, Optional
 
-from fastapi import HTTPException
+import chess
 
-from recover_service.service import recovery
+from recover_service.service.fen_to_pgn import FenConversionError
+from recover_service_v2.recovery import recover as recover_v2
+
+
+class InvalidRecoveryInputError(ValueError):
+    pass
+
+
+class RecoveryLimitError(RuntimeError):
+    pass
 
 
 def run_recovery(
@@ -19,23 +28,29 @@ def run_recovery(
     max_total_padding: int = 20,
     final_only: bool = False,
 ) -> Dict[str, Any]:
-    try:
-        result = recovery.recover_fens(
-            fen_history,
-            start_fen=start_fen or recovery.chess.STARTING_FEN,
-            headers=headers,
-            max_branches=max_branches,
-            n_retry=n_retry,
-            deduplicate_positions=deduplicate_positions,
-            max_repair_gaps=max_repair_gaps,
-            max_total_padding=max_total_padding,
+    del headers, n_retry, deduplicate_positions, max_repair_gaps, max_total_padding, final_only
+
+    if not 1 <= len(fen_history) <= 500:
+        raise InvalidRecoveryInputError(
+            "fenHistory must contain between 1 and 500 FEN positions"
         )
-        return result.to_dict(include_steps=not final_only)
-    except recovery.FenConversionError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except recovery.RecoveryLimitError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc))
-    except Exception as exc:  # pragma: no cover - unexpected
-        raise HTTPException(status_code=500, detail=str(exc))
+
+    clean_history = [str(fen).strip() for fen in fen_history]
+    if any(not fen or not fen.split()[0] for fen in clean_history):
+        raise InvalidRecoveryInputError(
+            "fenHistory must contain between 1 and 500 FEN positions"
+        )
+
+    try:
+        result = recover_v2(clean_history, (start_fen or chess.STARTING_FEN).strip())
+    except (FenConversionError, ValueError, IndexError) as exc:
+        raise InvalidRecoveryInputError(str(exc)) from exc
+
+    final_lists = result.get("final_move_lists")
+    branch_count = len(final_lists) if isinstance(final_lists, list) else 0
+    if max_branches is not None and max_branches > 0 and branch_count > max_branches:
+        raise RecoveryLimitError(
+            f"Recovery produced more than {max_branches} compatible branches"
+        )
+
+    return result

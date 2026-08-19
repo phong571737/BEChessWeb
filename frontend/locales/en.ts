@@ -124,6 +124,8 @@ export const en = {
     "rev.sourceCount": "{count} sources",
     "rev.basePgn": "Original FEN",
     "rev.recoveryBranch": "Recovery branch {number}",
+    "recovery.showMoreBranches": "Show {count} more branches",
+    "recovery.showFewerBranches": "Show fewer branches",
     "rev.plyCount": "{count} ply",
     "rev.plyProgress": "Ply {current}/{total}",
     "rev.branchDifference": "ply {ply}: {move}",
