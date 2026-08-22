@@ -57,6 +57,11 @@ interface RecoveryStep {
 
 interface RecoveryPayload {
   pgn?: unknown;
+  bestPgn?: unknown;
+  fenHistory?: unknown;
+  rawFenHistory?: unknown;
+  fenHistoryEdited?: unknown;
+  preferredFenHistory?: unknown;
   bestMoveLists?: unknown;
   steps?: unknown;
   preprocessing?: unknown;
@@ -74,7 +79,7 @@ interface ReviewMove {
 }
 
 type RecoveryStatus = "idle" | "loading" | "ready" | "unavailable" | "branch_limit" | "timeout" | "error";
-type ReviewSource = "base" | number;
+type ReviewSource = "base" | "raw" | number;
 
 function isRecoveryLine(value: unknown): value is RecoveryLine {
   if (!value || typeof value !== "object") return false;
@@ -235,6 +240,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [bulkFenError, setBulkFenError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
+  const [editedFenHistory, setEditedFenHistory] = useState<string[]>(game.fenHistoryEdited ?? []);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
@@ -242,6 +248,12 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
+  const [showUciHistory, setShowUciHistory] = useState(false);
+  const rawFenHistory = useMemo(
+    () => (game.rawFenHistory?.length ? game.rawFenHistory : game.fenHistory) ?? [],
+    [game.fenHistory, game.rawFenHistory],
+  );
+  const hasEditedFen = editedFenHistory.length > 0;
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -254,18 +266,20 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   useEffect(() => {
     let cancelled = false;
     setBasePgn(null);
+    setEditedFenHistory(game.fenHistoryEdited ?? []);
     setRecoveryLines([]);
     setRecoverySteps([]);
     setProcessedToInputIndexes([]);
     setSelectedSource("base");
-    setRecoveryStatus(game.fenHistory?.length ? "loading" : "idle");
-    if (!game._id || !game.fenHistory?.length) return () => { cancelled = true; };
+    const recoveryInputFens = game.fenHistoryEdited?.length ? game.fenHistoryEdited : rawFenHistory;
+    setRecoveryStatus(recoveryInputFens.length ? "loading" : "idle");
+    if (!game._id || !recoveryInputFens.length) return () => { cancelled = true; };
 
     traceRecovery("1 - fenHistory frontend nhận từ GET /games/history", {
       gameId: game._id,
-      count: Math.max(0, game.fenHistory.length - 1),
+      count: Math.max(0, recoveryInputFens.length - 1),
       initialFen: game.initialFen ?? DEFAULT_FEN,
-      fenHistory: game.fenHistory,
+      fenHistory: recoveryInputFens,
     });
 
     const debugQuery = typeof window !== "undefined"
@@ -299,7 +313,10 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
           sanMoves: defaultRecoveryLine?.sanMoves ?? [],
           assumedFens: defaultRecoveryLine?.assumedFens ?? [],
         });
-        setBasePgn(data.pgn);
+        setEditedFenHistory(Array.isArray(data.fenHistoryEdited)
+          ? data.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string" && fen.trim().length > 0)
+          : (game.fenHistoryEdited ?? []));
+        setBasePgn(typeof data.bestPgn === "string" && data.bestPgn.trim() ? data.bestPgn : data.pgn as string);
         setRecoveryLines(bestMoveLists);
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
@@ -313,7 +330,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       });
 
     return () => { cancelled = true; };
-  }, [game._id, game.fenHistory]);
+  }, [game._id, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
 
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
@@ -321,25 +338,32 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
   const reviewPgn = useMemo(() => {
     if (selectedRecoveryLine) return recoveryLineToPgn(game, selectedRecoveryLine);
-    if (game.fenHistory?.length) return basePgn ?? game.pgn ?? "";
+    if (selectedSource === "raw") return game.pgn ?? "";
+    if (rawFenHistory.length) return basePgn ?? game.pgn ?? "";
     return game.pgn ?? "";
-  }, [basePgn, game, selectedRecoveryLine]);
+  }, [basePgn, game, rawFenHistory.length, selectedRecoveryLine, selectedSource]);
   const displayPgn = useMemo(() => formatPgnForDisplay(reviewPgn), [reviewPgn]);
 
   const timeline = useMemo(() => {
+    const isFenSource = selectedSource === "base" || selectedSource === "raw";
+    const preferredRecoveryFens = recoveryStatus === "ready" ? (recoveryLines[0]?.assumedFens ?? []) : [];
+    const sourceFens = selectedSource === "raw"
+      ? rawFenHistory
+      : selectedSource === "base" && preferredRecoveryFens.length
+        ? preferredRecoveryFens
+        : (editedFenHistory.length ? editedFenHistory : rawFenHistory);
     const initialFen = game.initialFen ?? DEFAULT_FEN;
     const initial: ReviewMove = { fen: initialFen, san: "start", lastMove: null, originalPly: 0 };
-    if (Array.isArray(game.fenHistory) && game.fenHistory.length > 0) {
-      if (selectedSource !== "base" && (recoveryStatus !== "ready" || !reviewPgn)) {
+    if (sourceFens.length > 0) {
+      if (!isFenSource && (recoveryStatus !== "ready" || !reviewPgn)) {
         return [initial];
       }
 
-      if (selectedSource === "base") {
-        // The original FEN source must render the persisted snapshots exactly.
-        // Do not replay the recovered/custom PGN here: malformed snapshots are
-        // intentionally visible so users can inspect the raw board sequence.
+      if (isFenSource) {
+        // FEN sources render their persisted timeline directly. Raw ESP32 data
+        // is never overwritten by the standardized recover-service timeline.
         const out: ReviewMove[] = [initial];
-        game.fenHistory.forEach((rawFen, index) => {
+        sourceFens.forEach((rawFen, index) => {
           const fen = typeof rawFen === "string" ? rawFen.trim() : "";
           if (!fen) return;
           const uci = game.uciHistory?.[index];
@@ -402,7 +426,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       if (out.length > 1) return out;
     } catch {}
     return [initial];
-  }, [game, processedToInputIndexes, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource, t]);
+  }, [editedFenHistory, game, processedToInputIndexes, rawFenHistory, recoveryLines, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource, t]);
 
   useEffect(() => {
     traceRecovery("4 - timeline frontend dùng để render", {
@@ -449,7 +473,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     // Raw FEN snapshots are an ordered sensor timeline, not PGN move pairs.
     // Preserve their database array order even when legacy side-to-move or
     // full-move fields are duplicated, invalid, or out of sequence.
-    if (selectedSource === "base") {
+    if (selectedSource === "base" || selectedSource === "raw") {
       return timeline.slice(1).map((move, index) => ({
         move,
         ply: index + 1,
@@ -462,13 +486,24 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const branchAnalysis = typeof selectedSource === "number"
     ? branchAnalysisBySource[String(selectedSource)] ?? []
     : [];
-  const selectedAnalysisByPly = selectedSource === "base"
+  const selectedAnalysisByPly = selectedSource === "base" || selectedSource === "raw"
     ? analysisByPly
     : new Map(branchAnalysis.map((move) => [move.ply, move]));
   const currentMoveAnalysis = selectedAnalysisByPly.get(
     selectedSource === "base" ? current.originalPly ?? currentIndex : currentIndex,
   );
   const analysisGame = useMemo<HistoryGame>(() => {
+    if (selectedSource === "raw") {
+      return { ...game, fenHistory: rawFenHistory };
+    }
+    if (selectedSource === "base" && recoveryStatus === "ready" && recoveryLines[0]?.assumedFens?.length) {
+      return {
+        ...game,
+        fenHistory: recoveryLines[0].assumedFens,
+        initialFen: game.initialFen,
+        pgn: basePgn ?? game.pgn,
+      };
+    }
     if (!selectedRecoveryLine?.assumedFens?.length) return game;
     return {
       ...game,
@@ -476,16 +511,16 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       uciHistory: selectedRecoveryLine.uciMoves,
       initialFen: game.initialFen ?? DEFAULT_FEN,
     };
-  }, [game, selectedRecoveryLine]);
+  }, [basePgn, game, rawFenHistory, recoveryLines, recoveryStatus, selectedRecoveryLine, selectedSource]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
-  const boardMoveAnnotation = selectedSource !== "base" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
+  const boardMoveAnnotation = typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
         square: analyzedDestination,
         classification: currentMoveAnalysis.classification,
         label: t(`analysis.${currentMoveAnalysis.classification}`),
       }
     : null;
-  const recoveryNotice = selectedSource !== "base" && game.fenHistory?.length && recoveryStatus !== "ready"
+  const recoveryNotice = typeof selectedSource === "number" && rawFenHistory.length && recoveryStatus !== "ready"
     ? recoveryStatus === "loading"
       ? t("rev.loading")
       : recoveryStatus === "branch_limit"
@@ -791,12 +826,12 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         `/games/history/${encodeURIComponent(game._id)}/fens/${pendingFenIndex}`,
         { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
       );
-      const body = await response.json().catch(() => null) as { fenHistory?: unknown } | null;
-      if (!response.ok || !Array.isArray(body?.fenHistory)) throw new Error("delete_failed");
-      const fenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) throw new Error("delete_failed");
+      const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
       setBaseAnalysisMoves([]);
       setPendingFenIndex(null);
-      onGameUpdate?.({ ...game, fenHistory, analysis: undefined });
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
     } catch {
       setFenDeleteError(t("rev.deleteFenFailed"));
     } finally {
@@ -819,15 +854,15 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ fen: fenEditor.value }),
       });
-      const body = await response.json().catch(() => null) as { fenHistory?: unknown; code?: unknown } | null;
-      if (!response.ok || !Array.isArray(body?.fenHistory)) {
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
         if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
         throw new Error("save_failed");
       }
-      const fenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
       setBaseAnalysisMoves([]);
       setFenEditor(null);
-      onGameUpdate?.({ ...game, fenHistory, analysis: undefined });
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
     } catch (error) {
       setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
     } finally {
@@ -856,17 +891,17 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ fenHistory }),
       });
-      const body = await response.json().catch(() => null) as { fenHistory?: unknown; code?: unknown; index?: unknown } | null;
-      if (!response.ok || !Array.isArray(body?.fenHistory)) {
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown; index?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
         if (body?.code === "INVALID_FEN" && Number.isInteger(body.index)) {
           throw new Error(`invalid_fen:${Number(body.index) + 1}`);
         }
         throw new Error("save_failed");
       }
-      const savedFenHistory = body.fenHistory.filter((fen): fen is string => typeof fen === "string");
+      const savedFenHistory = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
       setBaseAnalysisMoves([]);
       setBulkFenEditor(null);
-      onGameUpdate?.({ ...game, fenHistory: savedFenHistory, analysis: undefined });
+      onGameUpdate?.({ ...game, fenHistoryEdited: savedFenHistory, analysis: undefined });
     } catch (error) {
       const message = error instanceof Error ? error.message : "save_failed";
       setBulkFenError(message.startsWith("invalid_fen:")
@@ -1016,24 +1051,30 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   {t("rev.plyProgress", { current: currentIndex, total: timeline.length - 1 })}
                 </span>
               </div>
-              {!!game.fenHistory?.length && (
+              {!!rawFenHistory.length && (
                 <div className="space-y-1.5 border-b border-border p-2">
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                       {t("rev.reviewSource")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 1 : 1 })}
+                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 2 : 1 })}
                     </span>
                   </div>
                   <select
                     value={selectedSource === "base" ? "base" : String(selectedSource)}
-                    onChange={(event) => selectReviewSource(event.target.value === "base" ? "base" : Number(event.target.value))}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      selectReviewSource(value === "base" ? "base" : value === "raw" ? "raw" : Number(value));
+                    }}
                     aria-label={t("rev.chooseReviewSource")}
                     className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
                   >
                     <option value="base">
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, game.fenHistory.length - 1) })}
+                      {hasEditedFen ? t("rev.editedFen") : t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, (recoveryStatus === "ready" ? (recoveryLines[0]?.sanMoves.length ?? 0) : 0) || (hasEditedFen ? editedFenHistory.length : rawFenHistory.length)) })}
+                    </option>
+                    <option value="raw">
+                      {t("rev.rawFen")} · {t("rev.plyCount", { count: rawFenHistory.length })}
                     </option>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
@@ -1146,10 +1187,10 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </ScrollArea>
           </details>}
 
-          {(isAdmin || !!game.fenHistory?.length) && (
+          {(isAdmin || !!rawFenHistory.length || !!editedFenHistory.length) && (
             <details className="relative text-sm">
               <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
-                {t("rev.fenTimeline")} ({game.fenHistory?.length ?? 0})
+                {t("rev.fenTimeline")} ({rawFenHistory.length})
               </summary>
               <div className="absolute left-0 top-8 flex max-w-full flex-wrap items-center gap-1.5 sm:left-auto sm:right-0 sm:top-[-4px] sm:flex-nowrap">
                 {isAdmin && (
@@ -1168,52 +1209,62 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                       className="h-8 text-xs gap-1.5"
                       onClick={() => {
                         setBulkFenError(null);
-                        setBulkFenEditor((game.fenHistory ?? []).map((fen, index) => `${index + 1}. ${fen}`).join("\n"));
+                        setBulkFenEditor((editedFenHistory.length ? editedFenHistory : rawFenHistory).map((fen, index) => `${index + 1}. ${fen}`).join("\n"));
                       }}
                     >
                       <Pencil className="h-3.5 w-3.5" />{t("rev.replaceFenList")}
                     </Button>
                   </>
                 )}
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline} disabled={!game.fenHistory?.length}>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={copyFenTimeline} disabled={!rawFenHistory.length}>
                   {fenCopied
                     ? <><Check className="h-3.5 w-3.5" />{t("rev.copiedFen")}</>
                     : <><Copy className="h-3.5 w-3.5" />{t("rev.copyFen")}</>
                   }
                 </Button>
-                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadFenTimeline} disabled={!game.fenHistory?.length}>
+                <Button variant="outline" size="sm" className="h-8 text-xs gap-1.5" onClick={downloadFenTimeline} disabled={!rawFenHistory.length}>
                   <Download className="h-3.5 w-3.5" />{t("rev.downloadFenText")}
                 </Button>
               </div>
+              {hasEditedFen && (
+                <div className="mt-2 rounded-sm border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                  <div className="mb-1 font-medium text-foreground">{t("rev.editedFen")}</div>
+                  <div>{t("rev.editedFenAvailable")}</div>
+                  <ScrollArea className="mt-2 h-32 rounded-sm border border-border bg-muted">
+                    <div className="space-y-1.5 p-3">
+                      {editedFenHistory.map((fen, index) => (
+                        <div key={`standard-fen-${index}`} className="break-all rounded-sm border border-border/60 px-2.5 py-1.5 font-mono text-xs">
+                          <span className="mr-2 text-muted-foreground">{index + 1}.</span>{fen}
+                          {isAdmin && (
+                            <span className="float-right inline-flex items-center gap-1">
+                              <button type="button" className="text-muted-foreground hover:text-primary" title={t("rev.editFen")} onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index, value: fen }); }}><Pencil className="size-3.5" /></button>
+                              <button type="button" className="text-muted-foreground hover:text-destructive" title={t("rev.deleteFen")} onClick={() => { setFenDeleteError(null); setPendingFenIndex(index); }}><Trash2 className="size-3.5" /></button>
+                            </span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </ScrollArea>
+                </div>
+              )}
+              <div className="mt-2 text-xs font-medium text-muted-foreground">{t("rev.rawFen")}</div>
               <div className="mt-2">
                 <ScrollArea className="h-44 rounded-sm border border-border bg-muted">
                   <div className="p-3 space-y-1.5">
-                    {(game.fenHistory ?? []).map((f, i) => (
+                    {rawFenHistory.map((f, i) => (
                       <div key={`fh-${i}`} className="group flex items-center gap-2 font-mono text-xs border border-border/60 rounded-sm px-2.5 py-1.5">
                         <span className="min-w-0 flex-1 break-all">
                           <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
                         </span>
-                        {isAdmin && (
-                          <div className="flex shrink-0 items-center gap-0.5">
-                            <button
-                              type="button"
-                              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                              title={t("rev.editFen")}
-                              aria-label={t("rev.editFenPosition", { number: i + 1 })}
-                              onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index: i, value: f }); }}
-                            >
-                              <Pencil className="size-3.5" />
-                            </button>
-                            <button
-                              type="button"
-                              className="inline-flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                              title={t("rev.deleteFen")}
-                              aria-label={t("rev.deleteFenPosition", { number: i + 1 })}
-                              onClick={() => { setFenDeleteError(null); setPendingFenIndex(i); }}
-                            >
-                              <Trash2 className="size-3.5" />
-                            </button>
-                          </div>
+                        {isAdmin && !hasEditedFen && (
+                          <button
+                            type="button"
+                            className="shrink-0 text-muted-foreground hover:text-primary"
+                            title={t("rev.editFen")}
+                            onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index: i, value: f }); }}
+                          >
+                            <Pencil className="size-3.5" />
+                          </button>
                         )}
                       </div>
                     ))}
@@ -1225,22 +1276,34 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
           {/* Display move from esp32 */}
           {!!game.uciHistory?.length && (
-            <div className="space-y-1">
-              <span className="text-sm font-medium">{t("rev.moveEBoard")}</span>
-              <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
-                <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                  {game.uciHistory.map((u, i) => `${i + 1}.${u}`).join(" ")}
-                </pre>
-              </ScrollArea>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-medium">{t("rev.moveEBoard")}</span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs"
+                  onClick={() => setShowUciHistory((visible) => !visible)}
+                >
+                  {showUciHistory ? t("rev.hideUciHistory") : t("rev.showUciHistory")}
+                </Button>
+              </div>
+              {showUciHistory && (
+                <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
+                  <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+                    {game.uciHistory.map((u, i) => `${i + 1}.${u}`).join(" ")}
+                  </pre>
+                </ScrollArea>
+              )}
             </div>
           )}
 
         </div>
         <MoveAnalysisPanel
           game={game}
-          // The original source uses persisted analysis; only a selected
-          // recovery branch receives a client-local analysis timeline.
-          analysisGame={selectedSource === "base" ? undefined : analysisGame}
+          // Analyze the timeline selected by this viewer. The preferred base
+          // source is recover-service output; raw explicitly analyzes ESP32 data.
+          analysisGame={analysisGame}
           currentPly={currentIndex}
           onSelectPly={goTo}
           onAnalysisSaved={handleAnalysisSaved}

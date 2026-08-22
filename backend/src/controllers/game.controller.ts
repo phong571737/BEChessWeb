@@ -175,7 +175,7 @@ export const GameController = {
                 return;
             }
             if (result.status === "deleted") {
-                res.json({ success: true, fenHistory: result.fenHistory });
+                res.json({ success: true, fenHistoryEdited: result.fenHistory });
                 return;
             }
             res.status(500).json({ error: "Unable to delete FEN snapshot" });
@@ -202,7 +202,7 @@ export const GameController = {
                 res.status(409).json({ error: "FEN history changed; reload and try again" });
                 return;
             }
-            res.json({ success: true, fenHistory: result.fenHistory });
+            res.json({ success: true, fenHistoryEdited: result.fenHistory });
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to append FEN snapshot" });
@@ -231,7 +231,7 @@ export const GameController = {
                 res.status(409).json({ error: "FEN history changed; reload and try again" });
                 return;
             }
-            res.json({ success: true, fenHistory: result.fenHistory });
+            res.json({ success: true, fenHistoryEdited: result.fenHistory });
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to update FEN snapshot" });
@@ -260,7 +260,7 @@ export const GameController = {
                 res.status(409).json({ error: "FEN history changed; reload and try again" });
                 return;
             }
-            res.json({ success: true, fenHistory: result.fenHistory });
+            res.json({ success: true, fenHistoryEdited: result.fenHistory });
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to replace FEN history" });

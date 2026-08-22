@@ -232,6 +232,9 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.chooseReviewSource": "Chọn nguồn xem lại",
     "rev.sourceCount": "{count} nguồn",
     "rev.basePgn": "FEN gốc",
+    "rev.rawFen": "FEN gốc từ ESP32",
+    "rev.editedFen": "FEN đã chỉnh sửa",
+    "rev.editedFenAvailable": "Danh sách này chứa các FEN do quản trị viên chỉnh sửa. Dữ liệu từ bàn cờ điện tử bên dưới vẫn được giữ nguyên.",
     "rev.recoveryBranch": "Nhánh khôi phục {number}",
     "recovery.showMoreBranches": "Xem thêm {count} nhánh",
     "recovery.showFewerBranches": "Thu gọn danh sách nhánh",
@@ -296,6 +299,8 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.moveTypeDist": "Phân loại nước đi",
     "rev.noMovesAnalysis": "Chưa có nước đi để phân tích.",
     "rev.moveEBoard": "Nước đi nhận từ bàn cờ điện tử",
+    "rev.showUciHistory": "Hiện danh sách UCI",
+    "rev.hideUciHistory": "Ẩn danh sách UCI",
     "rev.wheelNavigation": "Dùng con lăn chuột lên/xuống để xem nước đi",
     // ----- Played / History ---------------------------------------------
     "played.title": "Lịch sử ván cờ",

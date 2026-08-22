@@ -20,9 +20,13 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
         const game = await getPGNCollections().findOne({ $or: historyIds.map((_id) => ({ _id })) } as any);
         if (!game) return res.status(404).json({ error: "Game not found" });
 
-        const fenHistory = Array.isArray((game as any).fenHistory)
+        const rawFenHistory = Array.isArray((game as any).fenHistory)
             ? (game as any).fenHistory.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
             : [];
+        const editedFenHistory = Array.isArray((game as any).fenHistoryEdited)
+            ? (game as any).fenHistoryEdited.filter((fen: unknown): fen is string => typeof fen === "string" && fen.trim().length > 0)
+            : [];
+        const fenHistory = editedFenHistory.length > 0 ? editedFenHistory : rawFenHistory;
         if (!fenHistory.length) return res.status(422).json({ error: "No FEN history available for recovery" });
 
         const startFen = typeof (game as any).initialFen === "string" && (game as any).initialFen.trim()
@@ -52,7 +56,15 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
             exposeServiceErrors: true,
         });
         if (!recovered) return res.status(503).json({ error: "FEN recovery service unavailable" });
-        return res.json({ ...recovered, fenHistory, startFen: startFen ?? null });
+        return res.json({
+            ...recovered,
+            // The source timeline is never overwritten. Recovery output stays in the response only.
+            rawFenHistory,
+            fenHistoryEdited: editedFenHistory,
+            preferredFenHistory: fenHistory,
+            fenSource: editedFenHistory.length > 0 ? "edited" : "raw",
+            startFen: startFen ?? null,
+        });
     } catch (error) {
         if (error instanceof FenRecoveryServiceError) {
             return res.status(error.httpStatus).json({ error: error.message, code: error.code });

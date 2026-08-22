@@ -43,6 +43,12 @@ export interface GameDoc extends Document, GameSetupMetadata {
     branches?: GameBranch[];
     uciHistory?: string[];
     fenHistory?: string[];
+    /** Raw FEN snapshots received from the electronic board. Never overwrite these with recovery output. */
+    fenHistoryEdited?: string[];
+    /** PGN generated from the standard recovered timeline. */
+    /** Preferred PGN line generated from recover-service. */
+    /** Initial position normalized by recover-service, when available. */
+    /** Recovery state for the standard FEN timeline. */
     /** Elapsed thinking time for each accepted ply, aligned with UCI/FEN history. */
     moveDurationsMs?: number[];
     updateAt?: Date;

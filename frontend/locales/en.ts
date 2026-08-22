@@ -123,6 +123,9 @@ export const en = {
     "rev.chooseReviewSource": "Choose a review source",
     "rev.sourceCount": "{count} sources",
     "rev.basePgn": "Original FEN",
+    "rev.rawFen": "Raw FEN from ESP32",
+    "rev.editedFen": "Edited FEN",
+    "rev.editedFenAvailable": "This list contains administrator-corrected FEN snapshots. The electronic-board timeline below remains unchanged.",
     "rev.recoveryBranch": "Recovery branch {number}",
     "recovery.showMoreBranches": "Show {count} more branches",
     "recovery.showFewerBranches": "Show fewer branches",
@@ -187,6 +190,8 @@ export const en = {
     "rev.moveTypeDist": "Move Type Distribution",
     "rev.noMovesAnalysis": "No moves are available to analyze yet.",
     "rev.moveEBoard": "The move received from e-board.",
+    "rev.showUciHistory": "Show UCI history",
+    "rev.hideUciHistory": "Hide UCI history",
     "rev.wheelNavigation": "Mouse wheel: scroll up/down to navigate moves",
     // -------- Played / History -------------------------------------------
     "played.title": "Game History",

@@ -63,6 +63,10 @@ export interface HistoryGame extends GameSetupMetadata {
     durationSec?: number | null;
     boardID?: string;
     fenHistory?: string [];
+    /** Raw ESP32 FEN snapshots, retained separately from recovery output. */
+    rawFenHistory?: string[];
+    /** FEN snapshots manually corrected by an administrator. */
+    fenHistoryEdited?: string[];
     uciHistory?: string [];
     /** Elapsed thinking time for each ply, aligned with the move histories. */
     moveDurationsMs?: number[];

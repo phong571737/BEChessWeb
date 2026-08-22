@@ -76,6 +76,9 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         lastSeq: totalPlies,
         uciHistory: game.uciHistory ?? [],
         fenHistory: game.fenHistory ?? [],
+        ...(Array.isArray(game.fenHistoryEdited)
+            ? { fenHistoryEdited: game.fenHistoryEdited }
+            : {}),
         moveDurationsMs: game.moveDurationsMs ?? [],
         whiteName: game.whiteName ?? game.WhiteName ?? "White",
         blackName: game.blackName ?? game.BlackName ?? "Black",
@@ -126,22 +129,31 @@ export type ReplaceHistoryFensResult = AppendHistoryFenResult;
  */
 export async function appendHistoryFen(id: string, fen: string): Promise<AppendHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
     if (!record) return { status: "not_found" };
 
-    const hasFenHistory = Array.isArray(record.fenHistory);
-    const fenHistory = hasFenHistory
-        ? (record.fenHistory as unknown[]).filter((value): value is string => typeof value === "string")
+    const hasEditedHistory = Array.isArray(record.fenHistoryEdited);
+    const sourceHistory = hasEditedHistory ? record.fenHistoryEdited : record.fenHistory;
+    const fenHistory = Array.isArray(sourceHistory)
+        ? (sourceHistory as unknown[]).filter((value): value is string => typeof value === "string")
         : [];
     const nextFenHistory = [...fenHistory, fen];
-    const fenPredicate = hasFenHistory
-        ? { fenHistory: record.fenHistory }
-        : { fenHistory: { $exists: false } };
+    const fenPredicate = hasEditedHistory
+        ? { fenHistoryEdited: record.fenHistoryEdited }
+        : { fenHistoryEdited: { $exists: false } };
     const result = await pgnGames().updateOne(
         { $and: [filter, fenPredicate] } as unknown as Filter<Document>,
         {
-            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
-            $unset: { analysis: "" },
+            $set: { fenHistoryEdited: nextFenHistory, updatedAt: new Date() },
+            $unset: {
+                analysis: "",
+                fenHistoryStandard: "",
+                initialFenStandard: "",
+                standardPgn: "",
+                standardBestPgn: "",
+                fenStandardStatus: "",
+                fenStandardUpdatedAt: "",
+            },
         },
     );
     if (result.modifiedCount !== 1) return { status: "conflict" };
@@ -151,11 +163,12 @@ export async function appendHistoryFen(id: string, fen: string): Promise<AppendH
 /** Replaces one FEN snapshot while preserving every other history field. */
 export async function updateHistoryFen(id: string, index: number, fen: string): Promise<UpdateHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
     if (!record) return { status: "not_found" };
 
-    const fenHistory = Array.isArray(record.fenHistory)
-        ? record.fenHistory.filter((value): value is string => typeof value === "string")
+    const sourceHistory = Array.isArray(record.fenHistoryEdited) ? record.fenHistoryEdited : record.fenHistory;
+    const fenHistory = Array.isArray(sourceHistory)
+        ? sourceHistory.filter((value): value is string => typeof value === "string")
         : [];
     if (!Number.isInteger(index) || index < 0 || index >= fenHistory.length) {
         return { status: "invalid_index" };
@@ -164,10 +177,20 @@ export async function updateHistoryFen(id: string, index: number, fen: string): 
     const nextFenHistory = [...fenHistory];
     nextFenHistory[index] = fen;
     const result = await pgnGames().updateOne(
-        { $and: [filter, { fenHistory: record.fenHistory }] } as unknown as Filter<Document>,
+        { $and: [filter, Array.isArray(record.fenHistoryEdited)
+            ? { fenHistoryEdited: record.fenHistoryEdited }
+            : { fenHistoryEdited: { $exists: false } }] } as unknown as Filter<Document>,
         {
-            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
-            $unset: { analysis: "" },
+            $set: { fenHistoryEdited: nextFenHistory, updatedAt: new Date() },
+            $unset: {
+                analysis: "",
+                fenHistoryStandard: "",
+                initialFenStandard: "",
+                standardPgn: "",
+                standardBestPgn: "",
+                fenStandardStatus: "",
+                fenStandardUpdatedAt: "",
+            },
         },
     );
     if (result.modifiedCount !== 1) return { status: "conflict" };
@@ -177,18 +200,26 @@ export async function updateHistoryFen(id: string, index: number, fen: string): 
 /** Atomically replaces the complete persisted FEN sequence for an administrator correction. */
 export async function replaceHistoryFens(id: string, fens: string[]): Promise<ReplaceHistoryFensResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
     if (!record) return { status: "not_found" };
 
-    const hasFenHistory = Array.isArray(record.fenHistory);
-    const fenPredicate = hasFenHistory
-        ? { fenHistory: record.fenHistory }
-        : { fenHistory: { $exists: false } };
+    const hasEditedHistory = Array.isArray(record.fenHistoryEdited);
+    const fenPredicate = hasEditedHistory
+        ? { fenHistoryEdited: record.fenHistoryEdited }
+        : { fenHistoryEdited: { $exists: false } };
     const result = await pgnGames().updateOne(
         { $and: [filter, fenPredicate] } as unknown as Filter<Document>,
         {
-            $set: { fenHistory: fens, updatedAt: new Date() },
-            $unset: { analysis: "" },
+            $set: { fenHistoryEdited: fens, updatedAt: new Date() },
+            $unset: {
+                analysis: "",
+                fenHistoryStandard: "",
+                initialFenStandard: "",
+                standardPgn: "",
+                standardBestPgn: "",
+                fenStandardStatus: "",
+                fenStandardUpdatedAt: "",
+            },
         },
     );
     if (result.matchedCount !== 1) return { status: "conflict" };
@@ -203,11 +234,12 @@ export async function replaceHistoryFens(id: string, fens: string[]): Promise<Re
  */
 export async function deleteHistoryFen(id: string, index: number): Promise<DeleteHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
     if (!record) return { status: "not_found" };
 
-    const fenHistory = Array.isArray(record.fenHistory)
-        ? record.fenHistory.filter((fen): fen is string => typeof fen === "string")
+    const sourceHistory = Array.isArray(record.fenHistoryEdited) ? record.fenHistoryEdited : record.fenHistory;
+    const fenHistory = Array.isArray(sourceHistory)
+        ? sourceHistory.filter((fen): fen is string => typeof fen === "string")
         : [];
     if (!Number.isInteger(index) || index < 0 || index >= fenHistory.length) {
         return { status: "invalid_index" };
@@ -215,10 +247,20 @@ export async function deleteHistoryFen(id: string, index: number): Promise<Delet
 
     const nextFenHistory = fenHistory.filter((_, fenIndex) => fenIndex !== index);
     const result = await pgnGames().updateOne(
-        { $and: [filter, { fenHistory }] } as unknown as Filter<Document>,
+        { $and: [filter, Array.isArray(record.fenHistoryEdited)
+            ? { fenHistoryEdited: record.fenHistoryEdited }
+            : { fenHistoryEdited: { $exists: false } }] } as unknown as Filter<Document>,
         {
-            $set: { fenHistory: nextFenHistory, updatedAt: new Date() },
-            $unset: { analysis: "" },
+            $set: { fenHistoryEdited: nextFenHistory, updatedAt: new Date() },
+            $unset: {
+                analysis: "",
+                fenHistoryStandard: "",
+                initialFenStandard: "",
+                standardPgn: "",
+                standardBestPgn: "",
+                fenStandardStatus: "",
+                fenStandardUpdatedAt: "",
+            },
         },
     );
     if (result.modifiedCount !== 1) return { status: "conflict" };
