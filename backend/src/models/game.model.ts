@@ -402,6 +402,16 @@ export async function getLatestGameByBoardID(boardID: string): Promise<GameDoc |
         .next();
 }
 
+/** Retires the previous live session while preserving its history snapshot. */
+export async function closeActiveGamesForBoard(boardID: string): Promise<number> {
+    const now = new Date();
+    const result = await games().updateMany(
+        { boardID, status: { $nin: ["finished", "resigning", "ended"] } } as Filter<GameDoc>,
+        { $set: { status: "ended", result: "*", endedAt: now, updateAt: now } } as UpdateFilter<GameDoc>,
+    );
+    return result.modifiedCount;
+}
+
 /**This function is used to remove the game */
 export async function removeGame(gameID: string) {
     await games().deleteOne({ gameID });

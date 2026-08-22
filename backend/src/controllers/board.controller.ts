@@ -45,13 +45,19 @@ export const BoardController = {
                 // socket may not be initialized in some environments; ignore if so
                 // console.warn("Socket not initialized, cannot emit board_scan_ok", err);
             }
-            // Return 201 (create successfully)
-            return res.status(created.reused ? 200 : 201).json({
+            // Every board creation starts a new game session.
+            return res.status(201).json({
                 status: "OK",
                 boardID,
                 gameID: created.gameID
             });
         } catch (e) {
+            if (e instanceof Error && e.message === "BOARD_CREATION_IN_PROGRESS") {
+                return res.status(409).json({
+                    ok: false,
+                    error: "BOARD_CREATION_IN_PROGRESS",
+                });
+            }
             console.error(e);
 
             return res.status(500).json({
