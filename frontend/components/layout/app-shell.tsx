@@ -333,7 +333,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                             <div className="my-1 border-t border-border" />
                                             <div className="my-1 border-t border-border" />
                                             <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Smartphone className="size-3.5" />{t("settings.mobileApp")}</p>
-                                            <a href={publicPath("/downloads/TTLab_v1.1.apk")} download className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
+                                            <a href={publicPath("/downloads/TTLab_v1.1-patch2.apk")} download className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">
                                                 <Download className="size-3.5" />{t("settings.downloadApk")}
                                             </a>
                                             <Link href="/guide" onClick={() => setSettingsMenuOpen(false)} className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">

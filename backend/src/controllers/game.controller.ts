@@ -184,6 +184,10 @@ export const GameController = {
                 res.status(404).json({ error: "History record not found" });
                 return;
             }
+            if (saved.status === "active") {
+                res.status(409).json({ error: "Cannot edit an active game" });
+                return;
+            }
             res.json({ success: true, pgn: saved.pgn, uciHistory: saved.uciHistory });
         } catch (e) {
             console.error(e);
@@ -198,6 +202,10 @@ export const GameController = {
             const result = await deleteHistoryFen(req.params.id, index);
             if (result.status === "not_found") {
                 res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "active") {
+                res.status(409).json({ error: "Cannot edit an active game" });
                 return;
             }
             if (result.status === "invalid_index") {
@@ -232,6 +240,10 @@ export const GameController = {
                 res.status(404).json({ error: "History record not found" });
                 return;
             }
+            if (result.status === "active") {
+                res.status(409).json({ error: "Cannot edit an active game" });
+                return;
+            }
             if (result.status === "conflict") {
                 res.status(409).json({ error: "FEN history changed; reload and try again" });
                 return;
@@ -255,6 +267,10 @@ export const GameController = {
             const result = await updateHistoryFen(req.params.id, index, fen);
             if (result.status === "not_found") {
                 res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "active") {
+                res.status(409).json({ error: "Cannot edit an active game" });
                 return;
             }
             if (result.status === "invalid_index") {
@@ -288,6 +304,10 @@ export const GameController = {
             const result = await replaceHistoryFenList(req.params.id, fenHistory as string[]);
             if (result.status === "not_found") {
                 res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            if (result.status === "active") {
+                res.status(409).json({ error: "Cannot edit an active game" });
                 return;
             }
             if (result.status === "conflict") {

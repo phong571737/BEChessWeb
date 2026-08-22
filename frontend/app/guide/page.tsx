@@ -47,7 +47,7 @@ export default function GuidePage() {
                                         )}
                                         {step === "step2" && (
                                             <Button className="mt-3" size="sm" asChild>
-                                                <a href={publicPath("/downloads/TTLab_v1.1.apk")} download><Download className="size-3.5" />{t("settings.downloadApk")}</a>
+                                                <a href={publicPath("/downloads/TTLab_v1.1-patch2.apk")} download><Download className="size-3.5" />{t("settings.downloadApk")}</a>
                                             </Button>
                                         )}
                                         {step === "step3" && (

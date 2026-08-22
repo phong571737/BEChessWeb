@@ -20,6 +20,14 @@ function historyIdFilter(id: string, deleted: boolean): Filter<Document> {
     } as unknown as Filter<Document>;
 }
 
+/** Returns true only for a finalized history snapshot (legacy finalized rows are supported). */
+function isFinishedHistory(record: Document): boolean {
+    if (record.historyStatus === "finished") return true;
+    if (record.historyStatus === "active") return false;
+    const result = record.result ?? record.Result;
+    return result === "1-0" || result === "0-1" || result === "1/2-1/2";
+}
+
 // Get data from database
 export function getGameCollections(): Collection<GameDoc> { return games(); }
 export function getPGNCollections(): Collection<Document> { return pgnGames(); }
@@ -111,7 +119,8 @@ export async function saveHistoryAnalysis(id: string, analysis: Document): Promi
 
 export type UpdateHistoryTracesResult =
     | { status: "saved"; pgn: string; uciHistory: string[] }
-    | { status: "not_found" };
+    | { status: "not_found" }
+    | { status: "active" };
 
 /** Updates only administrator-editable PGN/UCI traces; raw and corrected FEN arrays stay untouched. */
 export async function updateHistoryTraces(
@@ -119,8 +128,9 @@ export async function updateHistoryTraces(
     updates: { pgn?: string; uciHistory?: string[] },
 ): Promise<UpdateHistoryTracesResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { pgn: 1, uciHistory: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { pgn: 1, uciHistory: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
+    if (!isFinishedHistory(record)) return { status: "active" };
 
     const set: Record<string, unknown> = { updatedAt: new Date() };
     if (updates.pgn !== undefined) set.pgn = updates.pgn;
@@ -140,11 +150,12 @@ export async function updateHistoryTraces(
 
 export type DeleteHistoryFenResult =
     | { status: "deleted"; fenHistory: string[] }
-    | { status: "not_found" | "invalid_index" | "conflict" };
+    | { status: "not_found" | "active" | "invalid_index" | "conflict" };
 
 export type AppendHistoryFenResult =
     | { status: "saved"; fenHistory: string[] }
     | { status: "not_found" }
+    | { status: "active" }
     | { status: "conflict" };
 
 export type UpdateHistoryFenResult = AppendHistoryFenResult | { status: "invalid_index" };
@@ -158,8 +169,9 @@ export type ReplaceHistoryFensResult = AppendHistoryFenResult;
  */
 export async function appendHistoryFen(id: string, fen: string): Promise<AppendHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
+    if (!isFinishedHistory(record)) return { status: "active" };
 
     const hasEditedHistory = Array.isArray(record.fenHistoryEdited);
     const sourceHistory = hasEditedHistory ? record.fenHistoryEdited : record.fenHistory;
@@ -192,8 +204,9 @@ export async function appendHistoryFen(id: string, fen: string): Promise<AppendH
 /** Replaces one FEN snapshot while preserving every other history field. */
 export async function updateHistoryFen(id: string, index: number, fen: string): Promise<UpdateHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
+    if (!isFinishedHistory(record)) return { status: "active" };
 
     const sourceHistory = Array.isArray(record.fenHistoryEdited) ? record.fenHistoryEdited : record.fenHistory;
     const fenHistory = Array.isArray(sourceHistory)
@@ -229,8 +242,9 @@ export async function updateHistoryFen(id: string, index: number, fen: string): 
 /** Atomically replaces the complete persisted FEN sequence for an administrator correction. */
 export async function replaceHistoryFens(id: string, fens: string[]): Promise<ReplaceHistoryFensResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
+    if (!isFinishedHistory(record)) return { status: "active" };
 
     const hasEditedHistory = Array.isArray(record.fenHistoryEdited);
     const fenPredicate = hasEditedHistory
@@ -263,8 +277,9 @@ export async function replaceHistoryFens(id: string, fens: string[]): Promise<Re
  */
 export async function deleteHistoryFen(id: string, index: number): Promise<DeleteHistoryFenResult> {
     const filter = historyIdFilter(id, false);
-    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1 } });
+    const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
+    if (!isFinishedHistory(record)) return { status: "active" };
 
     const sourceHistory = Array.isArray(record.fenHistoryEdited) ? record.fenHistoryEdited : record.fenHistory;
     const fenHistory = Array.isArray(sourceHistory)
