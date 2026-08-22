@@ -1100,7 +1100,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                       {t("rev.reviewSource")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 2 : 1 })}
+                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 1 : 1 })}
                     </span>
                   </div>
                   <select
@@ -1113,10 +1113,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                     className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
                   >
                     <option value="base">
-                      {hasEditedFen ? t("rev.editedFen") : t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, (recoveryStatus === "ready" ? (recoveryLines[0]?.sanMoves.length ?? 0) : 0) || (hasEditedFen ? editedFenHistory.length : rawFenHistory.length)) })}
-                    </option>
-                    <option value="raw">
-                      {t("rev.rawFen")} · {t("rev.plyCount", { count: rawFenHistory.length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, (recoveryStatus === "ready" ? (recoveryLines[0]?.sanMoves.length ?? 0) : 0) || (hasEditedFen ? editedFenHistory.length : rawFenHistory.length)) })}
                     </option>
                     {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
                       const difference = branchDifferences[index];
