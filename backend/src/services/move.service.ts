@@ -4,6 +4,7 @@ import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
 import { MoveState, ParseCandidatesInput, ParsedCandidates, ProcessMoveInput } from "../types/move.types.js";
+import { getCurrentClock } from "./clock.service.js";
 
 /**Parse json
  * boardType is HALL
@@ -91,6 +92,24 @@ async function afterMove(
 ): Promise<void> {
     const now = new Date();
     const persistedGame = await getGame(gameID);
+    if (!persistedGame) throw new Error("GAME_STATE_CONFLICT");
+    const clock = getCurrentClock(persistedGame, now.getTime());
+
+    const nextSide = state.fen?.split(" ")[1] === "b" ? "black" : "white";
+    // The board-provided FEN is the source of truth for turn ownership.  The
+    // side that just moved is the opposite of the side encoded in that FEN;
+    // do not infer it from a possibly stale client clock state.
+    const movedSide = nextSide === "black" ? "white" : "black";
+
+    let whiteRemainingMs = clock.whiteRemainingMs;
+    let blackRemainingMs = clock.blackRemainingMs;
+
+    if (movedSide === "white") {
+        whiteRemainingMs += persistedGame.incrementMs ?? 0;
+    } else {
+        blackRemainingMs += persistedGame.incrementMs ?? 0;
+    }
+
     const startedAt = persistedGame?.startedAt ?? now;
     // The clock starts after the first accepted move. Subsequent entries are
     // measured from the previous accepted move and persisted by ply.
@@ -101,8 +120,16 @@ async function afterMove(
         : 0;
     const durationSec = Math.max(0, Math.floor((now.getTime() - new Date(startedAt).getTime()) / 1_000));
     const write = await saveGame(
-        gameID, 
-        { fen: state.fen, pgn: state.pgn, lastMove: state.lastMove, startedAt, lastMoveAt: now, durationSec },
+        gameID,
+        {
+            fen: state.fen, pgn: state.pgn, lastMove: state.lastMove,
+            startedAt, lastMoveAt: now, durationSec,
+            whiteRemainingMs, blackRemainingMs,
+            activeClockSide: nextSide,
+            // Start the newly active side's server clock at this move's commit time.
+            clockStartedAt: now,
+            status: "playing",
+        },
         { uci, fen: state.fen, seq, boardType, moveDurationMs, expectedVersion, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] }
     ); // save db
     if (!write?.modifiedCount) {
@@ -117,6 +144,16 @@ async function afterMove(
     if (updatedGame) await saveActiveGameHistorySnapshot(updatedGame);
 
     getIO().to(gameID).emit("esp_move", state);// broadcast move
+    if (updatedGame) {
+        // Keep the clock event tied to the exact FEN persisted by the board.
+        // Consumers must derive the side to move from this FEN, never from a
+        // client-side clock toggle or a locally reconstructed position.
+        getIO().to(gameID).emit("clock_state", {
+            gameID,
+            ...getCurrentClock(updatedGame),
+            fen: updatedGame.fen,
+        });
+    }
 }
 
 export const MoveService = {

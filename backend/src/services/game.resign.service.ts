@@ -170,6 +170,7 @@ export const GameResignService = {
             fenHistory: [],
             moveDurationsMs: [],
             resigningAt: null,
+            clockStartedAt: null,
         }, {
             boardType,
             expectedVersion: (game.version ?? 0) + 1,

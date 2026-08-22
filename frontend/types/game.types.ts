@@ -24,11 +24,19 @@ export interface GameSetupMetadata {
     round?: number;
     location?: string;
     boardNumber?: string;
+    /** Server-authoritative live clock snapshot. */
+    whiteRemainingMs?: number;
+    blackRemainingMs?: number;
+    activeClockSide?: "white" | "black";
+    clockStartedAt?: string | null;
+    serverNow?: number;
 }
 
 /** Active game returned by GET /games/current */
 export interface ActiveGame extends GameSetupMetadata {
     gameID: string;
+    /** Physical board identifier returned by the live-games endpoint. */
+    boardID?: string;
     WhiteName: string;
     BlackName: string;
     fen: string;

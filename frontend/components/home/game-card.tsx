@@ -32,6 +32,7 @@ export function GameCard({ game }: Props) {
     rapid: t("timeControl.rapid"),
     classical: t("timeControl.classical"),
   }[timeControl];
+  const boardLabel = game.boardID?.trim();
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -91,9 +92,16 @@ export function GameCard({ game }: Props) {
         </div>
       </div>
       <div className="border-t border-border/70 bg-muted/30 px-3 py-1.5">
-        <span className="inline-flex rounded-full border border-primary/20 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
-          {timeControlLabel}
-        </span>
+        <div className="flex items-center justify-between gap-2">
+          <span className="inline-flex rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[10px] font-semibold text-primary shadow-sm">
+            {timeControlLabel}
+          </span>
+          {boardLabel ? (
+            <span className="inline-flex max-w-[9rem] truncate rounded-full border border-accent/40 bg-accent/30 px-2.5 py-1 text-[10px] font-semibold text-accent-foreground shadow-sm">
+              {boardLabel}
+            </span>
+          ) : null}
+        </div>
       </div>
     </Link>
   );

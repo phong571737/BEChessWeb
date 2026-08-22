@@ -39,6 +39,10 @@ export const GameActionService = {
             uciHistory: [],
             fenHistory: [],
             moveDurationsMs: [],
+            whiteRemainingMs: initialTimeMs,
+            blackRemainingMs: initialTimeMs,
+            activeClockSide: "white",
+            clockStartedAt: null,
         }, { expectedVersion: game.version ?? 0, expectedStatus: ["waiting", "ready", "playing", "active", "idle"] });
         if (!transition?.modifiedCount) {
             throw new Error("GAME_STATE_CONFLICT");
@@ -57,6 +61,15 @@ export const GameActionService = {
             resetAt,
             initialTimeMs,
             incrementMs,
+        });
+        getIO().to(gameID).emit("clock_state", {
+            gameID,
+            whiteRemainingMs: initialTimeMs ?? 0,
+            blackRemainingMs: initialTimeMs ?? 0,
+            activeClockSide: "white",
+            clockStartedAt: null,
+            serverNow: resetAt,
+            fen: initialFen,
         });
 
         return {

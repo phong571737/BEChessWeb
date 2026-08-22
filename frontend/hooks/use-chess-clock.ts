@@ -3,294 +3,43 @@ import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "@/lib/time-contro
 import { useEffect, useRef, useState } from "react";
 
 export type ClockSide = "white" | "black";
-
-interface UseChessClockOptions {
-  gameID: string;
-  fen: string;
-  pgn: string;
-  status?: string | null;
-  isLoaded: boolean;
-  moveCount: number;
-  initialTimeMs?: number;
-  incrementMs?: number;
-  resetRevision?: number;
-}
-
-// Single fallback for games created before clock fields existed.
+export interface ServerClockState { whiteRemainingMs: number; blackRemainingMs: number; activeClockSide: ClockSide; clockStartedAt?: string | null; serverNow?: number; }
+interface UseChessClockOptions extends Partial<ServerClockState> { gameID: string; fen: string; pgn: string; status?: string | null; isLoaded: boolean; moveCount: number; initialTimeMs?: number; incrementMs?: number; resetRevision?: number; }
 export { DEFAULT_INITIAL_TIME_MS, DEFAULT_INCREMENT_MS } from "@/lib/time-control";
+function toClockSide(fen: string): ClockSide { return (fen?.split(" ")[1] ?? "w").toLowerCase() === "b" ? "black" : "white"; }
+export function formatClockMs(ms: number): string { const s = Math.floor(Math.max(0, ms) / 1000); return `${Math.floor(s / 60).toString().padStart(2, "0")}:${(s % 60).toString().padStart(2, "0")}`; }
+const PREFIX = "chess:clock:";
+type Persisted = { whiteMs: number; blackMs: number; activeSide: ClockSide; lastTickAt: number; moveCount: number; initialTimeMs: number };
+function readPersisted(id: string): Persisted | null { try { const raw = sessionStorage.getItem(PREFIX + id); return raw ? JSON.parse(raw) as Persisted : null; } catch { return null; } }
+function writePersisted(id: string, value: Persisted): void { try { sessionStorage.setItem(PREFIX + id, JSON.stringify(value)); } catch { /* optional fallback */ } }
+function clearPersisted(id: string): void { try { sessionStorage.removeItem(PREFIX + id); } catch { /* optional fallback */ } }
 
-function toClockSide(fen: string): ClockSide {
-  const turn = (fen?.split(" ")[1] ?? "w").toLowerCase();
-  return turn === "b" ? "black" : "white";
-}
+export function useChessClock({ gameID, fen, pgn, status, isLoaded, moveCount, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs: _incrementMs = DEFAULT_INCREMENT_MS, whiteRemainingMs, blackRemainingMs, activeClockSide, serverNow, resetRevision }: UseChessClockOptions) {
+  const [whiteMs, setWhiteMs] = useState(0); const [blackMs, setBlackMs] = useState(0); const [activeSide, setActiveSide] = useState<ClockSide>("white");
+  const whiteRef = useRef(0); const blackRef = useRef(0); const sideRef = useRef<ClockSide>("white"); const tickRef = useRef(Date.now()); const initializedRef = useRef<string | null>(null); const resetRef = useRef<number | undefined>(undefined);
+  const serverMode = Number.isFinite(whiteRemainingMs) && Number.isFinite(blackRemainingMs); const ended = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
 
-export function formatClockMs(ms: number): string {
-  const safeMs = Math.max(0, ms);
-  const totalSeconds = Math.floor(safeMs / 1000);
-  const minutes = Math.floor(totalSeconds / 60)
-    .toString()
-    .padStart(2, "0");
-  const seconds = (totalSeconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${minutes}:${seconds}`;
-}
-
-// ── sessionStorage helpers ──────────────────────────────────────────
-const STORAGE_PREFIX = "chess:clock:";
-
-interface ClockPersistData {
-  whiteMs: number;
-  blackMs: number;
-  activeSide: ClockSide;
-  lastTickAt: number;
-  moveCount: number;
-  initialTimeMs: number;
-}
-
-function loadClockData(gameID: string): ClockPersistData | null {
-  try {
-    const raw = sessionStorage.getItem(STORAGE_PREFIX + gameID);
-    if (!raw) return null;
-    return JSON.parse(raw) as ClockPersistData;
-  } catch {
-    return null;
-  }
-}
-
-function saveClockData(gameID: string, data: ClockPersistData): void {
-  try {
-    sessionStorage.setItem(STORAGE_PREFIX + gameID, JSON.stringify(data));
-  } catch {
-    // storage full or blocked — ignore
-  }
-}
-
-function clearClockData(gameID: string): void {
-  try {
-    sessionStorage.removeItem(STORAGE_PREFIX + gameID);
-  } catch {
-    // ignore
-  }
-}
-// ────────────────────────────────────────────────────────────────────
-
-export function useChessClock({
-  gameID,
-  fen,
-  pgn,
-  status,
-  isLoaded,
-  moveCount,
-  initialTimeMs = DEFAULT_INITIAL_TIME_MS,
-  incrementMs = DEFAULT_INCREMENT_MS,
-  resetRevision,
-}: UseChessClockOptions) {
-  // This placeholder is never rendered: the board stays in its loading state
-  // until the game configuration has been fetched.
-  const [whiteMs, setWhiteMs] = useState(0);
-  const [blackMs, setBlackMs] = useState(0);
-  const [activeSide, setActiveSide] = useState<ClockSide>("white");
-
-  const whiteMsRef = useRef(0);
-  const blackMsRef = useRef(0);
-  const activeSideRef = useRef<ClockSide>("white");
-  const lastTickRef = useRef(Date.now());
-  const previousMoveCountRef = useRef(0);
-  const isEnded = status === GAME_STATUS.ENDED || status === GAME_STATUS.FINISHED;
-  const initializedGameRef = useRef<string | null>(null);
-  const appliedResetRevisionRef = useRef<number | undefined>(undefined);
-  const lastPersistRef = useRef(0);
-  const configuredInitialTimeRef = useRef(initialTimeMs);
-
-  const persistClock = (moveCountToPersist: number) => {
-    const now = Date.now();
-    saveClockData(gameID, {
-      whiteMs: whiteMsRef.current,
-      blackMs: blackMsRef.current,
-      activeSide: activeSideRef.current,
-      lastTickAt: now,
-      moveCount: moveCountToPersist,
-      initialTimeMs,
-    });
-    lastPersistRef.current = now;
-  };
-
-  // ── Initialize only after the persisted game configuration has loaded ──
+  // Server snapshots are authoritative; the browser interval only renders elapsed time.
   useEffect(() => {
-    if (!isLoaded || initializedGameRef.current === gameID) return;
-
-    const saved = loadClockData(gameID);
-    // Preserve elapsed time when an administrator changes the configured time
-    // while a session is open. For example: 10:00 with 4:00 elapsed becomes
-    // 30:00 with 4:00 elapsed, so the clock continues at 26:00.
-    const restored = saved
-      ? {
-          ...saved,
-          whiteMs: Math.max(0, saved.whiteMs + initialTimeMs - saved.initialTimeMs),
-          blackMs: Math.max(0, saved.blackMs + initialTimeMs - saved.initialTimeMs),
-          initialTimeMs,
-        }
-      : null;
-    const next = restored ?? {
-      whiteMs: initialTimeMs,
-      blackMs: initialTimeMs,
-      activeSide: "white" as ClockSide,
-      lastTickAt: Date.now(),
-      moveCount: 0,
-      initialTimeMs,
-    };
-
-    whiteMsRef.current = next.whiteMs;
-    blackMsRef.current = next.blackMs;
-    activeSideRef.current = next.activeSide;
-    lastTickRef.current = next.lastTickAt;
-    previousMoveCountRef.current = next.moveCount;
-    setWhiteMs(next.whiteMs);
-    setBlackMs(next.blackMs);
-    setActiveSide(next.activeSide);
-
-    if (restored && restored.moveCount > 0) {
-      // compute elapsed since last saved tick and advance the clock
-      const elapsed = Date.now() - restored.lastTickAt;
-      if (elapsed > 0 && !isEnded) {
-        if (restored.activeSide === "white") {
-          whiteMsRef.current = Math.max(0, restored.whiteMs - elapsed);
-          setWhiteMs(whiteMsRef.current);
-        } else {
-          blackMsRef.current = Math.max(0, restored.blackMs - elapsed);
-          setBlackMs(blackMsRef.current);
-        }
-      }
-      lastTickRef.current = Date.now();
-    }
-    configuredInitialTimeRef.current = initialTimeMs;
-    initializedGameRef.current = gameID;
-  }, [gameID, initialTimeMs, isEnded, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded || initializedGameRef.current !== gameID) return;
-
-    const previousInitialTimeMs = configuredInitialTimeRef.current;
-    if (previousInitialTimeMs === initialTimeMs) return;
-
-    const now = Date.now();
-    // Apply the time that elapsed since the last UI tick before changing the
-    // base clock, so the administrator never grants an accidental extra tick.
-    if (moveCount > 0 && !isEnded) {
-      const elapsed = Math.max(0, now - lastTickRef.current);
-      if (activeSideRef.current === "white") {
-        whiteMsRef.current = Math.max(0, whiteMsRef.current - elapsed);
-      } else {
-        blackMsRef.current = Math.max(0, blackMsRef.current - elapsed);
-      }
-    }
-
-    const adjustment = initialTimeMs - previousInitialTimeMs;
-    whiteMsRef.current = Math.max(0, whiteMsRef.current + adjustment);
-    blackMsRef.current = Math.max(0, blackMsRef.current + adjustment);
-    lastTickRef.current = now;
-    configuredInitialTimeRef.current = initialTimeMs;
-    setWhiteMs(whiteMsRef.current);
-    setBlackMs(blackMsRef.current);
-    saveClockData(gameID, {
-      whiteMs: whiteMsRef.current,
-      blackMs: blackMsRef.current,
-      activeSide: activeSideRef.current,
-      lastTickAt: now,
-      moveCount,
-      initialTimeMs,
-    });
-    lastPersistRef.current = now;
-  }, [gameID, initialTimeMs, isEnded, isLoaded, moveCount]);
-
-  useEffect(() => {
-    if (!isLoaded || resetRevision === undefined || appliedResetRevisionRef.current === resetRevision) return;
-    appliedResetRevisionRef.current = resetRevision;
-    const now = Date.now();
-    clearClockData(gameID);
-    whiteMsRef.current = initialTimeMs;
-    blackMsRef.current = initialTimeMs;
-    activeSideRef.current = "white";
-    lastTickRef.current = now;
-    previousMoveCountRef.current = 0;
-    configuredInitialTimeRef.current = initialTimeMs;
-    setWhiteMs(initialTimeMs);
-    setBlackMs(initialTimeMs);
-    setActiveSide("white");
-  }, [gameID, initialTimeMs, isLoaded, resetRevision]);
-
-  useEffect(() => {
-    if (!isLoaded || !fen) return;
-    const inferredSide = toClockSide(fen);
-    activeSideRef.current = inferredSide;
-    setActiveSide(inferredSide);
-  }, [fen, isLoaded]);
-
-  useEffect(() => {
-    if (!isLoaded) return;
-
-    if (!pgn || isEnded) return;
-
-    if (moveCount > previousMoveCountRef.current) {
-      // The authoritative post-move FEN identifies the player whose clock
-      // must run now. For example, after White's first move it is Black.
-      const nextSide = toClockSide(fen);
-      const movedSide = nextSide === "white" ? "black" : "white";
-
-      if (movedSide === "white") {
-        whiteMsRef.current = whiteMsRef.current + incrementMs;
-        setWhiteMs(whiteMsRef.current);
-      } else {
-        blackMsRef.current = blackMsRef.current + incrementMs;
-        setBlackMs(blackMsRef.current);
-      }
-
-      activeSideRef.current = nextSide;
-      setActiveSide(nextSide);
-      lastTickRef.current = Date.now();
-
-      // Persist after a move — update the moveCount so reloads pick up the correct baseline
-      persistClock(moveCount);
-    }
-
-    previousMoveCountRef.current = moveCount;
-  }, [moveCount, pgn, fen, isLoaded, isEnded, incrementMs, initialTimeMs, gameID]);
-
-  useEffect(() => {
-    // The selected time is displayed while the board is waiting; countdown
-    // begins only after the first valid move has been recorded.
-    if (!isLoaded || moveCount === 0 || isEnded || initializedGameRef.current !== gameID) return;
-
-    const intervalId = window.setInterval(() => {
-      const now = Date.now();
-      const delta = now - lastTickRef.current;
-      lastTickRef.current = now;
-
-      if (activeSideRef.current === "white") {
-        const nextWhiteMs = Math.max(0, whiteMsRef.current - delta);
-        whiteMsRef.current = nextWhiteMs;
-        setWhiteMs(nextWhiteMs);
-      } else {
-        const nextBlackMs = Math.max(0, blackMsRef.current - delta);
-        blackMsRef.current = nextBlackMs;
-        setBlackMs(nextBlackMs);
-      }
-
-      // Persist periodically; rendering still updates every second.
-      if (now - lastPersistRef.current >= 10_000) persistClock(moveCount);
-    }, 1000);
-
-    return () => {
-      window.clearInterval(intervalId);
-      persistClock(moveCount);
-    };
-  }, [isLoaded, isEnded, gameID, moveCount, initialTimeMs]);
-
-  return {
-    whiteMs,
-    blackMs,
-    activeSide,
-    formatClockMs,
-  };
+    if (!isLoaded || !serverMode) return;
+    const receivedAt = Date.now();
+    const networkDelay = Number.isFinite(serverNow)
+      ? Math.max(0, receivedAt - (serverNow as number))
+      : 0;
+    const side = activeClockSide === "black" ? "black" : "white";
+    whiteRef.current = Math.max(0, (whiteRemainingMs as number) - (side === "white" ? networkDelay : 0));
+    blackRef.current = Math.max(0, (blackRemainingMs as number) - (side === "black" ? networkDelay : 0));
+    sideRef.current = side;
+    tickRef.current = receivedAt;
+    initializedRef.current = gameID;
+    setWhiteMs(whiteRef.current);
+    setBlackMs(blackRef.current);
+    setActiveSide(sideRef.current);
+  }, [activeClockSide, blackRemainingMs, gameID, isLoaded, serverMode, serverNow, whiteRemainingMs]);
+  useEffect(() => { if (!isLoaded || serverMode || initializedRef.current === gameID) return; const saved = readPersisted(gameID); const now = Date.now(); const next = saved ?? { whiteMs: initialTimeMs, blackMs: initialTimeMs, activeSide: "white" as ClockSide, lastTickAt: now, moveCount: 0, initialTimeMs }; whiteRef.current = next.whiteMs; blackRef.current = next.blackMs; sideRef.current = next.activeSide; tickRef.current = now; initializedRef.current = gameID; setWhiteMs(next.whiteMs); setBlackMs(next.blackMs); setActiveSide(next.activeSide); }, [gameID, initialTimeMs, isLoaded, serverMode]);
+  useEffect(() => { if (!isLoaded || resetRevision === undefined || resetRef.current === resetRevision) return; resetRef.current = resetRevision; clearPersisted(gameID); whiteRef.current = initialTimeMs; blackRef.current = initialTimeMs; sideRef.current = "white"; tickRef.current = Date.now(); setWhiteMs(initialTimeMs); setBlackMs(initialTimeMs); setActiveSide("white"); }, [gameID, initialTimeMs, isLoaded, resetRevision]);
+  // Legacy games without persisted server clock fields keep the old FEN-side fallback.
+  useEffect(() => { if (!serverMode && isLoaded && moveCount > 0 && pgn && !ended) { const side = toClockSide(fen); sideRef.current = side; setActiveSide(side); } }, [ended, fen, isLoaded, moveCount, pgn, serverMode]);
+  useEffect(() => { if (!isLoaded || moveCount === 0 || ended || initializedRef.current !== gameID) return; const id = window.setInterval(() => { const now = Date.now(); const delta = Math.max(0, now - tickRef.current); tickRef.current = now; if (sideRef.current === "white") { whiteRef.current = Math.max(0, whiteRef.current - delta); setWhiteMs(whiteRef.current); } else { blackRef.current = Math.max(0, blackRef.current - delta); setBlackMs(blackRef.current); } if (!serverMode) writePersisted(gameID, { whiteMs: whiteRef.current, blackMs: blackRef.current, activeSide: sideRef.current, lastTickAt: now, moveCount, initialTimeMs }); }, 1000); return () => window.clearInterval(id); }, [ended, gameID, initialTimeMs, isLoaded, moveCount, serverMode]);
+  return { whiteMs, blackMs, activeSide, formatClockMs };
 }

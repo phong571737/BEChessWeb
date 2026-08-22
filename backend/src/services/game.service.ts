@@ -32,6 +32,11 @@ export const GameService = {
         version: 0,
         WhiteName,
         BlackName,
+        whiteRemainingMs: initialTimeMs,
+        blackRemainingMs: initialTimeMs,
+        activeClockSide: "white",
+        clockStartedAt: null,
+        clockVersion: 0,
         initialTimeMs,
         incrementMs,
         timeControlType: classifyTimeControl(initialTimeMs, incrementMs),
@@ -67,6 +72,5 @@ export function createBranches(game: Chess, valid_move: MoveLike[], parentId: st
 }
 
 export function ensureGameExists() {}
-
 
 

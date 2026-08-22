@@ -9,6 +9,7 @@ import { requireAdmin, requireAuthenticated } from "../middleware/auth.middlewar
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
 import { evaluatePosition } from "../services/stockfish.service.js";
+import { getCurrentClock } from "../services/clock.service.js";
 
 export const gameRouter: Router = express.Router();
 
@@ -106,7 +107,7 @@ gameRouter.get("/:id", gameReadRateLimit, async (req, res) => {
             return res.status(404).json({ error: "Game not found" });
         }
 
-        res.json(game);
+        res.json({ ...game, ...getCurrentClock(game) });
     } catch (e) {
         sendInternalError(res, "GET /games/:id", e);
     }

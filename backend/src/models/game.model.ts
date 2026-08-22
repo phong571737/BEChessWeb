@@ -103,6 +103,10 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         durationSec: game.durationSec ?? 0,
         initialTimeMs: game.initialTimeMs,
         incrementMs: game.incrementMs,
+        whiteRemainingMs: game.whiteRemainingMs ?? game.whiteRemainingTimeMs,
+        blackRemainingMs: game.blackRemainingMs ?? game.blackRemainingTimeMs,
+        activeClockSide: game.activeClockSide ?? "white",
+        clockStartedAt: game.clockStartedAt ?? null,
         timeControlType: classifyTimeControl(game.initialTimeMs, game.incrementMs),
         createdAt: game.createdAt ?? now,
     });

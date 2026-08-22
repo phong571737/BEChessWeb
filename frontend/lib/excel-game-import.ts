@@ -94,6 +94,8 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   let location: string | undefined;
   let locationColumn: number | undefined;
   let boardColumn: number | undefined;
+  let whiteColumn: number | undefined;
+  let blackColumn: number | undefined;
 
   for (const row of Array.from(document.getElementsByTagNameNS("*", "row"))) {
     const cells = new Map<number, string>();
@@ -109,6 +111,9 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     const firstCell = cells.get(1) ?? "";
     for (const [column, value] of cells) {
       const header = normalizedHeader(value);
+
+      if (/^(white|trang|quan trang)$/.test(header)) whiteColumn = column;
+      if (/^(black|den|quan den)$/.test(header)) blackColumn = column;
       if (/^(dia diem|location|venue)$/.test(header)) locationColumn = column;
       if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
     }
@@ -118,8 +123,8 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     const schedule = parseSchedule(firstCell);
     if (schedule) scheduledAt = schedule;
 
-    const whiteName = cells.get(5) ?? "";
-    const blackName = cells.get(11) ?? "";
+    const whiteName = whiteColumn !== undefined ? cells.get(whiteColumn) ?? "" : "";
+    const blackName = blackColumn !== undefined ? cells.get(blackColumn) ?? "" : "";
     if (!whiteName && !blackName) continue;
     rows.push({
       boardNumber: cells.get(boardColumn ?? 1) ?? "",

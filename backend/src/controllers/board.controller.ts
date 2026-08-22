@@ -24,15 +24,6 @@ export const BoardController = {
                 });
             }
 
-            // const currentGame = getCurrentGame(boardID);
-            // if (currentGame) {
-            //     return res.status(200).json({
-            //         status: "OK",
-            //         boardID,
-            //         gameID: currentGame,
-            //     });
-            // }
-
             const gameID = crypto.randomUUID();
 
             const created = await GameService.create(boardID, gameID);

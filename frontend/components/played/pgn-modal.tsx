@@ -248,15 +248,10 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
-  const [showUciHistory, setShowUciHistory] = useState(false);
   const [showPgnEditor, setShowPgnEditor] = useState(false);
   const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
   const [savingPgn, setSavingPgn] = useState(false);
   const [pgnSaveError, setPgnSaveError] = useState<string | null>(null);
-  const [showUciEditor, setShowUciEditor] = useState(false);
-  const [editableUci, setEditableUci] = useState((game.uciHistory ?? []).join("\n"));
-  const [savingUci, setSavingUci] = useState(false);
-  const [uciSaveError, setUciSaveError] = useState<string | null>(null);
   const rawFenHistory = useMemo(
     () => (game.rawFenHistory?.length ? game.rawFenHistory : game.fenHistory) ?? [],
     [game.fenHistory, game.rawFenHistory],
@@ -342,11 +337,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
   useEffect(() => {
     setEditablePgn(game.pgn ?? "");
-    setEditableUci((game.uciHistory ?? []).join("\n"));
     setShowPgnEditor(false);
-    setShowUciEditor(false);
     setPgnSaveError(null);
-    setUciSaveError(null);
   }, [game._id]);
 
   const selectedRecoveryLine = typeof selectedSource === "number"
@@ -929,14 +921,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
-  /** Converts the administrator's one-UCI-per-line editor into persisted tokens. */
-  const parseUciEditor = (value: string): string[] => value
-    .split(/\r?\n/)
-    .flatMap((line) => line.trim().split(/\s+/))
-    .map((token) => token.replace(/^\d+\.(?:\.\.)?/, "").trim())
-    .filter((token) => token.length > 0);
-
-  const saveHistoryTraces = async (payload: { pgn?: string; uciHistory?: string[] }) => {
+  const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;
     const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
       method: "PUT",
@@ -966,20 +951,6 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       setPgnSaveError(t("rev.pgnSaveFailed"));
     } finally {
       setSavingPgn(false);
-    }
-  };
-
-  const saveEditedUci = async () => {
-    if (!isAdmin || savingUci) return;
-    setSavingUci(true);
-    setUciSaveError(null);
-    try {
-      await saveHistoryTraces({ uciHistory: parseUciEditor(editableUci) });
-      setShowUciEditor(false);
-    } catch {
-      setUciSaveError(t("rev.uciSaveFailed"));
-    } finally {
-      setSavingUci(false);
     }
   };
 
@@ -1286,7 +1257,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
           )}
 
           {(isAdmin || !!rawFenHistory.length || !!editedFenHistory.length) && (
-            <details className="relative text-sm">
+            <details className="relative text-xs">
               <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
                 {t("rev.fenTimeline")} ({rawFenHistory.length})
               </summary>
@@ -1372,54 +1343,18 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </details>
           )}
 
-          {/* Display and edit moves from ESP32 */}
-          {(isAdmin || !!game.uciHistory?.length) && (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-sm font-medium">{t("rev.moveEBoard")}</span>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="h-8 text-xs"
-                  onClick={() => setShowUciHistory((visible) => !visible)}
-                >
-                  {showUciHistory ? t("rev.hideUciHistory") : t("rev.showUciHistory")}
-                </Button>
-              </div>
-              {showUciHistory && (
-                <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
-                  <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                    {(game.uciHistory ?? []).map((u, i) => `${i + 1}.${u}`).join(" ")}
-                  </pre>
-                </ScrollArea>
-              )}
-              {isAdmin && (
-                <details
-                  className="text-xs"
-                  open={showUciEditor}
-                  onToggle={(event) => setShowUciEditor(event.currentTarget.open)}
-                >
-                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
-                    {t("rev.editUciHistory")}
-                  </summary>
-                  <div className="mt-2 space-y-2">
-                    <textarea
-                      value={editableUci}
-                      onChange={(event) => setEditableUci(event.target.value)}
-                      rows={6}
-                      className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
-                      placeholder={t("rev.uciEditorPlaceholder")}
-                    />
-                    <div className="flex items-center justify-between gap-2">
-                      {uciSaveError && <span className="text-destructive">{uciSaveError}</span>}
-                      <Button type="button" size="sm" className="ml-auto" onClick={() => void saveEditedUci()} disabled={savingUci}>
-                        {savingUci ? t("rev.savingUciHistory") : t("rev.saveUciHistory")}
-                      </Button>
-                    </div>
-                  </div>
-                </details>
-              )}
-            </div>
+          {/* Display the immutable move trace received from the electronic board. */}
+          {!!game.uciHistory?.length && (
+            <details className="text-xs">
+              <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
+                {t("rev.moveEBoard")}
+              </summary>
+              <ScrollArea className="mt-2 h-36 rounded-sm border border-border bg-muted">
+                <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+                  {game.uciHistory.map((u, i) => `${i + 1}. ${u}`).join(" ")}
+                </pre>
+              </ScrollArea>
+            </details>
           )}
 
         </div>

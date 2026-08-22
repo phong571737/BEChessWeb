@@ -48,6 +48,7 @@ interface Props {
     incrementMs?: number;
     round: number;
     boardNumber?: string;
+    boardID?: string;
     location: string;
 }
 
@@ -61,7 +62,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, WhiteName, BlackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID,
 }, ref) {
     const { t } = useT();
     const timeControl = classifyTimeControl(initialTimeMs, incrementMs);
@@ -246,7 +247,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
 
             {isAuthenticated && status !== GAME_STATUS.FINISHED && status !== GAME_STATUS.ENDED && (
-                <div className="flex justify-end border-b border-border bg-muted/20 px-3 py-1.5">
+                <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-1.5">
+                    {boardID?.trim() ? (
+                        <span className="inline-flex min-w-0 items-center rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
+                            {boardID.trim()}
+                        </span>
+                    ) : <span />}
                     <GameSetupDialog
                         gameID={gameID}
                         whiteName={WhiteName}

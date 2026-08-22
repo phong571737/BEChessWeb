@@ -29,6 +29,15 @@ export interface GameDoc extends Document, GameSetupMetadata {
     /** Canonical names for new records; legacy capitalized fields remain readable. */
     whiteName?: string;
     blackName?: string;
+    /** Current remaining time per side, persisted in milliseconds. */
+    whiteRemainingMs?: number;
+    blackRemainingMs?: number;
+    /** Legacy name accepted while older documents are migrated. */
+    whiteRemainingTimeMs?: number;
+    blackRemainingTimeMs?: number;
+    activeClockSide?: "white" | "black";
+    clockStartedAt?: Date | null;
+    clockVersion?: number;
     fen?: string;
     currentFen?: string;
     pgn?: string;

@@ -7,6 +7,7 @@ import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
 import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
+import { getCurrentClock } from "../services/clock.service.js";
 
 /** Normalizes an administrator-supplied snapshot without enforcing chess legality. */
 function storedFen(value: unknown): string | null {
@@ -45,6 +46,7 @@ export const GameController = {
             }
             res.json(game.map((record) => ({
                 ...record,
+                ...getCurrentClock(record),
                 timeControlType: resolveTimeControlType(record.initialTimeMs, record.incrementMs, record.timeControlType),
             })));
         } catch (e) {

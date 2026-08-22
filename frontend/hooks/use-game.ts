@@ -72,7 +72,10 @@ export function useGame(gameID: string) {
 
     useEffect(() => {
         if (!socket || !gameID) return;
-        const join = () => socket.emit("join", { gameID });
+        const join = () => {
+            socket.emit("join", { gameID });
+            socket.emit("request_clock_state", { gameID });
+        };
         join();
         socket.on("connect", join);
         return () => { socket.off("connect", join) };
@@ -143,6 +146,11 @@ export function useGame(gameID: string) {
                     round: game.round ?? 1,
                     boardNumber: game.boardNumber ?? "",
                     location: game.location ?? "",
+                    whiteRemainingMs: game.whiteRemainingMs,
+                    blackRemainingMs: game.blackRemainingMs,
+                    activeClockSide: game.activeClockSide,
+                    clockStartedAt: game.clockStartedAt ?? null,
+                    serverNow: game.serverNow,
                 })
                 setIsLoaded(true);
             })
@@ -213,7 +221,7 @@ export function useGame(gameID: string) {
         };
     }, [gameID, isLoaded, resetRevision]);
 
-    const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number } = {}) => {
+    const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number; whiteRemainingMs?: number; blackRemainingMs?: number } = {}) => {
         const resetAt = data.resetAt ?? Date.now();
         chessRef.current.reset();
         initialMoveCountRef.current = 0;
@@ -246,12 +254,17 @@ export function useGame(gameID: string) {
             wrongPieceSquares: [],
             ...(data.initialTimeMs !== undefined ? { initialTimeMs: data.initialTimeMs } : {}),
             ...(data.incrementMs !== undefined ? { incrementMs: data.incrementMs } : {}),
+            ...(data.whiteRemainingMs !== undefined ? { whiteRemainingMs: data.whiteRemainingMs } : { whiteRemainingMs: data.initialTimeMs ?? cachedBoard?.initialTimeMs }),
+            ...(data.blackRemainingMs !== undefined ? { blackRemainingMs: data.blackRemainingMs } : { blackRemainingMs: data.initialTimeMs ?? cachedBoard?.initialTimeMs }),
+            activeClockSide: "white",
+            clockStartedAt: null,
+            serverNow: resetAt,
             resetRevision: resetAt,
         });
         if (data.boardID) {
             patchPhysicalBoard({ boardID: data.boardID, gameID, gameStatus: "waiting", online: true });
         }
-    }, [gameID, patchBoard, patchPhysicalBoard, storageKey]);
+    }, [cachedBoard?.initialTimeMs, gameID, patchBoard, patchPhysicalBoard, storageKey]);
 
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
@@ -334,6 +347,27 @@ export function useGame(gameID: string) {
             patchBoard(gameID, { cp: data.cp });
         };
 
+        const onClockState = (data: any) => {
+            if (!data || data.gameID !== gameID) return;
+            const clockPatch: Record<string, unknown> = {
+                whiteRemainingMs: Number(data.whiteRemainingMs),
+                blackRemainingMs: Number(data.blackRemainingMs),
+                activeClockSide: data.activeClockSide === "black" ? "black" : "white",
+                clockStartedAt: data.clockStartedAt ?? null,
+                serverNow: Number.isFinite(data.serverNow) ? data.serverNow : Date.now(),
+            };
+
+            // The ESP32 FEN is authoritative for the side to move.  A clock
+            // event can arrive without an esp_move event (for example after a
+            // reconnect), so hydrate the board and Stockfish from the FEN
+            // carried by the server clock snapshot when it is available.
+            if (typeof data.fen === "string" && data.fen.trim()) {
+                clockPatch.fen = data.fen.trim();
+            }
+
+            patchBoard(gameID, clockPatch);
+        };
+
         // Restore game 
         const onRestore = (data: any) => {
             if (data.game != gameID) return;
@@ -379,6 +413,7 @@ export function useGame(gameID: string) {
         socket.on(SERVER_EVENT.ESP_MOVE, onMove);
         socket.on(CLIENT_EVENT.RESTORED, onRestore);
         socket.on(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
+        socket.on("clock_state", onClockState);
 
         const onUpdateAllGame = (data: any) => {
             // Never apply a broadcast without an explicit game identity. A
@@ -440,6 +475,7 @@ export function useGame(gameID: string) {
             socket.off("game_status_update", onGameStatusUpdate);
             socket.off("game_restart", onGameRestart);
             socket.off("game:reset", onGameReset);
+            socket.off("clock_state", onClockState);
         }
     }, [socket, gameID, isLoaded, applyGameReset]);
 
@@ -586,6 +622,11 @@ export function useGame(gameID: string) {
         // chess clock
         initialTimeMs: board?.initialTimeMs,
         incrementMs: board?.incrementMs,
+        whiteRemainingMs: board?.whiteRemainingMs,
+        blackRemainingMs: board?.blackRemainingMs,
+        activeClockSide: board?.activeClockSide,
+        clockStartedAt: board?.clockStartedAt,
+        serverNow: board?.serverNow,
         round: board?.round ?? 1,
         location: board?.location ?? "",
         boardNumber: board?.boardNumber ?? "",

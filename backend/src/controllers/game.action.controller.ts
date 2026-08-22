@@ -4,6 +4,7 @@ import { GameResignService } from "../services/game.resign.service.js";
 import { GameIdParams, RenameBody, ResignBody } from "../types/game.types.js";
 import { ERROR_STATUS } from "../constant.js";
 import { publishBoardCommand } from "../services/mqtt.service.js";
+import { getIO } from "../sockets/index.js";
 
 export const GameActionController = {
     // resign action
@@ -15,6 +16,12 @@ export const GameActionController = {
             const gameID = req.params.id;
             const { resignSide, boardType, branchId } = req.body;
             const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+            // Keep every viewer in the room synchronized with the server-side
+            // terminal transition, including HTTP resignations.
+            getIO().to(gameID).emit("update_all_game", {
+                gameID,
+                result: resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0",
+            });
             res.json(result);
         } catch (e) {
             console.error("RESIGN ERROR:", e);

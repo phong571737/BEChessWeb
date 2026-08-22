@@ -6,6 +6,7 @@ import { env } from "../config/environment.js";
 import { getGame } from "../models/game.model.js";
 import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
+import { getCurrentClock } from "../services/clock.service.js";
 
 type RequestCurrentGamePayload = Partial<GameIDPayload>;
 interface MatchStatus {
@@ -52,6 +53,20 @@ export function initGameSocket(io: Server): void {
             }
             joinedGames.add(gameID);
             await socket.join(gameID);
+            const game = await getGame(gameID);
+            if (game) {
+                socket.emit("clock_state", { gameID, ...getCurrentClock(game), fen: game.fen });
+            }
+        });
+
+        socket.on("request_clock_state", async (payload: Partial<GameIDPayload> = {}) => {
+            const gameID = typeof payload.gameID === "string" ? payload.gameID.trim() : "";
+            if (!gameID || !joinedGames.has(gameID)) {
+                socket.emit("action_error", { error: "Join the game room before requesting its clock" });
+                return;
+            }
+            const game = await getGame(gameID);
+            if (game) socket.emit("clock_state", { gameID, ...getCurrentClock(game), fen: game.fen });
         });
 
         const canMutateGame = (gameID: unknown): gameID is string => {
