@@ -30,6 +30,7 @@ gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
 
 gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthenticated, GameController.saveHistoryAnalysis);
+gameRouter.put("/history/:id/traces", gameMutationRateLimit, requireAdmin, GameController.updateHistoryTraces);
 
 /** Administrator-only correction of one persisted FEN snapshot. */
 gameRouter.post("/history/:id/fens", gameMutationRateLimit, requireAdmin, GameController.appendHistoryFen);

@@ -249,6 +249,14 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
   const [showUciHistory, setShowUciHistory] = useState(false);
+  const [showPgnEditor, setShowPgnEditor] = useState(false);
+  const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
+  const [savingPgn, setSavingPgn] = useState(false);
+  const [pgnSaveError, setPgnSaveError] = useState<string | null>(null);
+  const [showUciEditor, setShowUciEditor] = useState(false);
+  const [editableUci, setEditableUci] = useState((game.uciHistory ?? []).join("\n"));
+  const [savingUci, setSavingUci] = useState(false);
+  const [uciSaveError, setUciSaveError] = useState<string | null>(null);
   const rawFenHistory = useMemo(
     () => (game.rawFenHistory?.length ? game.rawFenHistory : game.fenHistory) ?? [],
     [game.fenHistory, game.rawFenHistory],
@@ -331,6 +339,15 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
     return () => { cancelled = true; };
   }, [game._id, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
+
+  useEffect(() => {
+    setEditablePgn(game.pgn ?? "");
+    setEditableUci((game.uciHistory ?? []).join("\n"));
+    setShowPgnEditor(false);
+    setShowUciEditor(false);
+    setPgnSaveError(null);
+    setUciSaveError(null);
+  }, [game._id]);
 
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
@@ -912,6 +929,60 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  /** Converts the administrator's one-UCI-per-line editor into persisted tokens. */
+  const parseUciEditor = (value: string): string[] => value
+    .split(/\r?\n/)
+    .flatMap((line) => line.trim().split(/\s+/))
+    .map((token) => token.replace(/^\d+\.(?:\.\.)?/, "").trim())
+    .filter((token) => token.length > 0);
+
+  const saveHistoryTraces = async (payload: { pgn?: string; uciHistory?: string[] }) => {
+    if (!token) return false;
+    const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
+      method: "PUT",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    const body = await response.json().catch(() => null) as { success?: boolean; pgn?: unknown; uciHistory?: unknown } | null;
+    if (!response.ok || body?.success !== true) throw new Error("save_failed");
+    const nextGame: HistoryGame = {
+      ...game,
+      ...(typeof body.pgn === "string" ? { pgn: body.pgn } : {}),
+      ...(Array.isArray(body.uciHistory) ? { uciHistory: body.uciHistory.filter((value): value is string => typeof value === "string") } : {}),
+      analysis: undefined,
+    };
+    onGameUpdate?.(nextGame);
+    return true;
+  };
+
+  const saveEditedPgn = async () => {
+    if (!isAdmin || savingPgn) return;
+    setSavingPgn(true);
+    setPgnSaveError(null);
+    try {
+      await saveHistoryTraces({ pgn: editablePgn });
+      setShowPgnEditor(false);
+    } catch {
+      setPgnSaveError(t("rev.pgnSaveFailed"));
+    } finally {
+      setSavingPgn(false);
+    }
+  };
+
+  const saveEditedUci = async () => {
+    if (!isAdmin || savingUci) return;
+    setSavingUci(true);
+    setUciSaveError(null);
+    try {
+      await saveHistoryTraces({ uciHistory: parseUciEditor(editableUci) });
+      setShowUciEditor(false);
+    } catch {
+      setUciSaveError(t("rev.uciSaveFailed"));
+    } finally {
+      setSavingUci(false);
+    }
+  };
+
   const resultScore = game.Result === "1-0" ||
    game.Result === "0-1" || 
    game.Result === "1/2-1/2" 
@@ -1187,6 +1258,33 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </ScrollArea>
           </details>}
 
+          {isAdmin && (
+            <details
+              className="text-xs"
+              open={showPgnEditor}
+              onToggle={(event) => setShowPgnEditor(event.currentTarget.open)}
+            >
+              <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
+                {t("rev.editPgn")}
+              </summary>
+              <div className="mt-2 space-y-2">
+                <textarea
+                  value={editablePgn}
+                  onChange={(event) => setEditablePgn(event.target.value)}
+                  rows={8}
+                  className="min-h-32 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                  placeholder={t("rev.pgnEditorPlaceholder")}
+                />
+                <div className="flex items-center justify-between gap-2">
+                  {pgnSaveError && <span className="text-destructive">{pgnSaveError}</span>}
+                  <Button type="button" size="sm" className="ml-auto" onClick={() => void saveEditedPgn()} disabled={savingPgn}>
+                    {savingPgn ? t("rev.savingPgn") : t("rev.savePgn")}
+                  </Button>
+                </div>
+              </div>
+            </details>
+          )}
+
           {(isAdmin || !!rawFenHistory.length || !!editedFenHistory.length) && (
             <details className="relative text-sm">
               <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
@@ -1274,8 +1372,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </details>
           )}
 
-          {/* Display move from esp32 */}
-          {!!game.uciHistory?.length && (
+          {/* Display and edit moves from ESP32 */}
+          {(isAdmin || !!game.uciHistory?.length) && (
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-medium">{t("rev.moveEBoard")}</span>
@@ -1291,9 +1389,35 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               {showUciHistory && (
                 <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
                   <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-                    {game.uciHistory.map((u, i) => `${i + 1}.${u}`).join(" ")}
+                    {(game.uciHistory ?? []).map((u, i) => `${i + 1}.${u}`).join(" ")}
                   </pre>
                 </ScrollArea>
+              )}
+              {isAdmin && (
+                <details
+                  className="text-xs"
+                  open={showUciEditor}
+                  onToggle={(event) => setShowUciEditor(event.currentTarget.open)}
+                >
+                  <summary className="cursor-pointer text-muted-foreground hover:text-foreground font-medium select-none">
+                    {t("rev.editUciHistory")}
+                  </summary>
+                  <div className="mt-2 space-y-2">
+                    <textarea
+                      value={editableUci}
+                      onChange={(event) => setEditableUci(event.target.value)}
+                      rows={6}
+                      className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 font-mono text-xs text-foreground outline-none focus:ring-2 focus:ring-ring"
+                      placeholder={t("rev.uciEditorPlaceholder")}
+                    />
+                    <div className="flex items-center justify-between gap-2">
+                      {uciSaveError && <span className="text-destructive">{uciSaveError}</span>}
+                      <Button type="button" size="sm" className="ml-auto" onClick={() => void saveEditedUci()} disabled={savingUci}>
+                        {savingUci ? t("rev.savingUciHistory") : t("rev.saveUciHistory")}
+                      </Button>
+                    </div>
+                  </div>
+                </details>
               )}
             </div>
           )}

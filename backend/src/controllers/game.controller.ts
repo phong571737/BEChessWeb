@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen } from "../models/game.model.js";
+import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen, updateHistoryTraces } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -154,6 +154,40 @@ export const GameController = {
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to save history analysis" });
+        }
+    },
+
+    /** Updates administrator-editable PGN and electronic-board UCI traces only. */
+    async updateHistoryTraces(req: Request<GameIdParams>, res: Response): Promise<void> {
+        try {
+            const body = (req.body ?? {}) as { pgn?: unknown; uciHistory?: unknown };
+            const hasPgn = Object.prototype.hasOwnProperty.call(body, "pgn");
+            const hasUci = Object.prototype.hasOwnProperty.call(body, "uciHistory");
+            if (!hasPgn && !hasUci) {
+                res.status(400).json({ error: "At least one trace is required" });
+                return;
+            }
+            if (hasPgn && (typeof body.pgn !== "string" || body.pgn.length > 200_000)) {
+                res.status(400).json({ error: "Invalid PGN" });
+                return;
+            }
+            if (hasUci && (!Array.isArray(body.uciHistory) || body.uciHistory.length > 2_000
+                || !body.uciHistory.every((move) => typeof move === "string" && move.length <= 32))) {
+                res.status(400).json({ error: "Invalid UCI history" });
+                return;
+            }
+            const saved = await updateHistoryTraces(req.params.id, {
+                ...(hasPgn ? { pgn: body.pgn as string } : {}),
+                ...(hasUci ? { uciHistory: body.uciHistory as string[] } : {}),
+            });
+            if (saved.status === "not_found") {
+                res.status(404).json({ error: "History record not found" });
+                return;
+            }
+            res.json({ success: true, pgn: saved.pgn, uciHistory: saved.uciHistory });
+        } catch (e) {
+            console.error(e);
+            res.status(500).json({ error: "Unable to update history traces" });
         }
     },
 

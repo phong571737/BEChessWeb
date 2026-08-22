@@ -109,6 +109,35 @@ export async function saveHistoryAnalysis(id: string, analysis: Document): Promi
     return result.modifiedCount === 1;
 }
 
+export type UpdateHistoryTracesResult =
+    | { status: "saved"; pgn: string; uciHistory: string[] }
+    | { status: "not_found" };
+
+/** Updates only administrator-editable PGN/UCI traces; raw and corrected FEN arrays stay untouched. */
+export async function updateHistoryTraces(
+    id: string,
+    updates: { pgn?: string; uciHistory?: string[] },
+): Promise<UpdateHistoryTracesResult> {
+    const filter = historyIdFilter(id, false);
+    const record = await pgnGames().findOne(filter, { projection: { pgn: 1, uciHistory: 1 } });
+    if (!record) return { status: "not_found" };
+
+    const set: Record<string, unknown> = { updatedAt: new Date() };
+    if (updates.pgn !== undefined) set.pgn = updates.pgn;
+    if (updates.uciHistory !== undefined) set.uciHistory = updates.uciHistory;
+    const result = await pgnGames().updateOne(filter, { $set: set, $unset: { analysis: "" } });
+    if (result.matchedCount !== 1) return { status: "not_found" };
+
+    const previousUci = Array.isArray(record.uciHistory)
+        ? record.uciHistory.filter((value): value is string => typeof value === "string")
+        : [];
+    return {
+        status: "saved",
+        pgn: updates.pgn ?? String(record.pgn ?? ""),
+        uciHistory: updates.uciHistory ?? previousUci,
+    };
+}
+
 export type DeleteHistoryFenResult =
     | { status: "deleted"; fenHistory: string[] }
     | { status: "not_found" | "invalid_index" | "conflict" };
