@@ -142,8 +142,8 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));
 
             useGameStore.getState().patchBoard(gameID, {
-                WhiteName: white.trim(),
-                BlackName: black.trim(),
+                whiteName: white.trim(),
+                blackName: black.trim(),
                 initialTimeMs: time,
                 incrementMs: increment,
                 round: selectedRound,

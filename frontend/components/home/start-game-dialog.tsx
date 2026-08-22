@@ -107,8 +107,8 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
             }
 
             useGameStore.getState().patchBoard(gameID, {
-                WhiteName: white.trim(),
-                BlackName: black.trim(),
+                whiteName: white.trim(),
+                blackName: black.trim(),
                 initialTimeMs,
                 incrementMs,
                 round,

@@ -189,8 +189,8 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
     Site: game.location?.trim() || savedHeaders.Site || "?",
     Date: savedHeaders.Date || game.Date || "????.??.??",
     Round: String(game.round ?? savedHeaders.Round ?? "1"),
-    White: game.WhiteName || savedHeaders.White || "White",
-    Black: game.BlackName || savedHeaders.Black || "Black",
+    White: game.whiteName || savedHeaders.White || "White",
+    Black: game.blackName || savedHeaders.Black || "Black",
     Result: game.Result || "*",
   };
   if (game.initialFen) {
@@ -964,7 +964,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         <div className="flex flex-col gap-1.5 p-4 sm:p-5 border-b border-border bg-card">
           <div className="flex items-center gap-2 flex-wrap pr-8">
             <h2 className="text-base sm:text-lg font-semibold leading-none tracking-tight">
-              {game.WhiteName} vs {game.BlackName}
+              {game.whiteName} vs {game.blackName}
             </h2>
             <Badge variant={isFinishedResult && game.outcomeStatus !== "unconfirmed" ? resultVariant(game.Result) : "secondary"} className={`w-28 justify-center shrink-0${(!isFinishedResult || game.outcomeStatus === "unconfirmed") ? " border border-primary/25 bg-primary/10 text-primary" : ""}`}>
               {resultText}

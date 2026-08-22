@@ -17,17 +17,19 @@ function storedFen(value: unknown): string | null {
 }
 
 function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & { _id: string } {
-    const { totalMoves: _legacyTotalMoves, totalPlies: _legacyTotalPlies, ...storedRecord } = record;
-    const whiteName = String(record.whiteName ?? record.WhiteName ?? record.White ?? "White");
-    const blackName = String(record.blackName ?? record.BlackName ?? record.Black ?? "Black");
+    const {
+        totalMoves: _legacyTotalMoves,
+        totalPlies: _legacyTotalPlies,
+        ...storedRecord
+    } = record;
+    const whiteName = String(record.whiteName ?? record.White ?? "White");
+    const blackName = String(record.blackName ?? record.Black ?? "Black");
     const result = String(record.result ?? record.Result ?? "*");
     return {
         ...storedRecord,
         _id: typeof record._id === "string" ? record._id : record._id?.toString?.() ?? "",
         whiteName,
         blackName,
-        WhiteName: whiteName,
-        BlackName: blackName,
         result,
         Result: result,
         currentFen: currentHistoryFen(record),
@@ -84,10 +86,8 @@ export const GameController = {
                 if (!live) return snapshot;
                 return {
                     ...snapshot,
-                    whiteName: live.whiteName || live.WhiteName || snapshot.whiteName || snapshot.WhiteName || "White",
-                    blackName: live.blackName || live.BlackName || snapshot.blackName || snapshot.BlackName || "Black",
-                    WhiteName: live.whiteName || live.WhiteName || snapshot.whiteName || snapshot.WhiteName || "White",
-                    BlackName: live.blackName || live.BlackName || snapshot.blackName || snapshot.BlackName || "Black",
+                    whiteName: live.whiteName || snapshot.whiteName || "White",
+                    blackName: live.blackName || snapshot.blackName || "Black",
                     pgn: live.pgn || snapshot.pgn || "",
                     initialFen: live.initialFen || snapshot.initialFen,
                     uciHistory: Array.isArray(live.uciHistory) && live.uciHistory.length ? live.uciHistory : snapshot.uciHistory ?? [],

@@ -78,7 +78,17 @@ export function useGame(gameID: string) {
         };
         join();
         socket.on("connect", join);
-        return () => { socket.off("connect", join) };
+        // Periodically replace the local interpolation with a fresh server
+        // snapshot. This keeps long-running and newly opened clients aligned
+        // without continuously writing the clock to MongoDB.
+        const clockSyncInterval = window.setInterval(() => {
+            if (socket.connected) socket.emit("request_clock_state", { gameID });
+        }, 15_000);
+
+        return () => {
+            window.clearInterval(clockSyncInterval);
+            socket.off("connect", join);
+        };
     }, [socket, gameID]);
 
     // ------ Load initial game from REST API -------------------------------
@@ -133,8 +143,8 @@ export function useGame(gameID: string) {
                     fen: game.fen || chessRef.current.fen(),
                     initialFen: game.initialFen,
                     fenHistory: Array.isArray(game.fenHistory) ? game.fenHistory : [],
-                    WhiteName: game.WhiteName || "White",
-                    BlackName: game.BlackName || "Black",
+                    whiteName: game.whiteName || "White",
+                    blackName: game.blackName || "Black",
                     pgn: game.pgn || "",
                     status: boardStatus,
                     lastMove: game.lastMove || null,
@@ -390,8 +400,8 @@ export function useGame(gameID: string) {
                     ? data.fenHistory
                     : (currentBoard?.fenHistory ?? []),
                 pgn: data.pgn || "",
-                WhiteName: data.WhiteName || "White",
-                BlackName: data.BlackName || "Black",
+                whiteName: data.whiteName || "White",
+                blackName: data.blackName || "Black",
                 lastMove: data.lastMove || null,
             })
         }
@@ -399,9 +409,9 @@ export function useGame(gameID: string) {
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ WhiteName: string, BlackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string }> = {};
-            if (data.WhiteName !== undefined) patch.WhiteName = data.WhiteName;
-            if (data.BlackName !== undefined) patch.BlackName = data.BlackName;
+            const patch: Partial<{ whiteName: string, blackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string }> = {};
+            if (data.whiteName !== undefined) patch.whiteName = data.whiteName;
+            if (data.blackName !== undefined) patch.blackName = data.blackName;
             if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
             if (data.incrementMs !== undefined) patch.incrementMs = data.incrementMs;
             if (data.round !== undefined) patch.round = data.round;
@@ -590,8 +600,8 @@ export function useGame(gameID: string) {
         fenHistory: board?.fenHistory ?? [],
         pgn: selectedBranch?.pgn ?? board?.pgn ?? "",
         cp: board?.cp ?? null,
-        WhiteName: board?.WhiteName ?? "White",
-        BlackName: board?.BlackName ?? "Black",
+        whiteName: board?.whiteName ?? "White",
+        blackName: board?.blackName ?? "Black",
         lastMove: computedLastMove ?? board?.lastMove ?? null,
         boardConnected: board?.boardConnected ?? false,
         moves,

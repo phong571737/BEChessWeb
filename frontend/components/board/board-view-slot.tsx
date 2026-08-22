@@ -77,14 +77,14 @@ function SlotSkeleton({ compact }: { compact?: boolean }) {
 
 interface GameEndViewProps {
     result: string | null;
-    WhiteName: string;
-    BlackName: string;
+    whiteName: string;
+    blackName: string;
     fen: string;
     compact?: boolean;
     onDismiss?: () => void;
 }
 
-function GameEndView({ result, WhiteName, BlackName, fen, compact, onDismiss }: GameEndViewProps) {
+function GameEndView({ result, whiteName, blackName, fen, compact, onDismiss }: GameEndViewProps) {
     const { t } = useT();
     const boardWrapRef = useRef<HTMLDivElement>(null);
     const [boardWidth, setBoardWidth] = useState(0);
@@ -115,8 +115,8 @@ function GameEndView({ result, WhiteName, BlackName, fen, compact, onDismiss }: 
                 ? t("result.blackWin")
                 : t("board.gameEnded");
 
-    const winnerName = isDraw ? null : whiteWins ? WhiteName : BlackName;
-    const loserName = isDraw ? null : whiteWins ? BlackName : WhiteName;
+    const winnerName = isDraw ? null : whiteWins ? whiteName : blackName;
+    const loserName = isDraw ? null : whiteWins ? blackName : whiteName;
 
     if (compact) {
         return (
@@ -166,11 +166,11 @@ function GameEndView({ result, WhiteName, BlackName, fen, compact, onDismiss }: 
                     <div className="flex items-center gap-2.5 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1.5">
                             <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
-                            {WhiteName}
+                            {whiteName}
                         </span>
                         <span className="text-[10px] font-semibold uppercase tracking-wider opacity-50">vs</span>
                         <span className="flex items-center gap-1.5">
-                            {BlackName}
+                            {blackName}
                             <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
                         </span>
                     </div>
@@ -268,7 +268,7 @@ export function BoardViewSlot({
     const [compactSettingsOpen, setCompactSettingsOpen] = useState(false);
 
     const {
-        fen, pgn, WhiteName, BlackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
+        fen, pgn, whiteName, blackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
         initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, initialFen, fenHistory, boardNumber,
     } = useGame(gameID);
@@ -583,8 +583,8 @@ export function BoardViewSlot({
         return (
             <GameEndView
                 result={result}
-                WhiteName={WhiteName}
-                BlackName={BlackName}
+                whiteName={whiteName}
+                blackName={blackName}
                 fen={fen}
                 compact={compact}
                 onDismiss={onRemove}
@@ -609,9 +609,9 @@ export function BoardViewSlot({
                         <span className="font-semibold text-primary">{boardLabel}</span>
                     </button>
                     <div className="min-w-0 flex-1 flex items-center justify-center gap-1 text-[11px] truncate">
-                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? BlackName : WhiteName}</span>
+                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? blackName : whiteName}</span>
                         <span className="shrink-0 text-muted-foreground">vs</span>
-                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? WhiteName : BlackName}</span>
+                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? whiteName : blackName}</span>
                     </div>
                     <div className="flex items-center gap-0.5 shrink-0">
                         <div ref={compactSettingsRef} className="relative">
@@ -661,7 +661,7 @@ export function BoardViewSlot({
                 <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center p-1.5">
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
                         <CompactPlayer
-                            name={boardFlipped ? WhiteName : BlackName}
+                            name={boardFlipped ? whiteName : blackName}
                             side={boardFlipped ? "white" : "black"}
                             timeMs={boardFlipped ? whiteMs : blackMs}
                             activeSide={activeSide}
@@ -688,7 +688,7 @@ export function BoardViewSlot({
                     </div>
                     <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
                         <CompactPlayer
-                            name={boardFlipped ? BlackName : WhiteName}
+                            name={boardFlipped ? blackName : whiteName}
                             side={boardFlipped ? "black" : "white"}
                             timeMs={boardFlipped ? blackMs : whiteMs}
                             activeSide={activeSide}
@@ -768,8 +768,8 @@ export function BoardViewSlot({
                         <div className="sm:h-full sm:min-h-0">
                             <GamePanel
                                 gameID={gameID}
-                                WhiteName={WhiteName}
-                                BlackName={BlackName}
+                                whiteName={whiteName}
+                                blackName={blackName}
                                 fen={displayFen}
                                 pgn={pgn}
                                 initialFen={initialFen}

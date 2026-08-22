@@ -93,7 +93,7 @@ export default function DashboardPage() {
             return map;
         }, new Map<string, { id: string; games: number; moves: number; duration: number }>()).values()).sort((a, b) => b.games - a.games);
         const players = Array.from(games.reduce((map, game) => {
-            for (const [name, won] of [[game.WhiteName, game.Result === "1-0"], [game.BlackName, game.Result === "0-1"]] as const) {
+            for (const [name, won] of [[game.whiteName, game.Result === "1-0"], [game.blackName, game.Result === "0-1"]] as const) {
                 const current = map.get(name) ?? { name, games: 0, wins: 0, draws: 0 };
                 current.games += 1;
                 current.wins += won ? 1 : 0;

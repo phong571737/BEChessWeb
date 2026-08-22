@@ -88,12 +88,8 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
             ? { fenHistoryEdited: game.fenHistoryEdited }
             : {}),
         moveDurationsMs: game.moveDurationsMs ?? [],
-        whiteName: game.whiteName ?? game.WhiteName ?? "White",
-        blackName: game.blackName ?? game.BlackName ?? "Black",
-        // Legacy aliases are retained in the snapshot response during the
-        // migration window; new canonical data is stored in lowercase fields.
-        WhiteName: game.whiteName ?? game.WhiteName ?? "White",
-        BlackName: game.blackName ?? game.BlackName ?? "Black",
+        whiteName: game.whiteName ?? "White",
+        blackName: game.blackName ?? "Black",
         result: "*",
         Result: "*",
         Date: pgnDate(game.startedAt ?? game.createdAt, now),
@@ -657,11 +653,9 @@ export async function renamePlayer(
     location?: string,
     boardNumber?: string
 ) {
-    const field = color === "Black" ? "BlackName" : "WhiteName";
-    const canonicalField = color === "Black" ? "blackName" : "whiteName";
+    const field = color === "Black" ? "blackName" : "whiteName";
     const update: Record<string, unknown> = {
         [field]: name,
-        [canonicalField]: name,
         updateAt: new Date(),
     };
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;

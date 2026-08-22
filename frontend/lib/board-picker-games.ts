@@ -3,8 +3,8 @@ import type { ActiveGame, BoardState, PhysicalBoard } from "@/types/game.types";
 /** Normalized game entry for layout picker */
 export interface PickerGame {
     gameID: string;
-    WhiteName: string;
-    BlackName: string;
+    whiteName: string;
+    blackName: string;
     /** Physical board id when available */
     boardLabel?: string;
 }
@@ -14,8 +14,8 @@ export function formatPickerLabel(g: PickerGame | undefined, gameID?: string): s
         if (gameID) return `Game ${gameID.slice(-8)}`;
         return "—";
     }
-    const white = g.WhiteName?.trim() || "White";
-    const black = g.BlackName?.trim() || "Black";
+    const white = g.whiteName?.trim() || "White";
+    const black = g.blackName?.trim() || "Black";
     const names = `${white} vs ${black}`;
     if (g.boardLabel && white === "White" && black === "Black") {
         return `${g.boardLabel} — ${names}`;
@@ -31,8 +31,8 @@ function toPickerGame(
 ): PickerGame {
     return {
         gameID,
-        WhiteName: white?.trim() || "White",
-        BlackName: black?.trim() || "Black",
+        whiteName: white?.trim() || "White",
+        blackName: black?.trim() || "Black",
         boardLabel,
     };
 }
@@ -62,8 +62,8 @@ export function buildPickerGames(
             gameID,
             toPickerGame(
                 gameID,
-                white || existing?.WhiteName || fromStore?.WhiteName,
-                black || existing?.BlackName || fromStore?.BlackName,
+                white || existing?.whiteName || fromStore?.whiteName,
+                black || existing?.blackName || fromStore?.blackName,
                 boardLabelByGame.get(gameID)
             )
         );
@@ -71,22 +71,22 @@ export function buildPickerGames(
 
     for (const g of activeGames) {
         if (!g.gameID) continue;
-        upsert(g.gameID, g.WhiteName, g.BlackName);
+        upsert(g.gameID, g.whiteName, g.blackName);
     }
 
     for (const id of slotIds) {
-        upsert(id, boards[id]?.WhiteName, boards[id]?.BlackName);
+        upsert(id, boards[id]?.whiteName, boards[id]?.blackName);
     }
 
     for (const pb of physicalBoards) {
         if (!pb.gameID || pb.gameStatus !== "active") continue;
-        upsert(pb.gameID, boards[pb.gameID]?.WhiteName, boards[pb.gameID]?.BlackName);
+        upsert(pb.gameID, boards[pb.gameID]?.whiteName, boards[pb.gameID]?.blackName);
     }
 
     for (const [id, b] of Object.entries(boards)) {
         if (map.has(id)) continue;
         if (b.status === "ended") continue;
-        upsert(id, b.WhiteName, b.BlackName);
+        upsert(id, b.whiteName, b.blackName);
     }
 
     return Array.from(map.values()).slice(0, 3);

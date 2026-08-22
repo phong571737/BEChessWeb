@@ -17,8 +17,8 @@ import { classifyTimeControl, DEFAULT_INITIAL_TIME_MS, DEFAULT_INCREMENT_MS } fr
 
 interface Props {
     gameID: string;
-    WhiteName: string;
-    BlackName: string;
+    whiteName: string;
+    blackName: string;
     fen: string;
     pgn: string;
     initialFen?: string;
@@ -60,7 +60,7 @@ export interface GamePanelHandle {
 }
 
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
-    gameID, WhiteName, BlackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
+    gameID, whiteName, blackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
     whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID,
 }, ref) {
@@ -84,11 +84,11 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
 
     const hasBranches = branches.length > 0;
     const firstPlayer = flipped
-        ? { name: WhiteName, side: "white" as const, clockMs: whiteClockMs }
-        : { name: BlackName, side: "black" as const, clockMs: blackClockMs };
+        ? { name: whiteName, side: "white" as const, clockMs: whiteClockMs }
+        : { name: blackName, side: "black" as const, clockMs: blackClockMs };
     const secondPlayer = flipped
-        ? { name: BlackName, side: "black" as const, clockMs: blackClockMs }
-        : { name: WhiteName, side: "white" as const, clockMs: whiteClockMs };
+        ? { name: blackName, side: "black" as const, clockMs: blackClockMs }
+        : { name: whiteName, side: "white" as const, clockMs: whiteClockMs };
 
     // Build FEN history from the active PGN view shown on the board
     const {fenHistory, moveHistory} = useMemo(() => {
@@ -255,8 +255,8 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                     ) : <span />}
                     <GameSetupDialog
                         gameID={gameID}
-                        whiteName={WhiteName}
-                        blackName={BlackName}
+                        whiteName={whiteName}
+                        blackName={blackName}
                         initialTimeMs={initialTimeMs}
                         incrementMs={incrementMs}
                         round={round}

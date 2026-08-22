@@ -24,9 +24,7 @@ export interface GameSetupMetadata {
 export interface GameDoc extends Document, GameSetupMetadata {
     gameID: string;
     boardID?: string;
-    BlackName?: string;
-    WhiteName?: string;
-    /** Canonical names for new records; legacy capitalized fields remain readable. */
+    /** Canonical player-name fields used by persistence and API responses. */
     whiteName?: string;
     blackName?: string;
     /** Current remaining time per side, persisted in milliseconds. */

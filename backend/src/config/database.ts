@@ -14,6 +14,7 @@ export const client = new MongoClient(MONGO_URI, {
 });
 
 let database: Db | undefined;
+
 export async function connectDB(): Promise<Db | undefined> {
   try {
     if (database) return database; // avoid making multiple connections

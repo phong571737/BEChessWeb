@@ -10,7 +10,7 @@ import { classifyTimeControl, DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } fr
 export const GameService = {
   // Only one creator may initialize a physical board at a time. Each
   // successful creation starts a fresh session with a new game ID.
-  async create(boardID: string, gameID: string, round: number = 1, WhiteName = "", BlackName = "", initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS) {
+  async create(boardID: string, gameID: string, round: number = 1, whiteName = "", blackName = "", initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS) {
     if (!await acquireBoardCreationLock(boardID, gameID)) {
       throw new Error("BOARD_CREATION_IN_PROGRESS");
     }
@@ -30,8 +30,8 @@ export const GameService = {
         round,
         status: "waiting",
         version: 0,
-        WhiteName,
-        BlackName,
+        whiteName,
+        blackName,
         whiteRemainingMs: initialTimeMs,
         blackRemainingMs: initialTimeMs,
         activeClockSide: "white",
@@ -72,5 +72,4 @@ export function createBranches(game: Chess, valid_move: MoveLike[], parentId: st
 }
 
 export function ensureGameExists() {}
-
 

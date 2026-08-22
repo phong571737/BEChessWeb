@@ -101,8 +101,8 @@ export const GameActionService = {
         // Broadcast to all clients in the game room so board page can update immediately
         const payload: Record<string, any> = { gameID };
         if (boardNumber !== undefined) payload.boardNumber = boardNumber;
-        if (color === "White") payload.WhiteName = name;
-        if (color === "Black") payload.BlackName = name;
+        if (color === "White") payload.whiteName = name;
+        if (color === "Black") payload.blackName = name;
         if (initialTimeMs !== undefined) payload.initialTimeMs = initialTimeMs;
         if (incrementMs !== undefined) payload.incrementMs = incrementMs;
         if (round !== undefined) payload.round = round;

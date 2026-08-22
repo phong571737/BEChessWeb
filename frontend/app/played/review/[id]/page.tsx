@@ -95,8 +95,8 @@ export default function PlayedReviewPage() {
         const headers = parsePgnHeader(raws.pgn ?? "");
         setGame({
           ...raws,
-          WhiteName: raws.WhiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
-          BlackName: raws.BlackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
+          whiteName: raws.whiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
+          blackName: raws.blackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
           Result: (raws.Result || headers["Result"] || "*") as HistoryGame["Result"],
           Date: raws.Date || headers["Date"] || raws.createdAt || "",
           createdAt: raws.createdAt || raws.startedAt || raws.createAt,
@@ -138,7 +138,7 @@ export default function PlayedReviewPage() {
   }
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const shareText = `${game.WhiteName} vs ${game.BlackName} - ${game.Result}`;
+  const shareText = `${game.whiteName} vs ${game.blackName} - ${game.Result}`;
 
   const onCopyLink = async () => {
     try {

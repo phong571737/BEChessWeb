@@ -30,8 +30,8 @@ function buildResultTag(resignSide: ResignSide) {
 async function buildFinalPGN(game: GameDoc, uciHistory: string[], fenHistory: string[], resultTag: string): Promise<string> {
     const startFen = typeof game.initialFen === "string" ? game.initialFen : undefined;
     const headers = {
-        White: game.WhiteName || "White",
-        Black: game.BlackName || "Black",
+        White: game.whiteName || "White",
+        Black: game.blackName || "Black",
         Result: resultTag,
         Date: new Date().toISOString().slice(0, 10).replace(/-/g, "."),
         ...(startFen && startFen !== new Chess().fen() ? { SetUp: "1", FEN: startFen } : {}),
@@ -125,10 +125,8 @@ export const GameResignService = {
             location: game.location,
             pgn: finalPGN,
             initialFen: game.initialFen,
-            whiteName: game.whiteName || game.WhiteName || "White",
-            blackName: game.blackName || game.BlackName || "Black",
-            WhiteName: game.whiteName || game.WhiteName || "White",
-            BlackName: game.blackName || game.BlackName || "Black",
+            whiteName: game.whiteName || "White",
+            blackName: game.blackName || "Black",
             Result: resultTag,
             result: resultTag,
             Date: endedAt.toISOString().slice(0, 10).replace(/-/g, "."),

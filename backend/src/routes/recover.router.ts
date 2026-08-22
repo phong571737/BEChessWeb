@@ -37,8 +37,8 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
             Site: String((game as any).location ?? (game as any).Site ?? "?"),
             Date: String((game as any).Date ?? "????.??.??"),
             Round: String((game as any).round ?? (game as any).Round ?? "1"),
-            White: String((game as any).whiteName ?? (game as any).WhiteName ?? (game as any).White ?? "White"),
-            Black: String((game as any).blackName ?? (game as any).BlackName ?? (game as any).Black ?? "Black"),
+            White: String((game as any).whiteName ?? (game as any).White ?? "White"),
+            Black: String((game as any).blackName ?? (game as any).Black ?? "Black"),
             Result: String((game as any).result ?? (game as any).Result ?? "*"),
         };
         const debugRecovery = req.query.debugRecovery === "1";

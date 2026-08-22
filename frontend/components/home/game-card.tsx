@@ -60,7 +60,7 @@ export function GameCard({ game }: Props) {
       className="group flex flex-col bg-card rounded-lg border border-border overflow-hidden cursor-pointer transition-all duration-150 hover:border-border/80 hover:shadow-md hover:-translate-y-px"
       onMouseEnter={() => router.prefetch(boardUrl)}
       onFocus={() => router.prefetch(boardUrl)}
-      aria-label={t("home.openGame", { players: `${game.WhiteName} vs ${game.BlackName}` })}
+      aria-label={t("home.openGame", { players: `${game.whiteName} vs ${game.blackName}` })}
     >
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
@@ -82,12 +82,12 @@ export function GameCard({ game }: Props) {
         {/* White */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0">
           <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/15 shrink-0" />
-          <span className="text-xs font-medium text-foreground truncate">{game.WhiteName}</span>
+          <span className="text-xs font-medium text-foreground truncate">{game.whiteName}</span>
         </div>
         <span className="text-[9px] font-semibold text-muted-foreground/60 uppercase tracking-wider shrink-0">vs</span>
         {/* Black */}
         <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-          <span className="text-xs font-medium text-foreground truncate text-right">{game.BlackName}</span>
+          <span className="text-xs font-medium text-foreground truncate text-right">{game.blackName}</span>
           <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
         </div>
       </div>

@@ -37,8 +37,8 @@ export interface ActiveGame extends GameSetupMetadata {
     gameID: string;
     /** Physical board identifier returned by the live-games endpoint. */
     boardID?: string;
-    WhiteName: string;
-    BlackName: string;
+    whiteName: string;
+    blackName: string;
     fen: string;
     pgn: string;
     initialFen?: string;
@@ -53,8 +53,8 @@ export interface ActiveGame extends GameSetupMetadata {
 /** Completed game returned by GET /games/history */
 export interface HistoryGame extends GameSetupMetadata {
     _id: string;
-    WhiteName: string;
-    BlackName: string;
+    whiteName: string;
+    blackName: string;
     Result: "1-0" | "0-1" | "1/2-1/2" | "*";
     Date: string;
     totalMoves: number;
@@ -98,8 +98,8 @@ export interface BoardState extends GameSetupMetadata {
     fenHistory: string[];
     pgn: string,
     cp: number | null,
-    WhiteName: string,
-    BlackName: string,
+    whiteName: string,
+    blackName: string,
     lastMove: {from: string, to: string} | null;
     boardConnected: boolean;
     /** Game lifecycle status */

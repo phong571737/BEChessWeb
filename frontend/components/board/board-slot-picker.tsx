@@ -86,9 +86,9 @@ export function BoardSlotPicker({
                                 <div className="flex items-center gap-2">
                                     <div className="min-w-0 flex-1">
                                         <div className="text-xs font-medium truncate">
-                                            {g.WhiteName}
+                                            {g.whiteName}
                                             <span className="text-muted-foreground font-normal mx-1">vs</span>
-                                            {g.BlackName}
+                                            {g.blackName}
                                         </div>
                                     </div>
                                     {isSwap && (

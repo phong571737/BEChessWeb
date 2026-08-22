@@ -87,9 +87,9 @@ export function GameHistory() {
       ...g,
       _id: normalizeHistoryId(g._id),
       // Older endgame records used White/Black while live snapshots use
-      // WhiteName/BlackName. Keep both formats readable in the same table.
-      WhiteName: g.WhiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
-      BlackName: g.BlackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
+      // Normalize older records that only stored PGN header names.
+      whiteName: g.whiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
+      blackName: g.blackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
       Result: (g.Result || headers["Result"] || "*") as HistoryGame["Result"],
       Date: g.Date || headers["Date"] || g.createdAt || "",
       createdAt: g.createdAt || g.startedAt || g.createAt,
@@ -351,7 +351,7 @@ export function GameHistory() {
     .filter((g) => {
       const q = search.trim().toLowerCase();
       if (!q) return true;
-      return `${g.WhiteName} ${g.BlackName}`.toLowerCase().includes(q);
+      return `${g.whiteName} ${g.blackName}`.toLowerCase().includes(q);
     })
     .sort((a, b) => {
       let cmp = 0;
@@ -360,8 +360,8 @@ export function GameHistory() {
       } else if (sortBy === "moves") {
         cmp = a.totalMoves - b.totalMoves;
       } else if (sortBy === "players") {
-        const ap = `${a.WhiteName} vs ${a.BlackName}`.toLowerCase();
-        const bp = `${b.WhiteName} vs ${b.BlackName}`.toLowerCase();
+        const ap = `${a.whiteName} vs ${a.blackName}`.toLowerCase();
+        const bp = `${b.whiteName} vs ${b.blackName}`.toLowerCase();
         cmp = ap.localeCompare(bp);
       } else if (sortBy === "duration") {
         cmp = (a.durationSec ?? -1) - (b.durationSec ?? -1);
@@ -445,7 +445,7 @@ export function GameHistory() {
                     {trash.map((game) => (
                       <div key={game._id} className="flex items-center justify-between gap-3 rounded-md border border-border/70 px-3 py-2.5">
                         <div className="min-w-0">
-                          <div className="truncate text-sm"><span className="font-medium">{game.WhiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.BlackName}</span></div>
+                          <div className="truncate text-sm"><span className="font-medium">{game.whiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.blackName}</span></div>
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
                             <span>{t("played.dateLabel")} {formatDateTime(game.createdAt || game.endedAt || game.Date)}</span>
                             <span>{t("played.moveCountLabel")} {game.totalMoves}</span>
@@ -604,9 +604,9 @@ export function GameHistory() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/10 dark:border-white/10 shrink-0" />
-                            <span className="text-sm font-medium text-foreground truncate">{game.WhiteName}</span>
+                            <span className="text-sm font-medium text-foreground truncate">{game.whiteName}</span>
                             <span className="text-[10px] font-semibold text-muted-foreground/50 uppercase tracking-wider shrink-0">vs</span>
-                            <span className="text-sm font-medium text-foreground truncate">{game.BlackName}</span>
+                            <span className="text-sm font-medium text-foreground truncate">{game.blackName}</span>
                             <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
                           </div>
                         </td>
@@ -664,7 +664,7 @@ export function GameHistory() {
           <DialogHeader>
             <DialogTitle>{t("played.moveToTrashTitle")}</DialogTitle>
             <DialogDescription>
-              {t("played.moveToTrashGameDescription", { players: `${pendingTrashGame?.WhiteName ?? ""} vs ${pendingTrashGame?.BlackName ?? ""}` })}
+              {t("played.moveToTrashGameDescription", { players: `${pendingTrashGame?.whiteName ?? ""} vs ${pendingTrashGame?.blackName ?? ""}` })}
             </DialogDescription>
           </DialogHeader>
           {trashActionError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{trashActionError}</p>}
@@ -683,7 +683,7 @@ export function GameHistory() {
           <DialogHeader>
             <DialogTitle>{t("played.deletePermanentlyTitle")}</DialogTitle>
             <DialogDescription>
-              {t("played.deletePermanentlyGameDescription", { players: `${pendingPermanentDeleteGame?.WhiteName ?? ""} vs ${pendingPermanentDeleteGame?.BlackName ?? ""}` })}
+              {t("played.deletePermanentlyGameDescription", { players: `${pendingPermanentDeleteGame?.whiteName ?? ""} vs ${pendingPermanentDeleteGame?.blackName ?? ""}` })}
             </DialogDescription>
           </DialogHeader>
           {trashActionError && <p className="mx-5 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive">{trashActionError}</p>}
@@ -715,7 +715,7 @@ export function GameHistory() {
           <DialogHeader>
             <DialogTitle>{t("played.editResultTitle")}</DialogTitle>
             <DialogDescription>
-              {t("played.editResultDescription", { players: `${pendingResultGame?.WhiteName ?? ""} vs ${pendingResultGame?.BlackName ?? ""}` })}
+              {t("played.editResultDescription", { players: `${pendingResultGame?.whiteName ?? ""} vs ${pendingResultGame?.blackName ?? ""}` })}
             </DialogDescription>
           </DialogHeader>
           <div className="px-5 py-2">
