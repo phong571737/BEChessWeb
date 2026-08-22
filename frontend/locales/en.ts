@@ -123,7 +123,7 @@ export const en = {
     "rev.chooseReviewSource": "Choose a review source",
     "rev.sourceCount": "{count} sources",
     "rev.basePgn": "Original FEN",
-    "rev.rawFen": "Raw FEN from ESP32",
+    "rev.rawFen": "FEN from electronic board",
     "rev.editedFen": "Edited FEN",
     "rev.editedFenAvailable": "This list contains administrator-corrected FEN snapshots. The electronic-board timeline below remains unchanged.",
     "rev.recoveryBranch": "Recovery branch {number}",

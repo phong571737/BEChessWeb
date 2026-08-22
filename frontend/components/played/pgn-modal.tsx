@@ -1254,11 +1254,11 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
           )}
 
           {(isAdmin || !!rawFenHistory.length || !!editedFenHistory.length) && (
-            <details className="relative text-xs">
-              <summary className="cursor-pointer pb-10 font-semibold text-muted-foreground hover:text-foreground select-none sm:pb-0 sm:pr-72">
+            <details className="text-xs">
+              <summary className="flex cursor-pointer list-none items-center rounded-md border border-border bg-card px-3 py-2 font-semibold text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground select-none [&::-webkit-details-marker]:hidden">
                 {t("rev.fenTimeline")} ({rawFenHistory.length})
               </summary>
-              <div className="absolute left-0 top-8 flex max-w-full flex-wrap items-center gap-1.5 sm:left-auto sm:right-0 sm:top-[-4px] sm:flex-nowrap">
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-md border border-border/70 bg-muted/30 p-2">
                 {isAdmin && (
                   <>
                     <Button
@@ -1293,13 +1293,19 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                 </Button>
               </div>
               {hasEditedFen && (
-                <div className="mt-2 rounded-sm border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
+                <div className="mt-3 rounded-md border border-primary/20 bg-primary/5 px-3 py-2 text-xs text-muted-foreground">
                   <div className="mb-1 font-medium text-foreground">{t("rev.editedFen")}</div>
-                  <div>{t("rev.editedFenAvailable")}</div>
                   <ScrollArea className="mt-2 h-32 rounded-sm border border-border bg-muted">
                     <div className="space-y-1.5 p-3">
                       {editedFenHistory.map((fen, index) => (
-                        <div key={`standard-fen-${index}`} className="break-all rounded-sm border border-border/60 px-2.5 py-1.5 font-mono text-xs">
+                        <div
+                          key={`standard-fen-${index}`}
+                          className={`break-all rounded-sm border px-2.5 py-1.5 font-mono text-xs ${
+                            fen !== rawFenHistory[index]
+                              ? "border-primary/40 bg-primary/10 text-primary"
+                              : "border-border/60"
+                          }`}
+                        >
                           <span className="mr-2 text-muted-foreground">{index + 1}.</span>{fen}
                           {isAdmin && (
                             <span className="float-right inline-flex items-center gap-1">

@@ -232,7 +232,7 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.chooseReviewSource": "Chọn nguồn xem lại",
     "rev.sourceCount": "{count} nguồn",
     "rev.basePgn": "FEN gốc",
-    "rev.rawFen": "FEN gốc từ ESP32",
+    "rev.rawFen": "FEN từ bàn cờ điện tử",
     "rev.editedFen": "FEN đã chỉnh sửa",
     "rev.editedFenAvailable": "Danh sách này chứa các FEN do quản trị viên chỉnh sửa. Dữ liệu từ bàn cờ điện tử bên dưới vẫn được giữ nguyên.",
     "rev.recoveryBranch": "Nhánh khôi phục {number}",
