@@ -1323,14 +1323,24 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                           <span className="text-muted-foreground mr-2">{i + 1}.</span>{f}
                         </span>
                         {isAdmin && !hasEditedFen && (
-                          <button
-                            type="button"
-                            className="shrink-0 text-muted-foreground hover:text-primary"
-                            title={t("rev.editFen")}
-                            onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index: i, value: f }); }}
-                          >
-                            <Pencil className="size-3.5" />
-                          </button>
+                          <span className="shrink-0 inline-flex items-center gap-1">
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-primary"
+                              title={t("rev.editFen")}
+                              onClick={() => { setFenSaveError(null); setFenEditor({ mode: "edit", index: i, value: f }); }}
+                            >
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              className="text-muted-foreground hover:text-destructive"
+                              title={t("rev.deleteFen")}
+                              onClick={() => { setFenDeleteError(null); setPendingFenIndex(i); }}
+                            >
+                              <Trash2 className="size-3.5" />
+                            </button>
+                          </span>
                         )}
                       </div>
                     ))}
