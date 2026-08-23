@@ -129,11 +129,22 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> InferredMove:
             candidates.append(chess.Move(from_square, to_square, promotion=promotion))
 
     legality_boards = _boards_for_both_turns(before_fen)
-    if castling_candidate is not None and _legal_in_either_turn(
-        castling_candidate, legality_boards
-    ):
-        # Castling changes both king and rook squares but is one atomic move.
-        return castling_candidate
+    if castling_candidate is not None:
+        castling_key = {
+            (chess.E1, chess.G1): ("w", "K"),
+            (chess.E1, chess.C1): ("w", "Q"),
+            (chess.E8, chess.G8): ("b", "k"),
+            (chess.E8, chess.C8): ("b", "q"),
+        }.get((castling_candidate.from_square, castling_candidate.to_square))
+        if castling_key is not None:
+            turn, castling_right = castling_key
+            castling_board = chess.Board(
+                f"{before_fen.split(maxsplit=1)[0]} "
+                f"{turn} {castling_right} - 0 1"
+            )
+            if castling_candidate in castling_board.legal_moves:
+                # Castling changes both king and rook squares but is one atomic move.
+                return castling_candidate
     legal = tuple(
         move
         for move in dict.fromkeys(candidates)
