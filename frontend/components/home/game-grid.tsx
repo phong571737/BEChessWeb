@@ -16,7 +16,7 @@ import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
 import { PhysicalBoardCard } from "./physical-board-card";
 import { StartGameDialog } from "./start-game-dialog";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 
 export function GameGrid() {
     const router = useRouter();

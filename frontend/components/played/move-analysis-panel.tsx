@@ -6,11 +6,12 @@ import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, XAx
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
 import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   game: HistoryGame;
@@ -59,8 +60,8 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
       // the game would make one viewer's selected recovery line overwrite
       // another viewer's line. Only the original, non-branch game may save.
       if (token && !analysisGame?.fenHistory?.length) {
-        const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
-          method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+          method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ moves: result, depth: 14 }),
         });
         if (response.ok) {

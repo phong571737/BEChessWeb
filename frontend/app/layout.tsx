@@ -1,7 +1,7 @@
 import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 import { Providers } from "@/components/providers/providers";
-import { AuthProvider } from "@/lib/auth-context";
+import { AuthProvider } from "@/components/providers/auth-provider";
 
 export const viewport = {
     width: "device-width",

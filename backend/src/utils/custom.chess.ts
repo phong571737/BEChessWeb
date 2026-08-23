@@ -278,16 +278,33 @@ export function customPGN(
       if (moveString.length) moveParts.push(moveString);
       moveString = `${moveNumber}.`;
       moveNumber++;
+    } else if (!moveString.length) {
+      moveString = `${moveNumber}...`;
+      moveNumber++;
     }
     moveString += " " + san;
 
     const applied = applyRawMove(game, move);
     if (!applied) {
-      // Invalid move (e.g. no piece at from-square) — do NOT flip the
-      // turn because the board state didn't actually change.
-      // The SAN text "xx" is still appended so the PGN shows the attempt.
+      // An unresolved board transition still consumed a turn. Read the next
+      // side from the authoritative FEN so following moves do not drift.
+      const snapshotTurn = fenHistory[index]?.trim().split(/\s+/)[1];
+      turn = snapshotTurn === "w" || snapshotTurn === "b"
+        ? snapshotTurn
+        : turn === "w" ? "b" : "w";
     } else {
       turn = turn === "w" ? "b" : "w";
+    }
+
+    // The physical board snapshot is authoritative. Reload it after every
+    // event so later notation is calculated from the real board position.
+    const snapshot = fenHistory[index];
+    if (snapshot?.trim()) {
+      try {
+        game.load(snapshot, { skipValidation: true });
+      } catch {
+        // Keep the reconstructed state when a malformed snapshot is received.
+      }
     }
   }
 

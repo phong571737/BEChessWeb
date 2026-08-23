@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
+import { apiFetch } from "@/lib/api-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveDurationSeconds } from "@/lib/game-utils";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { analyzeHistoryMoves } from "@/lib/post-game-analysis";
 
@@ -77,7 +78,7 @@ export function GameHistory() {
   const [resultSuggestion, setResultSuggestion] = useState<{ result: "1-0" | "0-1" | null; cp: number | null; mate: number | null; depth: number } | null>(null);
   const [trashActionError, setTrashActionError] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
 
   const normalizeGame = useCallback((g: HistoryGame): HistoryGame => {
@@ -136,7 +137,7 @@ export function GameHistory() {
 
   const loadTrash = useCallback(async () => {
     if (!isAdmin || !token) throw new Error(t("played.sessionExpired"));
-    const response = await fetch("/games/history/trash", { headers: { Authorization: `Bearer ${token}` } });
+    const response = await apiFetch("/games/history/trash");
     if (!response.ok) throw new Error(t("played.trashLoadError"));
     const data = await response.json() as HistoryGame[];
     setTrash(data.map(normalizeGame));
@@ -160,9 +161,8 @@ export function GameHistory() {
     setBusyId(id);
     setTrashActionError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -190,9 +190,8 @@ export function GameHistory() {
     if (!isAdmin || !token || busyId) return;
     setBusyId(id);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}/restore`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}/restore`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error(t("played.restoreError"));
       const restored = trash.find((game) => game._id === id);
@@ -209,9 +208,8 @@ export function GameHistory() {
     setBusyId(id);
     setTrashActionError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}/permanent`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}/permanent`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -238,7 +236,7 @@ export function GameHistory() {
     setBusyId("all-trash");
     setTrashActionError(null);
     try {
-      const response = await fetch("/games/history/trash/permanent", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const response = await apiFetch("/games/history/trash/permanent", { method: "DELETE" });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? t("played.emptyTrashError"));
       setTrash([]);
       return true;
@@ -259,9 +257,9 @@ export function GameHistory() {
     setBusyId(pendingResultGame._id);
     setResultError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ result: resultValue }),
       });
       if (!response.ok) {
@@ -286,7 +284,7 @@ export function GameHistory() {
     setResultError(null);
     setResultSuggestion(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result-suggestion`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await apiFetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result-suggestion`);
       const body = await response.json().catch(() => null) as { result?: "1-0" | "0-1" | null; cp?: number | null; mate?: number | null; depth?: number } | null;
       if (!response.ok) throw new Error(body?.result === undefined ? t("played.suggestResultError") : t("played.suggestResultUnavailable"));
       const suggestion = { result: body?.result ?? null, cp: body?.cp ?? null, mate: body?.mate ?? null, depth: body?.depth ?? 0 };
@@ -306,9 +304,9 @@ export function GameHistory() {
     try {
       const moves = await analyzeHistoryMoves(game, () => {});
       if (!moves.length) throw new Error(t("analysis.noMoves"));
-      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ moves, depth: 14 }),
       });
       if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
@@ -447,7 +445,7 @@ export function GameHistory() {
                         <div className="min-w-0">
                           <div className="truncate text-sm"><span className="font-medium">{game.whiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.blackName}</span></div>
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            <span>{t("played.dateLabel")} {formatDateTime(game.createdAt || game.endedAt || game.Date)}</span>
+                            <span>{t("played.dateLabel")} {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}</span>
                             <span>{t("played.moveCountLabel")} {game.totalMoves}</span>
                           </div>
                         </div>
@@ -625,7 +623,7 @@ export function GameHistory() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                          {formatDateTime(game.createdAt || game.endedAt || game.Date)}
+                          {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
                           {formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}

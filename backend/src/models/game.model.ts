@@ -64,6 +64,12 @@ function pgnDate(value: unknown, fallback = new Date()): string {
     return resolved.toISOString().slice(0, 10).replace(/-/g, ".");
 }
 
+// Save a game into history and remove it from the live collection
+export async function archiveAndRemoveGame(game: GameDoc, result: string) {
+    await saveActiveGameHistorySnapshot({...game, result, status: "finished",});
+    await games().deleteOne({ gameID: game.gameID });
+}
+
 /** Mirrors durable live-game metadata into its in-progress history record. */
 export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void> {
     const now = new Date();

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { BOARD_COLOR_PRESETS, useBoardDisplay } from "@/components/providers/board-display-provider";
 import { APP_RELEASE_VERSION } from "@/lib/app-version";
 import { publicPath } from "@/lib/public-path";

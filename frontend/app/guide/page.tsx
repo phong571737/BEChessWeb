@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { CheckCircle2, Download, LogIn, Smartphone, Wifi } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { publicPath } from "@/lib/public-path";

@@ -29,7 +29,8 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
+import { apiFetch } from "@/lib/api-fetch";
 
 interface Props {
   game:    HistoryGame | null;
@@ -209,7 +210,7 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
 }
 
 export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
-  const { t } = useT();
+  const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
   // Keep analysis isolated per review source. A recovered branch is a
   // client-local line, so its classifications must never overwrite (or be
@@ -831,9 +832,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     setDeletingFen(true);
     setFenDeleteError(null);
     try {
-      const response = await fetch(
+      const response = await apiFetch(
         `/games/history/${encodeURIComponent(game._id)}/fens/${pendingFenIndex}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
+        { method: "DELETE" },
       );
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown } | null;
       if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) throw new Error("delete_failed");
@@ -858,9 +859,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       const endpoint = editing
         ? `/games/history/${encodeURIComponent(game._id)}/fens/${fenEditor.index}`
         : `/games/history/${encodeURIComponent(game._id)}/fens`;
-      const response = await fetch(endpoint, {
+      const response = await apiFetch(endpoint, {
         method: editing ? "PUT" : "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fen: fenEditor.value }),
       });
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
@@ -895,9 +896,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     setSavingBulkFens(true);
     setBulkFenError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ fenHistory }),
       });
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown; index?: unknown } | null;
@@ -923,9 +924,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
   const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;
-    const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
+    const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
       method: "PUT",
-      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const body = await response.json().catch(() => null) as { success?: boolean; pgn?: unknown; uciHistory?: unknown } | null;
@@ -974,7 +975,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatDateTime(game.createdAt || game.endedAt || game.Date)}
+            {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}
           </p>
         </div>
 
@@ -1026,7 +1027,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               <Calendar className="h-3 w-3" />
               {t("rev.started")}
             </div>
-            <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date)}</span>
+            <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date, locale)}</span>
           </div>
 
         </div>

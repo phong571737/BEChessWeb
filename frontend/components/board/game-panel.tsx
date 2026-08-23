@@ -241,6 +241,8 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                     branches={branches}
                     selectedBranchId={selectedBranchId}
                     onBranchSelect={handleBranchSelect}
+                    initialFen={initialFen}
+                    timelineFens={selectedBranchId ? undefined : timelineFens}
                 />
             </div>
 

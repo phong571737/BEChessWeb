@@ -14,11 +14,11 @@ export function resultLabel(r: string): string {
 }
 
 /** Formats an ISO date string to "dd MMM yyyy, HH:mm". Returns "N/A" for missing/invalid input. */
-export function formatDateTime(src?: string | null): string {
+export function formatDateTime(src?: string | null, locale: "en" | "vi" = "vi"): string {
   if (!src) return "N/A";
   const d = new Date(src);
   if (Number.isNaN(d.getTime())) return src;
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale === "vi" ? "vi-VN" : "en-GB", {
     day: "2-digit",
     month: "short",
     year: "numeric",

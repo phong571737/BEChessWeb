@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
 import { useT } from "@/lib/i18n";
 import { useGameStore } from "@/lib/store";
@@ -12,6 +12,7 @@ import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
+import { apiFetch } from "@/lib/api-fetch";
 
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
@@ -127,16 +128,16 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         setLoading(true);
         setError(null);
         try {
-            const first = await fetch(`/games/${gameID}/rename`, {
+            const first = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber }),
             });
             if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? t("sg.saveClockError"));
 
-            const second = await fetch(`/games/${gameID}/rename`, {
+            const second = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ color: "Black", name: black.trim() }),
             });
             if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));

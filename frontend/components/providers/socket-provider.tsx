@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import type { Socket } from "socket.io-client";
 import { getApiUrl, getBrowserServiceUrl } from "@/lib/api-url";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 
 const SocketContext = createContext<Socket | null>(null);
 
