@@ -29,6 +29,10 @@ export async function connectDB(): Promise<Db | undefined> {
       { deleteAfter: 1 },
       { expireAfterSeconds: 0, name: "history_trash_expiry" },
     );
+    await database.collection("game_history").createIndex(
+      { deletedAt: 1, createdAt: -1 },
+      { name: "history_active_created_at" },
+    );
     return database;
   } catch (err) {
     console.log(err);

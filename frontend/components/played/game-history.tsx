@@ -8,7 +8,7 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { apiFetch } from "@/lib/api-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
@@ -24,6 +24,16 @@ type LegacyHistoryGame = HistoryGame & {
   blackName?: string;
   lastSeq?: number;
 };
+
+type PaginatedHistoryResponse = {
+  items: HistoryGame[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+};
+
+const HISTORY_PAGE_SIZE = 25;
 
 const isFinishedResult = (game: Pick<HistoryGame, "Result" | "historyStatus" | "outcomeStatus">) =>
   game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" ||
@@ -52,6 +62,9 @@ const INPUT_CLS =
 export function GameHistory() {
   const [games, setGames]     = useState<HistoryGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalGames, setTotalGames] = useState(0);
   const [resultFilter, setResultFilter] = useState<"all" | "1-0" | "0-1" | "1/2-1/2">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "finished" | "unfinished">("all");
   const [search, setSearch] = useState("");
@@ -120,11 +133,21 @@ export function GameHistory() {
   };
 
   useEffect(() => {
-    fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
-      .then((data: HistoryGame[]) => setGames(data.map(normalizeGame)))
+    setLoading(true);
+    const url = `/games/history?page=${page}&pageSize=${HISTORY_PAGE_SIZE}`;
+    fetchJSONCached<PaginatedHistoryResponse | HistoryGame[]>(url, 10_000)
+      .then((data) => {
+        // Keep the client compatible with an older backend during rolling deploys.
+        const payload: PaginatedHistoryResponse = Array.isArray(data)
+          ? { items: data, page: 1, pageSize: data.length, total: data.length, totalPages: 1 }
+          : data;
+        setGames(payload.items.map(normalizeGame));
+        setTotalGames(payload.total);
+        setTotalPages(payload.totalPages);
+      })
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
-  }, [normalizeGame]);
+  }, [normalizeGame, page]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -386,7 +409,7 @@ export function GameHistory() {
         <div>
           <h1 className="text-sm font-semibold">{t("played.title")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t("played.gamesPlayed", { n: games.length })}
+            {t("played.gamesPlayed", { n: totalGames })}
           </p>
         </div>
         {isAdmin && (
@@ -538,7 +561,7 @@ export function GameHistory() {
               {search || resultFilter !== "all" || hasAdvancedFilters ? (
                 <div className="px-4 py-2 border-b border-border bg-muted/40">
                   <p className="text-xs text-muted-foreground">
-                    {t("played.showing", { n: filteredGames.length, total: games.length })}
+                    {t("played.showing", { n: filteredGames.length, total: totalGames })}
                   </p>
                 </div>
               ) : null}
@@ -589,7 +612,7 @@ export function GameHistory() {
                         className={cn("group border-t border-border/60 transition-colors", reviewId ? "cursor-pointer hover:bg-accent/60" : "cursor-not-allowed opacity-60")}
                       >
                         <td className="px-4 py-3 text-xs text-muted-foreground/60 font-mono">
-                          {i + 1}
+                          {(page - 1) * HISTORY_PAGE_SIZE + i + 1}
                         </td>
                         <td className="px-4 py-3">
                           <Badge
@@ -652,6 +675,33 @@ export function GameHistory() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  {t("played.pageOf", { page, totalPages })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={t("played.previousPage")}
+                    title={t("played.previousPage")}
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("played.nextPage")}
+                    title={t("played.nextPage")}
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </>

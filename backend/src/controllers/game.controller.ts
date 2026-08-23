@@ -59,14 +59,20 @@ export const GameController = {
     // get history of game
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
-            const history = (await getPGNCollections()
-                .find({ deletedAt: { $exists: false } })
+            const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined;
+            const page = Math.max(1, Number.parseInt(String(req.query.page ?? "1"), 10) || 1);
+            const pageSize = Math.min(50, Math.max(1, Number.parseInt(String(req.query.pageSize ?? "25"), 10) || 25));
+            // History is an archive view: include every non-deleted document,
+            // including legacy rows that only contain PGN/totalMoves.
+            const historyFilter = { deletedAt: { $exists: false } };
+            const collection = getPGNCollections();
+            const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
+            const history = await collection
+                .find(historyFilter)
                 .sort({ createdAt: -1 }) // newest
-                .toArray())
-                .filter((row) => {
-                    const totalPlies = countHistoryPlies(row);
-                    return Number.isFinite(totalPlies) && totalPlies > 0;
-                });
+                .skip(hasPagination ? (page - 1) * pageSize : 0)
+                .limit(hasPagination ? pageSize : 0)
+                .toArray();
 
             // History snapshots created by older versions sometimes retained
             // only a move count. For an unfinished game the live game document
@@ -110,7 +116,19 @@ export const GameController = {
                 };
             });
 
-            res.json(games.map(serializeHistoryRecord));
+            const serialized = games.map(serializeHistoryRecord);
+            if (hasPagination) {
+                res.json({
+                    items: serialized,
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+                });
+                return;
+            }
+            // Keep the legacy array response for the review page and older clients.
+            res.json(serialized);
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load game history" });
