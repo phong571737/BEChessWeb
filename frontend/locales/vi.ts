@@ -330,6 +330,8 @@ export const vi: Record<TranslationKeys, string> = {
     "played.pageOf": "Trang {page} / {totalPages}",
     "played.previousPage": "Trang trước",
     "played.nextPage": "Trang sau",
+    "played.firstPage": "Về trang đầu",
+    "played.lastPage": "Tới trang cuối",
     "played.noMatch": "Không có ván cờ nào khớp với bộ lọc",
     "played.moves": "nước",
     "played.white": "Trắng",

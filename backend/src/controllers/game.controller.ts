@@ -37,6 +37,15 @@ function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & 
     };
 }
 
+/** Classifies a history record from its normalized result or legacy PGN header. */
+function historyResult(record: MongoDocument): "1-0" | "0-1" | "1/2-1/2" | "*" {
+    const direct = String(record.result ?? record.Result ?? "");
+    if (direct === "1-0" || direct === "0-1" || direct === "1/2-1/2") return direct;
+    const pgn = typeof record.pgn === "string" ? record.pgn : "";
+    const match = pgn.match(/\[Result\s+"(1-0|0-1|1\/2-1\/2|\*)"\]/i);
+    return (match?.[1] as "1-0" | "0-1" | "1/2-1/2" | "*" | undefined) ?? "*";
+}
+
 export const GameController = {
     // Get current state
     async getCurrent(req: Request, res: Response): Promise<void> {
@@ -67,6 +76,18 @@ export const GameController = {
             const historyFilter = { deletedAt: { $exists: false } };
             const collection = getPGNCollections();
             const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
+            // The history list is paginated, but the summary must describe the
+            // complete archive rather than only the records on the current page.
+            const summaryRows = await collection.find(historyFilter, {
+                projection: { result: 1, Result: 1, pgn: 1 },
+            }).toArray();
+            const summary = summaryRows.reduce((counts, record) => {
+                const result = historyResult(record);
+                if (result === "1-0") counts.whiteWins += 1;
+                else if (result === "0-1") counts.blackWins += 1;
+                else if (result === "1/2-1/2") counts.draws += 1;
+                return counts;
+            }, { whiteWins: 0, blackWins: 0, draws: 0 });
             const history = await collection
                 .find(historyFilter)
                 .sort({ createdAt: -1 }) // newest
@@ -124,6 +145,7 @@ export const GameController = {
                     pageSize,
                     total,
                     totalPages: Math.max(1, Math.ceil(total / pageSize)),
+                    summary: { ...summary, total: summaryRows.length },
                 });
                 return;
             }

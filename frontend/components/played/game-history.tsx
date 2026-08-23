@@ -8,7 +8,7 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { apiFetch } from "@/lib/api-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
@@ -25,12 +25,20 @@ type LegacyHistoryGame = HistoryGame & {
   lastSeq?: number;
 };
 
+type HistorySummary = {
+  whiteWins: number;
+  blackWins: number;
+  draws: number;
+  total: number;
+};
+
 type PaginatedHistoryResponse = {
   items: HistoryGame[];
   page: number;
   pageSize: number;
   total: number;
   totalPages: number;
+  summary?: HistorySummary;
 };
 
 const HISTORY_PAGE_SIZE = 25;
@@ -65,6 +73,12 @@ export function GameHistory() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [totalGames, setTotalGames] = useState(0);
+  const [historySummary, setHistorySummary] = useState<HistorySummary>({
+    whiteWins: 0,
+    blackWins: 0,
+    draws: 0,
+    total: 0,
+  });
   const [resultFilter, setResultFilter] = useState<"all" | "1-0" | "0-1" | "1/2-1/2">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "finished" | "unfinished">("all");
   const [search, setSearch] = useState("");
@@ -139,11 +153,24 @@ export function GameHistory() {
       .then((data) => {
         // Keep the client compatible with an older backend during rolling deploys.
         const payload: PaginatedHistoryResponse = Array.isArray(data)
-          ? { items: data, page: 1, pageSize: data.length, total: data.length, totalPages: 1 }
+          ? {
+              items: data,
+              page: 1,
+              pageSize: data.length,
+              total: data.length,
+              totalPages: 1,
+              summary: {
+                whiteWins: data.filter((game) => game.Result === "1-0").length,
+                blackWins: data.filter((game) => game.Result === "0-1").length,
+                draws: data.filter((game) => game.Result === "1/2-1/2").length,
+                total: data.length,
+              },
+            }
           : data;
         setGames(payload.items.map(normalizeGame));
         setTotalGames(payload.total);
         setTotalPages(payload.totalPages);
+        setHistorySummary(payload.summary ?? { whiteWins: 0, blackWins: 0, draws: 0, total: payload.total });
       })
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
@@ -421,7 +448,7 @@ export function GameHistory() {
       </div>
 
       <div className="px-4 sm:px-5 py-4 sm:py-5 space-y-4">
-        {loading ? (
+        {loading && games.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Skeleton className="h-24 w-full rounded-lg" />
@@ -486,7 +513,7 @@ export function GameHistory() {
                 )}
               </div>
             )}
-            <StatCards games={games} />
+            <StatCards summary={historySummary} />
 
             {analysisError && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{analysisError}</p>}
 
@@ -556,7 +583,12 @@ export function GameHistory() {
             </div>
 
             {/* Table */}
-            <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+            <div className="relative rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+              {loading && (
+                <div className="absolute inset-0 z-30 flex items-start justify-center bg-background/35 pt-20 backdrop-blur-[1px]">
+                  <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden="true" />
+                </div>
+              )}
               {/* Results count */}
               {search || resultFilter !== "all" || hasAdvancedFilters ? (
                 <div className="px-4 py-2 border-b border-border bg-muted/40">
@@ -683,6 +715,16 @@ export function GameHistory() {
                 <div className="flex items-center gap-1">
                   <button
                     type="button"
+                    aria-label={t("played.firstPage")}
+                    title={t("played.firstPage")}
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage(1)}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronsLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
                     aria-label={t("played.previousPage")}
                     title={t("played.previousPage")}
                     disabled={page <= 1 || loading}
@@ -700,6 +742,16 @@ export function GameHistory() {
                     className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
                   >
                     <ChevronRight className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("played.lastPage")}
+                    title={t("played.lastPage")}
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage(totalPages)}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronsRight className="size-4" />
                   </button>
                 </div>
               </div>

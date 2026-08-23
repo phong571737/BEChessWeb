@@ -221,6 +221,8 @@ export const en = {
     "played.pageOf": "Page {page} of {totalPages}",
     "played.previousPage": "Previous page",
     "played.nextPage": "Next page",
+    "played.firstPage": "First page",
+    "played.lastPage": "Last page",
     "played.noMatch": "No games match current filters",
     "played.moves": "moves",
     "played.white": "White",
