@@ -663,12 +663,38 @@ export async function renamePlayer(
     if (initialTimeMs !== undefined || incrementMs !== undefined) {
         const current = await games().findOne(
             { gameID } as Filter<GameDoc>,
-            { projection: { initialTimeMs: 1, incrementMs: 1 } },
+            {
+                projection: {
+                    initialTimeMs: 1,
+                    incrementMs: 1,
+                    status: 1,
+                    lastSeq: 1,
+                    uciHistory: 1,
+                    fenHistory: 1,
+                },
+            },
         );
         update.timeControlType = classifyTimeControl(
             initialTimeMs ?? current?.initialTimeMs,
             incrementMs ?? current?.incrementMs,
         );
+
+        // A clock setting change before the first move must also update the
+        // persisted clock values. Otherwise an old 60-minute remaining value
+        // can override a newly selected 45-minute configuration on reload.
+        // Never reset a game that already has moves or is currently active.
+        const hasMoves = Boolean(
+            (current?.lastSeq ?? 0) > 0
+            || (current?.uciHistory?.length ?? 0) > 0
+            || (current?.fenHistory?.length ?? 0) > 0,
+        );
+        const isActive = ["playing", "active"].includes(String(current?.status ?? ""));
+        if (initialTimeMs !== undefined && !hasMoves && !isActive) {
+            update.whiteRemainingMs = initialTimeMs;
+            update.blackRemainingMs = initialTimeMs;
+            update.activeClockSide = "white";
+            update.clockStartedAt = null;
+        }
     }
     if (round !== undefined) update.round = round;
     if (boardNumber !== undefined) update.boardNumber = boardNumber.trim();

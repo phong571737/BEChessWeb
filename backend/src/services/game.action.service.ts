@@ -7,6 +7,7 @@ import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
 import { GameIDPayload } from "../types/game.types.js";
 import { getBoardIDByGame } from "../game/game.manager.js";
+import { getCurrentClock } from "./clock.service.js";
 
 export const GameActionService = {
     // Restart keeps the existing game/session identity so clients and board mapping stay connected.
@@ -108,6 +109,15 @@ export const GameActionService = {
         if (round !== undefined) payload.round = round;
         if (location !== undefined) payload.location = location;
         getIO().to(gameID).emit("game:renamed", payload);
+
+        // Keep every connected client on the same server-authoritative clock,
+        // including clients that are viewing the game while it is configured.
+        if (updatedGame) {
+            getIO().to(gameID).emit("clock_state", {
+                gameID,
+                ...getCurrentClock(updatedGame),
+            });
+        }
     },
 
     async destroy(gameID: string) {
