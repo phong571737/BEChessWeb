@@ -4,8 +4,8 @@ from typing import Any, Dict, Mapping, Optional
 
 import chess
 
-from recover_service.service.fen_to_pgn import FenConversionError
-from recover_service_v2.recovery import recover as recover_v2
+from recover_service_v3.recovery import recover as recover_v3
+from recover_service_v3.service.fen_to_pgn import FenConversionError
 
 
 class InvalidRecoveryInputError(ValueError):
@@ -27,6 +27,9 @@ def run_recovery(
     max_repair_gaps: int = 10,
     max_total_padding: int = 20,
     final_only: bool = False,
+    clean_extra_piece_noise: bool = True,
+    max_new_noise_per_transition: int = 2,
+    max_total_masked_squares: int = 4,
 ) -> Dict[str, Any]:
     del headers, n_retry, deduplicate_positions, max_repair_gaps, max_total_padding, final_only
 
@@ -42,7 +45,13 @@ def run_recovery(
         )
 
     try:
-        result = recover_v2(clean_history, (start_fen or chess.STARTING_FEN).strip())
+        result = recover_v3(
+            clean_history,
+            (start_fen or chess.STARTING_FEN).strip(),
+            clean_extra_piece_noise=clean_extra_piece_noise,
+            max_new_noise_per_transition=max_new_noise_per_transition,
+            max_total_masked_squares=max_total_masked_squares,
+        )
     except (FenConversionError, ValueError, IndexError) as exc:
         raise InvalidRecoveryInputError(str(exc)) from exc
 

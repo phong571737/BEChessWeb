@@ -11,7 +11,7 @@ from .runner import InvalidRecoveryInputError, RecoveryLimitError, run_recovery
 from .schemas import RecoverRequest
 
 
-app = FastAPI(title="FEN Recovery Service V2")
+app = FastAPI(title="FEN Recovery Service V3")
 logger = logging.getLogger(__name__)
 
 app.add_middleware(
@@ -47,6 +47,9 @@ def recover(req: RecoverRequest):
             max_repair_gaps=req.maxRepairGaps,
             max_total_padding=req.maxTotalPadding,
             final_only=bool(req.finalOnly),
+            clean_extra_piece_noise=req.cleanExtraPieceNoise,
+            max_new_noise_per_transition=req.maxNewNoisePerTransition,
+            max_total_masked_squares=req.maxTotalMaskedSquares,
         )
     except InvalidRecoveryInputError as exc:
         return JSONResponse(
@@ -59,7 +62,7 @@ def recover(req: RecoverRequest):
             content={"detail": str(exc), "code": "RECOVERY_BRANCH_LIMIT"},
         )
     except Exception:
-        logger.exception("Recover Service V2 failed")
+        logger.exception("Recover Service V3 failed")
         return JSONResponse(
             status_code=500,
             content={
@@ -67,3 +70,8 @@ def recover(req: RecoverRequest):
                 "code": "RECOVERY_INTERNAL_ERROR",
             },
         )
+
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "engineVersion": "recover_service_v3"}

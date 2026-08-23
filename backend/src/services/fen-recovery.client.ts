@@ -12,6 +12,9 @@ interface RawRecoveryResponse {
   unresolvedSegments?: unknown;
   paddingAttempts?: unknown;
   paddingRepairs?: unknown;
+  observedFens?: unknown;
+  cleanedFens?: unknown;
+  noiseCleaning?: unknown;
   normalizedFens?: unknown;
   normalizedSides?: unknown;
   inferredSides?: unknown;
@@ -127,6 +130,20 @@ function stringLists(value: unknown): string[][] {
   return Array.isArray(value)
     ? value.filter(Array.isArray).map((items) => items.map((item) => String(item)))
     : [];
+}
+
+function recoveryMoveLists(value: unknown): string[][] {
+  if (!Array.isArray(value)) return [];
+
+  return value.flatMap((item) => {
+    if (Array.isArray(item)) return [item.map((token) => String(token))];
+    if (!item || typeof item !== "object") return [];
+
+    const uci = (item as { uci?: unknown }).uci;
+    return Array.isArray(uci)
+      ? [uci.map((token) => String(token))]
+      : [];
+  });
 }
 
 function positionKey(fen: string): string {
@@ -325,7 +342,10 @@ function adaptRecoveryResponse(
   headers: RecoveryHeaders,
   includeSteps: boolean,
 ): FenRecoveryResult | null {
-  const finalLists = stringLists(data.final_move_lists);
+  const parsedFinalLists = recoveryMoveLists(data.final_move_lists);
+  const finalLists = parsedFinalLists.length > 0
+    ? parsedFinalLists
+    : stringLists(data.moveTemplates);
   if (finalLists.length === 0) return null;
 
   const { groups, metadata: preprocessing } = preprocessingMap(fenHistory, startFen);
@@ -359,7 +379,7 @@ function adaptRecoveryResponse(
 
   return {
     schemaVersion: 3,
-    engineVersion: "recover_service_v2",
+    engineVersion: "recover_service_v3",
     pgn: renderPgn(headers, startFen, original.line),
     bestPgn: renderPgn(headers, startFen, bestMoveLists[0]!),
     fullyRecovered,
@@ -381,7 +401,15 @@ export async function recoverFenHistory(
   fenHistory: string[],
   startFen: string | undefined,
   headers: RecoveryHeaders,
-  options: { includeSteps?: boolean; debug?: boolean; nRetry?: number; exposeServiceErrors?: boolean } = {},
+  options: {
+    includeSteps?: boolean;
+    debug?: boolean;
+    nRetry?: number;
+    exposeServiceErrors?: boolean;
+    cleanExtraPieceNoise?: boolean;
+    maxNewNoisePerTransition?: number;
+    maxTotalMaskedSquares?: number;
+  } = {},
 ): Promise<FenRecoveryResult | null> {
   const baseUrl = env.RECOVER_SERVICE_URL?.trim().replace(/\/$/, "");
   if (!baseUrl || fenHistory.length === 0) return null;
@@ -393,9 +421,18 @@ export async function recoverFenHistory(
       headers,
       maxBranches: 10000,
       ...(options.nRetry === undefined ? {} : { nRetry: options.nRetry }),
+      ...(options.cleanExtraPieceNoise === undefined
+        ? {}
+        : { cleanExtraPieceNoise: options.cleanExtraPieceNoise }),
+      ...(options.maxNewNoisePerTransition === undefined
+        ? {}
+        : { maxNewNoisePerTransition: options.maxNewNoisePerTransition }),
+      ...(options.maxTotalMaskedSquares === undefined
+        ? {}
+        : { maxTotalMaskedSquares: options.maxTotalMaskedSquares }),
       finalOnly: options.includeSteps !== true,
     };
-    if (options.debug) console.log("[FEN RECOVERY 2 - payload backend gửi Python /recover]", payload);
+    if (options.debug) console.log("[FEN RECOVERY V3 - payload backend gửi Python /recover]", payload);
     const response = await postRecovery(new URL(`${baseUrl}/recover`), payload);
     if (response.status < 200 || response.status >= 300) {
       let detail = "FEN recovery request was rejected";

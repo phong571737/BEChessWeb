@@ -18,6 +18,20 @@ class RecoverRequest(BaseModel):
     maxRepairGaps: int = Field(10, ge=0, description="Maximum repaired gaps")
     maxTotalPadding: int = Field(20, ge=0, description="Maximum synthetic FENs")
     finalOnly: Optional[bool] = Field(False, description="Return only final move lists")
+    cleanExtraPieceNoise: bool = Field(
+        True,
+        description="Remove persistent extra-piece noise before recovery",
+    )
+    maxNewNoisePerTransition: int = Field(
+        2,
+        ge=0,
+        description="Maximum new noise masks detected per transition",
+    )
+    maxTotalMaskedSquares: int = Field(
+        4,
+        ge=0,
+        description="Maximum persistent noise squares masked during recovery",
+    )
 
 
 class ErrorResponse(BaseModel):
