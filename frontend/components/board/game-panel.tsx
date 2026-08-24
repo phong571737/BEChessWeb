@@ -172,8 +172,8 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             if ((e.target as HTMLElement)?.isContentEditable) return;
             if (e.key === "ArrowLeft")  { e.preventDefault(); goBack(); }
             if (e.key === "ArrowRight") { e.preventDefault(); goNext(); }
-            if (e.key === "Home")       { e.preventDefault(); goStart(); }
-            if (e.key === "End")        { e.preventDefault(); goEnd(); }
+            if (e.key === "ArrowDown")       { e.preventDefault(); goStart(); }
+            if (e.key === "ArrowUp")        { e.preventDefault(); goEnd(); }
         }
         window.addEventListener("keydown", handler);
         return () => window.removeEventListener("keydown", handler);

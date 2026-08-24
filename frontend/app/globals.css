@@ -56,8 +56,8 @@
         --state-warning:  43 96% 56%;
         --state-accent:   262 83% 58%;
         --state-neutral:  240 4% 46%;
-        --state-check:    0 84% 55%;
-        --state-checkmate: 348 83% 47%;
+        --state-check:    35 92% 50%;
+        --state-checkmate: 0 84% 52%;
         --state-white:    217 91% 46%;
         --state-black:    0 72% 51%;
         --state-draw:     240 4% 46%;
@@ -119,8 +119,8 @@
         --state-warning:            25 96% 61%;
         --state-accent:             252 100% 71%;
         --state-neutral:            226 14% 61%;
-        --state-check:              0 84% 62%;
-        --state-checkmate:          348 83% 58%;
+        --state-check:              25 96% 61%;
+        --state-checkmate:          0 84% 60%;
     }
 }
 
@@ -150,7 +150,12 @@
 
 @keyframes king-check-pulse {
   0%, 100% { filter: saturate(1); transform: scale(1); }
-  50% { filter: saturate(1.35); transform: scale(1.035); }
+  50% { filter: saturate(1.22) brightness(1.06); transform: scale(1.02); }
+}
+
+@keyframes king-checkmate-pulse {
+  0%, 100% { filter: saturate(1.1) brightness(0.96); transform: scale(1); }
+  50% { filter: saturate(1.55) brightness(1.12); transform: scale(1.055); }
 }
 
 /* --------- Semantic text helpers ------------------------------ */

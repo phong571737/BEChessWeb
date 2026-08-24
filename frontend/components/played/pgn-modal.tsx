@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard} from "lucide-react";
+  CircuitBoard,
+  Tag} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -770,6 +771,41 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     if (withSound) playNavSound(clamped > currentIndex);
     setCursor(clamped === timeline.length - 1 ? -1 : clamped);
   }, [currentIndex, timeline.length]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+
+      // don't hijack arrow keys while typing
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) return;
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        goTo(currentIndex - 1);
+      }
+
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        goTo(currentIndex + 1);
+      }
+
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        goTo(timeline.length - 1);
+      }
+
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        goTo(0);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [currentIndex, timeline.length, goTo]);
 
   useEffect(() => {
     const el = boardWrapRef.current;

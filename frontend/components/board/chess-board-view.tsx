@@ -42,13 +42,50 @@ interface KingThreat {
 }
 
 /**
+ * Completes malformed or partial e-board FEN metadata while preserving the
+ * piece placement and active color exactly as received.
+ */
+function normalizeThreatFen(fen: string): string | null {
+  const fields = fen.trim().split(/\s+/);
+  const placement = fields[0];
+  if (!placement) return null;
+
+  const activeColor = fields[1] === "b" ? "b" : "w";
+  const castling = /^(-|K?Q?k?q?)$/.test(fields[2] ?? "") && fields[2]
+    ? fields[2]
+    : "-";
+  const enPassant = /^(-|[a-h][36])$/.test(fields[3] ?? "")
+    ? fields[3]
+    : "-";
+  const halfMove = /^\d+$/.test(fields[4] ?? "") ? fields[4] : "0";
+  const fullMove = /^\d+$/.test(fields[5] ?? "") ? fields[5] : "1";
+
+  return `${placement} ${activeColor} ${castling} ${enPassant} ${halfMove} ${fullMove}`;
+}
+
+/** Determines mate from the attacked king's perspective without mutating the position. */
+function isThreatCheckmate(position: Chess, square: Square, color: Color): boolean {
+  try {
+    const fields = position.fen().split(" ");
+    fields[1] = color;
+    const checkedPosition = new Chess(fields.join(" "), { skipValidation: true });
+    return checkedPosition.isCheckmate() && checkedPosition.get(square)?.color === color;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Finds an attacked king from piece geometry instead of trusting the FEN turn.
  * Persisted physical-board snapshots can contain a stale active color or omit
  * the opposite king, so strict FEN validation would hide a visible check.
  */
 export function findKingThreat(fen: string): KingThreat | null {
   try {
-    const position = new Chess(fen || undefined, { skipValidation: true });
+    const normalizedFen = normalizeThreatFen(fen);
+    if (!normalizedFen) return null;
+
+    const position = new Chess(normalizedFen, { skipValidation: true });
     const activeColor = position.turn();
     const colors: Color[] = [activeColor, activeColor === "w" ? "b" : "w"];
 
@@ -60,12 +97,11 @@ export function findKingThreat(fen: string): KingThreat | null {
         continue;
       }
 
-      // Evaluate mate from the attacked king's perspective even when the
-      // persisted active-color field points at the wrong side.
-      position.setTurn(color);
       return {
         square: kingSquare,
-        checkmate: position.isCheckmate(),
+        // Evaluate mate from the attacked king's perspective even when the
+        // persisted active-color field points at the wrong side.
+        checkmate: isThreatCheckmate(position, kingSquare, color),
       };
     }
   } catch {
@@ -150,12 +186,14 @@ export function ChessBoardView({
     squareStyles[kingThreat.square] = {
       ...squareStyles[kingThreat.square],
       background: kingThreat.checkmate
-        ? "hsl(var(--state-checkmate) / 0.78)"
-        : "hsl(var(--state-check) / 0.72)",
+        ? "radial-gradient(circle, hsl(var(--state-checkmate) / 0.28) 12%, hsl(var(--state-checkmate) / 0.92) 100%)"
+        : "radial-gradient(circle, hsl(var(--state-check) / 0.18) 18%, hsl(var(--state-check) / 0.82) 100%)",
       boxShadow: kingThreat.checkmate
-        ? "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 18px hsl(var(--state-checkmate) / 0.72)"
-        : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 16px hsl(var(--state-check) / 0.65)",
-      animation: "king-check-pulse 1.05s ease-in-out infinite",
+        ? "inset 0 0 0 4px hsl(var(--state-checkmate)), inset 0 0 0 7px hsl(var(--foreground) / 0.32), 0 0 20px hsl(var(--state-checkmate) / 0.82)"
+        : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 12px hsl(var(--state-check) / 0.52)",
+      animation: kingThreat.checkmate
+        ? "king-checkmate-pulse 0.72s ease-in-out infinite"
+        : "king-check-pulse 1.25s ease-in-out infinite",
       zIndex: 2,
     };
   }
