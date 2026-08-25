@@ -38,7 +38,7 @@ function calculateMoveAccuracy(
   const winPercentLoss = Math.max(0, moverBefore - moverAfter);
 
   return clamp(
-    103.1668 * Math.exp(-0.04354 * winPercentLoss) - 3.1669,
+    103.1668100711649 * Math.exp(-0.04354415386753951 * winPercentLoss) - 3.166924740191411,
     0,
     100,
   );
