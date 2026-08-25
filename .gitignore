@@ -38,6 +38,10 @@ build/
 chessserver.exe
 *.tsbuildinfo
 
+# Local editor/MCP configuration (may contain private workspace URLs)
+/.cursor/mcp.json
+/.vscode/mcp.json
+
 # Documentation is maintained locally and must not be published.
 /docs/
 /recover_service_v2/

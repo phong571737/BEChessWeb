@@ -1,8 +1,0 @@
-{
-  "servers": {
-    "frontend-checklist": {
-      "type": "http",
-      "url": "https://mcp.frontendchecklist.io"
-    }
-  }
-}
