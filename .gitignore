@@ -36,6 +36,7 @@ build/
 .codegraph/
 *.log
 chessserver.exe
+*.tsbuildinfo
 
 # Documentation is maintained locally and must not be published.
 /docs/

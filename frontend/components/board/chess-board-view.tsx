@@ -187,12 +187,12 @@ export function ChessBoardView({
       ...squareStyles[kingThreat.square],
       background: kingThreat.checkmate
         ? "radial-gradient(circle, hsl(var(--state-checkmate) / 0.28) 12%, hsl(var(--state-checkmate) / 0.92) 100%)"
-        : "radial-gradient(circle, hsl(var(--state-check) / 0.18) 18%, hsl(var(--state-check) / 0.82) 100%)",
+        : "radial-gradient(circle, hsl(var(--state-checkmate) / 0.18) 18%, hsl(var(--state-checkmate) / 0.92) 100%)",
       boxShadow: kingThreat.checkmate
         ? "inset 0 0 0 4px hsl(var(--state-checkmate)), inset 0 0 0 7px hsl(var(--foreground) / 0.32), 0 0 20px hsl(var(--state-checkmate) / 0.82)"
-        : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 12px hsl(var(--state-check) / 0.52)",
+        : "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 12px hsl(var(--state-checkmate) / 0.72)",
       animation: kingThreat.checkmate
-        ? "king-checkmate-pulse 0.72s ease-in-out infinite"
+        ? "none"
         : "king-check-pulse 1.25s ease-in-out infinite",
       zIndex: 2,
     };
