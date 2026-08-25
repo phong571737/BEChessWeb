@@ -7,6 +7,8 @@ export const vi: Record<TranslationKeys, string> = {
     "common.duration": "Thời gian",
     "common.moves": "Số nước",
     "common.result": "Kết quả",
+    "common.white": "Trắng",
+    "common.black": "Đen",
     "common.saving": "Đang lưu...",
     "common.deleting": "Đang xóa...",
     "auth.email": "Email",
@@ -284,7 +286,6 @@ export const vi: Record<TranslationKeys, string> = {
     "rev.replaceFenListConfirm": "Thay chuỗi FEN",
     "rev.showFullPgn": "Xem đầy đủ PGN",
     "rev.analysis": "Phân tích ván cờ",
-    "rev.stockfishSummaryDescription": "Tổng hợp phân loại nước đi từ kết quả Stockfish đã lưu.",
     "rev.analyzedPlies": "Nước đã phân tích",
     "rev.stockfishBreakdown": "Phân loại nước đi Stockfish",
     "rev.classification": "Phân loại",
@@ -392,6 +393,9 @@ export const vi: Record<TranslationKeys, string> = {
     "played.suggestResultError": "Không thể phân tích thế cờ này.",
     "played.suggestResultUnavailable": "Stockfish không thể xác định bên thắng.",
     "played.suggestionUndetermined": "Chưa xác định được bên thắng",
+    "analysis.accuracy": "Độ chính xác",
+    "analysis.moveAccuracy": "Độ chính xác nước đi",
+    "analysis.accuracyUnavailable": "Chưa đủ dữ liệu để tính độ chính xác",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Dán UCI hoặc FEN vào đây",

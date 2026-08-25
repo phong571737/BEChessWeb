@@ -5,6 +5,8 @@ export const en = {
     "common.duration": "Duration",
     "common.moves": "Moves",
     "common.result": "Result",
+    "common.white": "White",
+    "common.black": "Black",
     "common.saving": "Saving...",
     "common.deleting": "Deleting...",
     "auth.email": "Email",
@@ -175,7 +177,6 @@ export const en = {
     "rev.replaceFenListConfirm": "Replace FEN list",
     "rev.showFullPgn": "Show full PGN",
     "rev.analysis": "Match Analysis",
-    "rev.stockfishSummaryDescription": "Stockfish classification summary for the saved move analysis.",
     "rev.analyzedPlies": "Analyzed plies",
     "rev.stockfishBreakdown": "Stockfish move classifications",
     "rev.classification": "Classification",
@@ -283,6 +284,9 @@ export const en = {
     "played.suggestResultError": "Unable to analyze this position.",
     "played.suggestResultUnavailable": "Stockfish could not determine a winner.",
     "played.suggestionUndetermined": "No clear winner",
+    "analysis.accuracy": "Accuracy",
+    "analysis.moveAccuracy": "Move accuracy",
+    "analysis.accuracyUnavailable": "Not enough data to calculate accuracy",
 
     // --------------- Import games ------------------------------------
     "pg.pasteUCI": "Paste UCI or FEN here",

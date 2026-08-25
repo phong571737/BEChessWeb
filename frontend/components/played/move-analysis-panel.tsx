@@ -1,21 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { BrainCircuit, LoaderCircle } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceLine, ResponsiveContainer, XAxis, YAxis } from "recharts";
-import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
-import { useAuth } from "@/components/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { analyzeHistoryMoves, type MoveAnalysis } from "@/lib/post-game-analysis";
 import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
-import { apiFetch } from "@/lib/api-fetch";
+import { calculateGameAccuracy } from "@/lib/accuracy";
 
 interface Props {
   game: HistoryGame;
-  /** Optional recovered source. When present, analysis must use its FEN/UCI timeline. */
+  /** Optional selected source. When present, analysis uses only its FEN timeline. */
   analysisGame?: HistoryGame;
   currentPly: number;
   onSelectPly: (ply: number) => void;
@@ -30,13 +27,12 @@ function formatEvaluation(value: number | null): string {
 
 export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly, onAnalysisSaved }: Props) {
   const { t } = useT();
-  const { token } = useAuth();
   const [moves, setMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ completed: 0, total: 0 });
   const [error, setError] = useState<string | null>(null);
-  const analysisRunRef = useRef(0);
-  const runningRef = useRef(false);
+  const activeAnalysisKeyRef = useRef("");
+  const analysisPromisesRef = useRef(new Map<string, Promise<MoveAnalysis[]>>());
   const chartConfig = { evaluation: { label: t("analysis.advantage"), color: "hsl(var(--primary))" } } satisfies ChartConfig;
   const chartData = moves.map((move) => ({
     ...move,
@@ -44,71 +40,102 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
   }));
   const selected = moves.find((move) => move.ply === currentPly) ?? moves.at(-1);
 
-  const branchKey = analysisGame?.fenHistory?.length
-    ? `${analysisGame.initialFen ?? ""}|${analysisGame.fenHistory.join("|")}|${analysisGame.uciHistory?.join("|") ?? ""}`
-    : "persisted";
-
-  const runAnalysis = useCallback(async (automatic = false) => {
-    if (runningRef.current) return;
-    const runId = ++analysisRunRef.current;
-    runningRef.current = true;
-    setRunning(true); setError(null);
-    try {
-      const result = await analyzeHistoryMoves(analysisGame ?? game, (completed, total) => setProgress({ completed, total }));
-      if (!result.length) return;
-      // Branch analysis is intentionally client-local. Persisting it against
-      // the game would make one viewer's selected recovery line overwrite
-      // another viewer's line. Only the original, non-branch game may save.
-      if (token && !analysisGame?.fenHistory?.length) {
-        const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
-          method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ moves: result, depth: 14 }),
-        });
-        if (response.ok) {
-          // The local result is still used immediately below.
-        }
-      }
-      if (runId !== analysisRunRef.current) return;
-      setMoves(result);
-      onAnalysisSaved?.(result);
-    } catch { setError(t("analysis.error")); } finally { runningRef.current = false; setRunning(false); }
-  }, [analysisGame, game, onAnalysisSaved, t, token]);
+  const sourceGame = analysisGame ?? game;
+  const analysisKey = `${game._id}|${sourceGame.fenHistory?.join("|") ?? ""}`;
 
   useEffect(() => {
-    analysisRunRef.current += 1;
+    let cancelled = false;
+    let ownsPendingAnalysis = false;
+    let analysisSettled = false;
+    const controller = new AbortController();
+    activeAnalysisKeyRef.current = analysisKey;
     setError(null);
     setProgress({ completed: 0, total: 0 });
-    if (branchKey !== "persisted") {
-      setMoves([]);
-      void runAnalysis(true);
-    } else {
-      const savedMoves = game.analysis?.moves ?? [];
-      setMoves(savedMoves);
-      const hasGameMoves = Boolean(
-        game.uciHistory?.length
-        || game.fenHistory?.length
-        || game.totalMoves
-        || game.pgn?.trim(),
-      );
-      if (!savedMoves.length && hasGameMoves) {
-        void runAnalysis(true);
-      } else {
-        setRunning(false);
-      }
+    setMoves([]);
+    onAnalysisSaved?.([]);
+
+    const hasMoves = (sourceGame.fenHistory?.length ?? 0) >= 2;
+    if (!hasMoves) {
+      setRunning(false);
+      return () => { cancelled = true; };
     }
-  }, [branchKey, game.analysis, game._id, runAnalysis]);
+
+    setRunning(true);
+    let analysisPromise = analysisPromisesRef.current.get(analysisKey);
+    if (!analysisPromise) {
+      ownsPendingAnalysis = true;
+      analysisPromise = analyzeHistoryMoves(sourceGame, (completed, total) => {
+        if (!cancelled && activeAnalysisKeyRef.current === analysisKey) {
+          setProgress({ completed, total });
+        }
+      }, 14, controller.signal);
+      analysisPromisesRef.current.set(analysisKey, analysisPromise);
+    }
+
+    void analysisPromise
+      .then((result) => {
+        if (cancelled || activeAnalysisKeyRef.current !== analysisKey) return;
+        setMoves(result);
+        onAnalysisSaved?.(result);
+      })
+      .catch(() => {
+        analysisPromisesRef.current.delete(analysisKey);
+        if (!cancelled && !controller.signal.aborted && activeAnalysisKeyRef.current === analysisKey) {
+          setError(t("analysis.error"));
+        }
+      })
+      .finally(() => {
+        analysisSettled = true;
+        if (!cancelled && activeAnalysisKeyRef.current === analysisKey) setRunning(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (ownsPendingAnalysis && !analysisSettled) {
+        controller.abort();
+        analysisPromisesRef.current.delete(analysisKey);
+      }
+    };
+  }, [analysisKey, onAnalysisSaved, sourceGame, t]);
+
+  const accuracy = useMemo(() => calculateGameAccuracy(moves), [moves]);
 
   return (
     <section className="px-4 sm:px-5 pb-5 space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div><h3 className="text-sm font-medium">{t("analysis.title")}</h3></div>
-        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5" onClick={() => void runAnalysis(false)} disabled={running}>
-          {running ? <LoaderCircle className="h-3.5 w-3.5 animate-spin" /> : <BrainCircuit className="h-3.5 w-3.5" />}
-          {running ? t("analysis.running") : moves.length ? t("analysis.reanalyze") : t("analysis.run")}
-        </Button>
-      </div>
+      <div><h3 className="text-sm font-medium">{t("analysis.title")}</h3></div>
       {running && <p className="text-xs text-muted-foreground">{t("analysis.progress", { completed: progress.completed, total: progress.total })}</p>}
       {error && <p className="text-xs text-destructive">{error}</p>}
+      {!!moves.length && (
+        <div className="grid gap-2 sm:grid-cols-2">
+          <div className="rounded-sm border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              {game.whiteName || t("common.white")}
+            </p>
+            <p className="mt-1 font-mono text-2xl font-semibold">
+              {accuracy.white === null
+                ? "—"
+                : accuracy.white.toFixed(1)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("analysis.accuracy")}
+            </p>
+          </div>
+
+          <div className="rounded-sm border border-border bg-muted/30 p-3">
+            <p className="text-xs text-muted-foreground">
+              {game.blackName || t("common.black")}
+            </p>
+            <p className="mt-1 font-mono text-2xl font-semibold">
+              {accuracy.black === null
+                ? "—"
+                : accuracy.black.toFixed(1)}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("analysis.accuracy")}
+            </p>
+          </div>
+        </div>
+      )}
       {!running && !moves.length && <div className="rounded-sm border border-dashed border-border bg-muted/40 px-3 py-4 text-xs text-muted-foreground">{t("analysis.empty")}</div>}
       {!!moves.length && <ScrollArea className="h-56 rounded-sm border border-border bg-muted/40"><div className="divide-y divide-border">
         {moves.map((move) => {

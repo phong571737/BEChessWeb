@@ -11,6 +11,7 @@ import type { HistoryGame } from "@/types/game.types";
 import { fetchJSONCached } from "@/lib/fetch-cache";
 import { useT } from "@/lib/i18n";
 import { parsePgnHeader } from "@/lib/game-utils";
+import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
 type LegacyHistoryGame = HistoryGame & {
   White?: string;
@@ -75,6 +76,7 @@ export default function PlayedReviewPage() {
   const id = params?.id ?? "";
   const { t } = useT();
   const [game, setGame] = useState<HistoryGame | null>(null);
+  const [analysisMoves, setAnalysisMoves] = useState<MoveAnalysis[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const copiedResetTimerRef = useRef<number | null>(null);
@@ -93,7 +95,7 @@ export default function PlayedReviewPage() {
         }
         const legacy = raws as LegacyHistoryGame;
         const headers = parsePgnHeader(raws.pgn ?? "");
-        setGame({
+        const normalizedGame = {
           ...raws,
           whiteName: raws.whiteName || legacy.whiteName || legacy.White || headers["White"] || "White",
           blackName: raws.blackName || legacy.blackName || legacy.Black || headers["Black"] || "Black",
@@ -103,7 +105,9 @@ export default function PlayedReviewPage() {
           totalMoves: Array.isArray(raws.fenHistory)
             ? Math.max(0, raws.fenHistory.length - 1)
             : raws.uciHistory?.length ?? legacy.lastSeq ?? 0,
-        });
+        } satisfies HistoryGame;
+        setGame(normalizedGame);
+        setAnalysisMoves(normalizedGame.analysis?.moves ?? []);
       })
       .catch(() => {
         if (!cancelled) setGame(null);
@@ -187,9 +191,9 @@ export default function PlayedReviewPage() {
         </div>
       </div>
       <div className="rounded-sm border border-border bg-background overflow-hidden">
-        <PGNReviewContent game={game} onGameUpdate={setGame} />
+        <PGNReviewContent game={game} onGameUpdate={setGame} onAnalysisChange={setAnalysisMoves} />
         <div className="px-4 sm:px-5 pb-5">
-          <MatchAnalysis game={game} />
+          <MatchAnalysis game={game} analysisMoves={analysisMoves} />
         </div>
       </div>
     </div>
