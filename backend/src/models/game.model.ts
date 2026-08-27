@@ -388,7 +388,14 @@ export async function saveGame(
 }
 
 export async function getAllGame(limit = 200) {
-    return games().find({ status: { $ne: "finished" } } as Filter<GameDoc>).limit(limit).toArray();
+    // Only live sessions belong in the active-games response.  Ended sessions
+    // remain persisted for recovery/diagnostics but must not be rendered as
+    // duplicate cards on the home page.
+    return games()
+        .find({ status: { $in: ["waiting", "ready", "playing", "active"] } } as Filter<GameDoc>)
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .toArray();
 }
 
 /**This function is used to load game by id */
@@ -416,6 +423,12 @@ export async function closeActiveGamesForBoard(boardID: string): Promise<number>
         { $set: { status: "ended", result: "*", endedAt: now, updateAt: now } } as UpdateFilter<GameDoc>,
     );
     return result.modifiedCount;
+}
+
+/** Removes retired runtime sessions for a board after they have been archived. */
+export async function removeEndedGamesByBoardID(boardID: string): Promise<number> {
+    const result = await games().deleteMany({ boardID, status: "ended" } as Filter<GameDoc>);
+    return result.deletedCount;
 }
 
 /**This function is used to remove the game */
