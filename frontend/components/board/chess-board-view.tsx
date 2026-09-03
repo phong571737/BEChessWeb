@@ -18,7 +18,9 @@ export interface PredictedMove {
   to: Square;
 }
 
-const SUGGESTION_COLORS = ["#ff1744", "#00e5ff", "#ffd600", "#ffffff", "#111827"];
+// Keep suggestions visually prominent instead of allowing the contrast
+// calculation to prefer a nearly-black arrow on every board theme.
+const SUGGESTION_COLORS = ["#00c853", "#ffd600", "#00e5ff", "#ff1744", "#ffffff"];
 
 function getRelativeLuminance(color: string) {
   const match = color.trim().match(/^#([0-9a-f]{6})$/i);
