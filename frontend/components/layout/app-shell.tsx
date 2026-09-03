@@ -23,11 +23,8 @@ const sectionDefs = [
     { key: "nav.guide" as const, url: "/guide", icon: BookOpen},
 ];
 
-function AppSidebar({
-    collapsed,
-    mobileOpen,
-    onCloseMobile
-}: {
+// 
+function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
     collapsed: boolean,
     mobileOpen: boolean,
     onCloseMobile: () => void

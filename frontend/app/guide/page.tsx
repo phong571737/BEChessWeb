@@ -17,6 +17,7 @@ export default function GuidePage() {
     const [isQrOpen, setIsQrOpen] = useState(false);
     const steps = ["step1", "step2", "step3", "step4"] as const;
 
+    // 
     useEffect(() => {
         if (!isQrOpen) return;
 

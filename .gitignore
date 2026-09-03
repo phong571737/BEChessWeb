@@ -15,9 +15,6 @@ frontend/node_modules
 # next js
 frontend/.next
 
-# package
-package-lock.json
-
 # Python local environments and generated caches
 .venv/
 __pycache__/
@@ -45,3 +42,4 @@ chessserver.exe
 # Documentation is maintained locally and must not be published.
 /docs/
 /recover_service_v2/
+AGENTS.md
