@@ -18,6 +18,38 @@ export interface PredictedMove {
   to: Square;
 }
 
+const SUGGESTION_COLORS = ["#ff1744", "#00e5ff", "#ffd600", "#ffffff", "#111827"];
+
+function getRelativeLuminance(color: string) {
+  const match = color.trim().match(/^#([0-9a-f]{6})$/i);
+  if (!match) return 0.5;
+
+  const channels = [0, 2, 4].map((offset) => parseInt(match[1].slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map((value) => (
+    value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+  ));
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function getSuggestionColor(boardColors: { light: string; dark: string }) {
+  const backgrounds = [
+    getRelativeLuminance(boardColors.light),
+    getRelativeLuminance(boardColors.dark),
+  ];
+
+  return SUGGESTION_COLORS
+    .map((color) => {
+      const luminance = getRelativeLuminance(color);
+      const score = Math.min(...backgrounds.map((background) => {
+        const brighter = Math.max(luminance, background);
+        const darker = Math.min(luminance, background);
+        return (brighter + 0.05) / (darker + 0.05);
+      }));
+      return { color, score };
+    })
+    .sort((left, right) => right.score - left.score)[0].color;
+}
+
 interface Props {
   fen:              string;
   lastMove:         { from: string; to: string } | null;
@@ -127,6 +159,7 @@ export function ChessBoardView({
 }: Props) {
   const { flipped: contextFlipped, boardColors } = useBoardDisplay();
   const flipped = flippedOverride ?? contextFlipped;
+  const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
   const CustomSquare = useMemo(() => {
     const AnnotatedSquare = forwardRef<HTMLDivElement, {
@@ -154,8 +187,8 @@ export function ChessBoardView({
   const kingThreat = useMemo(() => findKingThreat(fen), [fen]);
   const predictedArrows = useMemo(() => {
     if (!predictedMove) return [];
-    return [[predictedMove.from, predictedMove.to, "hsl(var(--accent))"]] as [Square, Square, string][];
-  }, [predictedMove]);
+    return [[predictedMove.from, predictedMove.to, suggestionColor]] as [Square, Square, string][];
+  }, [predictedMove, suggestionColor]);
 
   // ================ Initcheck =========================
   // Missing piece
@@ -219,7 +252,7 @@ export function ChessBoardView({
       customSquareStyles={squareStyles}
       customSquare={CustomSquare}
       customArrows={predictedArrows}
-      customArrowColor="hsl(var(--accent))"
+      customArrowColor={suggestionColor}
       areArrowsAllowed={false}
       boardWidth={boardWidth}
       boardOrientation={flipped ? "black" : "white"}
