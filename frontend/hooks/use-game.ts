@@ -199,7 +199,7 @@ export function useGame(gameID: string) {
                 if (!res.ok) return;
                 const data = await res.json();
 
-                const initStatus = data.status === "checkinit" ? GAME_STATUS.CHECK_INIT : data.status;
+                const initStatus = data.status;
                 patchBoard(gameID, {
                     initStatus,
                     buttonReady: data.buttonReady === true,

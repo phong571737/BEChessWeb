@@ -116,7 +116,7 @@ export interface BoardState extends GameSetupMetadata {
     scanReason: "MISSING" | "DUPLICATE" | null;
 
     // Check init state
-    initStatus: "waiting" | "ready" | "check_init" | "waiting_button" | "wrong_piece" | "missing_piece";
+    initStatus: "waiting" | "ready" | "checkinit" | "waiting_button" | "wrong_piece" | "missing_piece";
     buttonReady?: boolean;
     missingSquares: string[];
     extraSquares: string[];

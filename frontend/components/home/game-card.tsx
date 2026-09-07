@@ -51,12 +51,14 @@ export function GameCard({ game, physicalBoard }: Props) {
         ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
         : physicalBoard?.initStatus === "waiting_button"
           ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
-          : physicalBoard?.initStatus === "checkinit"
+          : physicalBoard?.initStatus === "idle" || physicalBoard?.initStatus === "checkinit"
             ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
             : game.status === "ready" || game.status === "active"
               ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
-              : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit"
+              : game.status === "waiting_button"
                 ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+                : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit" || game.status === "idle"
+                  ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
                 : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
   const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     const styles: Record<string, React.CSSProperties> = {};
