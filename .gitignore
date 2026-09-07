@@ -40,3 +40,4 @@ chessserver.exe
 # Documentation is maintained locally and must not be published.
 /docs/
 /recover_service_v2/
+recover_service_v4/stockfish/
