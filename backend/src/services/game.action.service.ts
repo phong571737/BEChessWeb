@@ -86,7 +86,7 @@ export const GameActionService = {
         await GameActionService.restart(gameID);
     },
 
-    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number, round?: number, location?: string, boardNumber?: string): Promise<Record<string, unknown> | null> {
+    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number, round?: number, location?: string, boardNumber?: string, tournament?: string): Promise<Record<string, unknown> | null> {
         if (!name.trim() || !["Black", "White"].includes(color)) {
             return null;
         }
@@ -94,7 +94,7 @@ export const GameActionService = {
         const game = await getGame(gameID);
         if (!game) return null;
 
-        const updatedGame = await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round, location, boardNumber);
+        const updatedGame = await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round, location, boardNumber, tournament);
         if (updatedGame && ((updatedGame.lastSeq ?? 0) > 0 || (updatedGame.uciHistory?.length ?? 0) > 0)) {
             await saveActiveGameHistorySnapshot(updatedGame);
         }
@@ -141,6 +141,7 @@ export const GameActionService = {
                     item.round,
                     item.location,
                     item.boardNumber,
+                    item.tournament,
                 );
                 if (!whiteUpdate) throw new Error("GAME_NOT_FOUND");
                 const blackUpdate = await GameActionService.rename(item.gameID, "Black", item.blackName);

@@ -83,6 +83,7 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         boardID: game.boardID,
         boardNumber: game.boardNumber,
         location: game.location,
+        tournament: game.tournament,
         pgn: game.pgn ?? "",
         fen: currentHistoryFen(game),
         currentFen: currentHistoryFen(game),
@@ -671,7 +672,8 @@ export async function renamePlayer(
     incrementMs?: number,
     round?: number,
     location?: string,
-    boardNumber?: string
+    boardNumber?: string,
+    tournament?: string
 ) {
     const current = await games().findOne(
         { gameID } as Filter<GameDoc>,
@@ -739,6 +741,7 @@ export async function renamePlayer(
     if (round !== undefined) update.round = round;
     if (boardNumber !== undefined) update.boardNumber = boardNumber.trim();
     if (location !== undefined) update.location = location;
+    if (tournament !== undefined) update.tournament = tournament.trim();
     const versionFilter = current.version === undefined
         ? { gameID, version: { $exists: false } }
         : { gameID, version: current.version };

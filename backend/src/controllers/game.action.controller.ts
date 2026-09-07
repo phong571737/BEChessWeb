@@ -5,6 +5,7 @@ import { BulkGameSetupBody, GameIdParams, RenameBody, ResignBody } from "../type
 import { ERROR_STATUS } from "../constant.js";
 import { publishBoardCommand } from "../services/mqtt.service.js";
 import { getIO } from "../sockets/index.js";
+import { emitGameState } from "../game/game.state.js";
 
 export const GameActionController = {
     async bulkSetup(
@@ -35,6 +36,7 @@ export const GameActionController = {
                     || typeof game.blackName !== "string" || game.blackName.trim().length === 0 || game.blackName.trim().length > 160
                     || (game.boardNumber !== undefined && (typeof game.boardNumber !== "string" || game.boardNumber.trim().length > 40))
                     || (game.location !== undefined && (typeof game.location !== "string" || game.location.trim().length > 160))
+                    || (game.tournament !== undefined && (typeof game.tournament !== "string" || game.tournament.trim().length > 200))
                     || (game.round !== undefined && (!Number.isInteger(game.round) || game.round < 1 || game.round > 99))) {
                     res.status(400).json({ error: "One or more bulk setup records are invalid" });
                     return;
@@ -49,6 +51,7 @@ export const GameActionController = {
                     blackName: game.blackName.trim(),
                     boardNumber: game.boardNumber?.trim(),
                     location: game.location?.trim(),
+                    tournament: game.tournament?.trim(),
                 })),
                 { applyClock, initialTimeMs, incrementMs },
             );
@@ -68,13 +71,22 @@ export const GameActionController = {
             const gameID = req.params.id;
             const { resignSide, boardType, branchId } = req.body;
             const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+            // The game has been archived and its successor now exists. Only at
+            // this point may the physical board reset and start initcheck.
+            const boardResetPublished = await publishBoardCommand(result.boardID, "restart_game");
+            const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
             // Keep every viewer in the room synchronized with the server-side
             // terminal transition, including HTTP resignations.
             getIO().to(gameID).emit("update_all_game", {
                 gameID,
-                result: resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0",
+                result: resultTag,
+                resignSide,
             });
-            res.json(result);
+            getIO().emit("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
+            emitGameState(result.boardID);
+            getIO().emit("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+            getIO().emit("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+            res.json({ ...result, boardResetPublished });
         } catch (e) {
             console.error("RESIGN ERROR:", e);
             const message = e instanceof Error ? e.message : String(e);
@@ -139,7 +151,7 @@ export const GameActionController = {
     ): Promise<void> {
         try {
             const gameID = req.params.id;
-            const { color, name, initialTimeMs, incrementMs, round, boardNumber, location } = req.body;
+            const { color, name, initialTimeMs, incrementMs, round, boardNumber, location, tournament } = req.body;
 
             const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
             const maxIncrementMs = 60 * 60 * 1_000;
@@ -164,8 +176,12 @@ export const GameActionController = {
                 res.status(400).json({ error: "location must be a string no longer than 160 characters" });
                 return;
             }
+            if (tournament !== undefined && (typeof tournament !== "string" || tournament.trim().length > 200)) {
+                res.status(400).json({ error: "tournament must be a string no longer than 200 characters" });
+                return;
+            }
 
-            const clockState = await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim(), boardNumber?.trim(),);
+            const clockState = await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim(), boardNumber?.trim(), tournament?.trim());
 
             res.json({
                 ok: true,

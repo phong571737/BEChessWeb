@@ -30,6 +30,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     const fileRef = useRef<HTMLInputElement>(null);
     const [open, setOpen] = useState(false);
     const [imported, setImported] = useState<ExcelGameImport | null>(null);
+    const [tournamentName, setTournamentName] = useState("");
     const [boardAssignments, setBoardAssignments] = useState<Record<number, string>>({});
     const [applyClock, setApplyClock] = useState(true);
     const [initialTimeMs, setInitialTimeMs] = useState(DEFAULT_INITIAL_TIME_MS);
@@ -68,9 +69,11 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                 }
             });
             setImported(workbook);
+            setTournamentName(workbook.tournament ?? "");
             setBoardAssignments(defaults);
         } catch {
             setImported(null);
+            setTournamentName("");
             setBoardAssignments({});
             setError(t("sg.excelImportError"));
         } finally {
@@ -113,6 +116,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                         round: game.round ?? 1,
                         boardNumber: row.boardNumber || game.boardNumber || "",
                         location: row.location ?? imported?.location ?? game.location ?? "",
+                        tournament: tournamentName.trim() || row.tournament || imported?.tournament || game.tournament || "",
                     })),
                 }),
             });
@@ -161,6 +165,17 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                             <div className="flex items-center justify-between text-xs text-muted-foreground">
                                 <span>{t("bulk.selectedBoards", { count: assignments.length })}</span>
                                 <span>{t("bulk.mappingHint")}</span>
+                            </div>
+                            <div className="space-y-1.5">
+                                <Label htmlFor="bulk-tournament">{t("bulk.tournamentLabel")}</Label>
+                                <input
+                                    id="bulk-tournament"
+                                    value={tournamentName}
+                                    onChange={(event) => setTournamentName(event.target.value)}
+                                    disabled={loading}
+                                    placeholder={t("bulk.tournamentPlaceholder")}
+                                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                />
                             </div>
                             <div className="max-h-64 overflow-y-auto rounded-md border border-border">
                                 {activeGames.map((game) => {

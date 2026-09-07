@@ -98,6 +98,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     round,
                     location: location.trim(),
                     boardNumber: boardNumber.trim(),
+                    tournament: excelImport?.tournament ?? "",
                 }),
             });
             if (!whiteResponse.ok) {
@@ -108,7 +109,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
             const blackResponse = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim() }),
+                body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim(), tournament: excelImport?.tournament ?? "" }),
             });
             if (!blackResponse.ok) {
                 const body = await blackResponse.json().catch(() => null);
@@ -123,6 +124,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 round,
                 location: location.trim(),
                 boardNumber: boardNumber.trim(),
+                tournament: excelImport?.tournament ?? "",
             });
             saveLastTimeControl({ initialTimeMs, incrementMs });
 

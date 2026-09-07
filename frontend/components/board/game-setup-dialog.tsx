@@ -132,7 +132,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const first = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber }),
+                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber, tournament: excelImport?.tournament ?? "" }),
             });
             const firstData = await first.json().catch(() => null) as {
                 error?: string;
@@ -147,7 +147,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const second = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ color: "Black", name: black.trim() }),
+                body: JSON.stringify({ color: "Black", name: black.trim(), tournament: excelImport?.tournament ?? "" }),
             });
             if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));
 
@@ -159,6 +159,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 round: selectedRound,
                 boardNumber: normalizedBoardNumber,
                 location: gameLocation.trim(),
+                tournament: excelImport?.tournament ?? "",
                 ...(typeof firstData?.whiteRemainingMs === "number" ? { whiteRemainingMs: firstData.whiteRemainingMs } : {}),
                 ...(typeof firstData?.blackRemainingMs === "number" ? { blackRemainingMs: firstData.blackRemainingMs } : {}),
                 ...(firstData?.activeClockSide ? { activeClockSide: firstData.activeClockSide } : {}),

@@ -119,6 +119,17 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       patchPhysicalBoard(board);
     };
 
+    const onBoardReset = (rawData: any) => {
+      const payload = unwrap(rawData);
+      if (!payload || typeof payload.boardID !== "string") return;
+      patchPhysicalBoard({
+        boardID: payload.boardID,
+        online: true,
+        initStatus: "checkinit",
+        resetConfirmedAt: typeof payload.confirmedAt === "number" ? payload.confirmedAt : Date.now(),
+      });
+    };
+
     // Initial-position validation is emitted for every connected client.
     // Keep it with the physical board so the home-card can show errors before
     // an administrator opens the individual board page.
@@ -141,12 +152,14 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
     socket.on(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
     socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
     socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+    socket.on("board_reset", onBoardReset);
     socket.on(SERVER_EVENT.GAME_STATE, onGameState);
 
     return () => {
       socket.off(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
       socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
       socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+      socket.off("board_reset", onBoardReset);
       socket.off(SERVER_EVENT.GAME_STATE, onGameState);
     };
   }, [socket, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID]);

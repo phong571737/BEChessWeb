@@ -19,6 +19,7 @@ export interface PhysicalBoard {
     missingSquares?: string[];
     extraSquares?: string[];
     wrongPieceSquares?: Array<{ square: string; expected?: string; actual?: string } | string>;
+    resetConfirmedAt?: number;
 }
 
 // Common interface for both active, state and history games
@@ -29,6 +30,7 @@ export interface GameSetupMetadata {
     round?: number;
     location?: string;
     boardNumber?: string;
+    tournament?: string;
     /** Server-authoritative live clock snapshot. */
     whiteRemainingMs?: number;
     blackRemainingMs?: number;

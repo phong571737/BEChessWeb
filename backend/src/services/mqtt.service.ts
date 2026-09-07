@@ -133,8 +133,8 @@ async function handleMessage(topic: string, message: Buffer) {
             }
             console.log(`[MQTT] ${command} received for board ${boardID}, game ${gameID}`);
             // A physical long-press sends `resign` without a side.  Preserve
-            // the former restart_game_esp behavior: conclude the current game
-            // by evaluation when possible, otherwise mark its outcome as
+            // the physical-board behavior: conclude the current game by
+            // evaluation when possible, otherwise mark its outcome as
             // unconfirmed. Explicit `resign` commands with a side keep their
             // normal, player-selected result.
             if (command === "resign" && !normalizedSide) {
@@ -172,6 +172,10 @@ async function handleMessage(topic: string, message: Buffer) {
                     ? payload.branchId.trim()
                     : null;
                 const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+                const resetPublished = await publishBoardCommand(boardID, "restart_game");
+                if (!resetPublished) {
+                    console.error(`[MQTT] Could not request physical-board reset for ${boardID}`);
+                }
                 const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
                 // Match the web resignation flow: update the old game room, then
                 // attach the board to the newly created waiting game.
@@ -198,6 +202,19 @@ async function handleMessage(topic: string, message: Buffer) {
                 console.log(`[MQTT] Board ${boardID} online`);
                 cancelPendingCleanup(boardID);
                 gameState.set(boardID, { boardStatus: "online" });
+            } else if (payload.status === 'reset') {
+                console.log(`[MQTT] Board ${boardID} confirmed local reset`);
+                cancelPendingCleanup(boardID);
+                gameState.set(boardID, {
+                    boardStatus: "online",
+                    gameStatus: "checkinit",
+                    initResultStatus: "checkinit",
+                    buttonReady: false,
+                    wrongSquares: [],
+                    missingSquares: [],
+                    resetConfirmedAt: Date.now(),
+                });
+                getIO().emit("board_reset", { boardID, status: "reset", confirmedAt: Date.now() });
             } else if (payload.status === 'offline') { // board disconnected (power outage or network hiccup)
                 console.log(`[MQTT] Board ${boardID} offline signal received`);
                 gameState.set(boardID, { boardStatus: "offline" });

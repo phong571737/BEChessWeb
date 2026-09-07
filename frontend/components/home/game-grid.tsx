@@ -1,46 +1,23 @@
 "use client"
 
 import { useActiveGames } from "@/hooks/use-active-games";
-import { useRouter } from "next/navigation";
 import { RefreshCw } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { usePhysicalBoards } from "@/hooks/use-physical-boards";
-import type { PhysicalBoard } from "@/types/game.types";
 import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
-import { encodeGameID } from "@/lib/id-utils";
-import { useState, useEffect } from "react";
 import { useT } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
-import { PhysicalBoardCard } from "./physical-board-card";
-import { StartGameDialog } from "./start-game-dialog";
 import { BulkGameSetupDialog } from "./bulk-game-setup-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
 
 export function GameGrid() {
-    const router = useRouter();
     const { loading, refresh, activeGames } = useActiveGames();
     const {boards: physicalBoards} = usePhysicalBoards();
-    const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
     const { isAuthenticated, isAdmin } = useAuth();
-
-    // Keep the setup dialog attached when a newly detected board receives its gameID.
-    // Closing it here caused the first setup attempt to navigate away before names
-    // and time controls could be saved.
-    useEffect(() => {
-        if (!selectedBoard) return;
-        const current = physicalBoards.find((b) => b.boardID === selectedBoard.boardID);
-        if (!current || !current.online) {
-            setselectedBoard(null);
-            return;
-        }
-        if (current.gameID !== selectedBoard.gameID || current.gameStatus !== selectedBoard.gameStatus) {
-            setselectedBoard(current);
-        }
-    }, [physicalBoards, selectedBoard]);
 
     // Keep a restarted game visible while its physical board is being initialized.
     // This preserves the mini chessboard card and lets the user reopen its session.
@@ -49,28 +26,7 @@ export function GameGrid() {
             && g.status !== GAME_STATUS.FINISHED
     );
 
-    const handleBoardClick = (board: PhysicalBoard) => {
-
-        // Guests can open an existing board, but never see the setup form.
-        if (!isAuthenticated) {
-            if (board.gameID) router.push(`/board?id=${encodeGameID(board.gameID)}`);
-            return;
-        }
-
-        // A restarted ESP board keeps its game session while it waits for initialization.
-        // Open that session instead of presenting the start-game dialog again.
-        const hasOpenSession = board.gameID != null && [
-            GAME_STATUS.ACTIVE,
-            GAME_STATUS.WAITING,
-            "checkinit",
-        ].includes(board.gameStatus ?? "");
-        if (hasOpenSession && board.gameID) {
-            router.push(`/board?id=${encodeGameID(board.gameID)}`);
-            return;
-        }
-
-        setselectedBoard(board);
-    }
+    const tournamentName = cardGames.find((game) => game.tournament?.trim())?.tournament?.trim();
 
     return (
         <div className="flex flex-col min-h-0">
@@ -94,17 +50,12 @@ export function GameGrid() {
             </div>
 
             <div className="flex flex-col">
-                {/* ------------------ Physical board --------------------------*/}
-                {isAuthenticated && physicalBoards.length > 0 && (
+                {isAuthenticated && tournamentName && (
                     <div className="px-4 sm:px-5 py-4 border-b border-border">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                            {t("home.physicalBoards")}
+                            {t("home.tournament")}
                         </p>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {physicalBoards.map((b) => (
-                                <PhysicalBoardCard key={b.boardID} board={b} onClick={handleBoardClick}/>
-                            ))}
-                        </div>
+                        <h2 className="text-lg font-semibold text-foreground">{tournamentName}</h2>
                     </div>
                 )}
 
@@ -138,14 +89,6 @@ export function GameGrid() {
                 )}
 
             </div>
-
-            {isAuthenticated && (
-                <StartGameDialog
-                    board={selectedBoard}
-                    gameID={selectedBoard?.gameID ?? null}
-                    onClose={() => setselectedBoard(null)}
-                />
-            )}
         </div>
 
     );

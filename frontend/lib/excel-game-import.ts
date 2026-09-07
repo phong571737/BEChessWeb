@@ -75,6 +75,15 @@ function normalizedHeader(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 }
 
+function canBeTournamentTitle(value: string): boolean {
+  const normalized = normalizedHeader(value);
+  if (!value || /^https?:\/\//i.test(value)) return false;
+  if (/^(tu co so|source|du lieu|cap nhat|update|boc tham|pairing|ket qua|result)\b/i.test(normalized)) return false;
+  if (/^\d{1,2}[./-]\d{1,2}[./-]\d{2,4}/.test(value)) return false;
+  if (/^(dia diem|location|venue|ban|board|white|trang|black|den|round|vong)\b/i.test(normalized)) return false;
+  return true;
+}
+
 /** Parse the tournament pairing worksheet into rows usable by the game form. */
 export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   const entries = await readZipEntries(await file.arrayBuffer());
@@ -96,8 +105,12 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
   let boardColumn: number | undefined;
   let whiteColumn: number | undefined;
   let blackColumn: number | undefined;
+  let worksheetRowIndex = 0;
+  let topRowsCandidate: string | undefined;
 
   for (const row of Array.from(document.getElementsByTagNameNS("*", "row"))) {
+    worksheetRowIndex += 1;
+    const rowNumber = Number(row.getAttribute("r")) || worksheetRowIndex;
     const cells = new Map<number, string>();
     for (const cell of Array.from(row.getElementsByTagNameNS("*", "c"))) {
       const reference = cell.getAttribute("r") ?? "";
@@ -117,7 +130,14 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
       if (/^(dia diem|location|venue)$/.test(header)) locationColumn = column;
       if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
     }
-    if (firstCell.startsWith("Giải ")) tournament = firstCell;
+    // Chess-Results usually exports the tournament title on row 2. Some
+    // workbooks insert/remove a note, so use the first five rows as a
+    // fallback while never treating the source/link row as the title.
+    if (rowNumber === 2 && firstCell) {
+      tournament = firstCell;
+    } else if (rowNumber <= 5 && !topRowsCandidate && canBeTournamentTitle(firstCell) && !parseSchedule(firstCell)) {
+      topRowsCandidate = firstCell;
+    }
     const locationMatch = firstCell.match(/^Địa điểm(?: thi đấu)?\s*:\s*(.+)$/i);
     if (locationMatch?.[1]?.trim()) location = locationMatch[1].trim();
     const schedule = parseSchedule(firstCell);
@@ -138,5 +158,6 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     });
   }
 
+  tournament ??= topRowsCandidate;
   return { rows, tournament, scheduledAt, location };
 }

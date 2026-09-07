@@ -319,8 +319,10 @@ export function BoardViewSlot({
                     // until its first initcheck arrives from the ESP32. Treat it
                     // as a pending initialization state so the page does not
                     // silently omit the status notice during that interval.
-                    : initStatus === GAME_STATUS.CHECK_INIT || initStatus === GAME_STATUS.WAITING || initStatus === "idle"
+                    : initStatus === GAME_STATUS.CHECK_INIT
                         ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initChecking") }
+                        : initStatus === GAME_STATUS.WAITING || initStatus === "idle"
+                            ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initWaiting") }
                         : null
         : null;
 

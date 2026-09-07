@@ -19,6 +19,7 @@ export interface GameSetupMetadata {
     round?: number;
     location?: string;
     boardNumber?: string;
+    tournament?: string;
 }
 
 export interface GameDoc extends Document, GameSetupMetadata {
@@ -138,6 +139,7 @@ export interface BulkGameSetupItem {
     round?: number;
     location?: string;
     boardNumber?: string;
+    tournament?: string;
 }
 
 export interface BulkGameSetupBody {

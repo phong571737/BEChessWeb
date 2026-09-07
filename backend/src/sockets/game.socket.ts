@@ -7,6 +7,7 @@ import { getGame } from "../models/game.model.js";
 import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
 import { getCurrentClock } from "../services/clock.service.js";
+import { emitGameState } from "../game/game.state.js";
 
 type RequestCurrentGamePayload = Partial<GameIDPayload>;
 interface MatchStatus {
@@ -108,9 +109,22 @@ export function initGameSocket(io: Server): void {
             try {
                 const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
                 const winner: MatchStatus["winner"] = result.winner;
+                const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
                 gameStatus.set(gameID, { status: "ended", winner });
                 setTimeout(() => gameStatus.delete(gameID), 60_000).unref?.();
-                io.to(gameID).emit("update_all_game", { gameID, result: resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0" });
+                // Load lazily to avoid sockets/index -> game.socket ->
+                // mqtt.service -> sockets/index during module initialization.
+                const { publishBoardCommand } = await import("../services/mqtt.service.js");
+                const boardResetPublished = await publishBoardCommand(result.boardID, "restart_game");
+                if (!boardResetPublished) {
+                    console.error(`[Socket] Could not request physical-board reset for ${result.boardID}`);
+                }
+                io.to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide });
+                io.emit("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
+                emitGameState(result.boardID);
+                io.emit("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+                io.emit("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+                socket.emit("resign_complete", { ...result, boardResetPublished });
             } catch (error) {
                 socket.emit("action_error", { error: error instanceof Error ? error.message : "Unable to resign game" });
             }
