@@ -13,8 +13,9 @@ export function getLastTimeControl(): LastTimeControl {
     }
     try {
         const parsed = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null") as Partial<LastTimeControl> | null;
-        if (Number.isFinite(parsed?.initialTimeMs) && Number(parsed.initialTimeMs) > 0
-            && Number.isFinite(parsed?.incrementMs) && Number(parsed.incrementMs) >= 0) {
+        if (parsed
+            && Number.isFinite(parsed.initialTimeMs) && Number(parsed.initialTimeMs) > 0
+            && Number.isFinite(parsed.incrementMs) && Number(parsed.incrementMs) >= 0) {
             return { initialTimeMs: Number(parsed.initialTimeMs), incrementMs: Number(parsed.incrementMs) };
         }
     } catch {
