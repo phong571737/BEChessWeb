@@ -76,7 +76,7 @@ function GameGridContent() {
                         <p className="hidden text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 md:block">
                             {t("home.tournament")}
                         </p>
-                        <h2 className="text-center text-sm font-semibold text-foreground md:text-lg">{tournamentName}</h2>
+                        <h2 className="text-center text-sm font-semibold text-foreground md:text-left md:text-lg">{tournamentName}</h2>
                     </div>
                 )}
 

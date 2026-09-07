@@ -151,7 +151,7 @@ function BoardContent() {
             {effectiveLayout > 1 && tournamentName && (
                 <div className="shrink-0 border-b border-border px-1 py-1 md:px-6 md:py-2">
                     <p className="hidden text-[11px] font-semibold uppercase tracking-widest text-muted-foreground md:block">{t("home.tournament")}</p>
-                    <h1 className="mt-0.5 text-center text-xs font-medium text-foreground md:text-sm">{tournamentName}</h1>
+                    <h1 className="mt-0.5 text-center text-xs font-medium text-foreground md:text-left md:text-sm">{tournamentName}</h1>
                 </div>
             )}
             <div className="flex-1 min-h-0">
