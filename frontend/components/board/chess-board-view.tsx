@@ -18,6 +18,40 @@ export interface PredictedMove {
   to: Square;
 }
 
+// Keep suggestions visually prominent instead of allowing the contrast
+// calculation to prefer a nearly-black arrow on every board theme.
+const SUGGESTION_COLORS = ["#00c853", "#ffd600", "#00e5ff", "#ff1744", "#ffffff"];
+
+function getRelativeLuminance(color: string) {
+  const match = color.trim().match(/^#([0-9a-f]{6})$/i);
+  if (!match) return 0.5;
+
+  const channels = [0, 2, 4].map((offset) => parseInt(match[1].slice(offset, offset + 2), 16) / 255);
+  const linear = channels.map((value) => (
+    value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+  ));
+  return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
+}
+
+function getSuggestionColor(boardColors: { light: string; dark: string }) {
+  const backgrounds = [
+    getRelativeLuminance(boardColors.light),
+    getRelativeLuminance(boardColors.dark),
+  ];
+
+  return SUGGESTION_COLORS
+    .map((color) => {
+      const luminance = getRelativeLuminance(color);
+      const score = Math.min(...backgrounds.map((background) => {
+        const brighter = Math.max(luminance, background);
+        const darker = Math.min(luminance, background);
+        return (brighter + 0.05) / (darker + 0.05);
+      }));
+      return { color, score };
+    })
+    .sort((left, right) => right.score - left.score)[0].color;
+}
+
 interface Props {
   fen:              string;
   lastMove:         { from: string; to: string } | null;
@@ -42,13 +76,50 @@ interface KingThreat {
 }
 
 /**
+ * Completes malformed or partial e-board FEN metadata while preserving the
+ * piece placement and active color exactly as received.
+ */
+function normalizeThreatFen(fen: string): string | null {
+  const fields = fen.trim().split(/\s+/);
+  const placement = fields[0];
+  if (!placement) return null;
+
+  const activeColor = fields[1] === "b" ? "b" : "w";
+  const castling = /^(-|K?Q?k?q?)$/.test(fields[2] ?? "") && fields[2]
+    ? fields[2]
+    : "-";
+  const enPassant = /^(-|[a-h][36])$/.test(fields[3] ?? "")
+    ? fields[3]
+    : "-";
+  const halfMove = /^\d+$/.test(fields[4] ?? "") ? fields[4] : "0";
+  const fullMove = /^\d+$/.test(fields[5] ?? "") ? fields[5] : "1";
+
+  return `${placement} ${activeColor} ${castling} ${enPassant} ${halfMove} ${fullMove}`;
+}
+
+/** Determines mate from the attacked king's perspective without mutating the position. */
+function isThreatCheckmate(position: Chess, square: Square, color: Color): boolean {
+  try {
+    const fields = position.fen().split(" ");
+    fields[1] = color;
+    const checkedPosition = new Chess(fields.join(" "), { skipValidation: true });
+    return checkedPosition.isCheckmate() && checkedPosition.get(square)?.color === color;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Finds an attacked king from piece geometry instead of trusting the FEN turn.
  * Persisted physical-board snapshots can contain a stale active color or omit
  * the opposite king, so strict FEN validation would hide a visible check.
  */
 export function findKingThreat(fen: string): KingThreat | null {
   try {
-    const position = new Chess(fen || undefined, { skipValidation: true });
+    const normalizedFen = normalizeThreatFen(fen);
+    if (!normalizedFen) return null;
+
+    const position = new Chess(normalizedFen, { skipValidation: true });
     const activeColor = position.turn();
     const colors: Color[] = [activeColor, activeColor === "w" ? "b" : "w"];
 
@@ -60,12 +131,11 @@ export function findKingThreat(fen: string): KingThreat | null {
         continue;
       }
 
-      // Evaluate mate from the attacked king's perspective even when the
-      // persisted active-color field points at the wrong side.
-      position.setTurn(color);
       return {
         square: kingSquare,
-        checkmate: position.isCheckmate(),
+        // Evaluate mate from the attacked king's perspective even when the
+        // persisted active-color field points at the wrong side.
+        checkmate: isThreatCheckmate(position, kingSquare, color),
       };
     }
   } catch {
@@ -91,6 +161,7 @@ export function ChessBoardView({
 }: Props) {
   const { flipped: contextFlipped, boardColors } = useBoardDisplay();
   const flipped = flippedOverride ?? contextFlipped;
+  const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const squareStyles: Record<string, React.CSSProperties> = { ...highlightSquares };
   const CustomSquare = useMemo(() => {
     const AnnotatedSquare = forwardRef<HTMLDivElement, {
@@ -118,8 +189,8 @@ export function ChessBoardView({
   const kingThreat = useMemo(() => findKingThreat(fen), [fen]);
   const predictedArrows = useMemo(() => {
     if (!predictedMove) return [];
-    return [[predictedMove.from, predictedMove.to, "hsl(var(--accent))"]] as [Square, Square, string][];
-  }, [predictedMove]);
+    return [[predictedMove.from, predictedMove.to, suggestionColor]] as [Square, Square, string][];
+  }, [predictedMove, suggestionColor]);
 
   // ================ Initcheck =========================
   // Missing piece
@@ -150,12 +221,14 @@ export function ChessBoardView({
     squareStyles[kingThreat.square] = {
       ...squareStyles[kingThreat.square],
       background: kingThreat.checkmate
-        ? "hsl(var(--state-checkmate) / 0.78)"
-        : "hsl(var(--state-check) / 0.72)",
+        ? "radial-gradient(circle, hsl(var(--state-checkmate) / 0.28) 12%, hsl(var(--state-checkmate) / 0.92) 100%)"
+        : "radial-gradient(circle, hsl(var(--state-checkmate) / 0.18) 18%, hsl(var(--state-checkmate) / 0.92) 100%)",
       boxShadow: kingThreat.checkmate
-        ? "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 18px hsl(var(--state-checkmate) / 0.72)"
-        : "inset 0 0 0 3px hsl(var(--state-check)), 0 0 16px hsl(var(--state-check) / 0.65)",
-      animation: "king-check-pulse 1.05s ease-in-out infinite",
+        ? "inset 0 0 0 4px hsl(var(--state-checkmate)), inset 0 0 0 7px hsl(var(--foreground) / 0.32), 0 0 20px hsl(var(--state-checkmate) / 0.82)"
+        : "inset 0 0 0 3px hsl(var(--state-checkmate)), 0 0 12px hsl(var(--state-checkmate) / 0.72)",
+      animation: kingThreat.checkmate
+        ? "none"
+        : "king-check-pulse 1.25s ease-in-out infinite",
       zIndex: 2,
     };
   }
@@ -181,7 +254,7 @@ export function ChessBoardView({
       customSquareStyles={squareStyles}
       customSquare={CustomSquare}
       customArrows={predictedArrows}
-      customArrowColor="hsl(var(--accent))"
+      customArrowColor={suggestionColor}
       areArrowsAllowed={false}
       boardWidth={boardWidth}
       boardOrientation={flipped ? "black" : "white"}

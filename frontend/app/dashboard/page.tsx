@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { BarChart3, Clock3, MonitorCog, Radio, Trophy, Users } from "lucide-react";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { useT } from "@/lib/i18n";
 import { formatDuration, resolveDurationSeconds } from "@/lib/game-utils";
 import type { HistoryGame, PhysicalBoard } from "@/types/game.types";

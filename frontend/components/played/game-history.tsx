@@ -6,13 +6,14 @@ import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
 import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
+import { apiFetch } from "@/lib/api-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveDurationSeconds } from "@/lib/game-utils";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { analyzeHistoryMoves } from "@/lib/post-game-analysis";
 
@@ -23,6 +24,24 @@ type LegacyHistoryGame = HistoryGame & {
   blackName?: string;
   lastSeq?: number;
 };
+
+type HistorySummary = {
+  whiteWins: number;
+  blackWins: number;
+  draws: number;
+  total: number;
+};
+
+type PaginatedHistoryResponse = {
+  items: HistoryGame[];
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+  summary?: HistorySummary;
+};
+
+const HISTORY_PAGE_SIZE = 25;
 
 const isFinishedResult = (game: Pick<HistoryGame, "Result" | "historyStatus" | "outcomeStatus">) =>
   game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" ||
@@ -51,6 +70,15 @@ const INPUT_CLS =
 export function GameHistory() {
   const [games, setGames]     = useState<HistoryGame[]>([]);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalGames, setTotalGames] = useState(0);
+  const [historySummary, setHistorySummary] = useState<HistorySummary>({
+    whiteWins: 0,
+    blackWins: 0,
+    draws: 0,
+    total: 0,
+  });
   const [resultFilter, setResultFilter] = useState<"all" | "1-0" | "0-1" | "1/2-1/2">("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "finished" | "unfinished">("all");
   const [search, setSearch] = useState("");
@@ -77,7 +105,7 @@ export function GameHistory() {
   const [resultSuggestion, setResultSuggestion] = useState<{ result: "1-0" | "0-1" | null; cp: number | null; mate: number | null; depth: number } | null>(null);
   const [trashActionError, setTrashActionError] = useState<string | null>(null);
   const router = useRouter();
-  const { t } = useT();
+  const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
 
   const normalizeGame = useCallback((g: HistoryGame): HistoryGame => {
@@ -119,11 +147,34 @@ export function GameHistory() {
   };
 
   useEffect(() => {
-    fetchJSONCached<HistoryGame[]>("/games/history", 10_000)
-      .then((data: HistoryGame[]) => setGames(data.map(normalizeGame)))
+    setLoading(true);
+    const url = `/games/history?page=${page}&pageSize=${HISTORY_PAGE_SIZE}`;
+    fetchJSONCached<PaginatedHistoryResponse | HistoryGame[]>(url, 10_000)
+      .then((data) => {
+        // Keep the client compatible with an older backend during rolling deploys.
+        const payload: PaginatedHistoryResponse = Array.isArray(data)
+          ? {
+              items: data,
+              page: 1,
+              pageSize: data.length,
+              total: data.length,
+              totalPages: 1,
+              summary: {
+                whiteWins: data.filter((game) => game.Result === "1-0").length,
+                blackWins: data.filter((game) => game.Result === "0-1").length,
+                draws: data.filter((game) => game.Result === "1/2-1/2").length,
+                total: data.length,
+              },
+            }
+          : data;
+        setGames(payload.items.map(normalizeGame));
+        setTotalGames(payload.total);
+        setTotalPages(payload.totalPages);
+        setHistorySummary(payload.summary ?? { whiteWins: 0, blackWins: 0, draws: 0, total: payload.total });
+      })
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
-  }, [normalizeGame]);
+  }, [normalizeGame, page]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -136,7 +187,7 @@ export function GameHistory() {
 
   const loadTrash = useCallback(async () => {
     if (!isAdmin || !token) throw new Error(t("played.sessionExpired"));
-    const response = await fetch("/games/history/trash", { headers: { Authorization: `Bearer ${token}` } });
+    const response = await apiFetch("/games/history/trash");
     if (!response.ok) throw new Error(t("played.trashLoadError"));
     const data = await response.json() as HistoryGame[];
     setTrash(data.map(normalizeGame));
@@ -160,9 +211,8 @@ export function GameHistory() {
     setBusyId(id);
     setTrashActionError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -190,9 +240,8 @@ export function GameHistory() {
     if (!isAdmin || !token || busyId) return;
     setBusyId(id);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}/restore`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}/restore`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) throw new Error(t("played.restoreError"));
       const restored = trash.find((game) => game._id === id);
@@ -209,9 +258,8 @@ export function GameHistory() {
     setBusyId(id);
     setTrashActionError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(id)}/permanent`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(id)}/permanent`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
       });
       if (!response.ok) {
         const body = await response.json().catch(() => null) as { error?: string } | null;
@@ -238,7 +286,7 @@ export function GameHistory() {
     setBusyId("all-trash");
     setTrashActionError(null);
     try {
-      const response = await fetch("/games/history/trash/permanent", { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      const response = await apiFetch("/games/history/trash/permanent", { method: "DELETE" });
       if (!response.ok) throw new Error((await response.json().catch(() => null))?.error ?? t("played.emptyTrashError"));
       setTrash([]);
       return true;
@@ -259,9 +307,9 @@ export function GameHistory() {
     setBusyId(pendingResultGame._id);
     setResultError(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ result: resultValue }),
       });
       if (!response.ok) {
@@ -286,7 +334,7 @@ export function GameHistory() {
     setResultError(null);
     setResultSuggestion(null);
     try {
-      const response = await fetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result-suggestion`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await apiFetch(`/games/history/${encodeURIComponent(pendingResultGame._id)}/result-suggestion`);
       const body = await response.json().catch(() => null) as { result?: "1-0" | "0-1" | null; cp?: number | null; mate?: number | null; depth?: number } | null;
       if (!response.ok) throw new Error(body?.result === undefined ? t("played.suggestResultError") : t("played.suggestResultUnavailable"));
       const suggestion = { result: body?.result ?? null, cp: body?.cp ?? null, mate: body?.mate ?? null, depth: body?.depth ?? 0 };
@@ -306,9 +354,9 @@ export function GameHistory() {
     try {
       const moves = await analyzeHistoryMoves(game, () => {});
       if (!moves.length) throw new Error(t("analysis.noMoves"));
-      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ moves, depth: 14 }),
       });
       if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
@@ -388,7 +436,7 @@ export function GameHistory() {
         <div>
           <h1 className="text-sm font-semibold">{t("played.title")}</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {t("played.gamesPlayed", { n: games.length })}
+            {t("played.gamesPlayed", { n: totalGames })}
           </p>
         </div>
         {isAdmin && (
@@ -400,7 +448,7 @@ export function GameHistory() {
       </div>
 
       <div className="px-4 sm:px-5 py-4 sm:py-5 space-y-4">
-        {loading ? (
+        {loading && games.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
               <Skeleton className="h-24 w-full rounded-lg" />
@@ -447,7 +495,7 @@ export function GameHistory() {
                         <div className="min-w-0">
                           <div className="truncate text-sm"><span className="font-medium">{game.whiteName}</span><span className="mx-1.5 text-muted-foreground">vs</span><span className="font-medium">{game.blackName}</span></div>
                           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                            <span>{t("played.dateLabel")} {formatDateTime(game.createdAt || game.endedAt || game.Date)}</span>
+                            <span>{t("played.dateLabel")} {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}</span>
                             <span>{t("played.moveCountLabel")} {game.totalMoves}</span>
                           </div>
                         </div>
@@ -465,7 +513,7 @@ export function GameHistory() {
                 )}
               </div>
             )}
-            <StatCards games={games} />
+            <StatCards summary={historySummary} />
 
             {analysisError && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{analysisError}</p>}
 
@@ -535,12 +583,17 @@ export function GameHistory() {
             </div>
 
             {/* Table */}
-            <div className="rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+            <div className="relative rounded-lg border border-border bg-card overflow-hidden shadow-sm">
+              {loading && (
+                <div className="absolute inset-0 z-30 flex items-start justify-center bg-background/35 pt-20 backdrop-blur-[1px]">
+                  <LoaderCircle className="size-5 animate-spin text-primary" aria-hidden="true" />
+                </div>
+              )}
               {/* Results count */}
               {search || resultFilter !== "all" || hasAdvancedFilters ? (
                 <div className="px-4 py-2 border-b border-border bg-muted/40">
                   <p className="text-xs text-muted-foreground">
-                    {t("played.showing", { n: filteredGames.length, total: games.length })}
+                    {t("played.showing", { n: filteredGames.length, total: totalGames })}
                   </p>
                 </div>
               ) : null}
@@ -591,7 +644,7 @@ export function GameHistory() {
                         className={cn("group border-t border-border/60 transition-colors", reviewId ? "cursor-pointer hover:bg-accent/60" : "cursor-not-allowed opacity-60")}
                       >
                         <td className="px-4 py-3 text-xs text-muted-foreground/60 font-mono">
-                          {i + 1}
+                          {(page - 1) * HISTORY_PAGE_SIZE + i + 1}
                         </td>
                         <td className="px-4 py-3">
                           <Badge
@@ -625,7 +678,7 @@ export function GameHistory() {
                           </span>
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground">
-                          {formatDateTime(game.createdAt || game.endedAt || game.Date)}
+                          {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}
                         </td>
                         <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
                           {formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}
@@ -654,6 +707,53 @@ export function GameHistory() {
                     )}
                   </tbody>
                 </table>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+                <p className="text-xs text-muted-foreground">
+                  {t("played.pageOf", { page, totalPages })}
+                </p>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    aria-label={t("played.firstPage")}
+                    title={t("played.firstPage")}
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage(1)}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronsLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("played.previousPage")}
+                    title={t("played.previousPage")}
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage((current) => Math.max(1, current - 1))}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronLeft className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("played.nextPage")}
+                    title={t("played.nextPage")}
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronRight className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t("played.lastPage")}
+                    title={t("played.lastPage")}
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage(totalPages)}
+                    className="inline-flex size-8 items-center justify-center rounded-md border border-border text-muted-foreground hover:bg-muted disabled:pointer-events-none disabled:opacity-40"
+                  >
+                    <ChevronsRight className="size-4" />
+                  </button>
+                </div>
               </div>
             </div>
           </>

@@ -1,6 +1,6 @@
 import { Chess } from "chess.js";
 import { createGame, destroyBoard, setCurrentGame } from "../game/game.manager.js";
-import { acquireBoardCreationLock, closeActiveGamesForBoard, getLatestGameByBoardID, releaseBoardCreationLock, saveGame } from "../models/game.model.js";
+import { acquireBoardCreationLock, closeActiveGamesForBoard, getLatestGameByBoardID, releaseBoardCreationLock, removeEndedGamesByBoardID, saveGame } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
 import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
@@ -18,6 +18,11 @@ export const GameService = {
       const previous = await getLatestGameByBoardID(boardID);
       await closeActiveGamesForBoard(boardID);
       if (previous?.gameID) destroyBoard(previous.gameID);
+
+      // `games` is the runtime-session collection.  Retired sessions must not
+      // accumulate there or be returned as active games on later refreshes.
+      // History data is stored separately in `game_history` and is untouched.
+      await removeEndedGamesByBoardID(boardID);
 
       const chess: Chess = createGame(gameID);
       await saveGame(gameID, {
@@ -72,4 +77,3 @@ export function createBranches(game: Chess, valid_move: MoveLike[], parentId: st
 }
 
 export function ensureGameExists() {}
-

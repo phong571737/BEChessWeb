@@ -20,7 +20,7 @@ import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { formatClockMs, useChessClock } from "@/hooks/use-chess-clock";
 import { ChessClockCard } from "@/components/board/chess-clock-card";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 
 interface Props {
     gameID: string;

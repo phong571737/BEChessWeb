@@ -9,77 +9,29 @@ import { UCIMove } from "../types/move.types.js";
  * that gained one (to).  Handles captures and en-passant correctly.
  * Returns null if no single unambiguous move can be inferred.
  */
-export function inferMoveFromFen(beforeFen: string, afterFen: string): { from: string; to: string; promotion?: string } | null {
+export function inferMoveFromFen(beforeFen: string, afterFen: string) {
   try {
-    const before = new Chess();
-    before.load(beforeFen, { skipValidation: true });
-    const after = new Chess();
-    after.load(afterFen, { skipValidation: true });
+    const afterFields = afterFen.trim().split(/\s+/);
+    const beforeFields = beforeFen.trim().split(/\s+/);
+    const afterPlacement = afterFields[0];
+    const beforePlacement = beforeFields[0];
 
-    const files = "abcdefgh";
-    const ranks = "12345678";
+    if (!afterPlacement || !beforePlacement || afterPlacement === beforePlacement) return null;
 
-    // Collect all squares where a piece exists in each position
-    const beforeSquares: string[] = [];
-    const afterSquares: string[] = [];
+    // The board clock owns the active-color field. A valid move switches it,
+    // therefore the side that moved is the opposite of the resulting turn.
+    const movedColor = afterFields[1] === "b" ? "w" : "b";
+    beforeFields[1] = movedColor;
+    const source = new Chess(beforeFields.join(" "), { skipValidation: true });
+    const matches: Move[] = [];
 
-    for (const f of files) {
-      for (const r of ranks) {
-        const sq = f + r;
-        if (before.get(sq as Square)) beforeSquares.push(sq);
-        if (after.get(sq as Square)) afterSquares.push(sq);
-      }
+    for (const legalMove of source.moves({ verbose: true })) {
+      const trial = new Chess(source.fen(), { skipValidation: true });
+      trial.move({ from: legalMove.from, to: legalMove.to, promotion: legalMove.promotion });
+      if (trial.fen().split(/\s+/)[0] === afterPlacement) matches.push(legalMove);
     }
 
-    // Squares that lost a piece (in before but not after)
-    const lostSquares = beforeSquares.filter(sq => !afterSquares.includes(sq));
-    // Squares that gained a piece (in after but not before)
-    const gainedSquares = afterSquares.filter(sq => !beforeSquares.includes(sq));
-
-    if (lostSquares.length === 0 && gainedSquares.length === 0) {
-      // No change — nothing to infer
-      return null;
-    }
-
-    // --- Non-capture move: one lost, one gained ---
-    if (lostSquares.length === 1 && gainedSquares.length === 1) {
-      const from = lostSquares[0]!;
-      const to = gainedSquares[0]!;
-      return checkPromotion(before, after, from, to);
-    }
-
-    // --- Capture: the moving piece disappears from one square ---
-    // The captured piece also disappears, so we have 2 lost squares and 1 gained.
-    // The gained square is where the moving piece landed.
-    // The moving piece's color on the target matches its color on the origin.
-    if ((lostSquares.length === 2 && gainedSquares.length === 1) ||
-        (lostSquares.length === 1 && gainedSquares.length === 1 && before.get(lostSquares[0] as Square)?.color !== after.get(gainedSquares[0] as Square)?.color)) {
-      const to = gainedSquares[0]!;
-      const pieceAtTarget = after.get(to as Square);
-      if (!pieceAtTarget) return null;
-
-      // Find which lost square had a piece of the same color as the target
-      const matchingFrom = lostSquares.find(sq => {
-        const p = before.get(sq as Square);
-        return p && p.color === pieceAtTarget.color;
-      });
-      if (matchingFrom) {
-        return checkPromotion(before, after, matchingFrom, to);
-      }
-    }
-
-    // --- Castle: king and rook disappear from two squares, appear on two others ---
-    // King moves 2 squares, rook moves 1 square → 2 lost, 2 gained
-    if (lostSquares.length === 2 && gainedSquares.length === 2) {
-      // Find the king (piece type "k")
-      const kingFrom = lostSquares.find(sq => before.get(sq as Square)?.type === "k");
-      const kingTo = gainedSquares.find(sq => after.get(sq as Square)?.type === "k");
-      if (kingFrom && kingTo) {
-        return { from: kingFrom, to: kingTo };
-      }
-    }
-
-    return null;
+    return matches.length === 1 ? matches[0] : null;
   } catch {
     return null;
   }

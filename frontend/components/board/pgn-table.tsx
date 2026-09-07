@@ -7,7 +7,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { Branch } from "@/types/game.types";
 import { Ellipsis, GitBranch, X } from "lucide-react";
-import { extractSanMoves } from "@/lib/custom-chess";
 
 /** Format ms compact clock string shown beside each move */
 function fmtMoveTime(ms: number): string {
@@ -21,12 +20,12 @@ function fmtMoveTime(ms: number): string {
 
 interface MovePair {
   num: number;
-  white: string;
+  white?: string;
   black: string | undefined;
-  wi: number; // Cursor index AFTER white's move (= i+1 in 0-based ply)
-  bi: number; // Cursor index AFTER black's move (= i+2)
-  wPly: number; // 0-based ply index of white's move — key into moveTimesMap
-  bPly: number; // 0-based ply index of black's move
+  wi?: number;
+  bi?: number;
+  wPly?: number;
+  bPly?: number;
 }
 
 interface Props {
@@ -39,6 +38,97 @@ interface Props {
   moveTimesMap?: Record<number, number>;
   followLatest?: boolean;
   onGoTo: (idx: number) => void;
+  initialFen?: string;
+  /** Raw snapshots from the physical board; their active-color field owns the live move column. */
+  timelineFens?: string[];
+}
+
+type MoveColor = "white" | "black";
+
+type ParsedMove = {
+  num: number;
+  color: MoveColor;
+  san: string;
+  ply: number;
+};
+
+const RESULT_TOKENS = new Set(["1-0", "0-1", "1/2-1/2", "*"]);
+
+/** Parse PGN movetext while retaining its explicit white/black move numbers. */
+function parsePgnMoves(pgn: string, initialFen?: string): ParsedMove[] {
+  const fields = initialFen?.trim().split(/\s+/) ?? [];
+  let moveNumber = Number.parseInt(fields[5] ?? "1", 10) || 1;
+  let color: MoveColor = fields[1] === "b" ? "black" : "white";
+  const movetext = pgn
+    .split(/\r?\n/)
+    .filter((line) => !line.trimStart().startsWith("["))
+    .join(" ")
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\$\d+/g, " ");
+  const moves: ParsedMove[] = [];
+  const tokens = movetext.match(/\d+\.(?:\.\.)?|[^\s()]+/g) ?? [];
+
+  for (const token of tokens) {
+    const marker = token.match(/^(\d+)\.(\.\.)?$/);
+    if (marker) {
+      moveNumber = Number.parseInt(marker[1]!, 10);
+      color = marker[2] ? "black" : "white";
+      continue;
+    }
+    if (RESULT_TOKENS.has(token) || token.startsWith(";") || token.startsWith("%")) continue;
+
+    moves.push({ num: moveNumber, color, san: token, ply: moves.length });
+    if (color === "white") {
+      color = "black";
+    } else {
+      color = "white";
+      moveNumber += 1;
+    }
+  }
+
+  return moves;
+}
+
+/**
+ * Align live notation with the physical-board clock. A FEN records the side
+ * that moves next, so an after-move FEN with `b` belongs to White and one
+ * with `w` belongs to Black. Clock-only snapshots keep the same placement and
+ * are intentionally ignored because they are not chess moves.
+ */
+function applySnapshotTurns(
+  moves: ParsedMove[],
+  initialFen?: string,
+  timelineFens: string[] = [],
+): ParsedMove[] {
+  if (!moves.length || !timelineFens.length) return moves;
+
+  let previousPlacement = initialFen?.trim().split(/\s+/)[0] ?? "";
+  const moveSnapshots: string[] = [];
+
+  for (const candidate of timelineFens) {
+    const fields = candidate.trim().split(/\s+/);
+    const placement = fields[0] ?? "";
+    if (!placement) continue;
+
+    if (previousPlacement && placement !== previousPlacement) {
+      moveSnapshots.push(candidate);
+    }
+    previousPlacement = placement;
+  }
+
+  return moves.map((move, index) => {
+    const fields = moveSnapshots[index]?.trim().split(/\s+/);
+    const nextTurn = fields?.[1];
+    if (nextTurn !== "w" && nextTurn !== "b") return move;
+
+    const color: MoveColor = nextTurn === "b" ? "white" : "black";
+    const fenMoveNumber = Number.parseInt(fields?.[5] ?? "", 10);
+    const num = Number.isFinite(fenMoveNumber)
+      ? Math.max(1, color === "white" ? fenMoveNumber : fenMoveNumber - 1)
+      : move.num;
+
+    return { ...move, color, num };
+  });
 }
 
 function detectBranchPly(mainPgn: string, branches: Branch[]): number {
@@ -69,7 +159,7 @@ function getBranchMoveSan(branch: Branch): string {
     ?? (branch.lastMove ? `${branch.lastMove.from}${branch.lastMove.to}` : "?");
 }
 
-export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId = null, onBranchSelect, moveTimesMap, followLatest = false, onGoTo }: Props) {
+export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId = null, onBranchSelect, moveTimesMap, followLatest = false, onGoTo, initialFen, timelineFens }: Props) {
   const { t } = useT();
   const activeRef = useRef<HTMLButtonElement | null>(null);
   const latestRef = useRef<HTMLButtonElement | null>(null);
@@ -80,40 +170,22 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
 
   const pairs = useMemo((): MovePair[] => {
     if (!pgn?.trim()) return [];
-    const hist = extractSanMoves(pgn);
-    return Array.from({ length: Math.ceil(hist.length / 2) }, (_, pairIdx) => {
-      const i = pairIdx * 2;
-      return {
-        num: pairIdx + 1,
-        white: hist[i],
-        black: hist[i + 1],
-        wi: i + 1,
-        bi: i + 2,
-        wPly: i,
-        bPly: i + 1,
-      };
-    });
-
-    // try {
-    //   const c = new Chess();
-    //   c.loadPgn(pgn);
-    //   const hist = c.history();
-    //   return Array.from({ length: Math.ceil(hist.length / 2) }, (_, pairIdx) => {
-    //     const i = pairIdx * 2;
-    //     return {
-    //       num: pairIdx + 1,
-    //       white: hist[i],
-    //       black: hist[i + 1],
-    //       wi: i + 1,
-    //       bi: i + 2,
-    //       wPly: i,
-    //       bPly: i + 1,
-    //     };
-    //   });
-    // } catch {
-    //   return [];
-    // }
-  }, [pgn]);
+    const rows = new Map<number, MovePair>();
+    for (const move of applySnapshotTurns(parsePgnMoves(pgn, initialFen), initialFen, timelineFens)) {
+      const row = rows.get(move.num) ?? { num: move.num, black: undefined };
+      if (move.color === "white") {
+        row.white = move.san;
+        row.wi = move.ply + 1;
+        row.wPly = move.ply;
+      } else {
+        row.black = move.san;
+        row.bi = move.ply + 1;
+        row.bPly = move.ply;
+      }
+      rows.set(move.num, row);
+    }
+    return [...rows.values()];
+  }, [pgn, initialFen, timelineFens]);
 
   const branchPly = useMemo(
     () => detectBranchPly(mainPgn ?? pgn, branches),
@@ -165,8 +237,8 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
     <ScrollArea className="flex-1 min-h-0 h-full" viewportRef={viewportRef}>
       <div className="p-1.5">
         {pairs.map(({ num, white, black, wi, bi, wPly, bPly }, pairIdx) => {
-          const wTime = moveTimesMap?.[wPly];
-          const bTime = moveTimesMap?.[bPly];
+          const wTime = wPly == null ? undefined : moveTimesMap?.[wPly];
+          const bTime = bPly == null ? undefined : moveTimesMap?.[bPly];
           const isLastPair = pairIdx === pairs.length - 1;
           const isLastWhiteMove = isLastPair && !black;
           const isLastBlackMove = isLastPair && !!black;
@@ -185,30 +257,32 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                 </span>
 
                 {/* White move */}
-                <div className="flex items-center gap-0 5 min-w-0">
+                <div className="flex items-center gap-0.5 min-w-0">
                   {btnAfterW ? (
                     <BranchDots branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchClick} />
                   ) : (
-                    <button
-                      ref={followLatest && isLastWhiteMove ? latestRef : cursor === wi ? activeRef : undefined}
-                      onClick={() => onGoTo(wi)}
-                      className={cn(
-                        "flex items-center gap-1 px-1.5 py-[3px] rounded-sm hover:bg-accent/70 transition-colors min-w-0",
-                        cursor === wi && "bg-accent font-semibold text-foreground"
-                      )}
-                    >
-                      <span className="font-mono truncate flex-1 text-left">{white}</span>
-                      {wTime != null && (
-                        <span className="text-[11px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
-                          {fmtMoveTime(wTime)}
-                        </span>
-                      )}
-                    </button>
+                    white && wi != null ? (
+                      <button
+                        ref={followLatest && isLastWhiteMove ? latestRef : cursor === wi ? activeRef : undefined}
+                        onClick={() => onGoTo(wi)}
+                        className={cn(
+                          "flex items-center gap-1 px-1.5 py-[3px] rounded-sm hover:bg-accent/70 transition-colors min-w-0",
+                          cursor === wi && "bg-accent font-semibold text-foreground"
+                        )}
+                      >
+                        <span className="font-mono truncate flex-1 text-left">{white}</span>
+                        {wTime != null && (
+                          <span className="text-[11px] tabular-nums text-muted-foreground/55 shrink-0 leading-none font-mono">
+                            {fmtMoveTime(wTime)}
+                          </span>
+                        )}
+                      </button>
+                    ) : <span />
                   )}
                 </div>
 
                 {/* Black move */}
-                <div className="flex items-center gap-0 5 min-w-0">
+                <div className="flex items-center gap-0.5 min-w-0">
                   {btnAfterB ? (
                     <BranchDots branches={branches} selectedBranchId={selectedBranchId} onSelect={handleBranchClick} />
                   ) : trailingInBlackSlot ? (
@@ -216,7 +290,7 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
                   ) : black ? (
                     <button
                       ref={followLatest && isLastBlackMove ? latestRef : cursor === bi ? activeRef : undefined}
-                      onClick={() => onGoTo(bi)}
+                      onClick={() => onGoTo(bi!)}
                       className={cn(
                         "flex items-center gap-1 px-1.5 py-[3px] rounded-sm hover:bg-accent/70 transition-colors min-w-0",
                         cursor === bi && "bg-accent font-semibold text-foreground"

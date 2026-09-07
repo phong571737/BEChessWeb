@@ -37,6 +37,15 @@ function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & 
     };
 }
 
+/** Classifies a history record from its normalized result or legacy PGN header. */
+function historyResult(record: MongoDocument): "1-0" | "0-1" | "1/2-1/2" | "*" {
+    const direct = String(record.result ?? record.Result ?? "");
+    if (direct === "1-0" || direct === "0-1" || direct === "1/2-1/2") return direct;
+    const pgn = typeof record.pgn === "string" ? record.pgn : "";
+    const match = pgn.match(/\[Result\s+"(1-0|0-1|1\/2-1\/2|\*)"\]/i);
+    return (match?.[1] as "1-0" | "0-1" | "1/2-1/2" | "*" | undefined) ?? "*";
+}
+
 export const GameController = {
     // Get current state
     async getCurrent(req: Request, res: Response): Promise<void> {
@@ -59,14 +68,32 @@ export const GameController = {
     // get history of game
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
-            const history = (await getPGNCollections()
-                .find({ deletedAt: { $exists: false } })
+            const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined;
+            const page = Math.max(1, Number.parseInt(String(req.query.page ?? "1"), 10) || 1);
+            const pageSize = Math.min(50, Math.max(1, Number.parseInt(String(req.query.pageSize ?? "25"), 10) || 25));
+            // History is an archive view: include every non-deleted document,
+            // including legacy rows that only contain PGN/totalMoves.
+            const historyFilter = { deletedAt: { $exists: false } };
+            const collection = getPGNCollections();
+            const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
+            // The history list is paginated, but the summary must describe the
+            // complete archive rather than only the records on the current page.
+            const summaryRows = await collection.find(historyFilter, {
+                projection: { result: 1, Result: 1, pgn: 1 },
+            }).toArray();
+            const summary = summaryRows.reduce((counts, record) => {
+                const result = historyResult(record);
+                if (result === "1-0") counts.whiteWins += 1;
+                else if (result === "0-1") counts.blackWins += 1;
+                else if (result === "1/2-1/2") counts.draws += 1;
+                return counts;
+            }, { whiteWins: 0, blackWins: 0, draws: 0 });
+            const history = await collection
+                .find(historyFilter)
                 .sort({ createdAt: -1 }) // newest
-                .toArray())
-                .filter((row) => {
-                    const totalPlies = countHistoryPlies(row);
-                    return Number.isFinite(totalPlies) && totalPlies > 0;
-                });
+                .skip(hasPagination ? (page - 1) * pageSize : 0)
+                .limit(hasPagination ? pageSize : 0)
+                .toArray();
 
             // History snapshots created by older versions sometimes retained
             // only a move count. For an unfinished game the live game document
@@ -110,7 +137,20 @@ export const GameController = {
                 };
             });
 
-            res.json(games.map(serializeHistoryRecord));
+            const serialized = games.map(serializeHistoryRecord);
+            if (hasPagination) {
+                res.json({
+                    items: serialized,
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+                    summary: { ...summary, total: summaryRows.length },
+                });
+                return;
+            }
+            // Keep the legacy array response for the review page and older clients.
+            res.json(serialized);
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load game history" });
