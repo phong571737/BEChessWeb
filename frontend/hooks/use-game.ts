@@ -279,7 +279,10 @@ export function useGame(gameID: string) {
 
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
-        if (!socket || !gameID || !isLoaded) return;
+        // Subscribe as soon as Socket.IO is available. Waiting for the REST
+        // game request to finish creates a race where an ESP32 move can arrive
+        // before this listener exists and only become visible after reload.
+        if (!socket || !gameID) return;
 
         // onMove event 
         const onMove = (data: any) => {
@@ -488,7 +491,7 @@ export function useGame(gameID: string) {
             socket.off("game:reset", onGameReset);
             socket.off("clock_state", onClockState);
         }
-    }, [socket, gameID, isLoaded, applyGameReset]);
+    }, [socket, gameID, applyGameReset]);
 
     
 

@@ -143,7 +143,11 @@ async function afterMove(
     const updatedGame = await getGame(gameID);
     if (updatedGame) await saveActiveGameHistorySnapshot(updatedGame);
 
-    getIO().to(gameID).emit("esp_move", state);// broadcast move
+    // Active-game cards do not join every individual game room. Broadcast the
+    // authoritative move to connected clients and let each client select its
+    // own gameID. This prevents an otherwise healthy Socket.IO connection
+    // from silently missing moves when room membership has not completed yet.
+    getIO().emit("esp_move", state);
     if (updatedGame) {
         // Keep the clock event tied to the exact FEN persisted by the board.
         // Consumers must derive the side to move from this FEN, never from a
