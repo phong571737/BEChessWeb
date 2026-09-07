@@ -97,12 +97,10 @@ export function GameCard({ game, physicalBoard }: Props) {
       onFocus={() => router.prefetch(boardUrl)}
       aria-label={t("home.openGame", { players: `${game.whiteName} vs ${game.blackName}` })}
     >
-      {boardNumber ? (
-        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
-          <span className="text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span>
-          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span>
-        </div>
-      ) : null}
+      <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
+        {boardNumber ? <span className="min-w-0 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span />}
+        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span>
+      </div>
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
         {boardWidth >= 80 ? (

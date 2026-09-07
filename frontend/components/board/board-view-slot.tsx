@@ -315,7 +315,11 @@ export function BoardViewSlot({
                 ? { icon: CircleAlert, className: "border-warning/35 bg-warning/10 text-warning", text: t("board.initButton") }
                 : initStatus === "missing_piece" || initStatus === "wrong_piece"
                     ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: t("board.initPieces") }
-                    : initStatus === GAME_STATUS.CHECK_INIT || initStatus === GAME_STATUS.WAITING
+                    // A newly created/restarted physical board begins as "idle"
+                    // until its first initcheck arrives from the ESP32. Treat it
+                    // as a pending initialization state so the page does not
+                    // silently omit the status notice during that interval.
+                    : initStatus === GAME_STATUS.CHECK_INIT || initStatus === GAME_STATUS.WAITING || initStatus === "idle"
                         ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initChecking") }
                         : null
         : null;

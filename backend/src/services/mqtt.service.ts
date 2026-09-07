@@ -111,13 +111,14 @@ async function handleMessage(topic: string, message: Buffer) {
             // to. Do not execute our own outbound command a second time.
             if (payload.origin === "backend") return;
             const command = typeof payload.command === "string" ? payload.command.trim().toLowerCase() : "";
-            if (!["restart_game_esp", "restart_game", "resign", "draw"].includes(command)) return;
+            if (!["restart_game", "resign", "draw"].includes(command)) return;
             const rawSide = payload.side ?? payload.resignSide;
             const normalizedSide = typeof rawSide === "string" && ["white", "black"].includes(rawSide.trim().toLowerCase())
                 ? rawSide.trim().toLowerCase() as "white" | "black"
                 : undefined;
-            if (command === "resign" && !normalizedSide) {
-                console.warn(`[MQTT] Ignoring resign: payload must include side white or black for board ${boardID}`);
+            const hasResignSide = typeof rawSide === "string" && rawSide.trim().length > 0;
+            if (command === "resign" && hasResignSide && !normalizedSide) {
+                console.warn(`[MQTT] Ignoring resign: side must be white or black for board ${boardID}`);
                 return;
             }
             if (!claimCommand(boardID, payload, command, normalizedSide)) {
@@ -131,13 +132,26 @@ async function handleMessage(topic: string, message: Buffer) {
                 return;
             }
             console.log(`[MQTT] ${command} received for board ${boardID}, game ${gameID}`);
-            if (command === "restart_game_esp") {
+            // A physical long-press sends `resign` without a side.  Preserve
+            // the former restart_game_esp behavior: conclude the current game
+            // by evaluation when possible, otherwise mark its outcome as
+            // unconfirmed. Explicit `resign` commands with a side keep their
+            // normal, player-selected result.
+            if (command === "resign" && !normalizedSide) {
                 const boardType = typeof payload.boardType === "string" && payload.boardType.toUpperCase() === BOARD_TYPE.HALL
                     ? BOARD_TYPE.HALL
                     : BOARD_TYPE.NFC;
-                const result = await finishEspRestartByEvaluation(gameID, boardID, boardType)
+                const result = await finishEspResignByEvaluation(gameID, boardID, boardType)
                     ?? await GameResignService.handleUnconfirmed(gameID, boardType);
                 if (result) {
+                    // Do not let the ESP restart/initcheck before the new
+                    // game exists. Its long-press only requests resignation;
+                    // this acknowledgement starts physical-board reset after
+                    // finalization and GameService.create have completed.
+                    const resetPublished = await publishBoardCommand(boardID, "restart_game");
+                    if (!resetPublished) {
+                        console.error(`[MQTT] Could not request physical-board reset for ${boardID}`);
+                    }
                     const resultTag = "unconfirmed" in result && result.unconfirmed
                         ? "*"
                         : result.loser === "white" ? "0-1" : "1-0";
@@ -263,7 +277,7 @@ export function getMqttClient() {
  * A missing or inconclusive score deliberately returns null so the caller can
  * persist a finished session with an unconfirmed outcome instead of guessing.
  */
-async function finishEspRestartByEvaluation(gameID: string, boardID: string, boardType: string) {
+async function finishEspResignByEvaluation(gameID: string, boardID: string, boardType: string) {
     const { getGame } = await import("../models/game.model.js");
     const game = await getGame(gameID);
     const fen = game?.fenHistory?.at(-1) ?? game?.fen;
@@ -285,7 +299,7 @@ async function finishEspRestartByEvaluation(gameID: string, boardID: string, boa
         if (!loser) return null;
         return await GameResignService.handle(gameID, loser, boardType, null);
     } catch (error) {
-        console.error(`[MQTT] Stockfish restart evaluation failed for ${boardID}:`, error);
+        console.error(`[MQTT] Stockfish resignation evaluation failed for ${boardID}:`, error);
         return null;
     }
 }

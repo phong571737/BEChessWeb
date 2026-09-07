@@ -261,6 +261,11 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-1.5">
                     {boardID?.trim() ? (
                         <div className="flex min-w-0 items-center gap-2">
+                            {boardNumber?.trim() ? (
+                                <span className="inline-flex shrink-0 items-center rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
+                                    {t("common.boardNumber", { n: boardNumber.trim() })}
+                                </span>
+                            ) : null}
                             <span className="inline-flex min-w-0 items-center rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
                                 {boardID.trim()}
                             </span>

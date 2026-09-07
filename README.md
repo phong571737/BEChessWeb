@@ -150,14 +150,14 @@ chess/<boardID>/command
 Supported payloads:
 
 ```json
-{"command":"restart_game_esp"}
 {"command":"restart_game"}
+{"command":"resign","requestId":"unique-device-command-id"}
 {"command":"resign","side":"white","requestId":"unique-device-command-id"}
 {"command":"resign","side":"black","requestId":"unique-device-command-id"}
 {"command":"draw","requestId":"unique-device-command-id"}
 ```
 
-Both restart commands perform the same in-place reset and retain `gameID`, names, and clock configuration. Resign/draw finalizes history, emits the result to the old game room, and creates the next waiting game for that physical board.
+`restart_game` resets the current game in place and retains its `gameID`, names, and clock configuration. A `resign` command without `side` is the physical-board long-press flow: the backend evaluates the final position when possible, otherwise records an unconfirmed result; it then archives the game, creates the next waiting game, and sends `restart_game` back to the board. A `resign` command with `side`, and `draw`, finalize the selected result and create the next waiting game.
 
 ## REST surface
 
