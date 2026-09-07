@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard,
+  CircuitBoard, CircleAlert,
   Tag} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
@@ -263,6 +263,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
+  const [showHistoryMoveAnnotations, setShowHistoryMoveAnnotations] = useState(true);
   const [showPgnEditor, setShowPgnEditor] = useState(false);
   const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
   const [savingPgn, setSavingPgn] = useState(false);
@@ -546,7 +547,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     };
   }, [game, preferredFenHistory, rawFenHistory, selectedRecoveryLine, selectedSource]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
-  const boardMoveAnnotation = typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
+  const boardMoveAnnotation = showHistoryMoveAnnotations && typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
         square: analyzedDestination,
         classification: currentMoveAnalysis.classification,
@@ -689,6 +690,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   useEffect(() => {
     setShowHistoryEvaluation(localStorage.getItem("history-show-evaluation") !== "false");
     setShowHistorySuggestions(localStorage.getItem("history-show-suggestions") !== "false");
+    setShowHistoryMoveAnnotations(localStorage.getItem("history-show-move-annotations") !== "false");
   }, []);
 
   const toggleHistoryEvaluation = () => {
@@ -701,6 +703,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const toggleHistorySuggestions = () => {
     setShowHistorySuggestions((visible) => {
       localStorage.setItem("history-show-suggestions", String(!visible));
+      return !visible;
+    });
+  };
+
+  const toggleHistoryMoveAnnotations = () => {
+    setShowHistoryMoveAnnotations((visible) => {
+      localStorage.setItem("history-show-move-annotations", String(!visible));
       return !visible;
     });
   };
@@ -1108,6 +1117,10 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
             <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
               {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                             {showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+            </Button>
+            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryMoveAnnotations} aria-pressed={showHistoryMoveAnnotations}>
+              {showHistoryMoveAnnotations ? <EyeOff className="size-3.5" /> : <CircleAlert className="size-3.5" />}
+              {showHistoryMoveAnnotations ? t("analysis.hideMoveAnnotations") : t("analysis.showMoveAnnotations")}
             </Button>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
