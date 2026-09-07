@@ -40,17 +40,24 @@ export function GameCard({ game, physicalBoard }: Props) {
     || physicalBoard?.extraSquares?.length
     || physicalBoard?.wrongPieceSquares?.length,
   );
-  const boardStatus = hasInitialPositionError
-    ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
-    : game.status === "playing"
+  // A live game's Mongo status remains "waiting" until the first move. The
+  // physical-board initcheck is therefore the authoritative source for the
+  // pre-game chip: it must win over that stale persistence status.
+  const boardStatus = game.status === "playing"
     ? { label: t("home.boardPlaying"), className: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" }
-    : game.status === "scan_failed"
+    : hasInitialPositionError || game.status === "scan_failed"
       ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
-      : game.status === "ready" || game.status === "active"
+      : physicalBoard?.initStatus === "ready"
         ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
-        : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit"
+        : physicalBoard?.initStatus === "waiting_button"
           ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
-          : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
+          : physicalBoard?.initStatus === "checkinit"
+            ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
+            : game.status === "ready" || game.status === "active"
+              ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
+              : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit"
+                ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+                : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
   const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     const styles: Record<string, React.CSSProperties> = {};
     physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
