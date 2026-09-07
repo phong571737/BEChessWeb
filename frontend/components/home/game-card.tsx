@@ -18,9 +18,10 @@ const Chessboard = dynamic(
 interface Props {
     game: ActiveGame;
     physicalBoard?: PhysicalBoard;
+    showStatus?: boolean;
 }
 
-export function GameCard({ game, physicalBoard }: Props) {
+export function GameCard({ game, physicalBoard, showStatus = true }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
@@ -101,7 +102,7 @@ export function GameCard({ game, physicalBoard }: Props) {
     >
       <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
         {boardNumber ? <span className="min-w-0 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span />}
-        <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span>
+        {showStatus ? <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span> : null}
       </div>
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">

@@ -12,12 +12,16 @@ import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
 import { BulkGameSetupDialog } from "./bulk-game-setup-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
+import { useSearchParams } from "next/navigation";
+import { decodeGameID } from "@/lib/id-utils";
+import { Suspense } from "react";
 
-export function GameGrid() {
+function GameGridContent() {
     const { loading, refresh, activeGames } = useActiveGames();
     const {boards: physicalBoards} = usePhysicalBoards();
     const { t } = useT();
-    const { isAuthenticated, isAdmin } = useAuth();
+    const { isAdmin } = useAuth();
+    const searchParams = useSearchParams();
 
     // Keep a restarted game visible while its physical board is being initialized.
     // This preserves the mini chessboard card and lets the user reopen its session.
@@ -27,6 +31,20 @@ export function GameGrid() {
     );
 
     const tournamentName = cardGames.find((game) => game.tournament?.trim())?.tournament?.trim();
+    const requestedLayout = Number(searchParams.get("homeLayout"));
+    const homeLayout = requestedLayout === 2 || requestedLayout === 4 ? requestedLayout : 1;
+    const homeSlotIds = searchParams.get("homeIds")?.split(",").map((value) => {
+        try {
+            return decodeGameID(value.trim());
+        } catch {
+            return "";
+        }
+    }).filter(Boolean) ?? [];
+    const displayedGames = homeLayout === 1
+        ? cardGames
+        : homeSlotIds.map((gameID) => cardGames.find((game) => game.gameID === gameID)).filter((game): game is typeof cardGames[number] => Boolean(game));
+    const gamesForLayout = displayedGames.length > 0 ? displayedGames : cardGames.slice(0, homeLayout);
+    const gridClassName = homeLayout === 1 ? "grid gap-3" : "grid grid-cols-2 gap-3";
 
     return (
         <div className="flex flex-col min-h-0">
@@ -50,7 +68,7 @@ export function GameGrid() {
             </div>
 
             <div className="flex flex-col">
-                {isAuthenticated && tournamentName && (
+                {tournamentName && (
                     <div className="px-4 sm:px-5 py-4 border-b border-border">
                         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
                             {t("home.tournament")}
@@ -79,11 +97,11 @@ export function GameGrid() {
                 ) : cardGames.length === 0 ? (
                     <EmptyState />
                 ) : (
-                    <div className="p-4 sm:p-5 grid gap-3" style={{
+                    <div className={cn("p-4 sm:p-5", gridClassName)} style={homeLayout === 1 ? {
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
-                    }}>
-                        {cardGames.map((game) => (
-                            <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} />
+                    } : undefined}>
+                        {gamesForLayout.map((game) => (
+                            <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} showStatus={isAdmin} />
                         ))}
                     </div>
                 )}
@@ -91,5 +109,13 @@ export function GameGrid() {
             </div>
         </div>
 
+    );
+}
+
+export function GameGrid() {
+    return (
+        <Suspense fallback={<div className="min-h-24" />}>
+            <GameGridContent />
+        </Suspense>
     );
 }

@@ -138,7 +138,7 @@ export function BoardLayoutSwitcher({
     const [draft, setDraft] = useState<string[]>([]);
     const [orientationWarning, setOrientationWarning] = useState(false);
 
-    const pickerGames = useMemo(() => games.slice(0, 3), [games]);
+    const pickerGames = useMemo(() => games.slice(0, 4), [games]);
     const gameLookup = useMemo(() => pickerGameMap(pickerGames), [pickerGames]);
 
     const slotLabels = useMemo(() => {

@@ -38,7 +38,7 @@ function isPresetBoardNumber(value: string) {
 
 export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location }: Props) {
     const { t } = useT();
-    const { token } = useAuth();
+    const { token, isAdmin } = useAuth();
     const [open, setOpen] = useState(false);
     const [white, setWhite] = useState(whiteName);
     const [black, setBlack] = useState(blackName);
@@ -176,6 +176,8 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             setLoading(false);
         }
     };
+
+    if (!isAdmin) return null;
 
     return (
         <Dialog open={open} onOpenChange={(nextOpen) => !loading && setOpen(nextOpen)}>

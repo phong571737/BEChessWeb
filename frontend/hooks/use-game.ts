@@ -137,8 +137,15 @@ export function useGame(gameID: string) {
                     } catch { }
                 }
 
-                let boardStatus;
-                if (game.status === GAME_STATUS.FINISHED) boardStatus = GAME_STATUS.ENDED;
+                const boardStatus = game.status === GAME_STATUS.FINISHED || game.status === GAME_STATUS.ENDED
+                    ? GAME_STATUS.ENDED
+                    : game.status === GAME_STATUS.PLAYING || game.status === GAME_STATUS.ACTIVE
+                        ? GAME_STATUS.PLAYING
+                        : game.status === GAME_STATUS.WAITING_SCAN
+                            ? GAME_STATUS.WAITING_SCAN
+                            : game.status === GAME_STATUS.SCAN_FAIL
+                                ? GAME_STATUS.SCAN_FAIL
+                                : GAME_STATUS.WAITING;
 
                 patchBoard(gameID, {
                     fen: game.fen || chessRef.current.fen(),

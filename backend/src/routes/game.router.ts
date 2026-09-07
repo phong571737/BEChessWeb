@@ -33,7 +33,7 @@ gameRouter.post("/bulk-setup", gameMutationRateLimit, requireAdmin, GameActionCo
 */
 gameRouter.get("/history", gameReadRateLimit, GameController.getHistory);
 
-gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAuthenticated, GameController.saveHistoryAnalysis);
+gameRouter.post("/history/:id/analysis", gameMutationRateLimit, requireAdmin, GameController.saveHistoryAnalysis);
 gameRouter.put("/history/:id/traces", gameMutationRateLimit, requireAdmin, GameController.updateHistoryTraces);
 
 /** Administrator-only correction of one persisted FEN snapshot. */
@@ -172,7 +172,7 @@ gameRouter.post("/:id/reset", gameMutationRateLimit, requireAdmin, GameActionCon
  * POST games/:id/rename
  * This api is used to post rename player
  */
-gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRateLimit, requireAuthenticated, GameActionController.rename);
+gameRouter.post<GameIdParams, unknown, RenameBody>("/:id/rename", gameMutationRateLimit, requireAdmin, GameActionController.rename);
 
 /**
  * POST games/:id/endgame

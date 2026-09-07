@@ -308,7 +308,7 @@ export function BoardViewSlot({
             return next;
         });
     }, [gameID]);
-    const initNotice = !compact && isAuthenticated
+    const initNotice = !compact && isAuthenticated && status !== GAME_STATUS.PLAYING
         ? initStatus === GAME_STATUS.READY
             ? { icon: CircleCheckBig, className: "border-success/35 bg-success/10 text-success", text: t("board.initReady") }
             : initStatus === "waiting_button"

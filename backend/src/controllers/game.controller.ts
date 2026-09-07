@@ -1,5 +1,5 @@
 import { Request, Response } from "express";
-import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen, updateHistoryTraces } from "../models/game.model.js";
+import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen, updateHistoryTraces } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
@@ -433,7 +433,11 @@ export const GameController = {
     async initcheck(req: Request<GameIdParams>, res: Response): Promise<Response | void> {
         try {
             const gameID = req.params.id;
-            const boardID = getBoardIDByGame(gameID);
+            // The in-memory reverse map can be empty after a backend restart.
+            // Fall back to the persisted game-to-board relation so the board
+            // page reads the same initcheck state as the home page.
+            const persistedGame = await getGame(gameID);
+            const boardID = getBoardIDByGame(gameID) ?? persistedGame?.boardID;
             const state = boardID ? gameState.get(boardID) : undefined;
 
             // no state yet
