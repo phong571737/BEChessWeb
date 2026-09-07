@@ -37,6 +37,7 @@ export const en = {
     "home.boardPressButton": "Press clock",
     "home.boardCheck": "Check pieces",
     "home.boardWaiting": "Waiting",
+    "home.boardChecking": "Checking",
     "bulk.open": "Bulk setup",
     "bulk.title": "Bulk game setup",
     "bulk.hint": "Import one pairing workbook and apply it to multiple live boards.",

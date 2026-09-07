@@ -39,6 +39,7 @@ export const vi: Record<TranslationKeys, string> = {
     "home.boardPressButton": "Nhấn đồng hồ",
     "home.boardCheck": "Kiểm tra quân",
     "home.boardWaiting": "Đang chờ",
+    "home.boardChecking": "Đang kiểm tra",
     "bulk.open": "Cài đặt hàng loạt",
     "bulk.title": "Cài đặt nhiều bàn cờ",
     "bulk.hint": "Nhập một file ghép cặp và áp dụng cho nhiều bàn cờ đang hoạt động.",

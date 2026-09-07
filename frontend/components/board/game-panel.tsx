@@ -50,6 +50,8 @@ interface Props {
     boardNumber?: string;
     boardID?: string;
     location: string;
+    /** Latest initial-position validation from the physical board. */
+    initStatus?: string;
 }
 
 export interface GamePanelHandle {
@@ -62,7 +64,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, whiteName, blackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID, initStatus,
 }, ref) {
     const { t } = useT();
     const timeControl = classifyTimeControl(initialTimeMs, incrementMs);
@@ -71,6 +73,13 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         rapid: t("timeControl.rapid"),
         classical: t("timeControl.classical"),
     }[timeControl];
+    const initStatusChip = initStatus === GAME_STATUS.READY
+        ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
+        : initStatus === "waiting_button"
+            ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+            : initStatus === "missing_piece" || initStatus === "wrong_piece"
+                ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
+                : { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" };
     const [cursor, setCursor] = useState(-1);
 
     // Determine the current branch
@@ -251,9 +260,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             {isAuthenticated && status !== GAME_STATUS.FINISHED && status !== GAME_STATUS.ENDED && (
                 <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-1.5">
                     {boardID?.trim() ? (
-                        <span className="inline-flex min-w-0 items-center rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
-                            {boardID.trim()}
-                        </span>
+                        <div className="flex min-w-0 items-center gap-2">
+                            <span className="inline-flex min-w-0 items-center rounded-md border border-primary/35 bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary shadow-sm">
+                                {boardID.trim()}
+                            </span>
+                            {isAdmin && <span className={`inline-flex shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${initStatusChip.className}`}>{initStatusChip.label}</span>}
+                        </div>
                     ) : <span />}
                     <GameSetupDialog
                         gameID={gameID}

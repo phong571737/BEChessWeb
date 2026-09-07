@@ -315,7 +315,7 @@ export function BoardViewSlot({
                 ? { icon: CircleAlert, className: "border-warning/35 bg-warning/10 text-warning", text: t("board.initButton") }
                 : initStatus === "missing_piece" || initStatus === "wrong_piece"
                     ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: t("board.initPieces") }
-                    : initStatus === GAME_STATUS.CHECK_INIT
+                    : initStatus === GAME_STATUS.CHECK_INIT || initStatus === GAME_STATUS.WAITING
                         ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initChecking") }
                         : null
         : null;
@@ -796,6 +796,7 @@ export function BoardViewSlot({
                                 boardNumber={boardNumber}
                                 boardID={boardLabel}
                                 location={location}
+                                initStatus={initStatus}
                             />
                         </div>
                     </div>
