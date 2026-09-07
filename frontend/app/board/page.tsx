@@ -8,6 +8,7 @@ import { BoardViewSlot, BoardSlotSkeleton } from "@/components/board/board-view-
 import type { BoardLayoutMode } from "@/components/board/board-layout-switcher";
 import { BoardSlotPicker } from "@/components/board/board-slot-picker";
 import { cn } from "@/lib/utils";
+import { useT } from "@/lib/i18n";
 
 function parseLayout(raw: string | null): BoardLayoutMode {
     const n = Number(raw);
@@ -31,6 +32,7 @@ function BoardContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const { activeGames } = useActiveGames();
+    const { t } = useT();
     /** Which slot is open for pick / replace */
     const [editingSlot, setEditingSlot] = useState<number | null>(null);
 
@@ -66,6 +68,9 @@ function BoardContent() {
         () => (primaryID ? buildSlots(primaryID, extraIDs, slotCount) : []),
         [primaryID, extraIDs, slotCount]
     );
+    const tournamentName = slots
+        .map((gameID) => activeGames.find((game) => game.gameID === gameID)?.tournament?.trim())
+        .find(Boolean);
 
     const pushState = useCallback(
         (nextSlots: (string | null)[], nextLayout: BoardLayoutMode) => {
@@ -143,6 +148,12 @@ function BoardContent() {
 
     return (
         <div className="flex flex-col h-[calc(100vh-var(--header-h))] min-h-0">
+            {effectiveLayout > 1 && tournamentName && (
+                <div className="shrink-0 border-b border-border px-1 py-1 md:px-6 md:py-2">
+                    <p className="hidden text-[11px] font-semibold uppercase tracking-widest text-muted-foreground md:block">{t("home.tournament")}</p>
+                    <h1 className="mt-0.5 text-center text-xs font-medium text-foreground md:text-sm">{tournamentName}</h1>
+                </div>
+            )}
             <div className="flex-1 min-h-0">
                 {effectiveLayout === 1 ? (
                     <BoardViewSlot
@@ -153,7 +164,7 @@ function BoardContent() {
                 ) : (
                     <div
                         className={cn(
-                            "h-full min-h-0 p-2 gap-2 grid",
+                            "h-full min-h-0 grid gap-2 p-1",
                             effectiveLayout === 2 && "grid-cols-2 grid-rows-1",
                             effectiveLayout === 4 && "grid-cols-2 grid-rows-2"
                         )}
@@ -180,6 +191,7 @@ function BoardContent() {
                                             gameID={gameID}
                                             compact
                                             enableEval
+                                            twoBoardLayout={effectiveLayout === 2}
                                             onChangeGame={
                                                 canChange ? () => setEditingSlot(index) : undefined
                                             }
