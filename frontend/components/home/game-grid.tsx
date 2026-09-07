@@ -16,6 +16,7 @@ import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
 import { PhysicalBoardCard } from "./physical-board-card";
 import { StartGameDialog } from "./start-game-dialog";
+import { BulkGameSetupDialog } from "./bulk-game-setup-dialog";
 import { useAuth } from "@/components/providers/auth-provider";
 
 export function GameGrid() {
@@ -24,7 +25,7 @@ export function GameGrid() {
     const {boards: physicalBoards} = usePhysicalBoards();
     const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isAdmin } = useAuth();
 
     // Keep the setup dialog attached when a newly detected board receives its gameID.
     // Closing it here caused the first setup attempt to navigate away before names
@@ -83,10 +84,13 @@ export function GameGrid() {
                     </p>
                 </div>
 
-                <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
-                    className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                    <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                </button>
+                <div className="flex items-center gap-2">
+                    {isAdmin && <BulkGameSetupDialog activeGames={cardGames} onApplied={refresh} />}
+                    <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
+                        className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                        <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                    </button>
+                </div>
             </div>
 
             <div className="flex flex-col">
@@ -128,7 +132,7 @@ export function GameGrid() {
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
                     }}>
                         {cardGames.map((game) => (
-                            <GameCard key={game.gameID} game={game} />
+                            <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} />
                         ))}
                     </div>
                 )}

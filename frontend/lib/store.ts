@@ -10,7 +10,7 @@ interface GameStoreState {
 
     /** Physical boards detected via heartbeat */
     physicalBoards: PhysicalBoard[];
-    patchPhysicalBoard: (board: Omit<PhysicalBoard, "gameStatus"> & { gameStatus?: PhysicalBoard["gameStatus"] }) => void;
+    patchPhysicalBoard: (board: Pick<PhysicalBoard, "boardID"> & Partial<Omit<PhysicalBoard, "boardID">>) => void;
     patchPhysicalBoardGameStatus: (gameID: string, gameStatus: PhysicalBoard["gameStatus"]) => void;
     removePhysicalBoard: (boardID: string) => void;
 
@@ -65,7 +65,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             // Don't add a brand-new entry just to mark it offline
             if (!existing && !board.online) return state;
             const merged: PhysicalBoard = {
+                gameID: null,
                 gameStatus: null,
+                online: false,
                 ...existing,
                 ...board,
             };

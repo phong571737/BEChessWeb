@@ -130,3 +130,19 @@ export interface RenameBody extends GameSetupMetadata {
     color: string;
     name: string;
 }
+
+export interface BulkGameSetupItem {
+    gameID: string;
+    whiteName: string;
+    blackName: string;
+    round?: number;
+    location?: string;
+    boardNumber?: string;
+}
+
+export interface BulkGameSetupBody {
+    games: BulkGameSetupItem[];
+    applyClock?: boolean;
+    initialTimeMs?: number;
+    incrementMs?: number;
+}

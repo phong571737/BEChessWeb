@@ -66,7 +66,19 @@ export const BoardController = {
                 res.json(null);
                 return;
             }
-            res.json(game);
+            // Include the latest in-memory initial-board validation so a home
+            // page opened after initcheck can still render the same warning
+            // squares without waiting for the next physical-board scan.
+            res.json(game.map((item) => {
+                const state = item.boardID ? gameState.get(item.boardID) : undefined;
+                return {
+                    ...item,
+                    initStatus: state?.initResultStatus ?? state?.gameStatus,
+                    missingSquares: state?.missingSquares ?? [],
+                    extraSquares: state?.extraSquares ?? [],
+                    wrongPieceSquares: state?.wrongPieceSquares ?? [],
+                };
+            }));
         } catch (e) {
             console.log(e);
         }

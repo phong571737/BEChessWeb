@@ -14,6 +14,11 @@ export interface PhysicalBoard {
     gameStatus: "waiting" | "checkinit" | "waiting_scan" | "scan_failed" | "active" | "finished" | null;
     online: boolean;
     ip?: string | null;
+    /** Latest initial-position check received from the physical board. */
+    initStatus?: string;
+    missingSquares?: string[];
+    extraSquares?: string[];
+    wrongPieceSquares?: Array<{ square: string; expected?: string; actual?: string } | string>;
 }
 
 // Common interface for both active, state and history games

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useGameStore } from "@/lib/store";
 import { useSocket } from "@/components/providers/socket-provider";
 import type { PhysicalBoard } from "@/types/game.types";
-import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
+import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
 
 export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean } {
@@ -39,6 +39,10 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
                 ? "active"
                 : g.status,
             online: true,
+            initStatus: g.initStatus,
+            missingSquares: Array.isArray(g.missingSquares) ? g.missingSquares : [],
+            extraSquares: Array.isArray(g.extraSquares) ? g.extraSquares : [],
+            wrongPieceSquares: Array.isArray(g.wrongPieceSquares) ? g.wrongPieceSquares : [],
           };
 
           patchPhysicalBoard(board);
@@ -115,14 +119,35 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       patchPhysicalBoard(board);
     };
 
+    // Initial-position validation is emitted for every connected client.
+    // Keep it with the physical board so the home-card can show errors before
+    // an administrator opens the individual board page.
+    const onGameState = (rawData: any) => {
+      const payload = unwrap(rawData);
+      const boardID = typeof payload?.boardID === "string"
+        ? payload.boardID
+        : typeof payload?.gameID === "string" ? payload.gameID : null;
+      if (!boardID) return;
+      patchPhysicalBoard({
+        boardID,
+        online: true,
+        initStatus: typeof payload.initResultStatus === "string" ? payload.initResultStatus : payload.gameStatus,
+        missingSquares: Array.isArray(payload.missingSquares) ? payload.missingSquares : [],
+        extraSquares: Array.isArray(payload.extraSquares) ? payload.extraSquares : [],
+        wrongPieceSquares: Array.isArray(payload.wrongPieceSquares) ? payload.wrongPieceSquares : [],
+      });
+    };
+
     socket.on(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
     socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
     socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+    socket.on(SERVER_EVENT.GAME_STATE, onGameState);
 
     return () => {
       socket.off(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
       socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
       socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+      socket.off(SERVER_EVENT.GAME_STATE, onGameState);
     };
   }, [socket, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID]);
 

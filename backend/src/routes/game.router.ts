@@ -24,6 +24,9 @@ function sendInternalError(res: express.Response, operation: string, error: unkn
  */
 gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
 
+/** Applies one administrator-selected pairing import to several live games. */
+gameRouter.post("/bulk-setup", gameMutationRateLimit, requireAdmin, GameActionController.bulkSetup);
+
 /**
  * GET /games/history 
  * This api is used to get game played

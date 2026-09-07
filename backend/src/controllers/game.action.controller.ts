@@ -1,12 +1,64 @@
 import { Request, Response } from "express";
 import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
-import { GameIdParams, RenameBody, ResignBody } from "../types/game.types.js";
+import { BulkGameSetupBody, GameIdParams, RenameBody, ResignBody } from "../types/game.types.js";
 import { ERROR_STATUS } from "../constant.js";
 import { publishBoardCommand } from "../services/mqtt.service.js";
 import { getIO } from "../sockets/index.js";
 
 export const GameActionController = {
+    async bulkSetup(
+        req: Request<Record<string, never>, unknown, BulkGameSetupBody>,
+        res: Response,
+    ): Promise<void> {
+        try {
+            const { games, applyClock = false, initialTimeMs, incrementMs } = req.body ?? {};
+            const maxInitialTimeMs = 24 * 60 * 60 * 1_000;
+            const maxIncrementMs = 60 * 60 * 1_000;
+
+            if (!Array.isArray(games) || games.length === 0 || games.length > 50) {
+                res.status(400).json({ error: "games must contain between 1 and 50 items" });
+                return;
+            }
+            if (applyClock && (!Number.isFinite(initialTimeMs) || initialTimeMs! <= 0 || initialTimeMs! > maxInitialTimeMs)) {
+                res.status(400).json({ error: "initialTimeMs must be a positive number no greater than 24 hours" });
+                return;
+            }
+            if (applyClock && (!Number.isFinite(incrementMs) || incrementMs! < 0 || incrementMs! > maxIncrementMs)) {
+                res.status(400).json({ error: "incrementMs must be a number between 0 and 1 hour" });
+                return;
+            }
+
+            for (const game of games) {
+                if (!game || typeof game.gameID !== "string" || game.gameID.length === 0 || game.gameID.length > 160
+                    || typeof game.whiteName !== "string" || game.whiteName.trim().length === 0 || game.whiteName.trim().length > 160
+                    || typeof game.blackName !== "string" || game.blackName.trim().length === 0 || game.blackName.trim().length > 160
+                    || (game.boardNumber !== undefined && (typeof game.boardNumber !== "string" || game.boardNumber.trim().length > 40))
+                    || (game.location !== undefined && (typeof game.location !== "string" || game.location.trim().length > 160))
+                    || (game.round !== undefined && (!Number.isInteger(game.round) || game.round < 1 || game.round > 99))) {
+                    res.status(400).json({ error: "One or more bulk setup records are invalid" });
+                    return;
+                }
+            }
+
+            const result = await GameActionService.bulkSetup(
+                games.map((game) => ({
+                    ...game,
+                    gameID: game.gameID.trim(),
+                    whiteName: game.whiteName.trim(),
+                    blackName: game.blackName.trim(),
+                    boardNumber: game.boardNumber?.trim(),
+                    location: game.location?.trim(),
+                })),
+                { applyClock, initialTimeMs, incrementMs },
+            );
+            res.json({ ok: result.failed.length === 0, ...result });
+        } catch (e) {
+            console.error("Bulk setup failed:", e);
+            res.status(500).json({ error: "BULK_SETUP_FAILED" });
+        }
+    },
+
     // resign action
     async resign(
         req: Request<GameIdParams, unknown, ResignBody>,
@@ -113,15 +165,16 @@ export const GameActionController = {
                 return;
             }
 
-            await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim(), boardNumber?.trim(),);
+            const clockState = await GameActionService.rename(gameID, color, name, initialTimeMs, incrementMs, round, location?.trim(), boardNumber?.trim(),);
 
             res.json({
-                ok: true
+                ok: true,
+                ...(clockState ?? {}),
             });
         } catch (e) {
             console.error("Rename failed:", e);
             const message = e instanceof Error ? e.message : String(e);
-            res.status(500).json({ error: message });
+            res.status(message === "GAME_STATE_CONFLICT" ? 409 : 500).json({ error: message });
         }
     },
 

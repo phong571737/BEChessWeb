@@ -73,6 +73,7 @@ export function emitGameState(gameID: string): void {
     if (!state) return;
 
     getIO().emit("game_state", {
+        boardID: gameID,
         gameID,
         ...state,
     });

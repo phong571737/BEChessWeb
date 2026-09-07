@@ -1,10 +1,10 @@
 "use client"
 
-import { ActiveGame } from "@/types/game.types";
+import { ActiveGame, PhysicalBoard } from "@/types/game.types";
 import dynamic from "next/dynamic"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useMemo } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
@@ -17,9 +17,10 @@ const Chessboard = dynamic(
 
 interface Props {
     game: ActiveGame;
+    physicalBoard?: PhysicalBoard;
 }
 
-export function GameCard({ game }: Props) {
+export function GameCard({ game, physicalBoard }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
@@ -33,6 +34,33 @@ export function GameCard({ game }: Props) {
     classical: t("timeControl.classical"),
   }[timeControl];
   const boardLabel = game.boardID?.trim();
+  const boardNumber = game.boardNumber?.trim();
+  const hasInitialPositionError = Boolean(
+    physicalBoard?.missingSquares?.length
+    || physicalBoard?.extraSquares?.length
+    || physicalBoard?.wrongPieceSquares?.length,
+  );
+  const boardStatus = hasInitialPositionError
+    ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
+    : game.status === "playing"
+    ? { label: t("home.boardPlaying"), className: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" }
+    : game.status === "scan_failed"
+      ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
+      : game.status === "ready" || game.status === "active"
+        ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
+        : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit"
+          ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+          : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
+  const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+    physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
+    physicalBoard?.extraSquares?.forEach((square) => { styles[square] = { background: "rgba(255,165,0,0.60)" }; });
+    physicalBoard?.wrongPieceSquares?.forEach((item) => {
+      const square = typeof item === "string" ? item : item.square;
+      if (square) styles[square] = { background: "rgba(255,230,0,0.65)" };
+    });
+    return styles;
+  }, [physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -62,6 +90,12 @@ export function GameCard({ game }: Props) {
       onFocus={() => router.prefetch(boardUrl)}
       aria-label={t("home.openGame", { players: `${game.whiteName} vs ${game.blackName}` })}
     >
+      {boardNumber ? (
+        <div className="flex items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
+          <span className="text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span>
+          <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span>
+        </div>
+      ) : null}
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
         {boardWidth >= 80 ? (
@@ -70,6 +104,7 @@ export function GameCard({ game }: Props) {
             arePiecesDraggable={false}
             customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
             customLightSquareStyle={{ backgroundColor: boardColors.light }}
+            customSquareStyles={initSquareStyles}
             boardWidth={boardWidth}
           />
         ) : (

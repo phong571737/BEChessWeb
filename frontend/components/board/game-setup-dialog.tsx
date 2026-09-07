@@ -13,6 +13,7 @@ import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { apiFetch } from "@/lib/api-fetch";
+import { saveLastTimeControl } from "@/lib/last-time-control";
 
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
@@ -133,7 +134,15 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber }),
             });
-            if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? t("sg.saveClockError"));
+            const firstData = await first.json().catch(() => null) as {
+                error?: string;
+                whiteRemainingMs?: number;
+                blackRemainingMs?: number;
+                activeClockSide?: "white" | "black";
+                clockStartedAt?: string | null;
+                serverNow?: number;
+            } | null;
+            if (!first.ok) throw new Error(firstData?.error ?? t("sg.saveClockError"));
 
             const second = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
@@ -150,7 +159,13 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 round: selectedRound,
                 boardNumber: normalizedBoardNumber,
                 location: gameLocation.trim(),
+                ...(typeof firstData?.whiteRemainingMs === "number" ? { whiteRemainingMs: firstData.whiteRemainingMs } : {}),
+                ...(typeof firstData?.blackRemainingMs === "number" ? { blackRemainingMs: firstData.blackRemainingMs } : {}),
+                ...(firstData?.activeClockSide ? { activeClockSide: firstData.activeClockSide } : {}),
+                ...(firstData?.clockStartedAt !== undefined ? { clockStartedAt: firstData.clockStartedAt } : {}),
+                ...(typeof firstData?.serverNow === "number" ? { serverNow: firstData.serverNow } : {}),
             });
+            saveLastTimeControl({ initialTimeMs: time, incrementMs: increment });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
             setOpen(false);

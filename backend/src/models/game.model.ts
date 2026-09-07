@@ -1,8 +1,9 @@
 import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
 import { GameDoc, SaveGameOptions } from "../types/game.types.js"
-import { classifyTimeControl } from "../utils/time-control.js";
+import { classifyTimeControl, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";
 import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
+import { getCurrentClock } from "../services/clock.service.js";
 
 
 const games = (): Collection<GameDoc> => getDB().collection<GameDoc>("games");
@@ -672,6 +673,28 @@ export async function renamePlayer(
     location?: string,
     boardNumber?: string
 ) {
+    const current = await games().findOne(
+        { gameID } as Filter<GameDoc>,
+        {
+            projection: {
+                initialTimeMs: 1,
+                incrementMs: 1,
+                status: 1,
+                lastSeq: 1,
+                uciHistory: 1,
+                fenHistory: 1,
+                whiteRemainingMs: 1,
+                blackRemainingMs: 1,
+                whiteRemainingTimeMs: 1,
+                blackRemainingTimeMs: 1,
+                activeClockSide: 1,
+                clockStartedAt: 1,
+                version: 1,
+            },
+        },
+    );
+    if (!current) throw new Error("GAME_STATE_CONFLICT");
+
     const field = color === "Black" ? "blackName" : "whiteName";
     const update: Record<string, unknown> = {
         [field]: name,
@@ -680,45 +703,53 @@ export async function renamePlayer(
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
     if (initialTimeMs !== undefined || incrementMs !== undefined) {
-        const current = await games().findOne(
-            { gameID } as Filter<GameDoc>,
-            {
-                projection: {
-                    initialTimeMs: 1,
-                    incrementMs: 1,
-                    status: 1,
-                    lastSeq: 1,
-                    uciHistory: 1,
-                    fenHistory: 1,
-                },
-            },
-        );
         update.timeControlType = classifyTimeControl(
             initialTimeMs ?? current?.initialTimeMs,
             incrementMs ?? current?.incrementMs,
         );
 
-        // A clock setting change before the first move must also update the
-        // persisted clock values. Otherwise an old 60-minute remaining value
-        // can override a newly selected 45-minute configuration on reload.
-        // Never reset a game that already has moves or is currently active.
         const hasMoves = Boolean(
             (current?.lastSeq ?? 0) > 0
             || (current?.uciHistory?.length ?? 0) > 0
             || (current?.fenHistory?.length ?? 0) > 0,
         );
         const isActive = ["playing", "active"].includes(String(current?.status ?? ""));
-        if (initialTimeMs !== undefined && !hasMoves && !isActive) {
-            update.whiteRemainingMs = initialTimeMs;
-            update.blackRemainingMs = initialTimeMs;
-            update.activeClockSide = "white";
-            update.clockStartedAt = null;
+        if (initialTimeMs !== undefined && current) {
+            const now = Date.now();
+            const clock = getCurrentClock(current, now);
+            const previousInitialTimeMs = Number(current.initialTimeMs ?? DEFAULT_INITIAL_TIME_MS);
+            const deltaMs = initialTimeMs - previousInitialTimeMs;
+
+            // Preserve elapsed thinking time: the new setting adjusts each
+            // remaining clock by the difference between old and new base time.
+            update.whiteRemainingMs = Math.max(0, Math.min(initialTimeMs, clock.whiteRemainingMs + deltaMs));
+            update.blackRemainingMs = Math.max(0, Math.min(initialTimeMs, clock.blackRemainingMs + deltaMs));
+            update.activeClockSide = clock.activeClockSide;
+            // Snapshot the running clock once, then continue from this exact
+            // server timestamp so elapsed time is never charged twice.
+            update.clockStartedAt = isActive ? new Date(now) : null;
+
+            if (!hasMoves && !isActive) {
+                update.whiteRemainingMs = initialTimeMs;
+                update.blackRemainingMs = initialTimeMs;
+                update.activeClockSide = "white";
+            }
         }
     }
     if (round !== undefined) update.round = round;
     if (boardNumber !== undefined) update.boardNumber = boardNumber.trim();
     if (location !== undefined) update.location = location;
-    return games().updateOne({ gameID } as Filter<GameDoc>, {
-        $set: update,
-    } as UpdateFilter<GameDoc>);
+    const versionFilter = current.version === undefined
+        ? { gameID, version: { $exists: false } }
+        : { gameID, version: current.version };
+    const updatedGame = await games().findOneAndUpdate(
+        versionFilter as Filter<GameDoc>,
+        {
+            $set: update,
+            $inc: { version: 1 },
+        } as unknown as UpdateFilter<GameDoc>,
+        { returnDocument: "after" },
+    );
+    if (!updatedGame) throw new Error("GAME_STATE_CONFLICT");
+    return updatedGame;
 }

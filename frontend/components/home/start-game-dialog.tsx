@@ -1,11 +1,12 @@
 import { useT } from "@/lib/i18n";
 import { PhysicalBoard } from "@/types/game.types";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useGameStore } from "@/lib/store";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
 import { apiFetch } from "@/lib/api-fetch";
+import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -14,7 +15,6 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Upload } from "lucide-react";
-import { useRef } from "react";
 
 
 interface Props {
@@ -42,6 +42,13 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const excelInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!board) return;
+        const lastTimeControl = getLastTimeControl();
+        setInitialTimeMs(lastTimeControl.initialTimeMs);
+        setIncrementMs(lastTimeControl.incrementMs);
+    }, [board?.boardID]);
 
     const canStart = white.trim().length > 0 && black.trim().length > 0;
 
@@ -117,6 +124,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 location: location.trim(),
                 boardNumber: boardNumber.trim(),
             });
+            saveLastTimeControl({ initialTimeMs, incrementMs });
 
             invalidateFetchCache(`/games/${gameID}`);
 

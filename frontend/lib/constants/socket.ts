@@ -21,5 +21,6 @@ export const CLIENT_EVENT = {
 
 export const SERVER_EVENT = {
     ESP_MOVE: "esp_move",
+    GAME_STATE: "game_state",
 
 } as const;
