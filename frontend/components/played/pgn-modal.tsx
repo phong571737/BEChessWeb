@@ -381,21 +381,22 @@ function FenBoardEditor({ fen, onChange, inline = false }: { fen: string; onChan
   );
 }
 
-function InlineFenPieceStrip({ color, selectedPiece, onSelect }: {
+function InlineFenPieceStrip({ color, selectedPiece, onSelect, vertical = false }: {
   color: "w" | "b";
   selectedPiece: FenEditorPiece | null;
   onSelect: (piece: FenEditorPiece) => void;
+  vertical?: boolean;
 }) {
   const { t } = useT();
   return (
-    <div className="flex items-center justify-center gap-1">
+    <div className={vertical ? "flex flex-col items-center justify-center gap-1" : "flex items-center justify-center gap-1"}>
       {(Object.keys(FEN_EDITOR_PIECES) as FenEditorPiece[]).filter((piece) => piece[0] === color).map((piece) => (
         <button
           key={piece}
           type="button"
           onClick={() => onSelect(piece)}
           title={t(FEN_EDITOR_PIECES[piece].name)}
-          className={`flex size-8 items-center justify-center rounded-sm border sm:size-10 ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
+          className={`flex items-center justify-center rounded-sm border ${vertical ? "size-7" : "size-8 sm:size-10"} ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
         >
           <SparePiece piece={piece} width={30} dndId={`fen-inline-${color}-${piece}`} />
         </button>
@@ -453,6 +454,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
   const [showHistoryMoveAnnotations, setShowHistoryMoveAnnotations] = useState(true);
   const [mobileReviewMenuOpen, setMobileReviewMenuOpen] = useState(false);
+  const mobileReviewMenuRef = useRef<HTMLDivElement | null>(null);
   const [showPgnEditor, setShowPgnEditor] = useState(false);
   const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
   const [savingPgn, setSavingPgn] = useState(false);
@@ -473,6 +475,16 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
+
+  useEffect(() => {
+    if (!mobileReviewMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && !mobileReviewMenuRef.current?.contains(target)) setMobileReviewMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [mobileReviewMenuOpen]);
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
   // FEN-backed history notation must come exclusively from recover-service.
   // A failed request is surfaced to the user instead of invoking a local
@@ -1417,11 +1429,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         <ChessboardDnDProvider>
         <div className="px-4 sm:px-5 pb-3 space-y-2">
           <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(320px,520px)_minmax(0,1fr)]">
-            <div className="relative flex min-h-10 items-center justify-center">
+            <div className="relative flex min-h-10 items-center justify-start sm:justify-center">
               {inlineFenIndex !== null && (
-                <InlineFenPieceStrip color="b" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                <div className="block">
+                  <InlineFenPieceStrip color="b" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                </div>
               )}
-              <div className="absolute right-0 top-1/2 -translate-y-1/2 xl:hidden">
+              <div ref={mobileReviewMenuRef} className="absolute right-0 top-1/2 z-40 -translate-y-1/2 xl:hidden">
                 <Button
                   type="button"
                   variant="outline"
@@ -1434,7 +1448,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                   <MoreHorizontal className="size-4" />
                 </Button>
                 {mobileReviewMenuOpen && (
-                  <div className="absolute right-0 top-10 z-30 flex min-w-56 flex-col gap-1 rounded-md border border-border bg-background p-1.5 shadow-lg">
+                  <div className="absolute right-0 top-10 z-50 flex w-56 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-md border border-border bg-background p-1.5 shadow-lg">
                     <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistoryEvaluation(); setMobileReviewMenuOpen(false); }}>
                       <BarChart3 className="size-3.5" />{showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
                     </Button>
@@ -1499,7 +1513,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                             </div>
                           )}
                         </div>
-                        <InlineFenPieceStrip color="w" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                        <div className="flex w-full justify-start sm:justify-center">
+                          <InlineFenPieceStrip color="w" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                        </div>
                       </div>
                   ) : (
                     <ChessBoardView
