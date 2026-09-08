@@ -1684,14 +1684,14 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                           </button>
                         </div>
                         {canInsertAfter && insertAfterFenIndex === fenIndex && insertFenDraft !== null && (
-                          <div className="ml-8 mt-1 flex items-center gap-2 rounded-sm border border-primary/30 bg-primary/5 px-2 py-1.5">
-                            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+                          <div className="mt-1 grid grid-cols-2 gap-2 rounded-sm border border-primary/30 bg-primary/5 px-2 py-1.5 sm:ml-8 sm:flex sm:items-center">
+                            <span className="col-span-2 min-w-0 truncate font-mono text-[11px] text-muted-foreground sm:flex-1">
                               {insertFenDraft}
                             </span>
-                            <Button type="button" size="sm" className="h-7 text-xs" onClick={() => void insertDuplicatedFenSnapshot()} disabled={insertingFen}>
+                            <Button type="button" size="sm" className="h-7 w-full text-xs sm:w-auto" onClick={() => void insertDuplicatedFenSnapshot()} disabled={insertingFen}>
                               {t("rev.saveFen")}
                             </Button>
-                            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setInsertAfterFenIndex(null); setInsertFenDraft(null); }} disabled={insertingFen}>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs sm:w-auto" onClick={() => { setInsertAfterFenIndex(null); setInsertFenDraft(null); }} disabled={insertingFen}>
                               {t("played.cancel")}
                             </Button>
                           </div>
