@@ -1546,7 +1546,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                   </div>
                 )}
               </div>
-              {showHistoryEvaluation && (
+              {showHistoryEvaluation && inlineFenIndex === null && (
                 <div className="sm:hidden">
                   <EvalBar
                     cp={reviewCp}
