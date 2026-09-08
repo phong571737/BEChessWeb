@@ -67,7 +67,7 @@ function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("size-7 md:hidden shrink-0", !collapsed && "ml-auto")}
+                    className={cn("size-7 lg:hidden shrink-0", !collapsed && "ml-auto")}
                     onClick={onCloseMobile}
                     aria-label={t("app.closeMenu")}
                     title={t("app.closeMenu")}
@@ -134,10 +134,10 @@ function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
 
     return (
         <>
-            <div className="hidden md:block h-screen sticky top-0">{base}</div>
+            <div className="hidden lg:block h-screen sticky top-0">{base}</div>
             {mobileOpen && (
                 <div
-                    className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                    className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
                     onClick={onCloseMobile}
                     role="dialog"
                     aria-modal="true"
@@ -232,7 +232,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="size-8 md:hidden"
+                                className="size-8 lg:hidden"
                                 onClick={() => setMobileOpen(true)}
                                 aria-label={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
                                 title={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
@@ -246,7 +246,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="size-8 hidden md:inline-flex"
+                                className="size-8 hidden lg:inline-flex"
                                 onClick={() => setCollapsed((v) => !v)}
                                 aria-label={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
                                 title={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
@@ -258,7 +258,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             </Button>
 
                             {/* Breadcrumb — desktop */}
-                            <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                            <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
                                 <Castle className="size-4 shrink-0 opacity-60" />
                                 <Separator orientation="vertical" className="h-3.5 mx-0.5" />
                                 {crumbLinks.map((c, i) => (
@@ -276,7 +276,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             </div>
 
                             {/* Mobile title */}
-                            <div className="md:hidden text-sm font-semibold truncate">{t("app.name")}</div>
+                            <div className="lg:hidden text-sm font-semibold truncate">{t("app.name")}</div>
 
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">

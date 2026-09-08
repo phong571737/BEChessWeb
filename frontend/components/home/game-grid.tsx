@@ -45,7 +45,7 @@ function GameGridContent() {
         ? cardGames
         : homeSlotIds.map((gameID) => cardGames.find((game) => game.gameID === gameID)).filter((game): game is typeof cardGames[number] => Boolean(game));
     const gamesForLayout = displayedGames.length > 0 ? displayedGames : cardGames.slice(0, homeLayout);
-    const gridClassName = homeLayout === 1 ? "grid gap-3" : "grid grid-cols-2 gap-3";
+    const gridClassName = homeLayout === 1 ? "grid gap-3" : "grid grid-cols-2 gap-1 lg:gap-3";
     const twoBoardView = homeLayout === 2;
 
     return (
@@ -72,17 +72,17 @@ function GameGridContent() {
 
             <div className={cn("flex flex-col", twoBoardView && "min-h-0 flex-1")}>
                 {tournamentName && (
-                    <div className="px-1 py-1 border-b border-border sm:px-5 sm:py-4">
-                        <p className="hidden text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 md:block">
+                    <div className="border-b border-border px-1 py-1 lg:px-5 lg:py-4">
+                        <p className="hidden text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 lg:block">
                             {t("home.tournament")}
                         </p>
-                        <h2 className="text-center text-sm font-semibold text-foreground md:text-left md:text-lg">{tournamentName}</h2>
+                        <h2 className="text-center text-sm font-semibold text-foreground lg:text-left lg:text-lg">{tournamentName}</h2>
                     </div>
                 )}
 
                 {/* -----------------Active game grid --------------------------*/}
                 {loading ? (
-                    <div className="p-4 sm:p-5 grid gap-3" style={{
+                    <div className={cn("grid gap-3", twoBoardView ? "p-1 lg:p-5" : "p-4 sm:p-5")} style={{
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
                     }}>
                         {Array.from({ length: 4 }).map((_, i) => (
@@ -101,9 +101,8 @@ function GameGridContent() {
                     <EmptyState />
                 ) : (
                     <div className={cn(
-                        "p-4 sm:p-5",
                         gridClassName,
-                        twoBoardView && "min-h-0 flex-1 p-1"
+                        twoBoardView ? "min-h-0 flex-1 p-1 lg:p-5" : "p-4 sm:p-5"
                     )} style={homeLayout === 1 ? {
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
                     } : undefined}>

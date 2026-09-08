@@ -83,28 +83,28 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAuth
         <>
             {isAuthenticated && (
                 <div className={compact
-                    ? "grid grid-cols-2 gap-2 border-t border-border bg-muted/20 p-2"
+                    ? "grid grid-cols-2 gap-1 border-t border-border bg-muted/20 p-1"
                     : "flex gap-2 border-t border-border bg-muted/20 p-3"}>
                     <Button
                         variant="secondary"
                         size="sm"
-                        className={`group min-w-0 flex-1 gap-1.5 border border-blue-500/30 bg-blue-500/10 text-blue-700 transition-transform hover:bg-blue-500/20 dark:text-blue-300 active:scale-[0.98] ${compact ? "px-2 text-xs" : ""}`}
+                        className={`group min-w-0 flex-1 gap-1.5 whitespace-nowrap border border-blue-500/30 bg-blue-500/10 text-blue-700 transition-transform hover:bg-blue-500/20 dark:text-blue-300 active:scale-[0.98] ${compact ? "px-1 text-[10px]" : ""}`}
                         onClick={() => setPending("restart")}
                         aria-pressed={isRestartPending}
                         disabled={loading}
                     >
-                        <RotateCcw className="hidden h-3.5 w-3.5 transition-transform group-active:-rotate-90 sm:inline-block" />
+                        <RotateCcw className={`${compact ? "hidden lg:inline-block" : "hidden sm:inline-block"} h-3.5 w-3.5 transition-transform group-active:-rotate-90`} />
                         {t("board.restart")}
                     </Button>
                     <Button
                         variant="destructive"
                         size="sm"
-                        className={`group min-w-0 flex-1 gap-1.5 text-xs transition-transform active:scale-[0.98] ${compact ? "px-2" : ""}`}
+                        className={`group min-w-0 flex-1 gap-1.5 whitespace-nowrap text-xs transition-transform active:scale-[0.98] ${compact ? "px-1 text-[10px]" : ""}`}
                         onClick={openResign}
                         aria-pressed={isResignPending}
                         disabled={loading}
                     >
-                        <Flag className="hidden h-3.5 w-3.5 transition-transform group-active:rotate-12 sm:inline-block" />
+                        <Flag className={`${compact ? "hidden lg:inline-block" : "hidden sm:inline-block"} h-3.5 w-3.5 transition-transform group-active:rotate-12`} />
                         {t("board.resign")}
                     </Button>
                 </div>
