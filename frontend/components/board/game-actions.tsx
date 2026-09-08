@@ -13,6 +13,7 @@ interface Props {
     onResign: (resignSide: "white" | "black" | "draw", branchId: string | null) => Promise<void>;
     branches?: Branch[];
     isAuthenticated?: boolean;
+    compact?: boolean;
 }
 
 type PendingAction = "restart" | "resign" | null;
@@ -40,7 +41,7 @@ function pgnPreview(pgn: string | undefined | null, maxTokens = 10): { text: str
 }
 
 
-export function GameActions({ gameID, onRestart, onResign, branches = [], isAuthenticated = false }: Props) {
+export function GameActions({ gameID, onRestart, onResign, branches = [], isAuthenticated = false, compact = false }: Props) {
     void gameID;
     const { t } = useT();
     const [pending, setPending] = useState<PendingAction>(null);
@@ -81,27 +82,29 @@ export function GameActions({ gameID, onRestart, onResign, branches = [], isAuth
     return (
         <>
             {isAuthenticated && (
-                <div className="flex gap-2 p-3 border-t border-border bg-muted/20">
+                <div className={compact
+                    ? "grid grid-cols-2 gap-2 border-t border-border bg-muted/20 p-2"
+                    : "flex gap-2 border-t border-border bg-muted/20 p-3"}>
                     <Button
                         variant="secondary"
                         size="sm"
-                        className="group flex-1 gap-1.5 border border-blue-500/30 bg-blue-500/10 text-blue-700 transition-transform hover:bg-blue-500/20 dark:text-blue-300 active:scale-[0.98]"
+                        className={`group min-w-0 flex-1 gap-1.5 border border-blue-500/30 bg-blue-500/10 text-blue-700 transition-transform hover:bg-blue-500/20 dark:text-blue-300 active:scale-[0.98] ${compact ? "px-2 text-xs" : ""}`}
                         onClick={() => setPending("restart")}
                         aria-pressed={isRestartPending}
                         disabled={loading}
                     >
-                        <RotateCcw className="h-3.5 w-3.5 transition-transform group-active:-rotate-90" />
+                        <RotateCcw className="hidden h-3.5 w-3.5 transition-transform group-active:-rotate-90 sm:inline-block" />
                         {t("board.restart")}
                     </Button>
                     <Button
                         variant="destructive"
                         size="sm"
-                        className="group flex-1 gap-1.5 text-xs transition-transform active:scale-[0.98]"
+                        className={`group min-w-0 flex-1 gap-1.5 text-xs transition-transform active:scale-[0.98] ${compact ? "px-2" : ""}`}
                         onClick={openResign}
                         aria-pressed={isResignPending}
                         disabled={loading}
                     >
-                        <Flag className="h-3.5 w-3.5 transition-transform group-active:rotate-12" />
+                        <Flag className="hidden h-3.5 w-3.5 transition-transform group-active:rotate-12 sm:inline-block" />
                         {t("board.resign")}
                     </Button>
                 </div>

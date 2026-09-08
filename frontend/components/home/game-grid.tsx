@@ -54,7 +54,7 @@ function GameGridContent() {
             {homeLayout === 1 && (
                 <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
                     <div>
-                        <h1>{t("home.activeGames")}</h1>
+                        <h1 className="text-sm sm:text-base">{t("home.activeGames")}</h1>
                         <p className="text-xs text-muted-foreground mt-0.5">
                             {t("home.gamesLive", { n: cardGames.length })}
                         </p>
@@ -63,7 +63,7 @@ function GameGridContent() {
                     <div className="flex items-center gap-2">
                         {isAdmin && <BulkGameSetupDialog activeGames={cardGames} onApplied={refresh} />}
                         <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
-                            className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+                            className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex">
                             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
                         </button>
                     </div>
@@ -117,7 +117,7 @@ function GameGridContent() {
                                     twoBoardLayout
                                 />
                             ) : (
-                                <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} showStatus={isAdmin} />
+                                <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} showStatus={isAdmin} isAdmin={isAdmin} />
                             )
                         ))}
                     </div>

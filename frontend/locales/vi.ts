@@ -3,6 +3,7 @@ import { TranslationKeys } from "./en";
 export const vi: Record<TranslationKeys, string> = {
     // ---- Nhãn dùng chung -------------------------------------------
     "common.chessboard": "Bàn cờ",
+    "common.board": "Bàn",
     "common.boardNumber": "Bàn {n}",
     "common.duration": "Thời gian",
     "common.moves": "Số nước",

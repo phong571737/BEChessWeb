@@ -131,6 +131,18 @@ For a VPS deployment under `/chess`, Nginx proxies `/chess` to port `4000`, back
 - Standard users cannot delete, restore, permanently delete, add/edit/delete individual FEN snapshots, or view trashed history records.
 - Hiding controls in the frontend is only presentation; the backend independently checks the JWT role.
 
+### Administrator FEN review corrections
+
+On a finished game, an administrator can open Move Review and use the `+`
+button beside a base FEN row to insert a duplicate immediately below it. The
+duplicate is edited directly on the normal chessboard: drag an existing piece,
+drag a spare black/white piece onto a square, click a spare piece and then a
+square, or right-click a square to remove a piece. Saving writes the corrected
+sequence to `fenHistoryEdited`; raw `fenHistory` received from the physical
+board is preserved. The vertical evaluation bar is rendered in the same row
+and height as the board. On narrow review layouts, evaluation, move-suggestion,
+and move-annotation actions are grouped in the menu button.
+
 ## MQTT contract
 
 Connectivity topic:

@@ -140,7 +140,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
 
     return (
         <Dialog open={open} onOpenChange={(next) => !loading && setOpen(next)}>
-            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => setOpen(true)}>
+            <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-[10px] sm:text-xs" onClick={() => setOpen(true)}>
                 <Settings2 className="size-3.5" />
                 {t("bulk.open")}
             </Button>

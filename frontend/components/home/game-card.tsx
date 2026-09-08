@@ -9,6 +9,9 @@ import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
 import { resolveTimeControlType } from "@/lib/time-control";
+import { GameActions } from "@/components/board/game-actions";
+import { apiFetch } from "@/lib/api-fetch";
+import { invalidateFetchCache } from "@/lib/fetch-cache";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -19,9 +22,10 @@ interface Props {
     game: ActiveGame;
     physicalBoard?: PhysicalBoard;
     showStatus?: boolean;
+    isAdmin?: boolean;
 }
 
-export function GameCard({ game, physicalBoard, showStatus = true }: Props) {
+export function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
@@ -36,6 +40,23 @@ export function GameCard({ game, physicalBoard, showStatus = true }: Props) {
   }[timeControl];
   const boardLabel = game.boardID?.trim();
   const boardNumber = game.boardNumber?.trim();
+  const restart = async () => {
+    const response = await apiFetch(`/games/${encodeURIComponent(game.gameID)}/restart`, { method: "POST" });
+    if (!response.ok) throw new Error(`Restart failed with ${response.status}`);
+    invalidateFetchCache("/games/current");
+    invalidateFetchCache(`/games/${game.gameID}`);
+  };
+  const resign = async (resignSide: "white" | "black" | "draw", branchId: string | null) => {
+    const response = await apiFetch(`/games/${encodeURIComponent(game.gameID)}/resign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resignSide, branchId }),
+    });
+    if (!response.ok) throw new Error(`Resign failed with ${response.status}`);
+    invalidateFetchCache("/games/current");
+    invalidateFetchCache("/games/history");
+    invalidateFetchCache(`/games/${game.gameID}`);
+  };
   const hasInitialPositionError = Boolean(
     physicalBoard?.missingSquares?.length
     || physicalBoard?.extraSquares?.length
@@ -136,16 +157,27 @@ export function GameCard({ game, physicalBoard, showStatus = true }: Props) {
       </div>
       <div className="border-t border-border/70 bg-muted/30 px-3 py-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[10px] font-semibold text-primary shadow-sm">
+          <span className="inline-flex min-w-0 flex-1 justify-center whitespace-nowrap rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[9px] font-semibold text-primary shadow-sm sm:text-[10px]">
             {timeControlLabel}
           </span>
           {boardLabel ? (
-            <span className="inline-flex max-w-[9rem] truncate rounded-full border border-accent/40 bg-accent/30 px-2.5 py-1 text-[10px] font-semibold text-accent-foreground shadow-sm">
+            <span className="inline-flex min-w-0 flex-1 justify-center truncate whitespace-nowrap rounded-full border border-accent/40 bg-accent/30 px-2.5 py-1 text-[9px] font-semibold text-accent-foreground shadow-sm sm:text-[10px]">
               {boardLabel}
             </span>
           ) : null}
         </div>
       </div>
+      {isAdmin && (
+        <div onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}>
+          <GameActions
+            gameID={game.gameID}
+            onRestart={restart}
+            onResign={resign}
+            isAuthenticated
+            compact
+          />
+        </div>
+      )}
     </Link>
   );
 }

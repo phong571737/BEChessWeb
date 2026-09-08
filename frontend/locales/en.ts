@@ -1,6 +1,7 @@
 export const en = {
     // ------ Shared labels -------------------------------------------------
     "common.chessboard": "Board",
+    "common.board": "Board",
     "common.boardNumber": "Board {n}",
     "common.duration": "Duration",
     "common.moves": "Moves",

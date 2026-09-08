@@ -346,7 +346,7 @@ function FenBoardEditor({ fen, onChange, inline = false }: { fen: string; onChan
           onDragStart={(event) => event.dataTransfer.setData("application/x-ttlab-fen-piece", piece)}
           onClick={() => setSelectedPiece(piece)}
           title={t(FEN_EDITOR_PIECES[piece].name)}
-          className={`flex items-center justify-center rounded-sm border ${compact ? "size-8 sm:size-10" : "h-11 py-1"} ${selectedPiece === piece ? "border-primary bg-primary/10" : "border-border bg-background"}`}
+          className={`flex items-center justify-center rounded-sm border ${compact ? "size-8 sm:size-10" : "h-11 py-1"} ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
         >
           <SparePiece piece={piece} width={compact ? 30 : 38} dndId={`fen-dialog-${piece}`} />
         </button>
@@ -395,7 +395,7 @@ function InlineFenPieceStrip({ color, selectedPiece, onSelect }: {
           type="button"
           onClick={() => onSelect(piece)}
           title={t(FEN_EDITOR_PIECES[piece].name)}
-          className={`flex size-8 items-center justify-center rounded-sm border sm:size-10 ${selectedPiece === piece ? "border-primary bg-primary/10" : "border-border bg-background"}`}
+          className={`flex size-8 items-center justify-center rounded-sm border sm:size-10 ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
         >
           <SparePiece piece={piece} width={30} dndId={`fen-inline-${color}-${piece}`} />
         </button>

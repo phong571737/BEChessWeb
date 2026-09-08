@@ -8,14 +8,13 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { apiFetch } from "@/lib/api-fetch";
 import { Skeleton } from "@/components/ui/skeleton";
-import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
+import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight, ChevronsRight, ChevronsLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { StatCards } from "./stat-cards";
 import { resultVariant, formatDateTime, formatDuration, parsePgnHeader, resolveDurationSeconds } from "@/lib/game-utils";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { analyzeHistoryMoves } from "@/lib/post-game-analysis";
 
 type LegacyHistoryGame = HistoryGame & {
   White?: string;
@@ -93,8 +92,6 @@ export function GameHistory() {
   const [showTrash, setShowTrash] = useState(false);
   const [trashError, setTrashError] = useState<string | null>(null);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [analysisId, setAnalysisId] = useState<string | null>(null);
-  const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [pendingTrashGame, setPendingTrashGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteGame, setPendingPermanentDeleteGame] = useState<HistoryGame | null>(null);
   const [pendingPermanentDeleteAll, setPendingPermanentDeleteAll] = useState(false);
@@ -347,33 +344,6 @@ export function GameHistory() {
     }
   };
 
-  const analyzeFromHistory = async (game: HistoryGame) => {
-    if (!token || analysisId) return;
-    setAnalysisId(game._id);
-    setAnalysisError(null);
-    try {
-      const moves = await analyzeHistoryMoves(game, () => {});
-      if (!moves.length) throw new Error(t("analysis.noMoves"));
-      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ moves, depth: 14 }),
-      });
-      if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
-      if (response.status === 401 || response.status === 403) throw new Error(t("analysis.authRequired"));
-      if (response.status === 429) throw new Error(t("analysis.rateLimited"));
-      if (response.status === 400) throw new Error(t("analysis.invalidData"));
-      if (!response.ok) throw new Error(t("analysis.error"));
-      const analysis = { engine: "Stockfish 18 Lite", depth: 14, updatedAt: new Date().toISOString(), moves };
-      setGames((current) => current.map((item) => item._id === game._id ? { ...item, analysis } : item));
-      invalidateFetchCache("/games/history");
-    } catch {
-      setAnalysisError(t("analysis.error"));
-    } finally {
-      setAnalysisId(null);
-    }
-  };
-
   const boardOptions = useMemo(() => Array.from(new Set(games.map((game) => game.boardID).filter((value): value is string => Boolean(value)))).sort(), [games]);
   const locationOptions = useMemo(() => Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(), [games]);
   const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || timeControlFilter !== "all" || statusFilter !== "all");
@@ -515,7 +485,6 @@ export function GameHistory() {
             )}
             <StatCards summary={historySummary} />
 
-            {analysisError && <p className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs text-destructive">{analysisError}</p>}
 
             {/* Filter bar */}
             <div className="rounded-lg border border-border bg-card p-3">
@@ -591,7 +560,7 @@ export function GameHistory() {
               )}
               {/* Results count */}
               {search || resultFilter !== "all" || hasAdvancedFilters ? (
-                <div className="px-4 py-2 border-b border-border bg-muted/40">
+                <div className="px-2 py-2 border-b border-border bg-muted/40">
                   <p className="text-xs text-muted-foreground">
                     {t("played.showing", { n: filteredGames.length, total: totalGames })}
                   </p>
@@ -601,38 +570,41 @@ export function GameHistory() {
                 <table className="w-full min-w-[920px] border-separate border-spacing-0">
                   <thead className="sticky top-0 z-20 bg-muted/50 backdrop-blur-sm">
                     <tr className="border-b border-border">
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[72px]">
+                      <th className="text-left px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[72px]">
                         #
                       </th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
+                      <th className="text-left px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
+                        {t("common.board")}
+                      </th>
+                      <th className="text-left px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         <button type="button" onClick={() => toggleSort("result")} className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "result" && "text-foreground")}>
                         {t("common.result")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "result" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[240px]">
+                      <th className="text-left px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider min-w-[240px]">
                         <button type="button" onClick={() => toggleSort("players")} className={cn("inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "players" && "text-foreground")}>
                           {t("played.colPlayers")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "players" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      <th className="text-left px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
+                      <th className="text-left px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         {t("played.colTimeControl")}
                       </th>
-                      <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
+                      <th className="text-right px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
                         <button type="button" onClick={() => toggleSort("moves")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "moves" && "text-foreground")}>
                         {t("common.moves")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "moves" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
+                      <th className="text-right px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[140px]">
                         <button type="button" onClick={() => toggleSort("date")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "date" && "text-foreground")}>
                           {t("played.colDate")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "date" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      <th className="text-right px-4 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
+                      <th className="text-right px-2 py-2.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider w-[120px]">
                         <button type="button" onClick={() => toggleSort("duration")} className={cn("ml-auto inline-flex items-center gap-1 hover:text-foreground transition-colors", sortBy === "duration" && "text-foreground")}>
                         {t("common.duration")} <ArrowUpDown className={cn("h-3 w-3", sortBy === "duration" ? "opacity-100" : "opacity-40")} />
                         </button>
                       </th>
-                      {(isAdmin || token) && <th className="w-[116px] px-4 py-2.5" aria-label={t("played.actions")} />}
+                      {isAdmin && <th className="w-[116px] px-2 py-2.5" aria-label={t("played.actions")} />}
                     </tr>
                   </thead>
                   <tbody>
@@ -643,10 +615,13 @@ export function GameHistory() {
                         onClick={() => { if (reviewId) router.push(`/played/review/${encodeURIComponent(reviewId)}`); }}
                         className={cn("group border-t border-border/60 transition-colors", reviewId ? "cursor-pointer hover:bg-accent/60" : "cursor-not-allowed opacity-60")}
                       >
-                        <td className="px-4 py-3 text-xs text-muted-foreground/60 font-mono">
+                        <td className="px-2 py-3 text-xs text-muted-foreground/60 font-mono">
                           {(page - 1) * HISTORY_PAGE_SIZE + i + 1}
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3 text-sm text-muted-foreground">
+                          {game.boardNumber?.trim() || game.boardID?.trim() || "-"}
+                        </td>
+                        <td className="px-2 py-3">
                           <Badge
                             variant={isFinishedResult(game) && game.outcomeStatus !== "unconfirmed" ? resultVariant(game.Result) : "secondary"}
                             className={cn("w-[118px] justify-center text-[11px]", (!isFinishedResult(game) || game.outcomeStatus === "unconfirmed") && "border border-primary/25 bg-primary/10 text-primary")}
@@ -654,7 +629,7 @@ export function GameHistory() {
                             {resultText(game)}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           <div className="flex items-center gap-2 min-w-0">
                             <span className="size-2.5 rounded-full bg-[#f0f0f0] border border-black/10 dark:border-white/10 shrink-0" />
                             <span className="text-sm font-medium text-foreground truncate">{game.whiteName}</span>
@@ -663,7 +638,7 @@ export function GameHistory() {
                             <span className="size-2.5 rounded-full bg-[#1a1a1a] border border-white/10 shrink-0" />
                           </div>
                         </td>
-                        <td className="px-4 py-3">
+                        <td className="px-2 py-3">
                           {(() => {
                             const type = resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType);
                             return <Badge variant="outline" className={cn("w-[118px] justify-center text-[11px]", timeControlBadgeClass(type))}>
@@ -671,23 +646,20 @@ export function GameHistory() {
                             </Badge>;
                           })()}
                         </td>
-                        <td className="px-4 py-3 text-right">
+                        <td className="px-2 py-3 text-right">
                           <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                             <Hash className="h-3 w-3 opacity-60" />
                             {game.totalMoves}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-muted-foreground">
+                        <td className="px-2 py-3 text-right text-xs text-muted-foreground">
                           {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}
                         </td>
-                        <td className="px-4 py-3 text-right text-xs text-muted-foreground font-mono">
+                        <td className="px-2 py-3 text-right text-xs text-muted-foreground font-mono">
                           {formatDuration(resolveDurationSeconds(game.durationSec, game.startedAt || game.createdAt || game.createAt, game.endedAt || game.lastMoveAt || game.updatedAt))}
                         </td>
-                        {(isAdmin || token) && (
-                          <td className="px-4 py-3 text-right">
-                            {token && <button type="button" disabled={Boolean(analysisId)} onClick={(event) => { event.stopPropagation(); void analyzeFromHistory(game); }} className="mr-1 inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={game.analysis?.moves.length ? t("analysis.reanalyze") : t("analysis.run")}>
-                              {analysisId === game._id ? <LoaderCircle className="size-3.5 animate-spin" /> : <BrainCircuit className="size-3.5" />}
-                            </button>}
+                        {isAdmin && (
+                          <td className="px-2 py-3 text-right">
                             {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>}
@@ -700,7 +672,7 @@ export function GameHistory() {
                     })}
                     {filteredGames.length === 0 && (
                       <tr>
-                        <td colSpan={(isAdmin || token) ? 8 : 7} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                        <td colSpan={isAdmin ? 9 : 8} className="px-2 py-10 text-center text-sm text-muted-foreground">
                           {t("played.noMatch")}
                         </td>
                       </tr>
@@ -708,7 +680,7 @@ export function GameHistory() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center justify-between gap-3 border-t border-border px-4 py-3">
+              <div className="flex items-center justify-between gap-3 border-t border-border px-2 py-3">
                 <p className="text-xs text-muted-foreground">
                   {t("played.pageOf", { page, totalPages })}
                 </p>
