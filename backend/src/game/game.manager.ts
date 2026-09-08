@@ -566,7 +566,22 @@ export function getCurrentGame(boardID: string): string | undefined {
 /** Resolves a board session from MongoDB if its runtime mapping was lost. */
 export async function getOrRestoreCurrentGame(boardID: string): Promise<string | undefined> {
   const inMemoryGameID = getCurrentGame(boardID);
-  if (inMemoryGameID) return inMemoryGameID;
+  if (inMemoryGameID) {
+    // The board-to-game map is only an in-memory cache. A resignation can be
+    // finalized by another backend process, leaving this process pointing at
+    // the removed/finished game. Never return that stale ID to move handling.
+    const cachedGame = await getGame(inMemoryGameID);
+    const cachedStatus = cachedGame?.status ?? "";
+    if (cachedGame && !["finished", "resigning", "ended"].includes(cachedStatus)) {
+      return inMemoryGameID;
+    }
+
+    console.warn(
+      `Discarding stale board mapping ${boardID} -> ${inMemoryGameID}`
+      + ` (status=${cachedGame?.status ?? "missing"})`,
+    );
+    removeCurrenGame(boardID);
+  }
 
   const persistedGame = await getLatestGameByBoardID(boardID);
   if (!persistedGame?.gameID) return undefined;
