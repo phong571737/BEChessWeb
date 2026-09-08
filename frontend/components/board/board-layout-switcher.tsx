@@ -141,14 +141,6 @@ export function BoardLayoutSwitcher({
     const pickerGames = useMemo(() => games.slice(0, 4), [games]);
     const gameLookup = useMemo(() => pickerGameMap(pickerGames), [pickerGames]);
 
-    const slotLabels = useMemo(() => {
-        if (layout === 1) return [];
-        const count = layout === 2 ? 2 : 4;
-        return Array.from({ length: count }, (_, i) =>
-            formatPickerLabel(gameLookup.get(slotIds[i] ?? ""), slotIds[i])
-        );
-    }, [layout, slotIds, gameLookup]);
-
     useEffect(() => {
         if (!openPanel) return;
         const onDoc = (e: MouseEvent) => {
@@ -248,22 +240,6 @@ export function BoardLayoutSwitcher({
 
     return (
         <div ref={rootRef} className={cn("relative flex flex-col items-end gap-0.5", className)}>
-            {layout > 1 && slotLabels.some((l) => l !== "—") && (
-                <div className="hidden lg:flex items-center gap-1 max-w-[320px] justify-end">
-                    {slotLabels.map((label, i) => (
-                        <span key={i} className="flex items-center gap-1 min-w-0">
-                            {i > 0 && <span className="text-muted-foreground/50 text-[10px]">·</span>}
-                            <span
-                                className="text-[10px] font-medium text-foreground/80 truncate max-w-[140px]"
-                                title={label}
-                            >
-                                {label}
-                            </span>
-                        </span>
-                    ))}
-                </div>
-            )}
-
             <div
                 className="inline-flex items-center gap-0.5 rounded-md border border-border bg-background p-0.5"
                 role="group"

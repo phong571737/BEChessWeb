@@ -171,11 +171,12 @@ export type UpdateHistoryFenResult = AppendHistoryFenResult | { status: "invalid
 export type ReplaceHistoryFensResult = AppendHistoryFenResult;
 
 /**
- * Appends one administrator-corrected FEN snapshot. The original array is
+ * Adds one administrator-corrected FEN snapshot. The original array is
  * included in the update predicate so concurrent editors cannot silently
- * overwrite each other.
+ * overwrite each other. An optional index inserts it directly after an
+ * existing snapshot instead of appending it at the end.
  */
-export async function appendHistoryFen(id: string, fen: string): Promise<AppendHistoryFenResult> {
+export async function appendHistoryFen(id: string, fen: string, afterIndex?: number): Promise<AppendHistoryFenResult | { status: "invalid_index" }> {
     const filter = historyIdFilter(id, false);
     const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
@@ -186,7 +187,11 @@ export async function appendHistoryFen(id: string, fen: string): Promise<AppendH
     const fenHistory = Array.isArray(sourceHistory)
         ? (sourceHistory as unknown[]).filter((value): value is string => typeof value === "string")
         : [];
-    const nextFenHistory = [...fenHistory, fen];
+    if (afterIndex !== undefined && (!Number.isInteger(afterIndex) || afterIndex < -1 || afterIndex >= fenHistory.length)) {
+        return { status: "invalid_index" };
+    }
+    const nextFenHistory = [...fenHistory];
+    nextFenHistory.splice(afterIndex === undefined ? nextFenHistory.length : afterIndex + 1, 0, fen);
     const fenPredicate = hasEditedHistory
         ? { fenHistoryEdited: record.fenHistoryEdited }
         : { fenHistoryEdited: { $exists: false } };

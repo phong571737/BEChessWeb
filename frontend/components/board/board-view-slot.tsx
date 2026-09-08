@@ -613,6 +613,12 @@ export function BoardViewSlot({
                         )}
                         style={twoBoardLayout && boardWidth > 0 ? { "--board-width": `${boardWidth}px` } as React.CSSProperties : undefined}
                     >
+                        {twoBoardLayout && isAdmin && initNotice && (
+                            <div className={cn("mb-1 flex items-center gap-1 rounded-sm border px-1.5 py-1 text-[10px] font-medium", initNotice.className)} role="status">
+                                <initNotice.icon className="size-3 shrink-0" />
+                                <span className="truncate">{initNotice.text}</span>
+                            </div>
+                        )}
                         <CompactPlayer
                             name={boardFlipped ? whiteName : blackName}
                             side={boardFlipped ? "white" : "black"}
@@ -658,8 +664,10 @@ export function BoardViewSlot({
                     </div>
                     <div className={cn(
                         "shrink-0 pt-1 text-xs font-semibold text-foreground",
-                        twoBoardLayout && "col-start-1 row-start-2 self-end px-2 md:col-auto md:row-auto md:self-auto md:px-0"
-                    )}>
+                        twoBoardLayout && "col-start-1 row-start-2 self-end px-2 w-auto md:col-auto md:row-auto md:self-auto md:px-0 md:w-[var(--board-width)]"
+                    )}
+                        style={twoBoardLayout && boardWidth > 0 ? { "--board-width": `${boardWidth}px` } as React.CSSProperties : undefined}
+                    >
                         <CompactPlayer
                             name={boardFlipped ? blackName : whiteName}
                             side={boardFlipped ? "black" : "white"}
@@ -667,6 +675,15 @@ export function BoardViewSlot({
                             activeSide={activeSide}
                             highlightActive={!twoBoardLayout}
                         />
+                        {twoBoardLayout && isAdmin && (
+                            <GameActions
+                                gameID={gameID}
+                                onRestart={restart}
+                                onResign={resign}
+                                branches={branches}
+                                isAuthenticated={isAuthenticated}
+                            />
+                        )}
                     </div>
                 </div>
                 {!twoBoardLayout && (
@@ -735,7 +752,10 @@ export function BoardViewSlot({
                                 </div>
 
                                 {evaluationBarVisible && (
-                                    <div className="hidden sm:block w-[22px] shrink-0 self-stretch min-h-0">
+                                    <div
+                                        className="hidden sm:block w-[22px] shrink-0 self-start"
+                                        style={boardWidth > 0 ? { height: boardWidth } : undefined}
+                                    >
                                     <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}

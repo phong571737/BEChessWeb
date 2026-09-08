@@ -269,7 +269,7 @@ export const GameController = {
         }
     },
 
-    /** Appends one administrator-supplied FEN snapshot without legality checks. */
+    /** Adds one administrator-supplied FEN snapshot without legality checks. */
     async appendHistoryFen(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
             const fen = storedFen(req.body?.fen);
@@ -277,13 +277,23 @@ export const GameController = {
                 res.status(400).json({ error: "FEN value must be a non-empty string", code: "INVALID_FEN" });
                 return;
             }
-            const result = await appendHistoryFen(req.params.id, fen);
+            const requestedAfterIndex = req.body?.afterIndex;
+            const afterIndex = requestedAfterIndex === undefined ? undefined : Number(requestedAfterIndex);
+            if (requestedAfterIndex !== undefined && !Number.isInteger(afterIndex)) {
+                res.status(400).json({ error: "Invalid FEN insertion index", code: "INVALID_FEN_INDEX" });
+                return;
+            }
+            const result = await appendHistoryFen(req.params.id, fen, afterIndex);
             if (result.status === "not_found") {
                 res.status(404).json({ error: "History record not found" });
                 return;
             }
             if (result.status === "active") {
                 res.status(409).json({ error: "Cannot edit an active game" });
+                return;
+            }
+            if (result.status === "invalid_index") {
+                res.status(400).json({ error: "Invalid FEN insertion index", code: "INVALID_FEN_INDEX" });
                 return;
             }
             if (result.status === "conflict") {

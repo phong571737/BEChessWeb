@@ -68,6 +68,46 @@ interface Props {
   predictedMove?: PredictedMove | null;
   /** Board orientation controlled by the owning board slot. */
   flipped?: boolean;
+  /** Enables admin-only position correction without changing the board skin. */
+  editablePiece?: "wP" | "wN" | "wB" | "wR" | "wQ" | "wK" | "bP" | "bN" | "bB" | "bR" | "bQ" | "bK" | null;
+  onFenChange?: (fen: string) => void;
+}
+
+type EditorPiece = NonNullable<Props["editablePiece"]>;
+
+const EDITOR_FEN_PIECES: Record<EditorPiece, string> = {
+  wP: "P", wN: "N", wB: "B", wR: "R", wQ: "Q", wK: "K",
+  bP: "p", bN: "n", bB: "b", bR: "r", bQ: "q", bK: "k",
+};
+
+function updateEditorFen(fen: string, targetSquare: string, piece: EditorPiece | null, sourceSquare?: string): string {
+  const fields = fen.trim().split(/\s+/);
+  const ranks = (fields[0] ?? "8/8/8/8/8/8/8/8").split("/");
+  const squares: Record<string, string> = {};
+  ranks.forEach((rank, rankIndex) => {
+    let fileIndex = 0;
+    for (const value of rank) {
+      if (/^[1-8]$/.test(value)) { fileIndex += Number(value); continue; }
+      if (fileIndex < 8) squares[`${String.fromCharCode(97 + fileIndex)}${8 - rankIndex}`] = value;
+      fileIndex += 1;
+    }
+  });
+  if (sourceSquare) delete squares[sourceSquare];
+  if (piece) squares[targetSquare] = EDITOR_FEN_PIECES[piece];
+  else delete squares[targetSquare];
+  const placement = Array.from({ length: 8 }, (_, rankIndex) => {
+    let empty = 0;
+    let rank = "";
+    for (let fileIndex = 0; fileIndex < 8; fileIndex += 1) {
+      const value = squares[`${String.fromCharCode(97 + fileIndex)}${8 - rankIndex}`];
+      if (!value) { empty += 1; continue; }
+      if (empty) rank += empty;
+      empty = 0;
+      rank += value;
+    }
+    return `${rank}${empty || ""}` || "8";
+  }).join("/");
+  return [placement, fields[1] === "b" ? "b" : "w", fields[2] || "-", fields[3] || "-", fields[4] || "0", fields[5] || "1"].join(" ");
 }
 
 interface KingThreat {
@@ -158,6 +198,8 @@ export function ChessBoardView({
   moveAnnotation,
   predictedMove,
   flipped: flippedOverride,
+  editablePiece = null,
+  onFenChange,
 }: Props) {
   const { flipped: contextFlipped, boardColors } = useBoardDisplay();
   const flipped = flippedOverride ?? contextFlipped;
@@ -250,7 +292,17 @@ export function ChessBoardView({
   return (
     <Chessboard
       position={fen || "start"}
-      arePiecesDraggable={false}
+      arePiecesDraggable={Boolean(onFenChange)}
+      onPieceDrop={onFenChange ? (sourceSquare, targetSquare, piece) => {
+        onFenChange(updateEditorFen(fen, targetSquare, piece as EditorPiece, sourceSquare));
+        return true;
+      } : undefined}
+      onSparePieceDrop={onFenChange ? (piece, targetSquare) => {
+        onFenChange(updateEditorFen(fen, targetSquare, piece as EditorPiece));
+        return true;
+      } : undefined}
+      onSquareClick={onFenChange && editablePiece ? (square) => onFenChange(updateEditorFen(fen, square, editablePiece)) : undefined}
+      onSquareRightClick={onFenChange ? (square) => onFenChange(updateEditorFen(fen, square, null)) : undefined}
       customSquareStyles={squareStyles}
       customSquare={CustomSquare}
       customArrows={predictedArrows}

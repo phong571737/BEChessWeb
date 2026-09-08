@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard, CircleAlert,
+  CircuitBoard, CircleAlert, MoreHorizontal,
   Tag} from "lucide-react";
 import { Chess } from "chess.js";
+import { ChessboardDnDProvider, SparePiece } from "react-chessboard";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
 import {
@@ -131,6 +132,24 @@ function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
 }
 
+/**
+ * Keeps displayed notation clickable even when a stored/recovered PGN cannot
+ * be replayed by chess.js (for example, an incomplete physical-board trace).
+ */
+function extractPgnMoveTokens(pgn: string): string[] {
+  return movesOnly(pgn)
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/;[^\n]*/g, " ")
+    .replace(/\d+\.(?:\.\.)?/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0
+      && !/^(?:1-0|0-1|1\/2-1\/2|\*)$/.test(token)
+      && !/^\$\d+$/.test(token)
+      && token !== "...");
+}
+
 /** Reject malformed/custom snapshots before sending them to the WASM engine. */
 function isEngineSafeFen(fen: string): boolean {
   const fields = fen.trim().split(/\s+/);
@@ -223,6 +242,168 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   return `${headers}\n\n${movetext}`;
 }
 
+type FenEditorPiece = "wP" | "wN" | "wB" | "wR" | "wQ" | "wK" | "bP" | "bN" | "bB" | "bR" | "bQ" | "bK";
+
+const FEN_EDITOR_PIECES: Record<FenEditorPiece, { symbol: string; fen: string; name: "piece.pawn" | "piece.knight" | "piece.bishop" | "piece.rook" | "piece.queen" | "piece.king" }> = {
+  wP: { symbol: "♙", fen: "P", name: "piece.pawn" }, wN: { symbol: "♘", fen: "N", name: "piece.knight" },
+  wB: { symbol: "♗", fen: "B", name: "piece.bishop" }, wR: { symbol: "♖", fen: "R", name: "piece.rook" },
+  wQ: { symbol: "♕", fen: "Q", name: "piece.queen" }, wK: { symbol: "♔", fen: "K", name: "piece.king" },
+  bP: { symbol: "♟", fen: "p", name: "piece.pawn" }, bN: { symbol: "♞", fen: "n", name: "piece.knight" },
+  bB: { symbol: "♝", fen: "b", name: "piece.bishop" }, bR: { symbol: "♜", fen: "r", name: "piece.rook" },
+  bQ: { symbol: "♛", fen: "q", name: "piece.queen" }, bK: { symbol: "♚", fen: "k", name: "piece.king" },
+};
+
+const EDITOR_FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
+const EDITOR_RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
+
+function fenEditorPosition(fen: string): Record<string, FenEditorPiece> {
+  const position: Record<string, FenEditorPiece> = {};
+  const ranks = (fen.trim().split(/\s+/)[0] ?? "").split("/");
+  ranks.forEach((rank, rankIndex) => {
+    let fileIndex = 0;
+    for (const value of rank) {
+      if (/^[1-8]$/.test(value)) { fileIndex += Number(value); continue; }
+      const piece = Object.entries(FEN_EDITOR_PIECES).find(([, item]) => item.fen === value)?.[0] as FenEditorPiece | undefined;
+      if (piece && fileIndex < 8) position[`${EDITOR_FILES[fileIndex]}${8 - rankIndex}`] = piece;
+      fileIndex += 1;
+    }
+  });
+  return position;
+}
+
+function fenWithEditorPosition(fen: string, position: Record<string, FenEditorPiece>): string {
+  const placement = EDITOR_RANKS.map((rank) => {
+    let empty = 0;
+    let text = "";
+    for (const file of EDITOR_FILES) {
+      const piece = position[`${file}${rank}`];
+      if (!piece) { empty += 1; continue; }
+      if (empty) text += String(empty);
+      empty = 0;
+      text += FEN_EDITOR_PIECES[piece].fen;
+    }
+    return `${text}${empty || ""}` || "8";
+  }).join("/");
+  const fields = fen.trim().split(/\s+/);
+  return [placement, fields[1] === "b" ? "b" : "w", fields[2] || "-", fields[3] || "-", fields[4] || "0", fields[5] || "1"].join(" ");
+}
+
+function FenBoardEditor({ fen, onChange, inline = false }: { fen: string; onChange: (fen: string) => void; inline?: boolean }) {
+  const { t } = useT();
+  const [selectedPiece, setSelectedPiece] = useState<FenEditorPiece | null>(null);
+  const position = useMemo(() => fenEditorPosition(fen), [fen]);
+  const place = (square: string, piece: FenEditorPiece | null, sourceSquare?: string) => {
+    const next = { ...position };
+    if (sourceSquare) delete next[sourceSquare];
+    if (piece) next[square] = piece;
+    else delete next[square];
+    onChange(fenWithEditorPosition(fen, next));
+  };
+  const handleDrop = (event: React.DragEvent<HTMLButtonElement>, square: string) => {
+    event.preventDefault();
+    const value = event.dataTransfer.getData("application/x-ttlab-fen-piece");
+    const [piece, sourceSquare] = value.split(":") as [FenEditorPiece, string | undefined];
+    if (FEN_EDITOR_PIECES[piece]) place(square, piece, sourceSquare);
+  };
+
+  const board = (
+    <div className="grid aspect-square grid-cols-8 overflow-hidden rounded-sm border border-border">
+        {EDITOR_RANKS.flatMap((rank, rankIndex) => EDITOR_FILES.map((file, fileIndex) => {
+          const square = `${file}${rank}`;
+          const piece = position[square];
+          return (
+            <button
+              key={square}
+              type="button"
+              onClick={() => selectedPiece && place(square, selectedPiece)}
+              onContextMenu={(event) => { event.preventDefault(); place(square, null); }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => handleDrop(event, square)}
+              className={`flex min-h-0 items-center justify-center text-[clamp(22px,8vw,48px)] leading-none ${((rankIndex + fileIndex) % 2 === 0) ? "bg-[#f0d9b5]" : "bg-[#b58863]"}`}
+              aria-label={square}
+            >
+              {piece && (
+                <span
+                  draggable
+                  onDragStart={(event) => event.dataTransfer.setData("application/x-ttlab-fen-piece", `${piece}:${square}`)}
+                  className="cursor-grab select-none active:cursor-grabbing"
+                >
+                  {FEN_EDITOR_PIECES[piece].symbol}
+                </span>
+              )}
+            </button>
+          );
+        }))}
+    </div>
+  );
+  const palette = (color: "w" | "b", compact = false) => (
+    <div className={compact ? "flex items-center justify-center gap-1" : "grid grid-cols-3 gap-1"}>
+      {(Object.keys(FEN_EDITOR_PIECES) as FenEditorPiece[]).filter((piece) => piece[0] === color).map((piece) => (
+        <button
+          key={piece}
+          type="button"
+          draggable
+          onDragStart={(event) => event.dataTransfer.setData("application/x-ttlab-fen-piece", piece)}
+          onClick={() => setSelectedPiece(piece)}
+          title={t(FEN_EDITOR_PIECES[piece].name)}
+          className={`flex items-center justify-center rounded-sm border ${compact ? "size-8 sm:size-10" : "h-11 py-1"} ${selectedPiece === piece ? "border-primary bg-primary/10" : "border-border bg-background"}`}
+        >
+          <SparePiece piece={piece} width={compact ? 30 : 38} dndId={`fen-dialog-${piece}`} />
+        </button>
+      ))}
+    </div>
+  );
+  if (inline) {
+    return (
+      <ChessboardDnDProvider>
+        <div className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-1">
+          {palette("b", true)}
+          <div className="w-full">{board}</div>
+          {palette("w", true)}
+        </div>
+      </ChessboardDnDProvider>
+    );
+  }
+  return (
+    <ChessboardDnDProvider>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
+        {board}
+        <div className="space-y-2 rounded-sm border border-border bg-muted/30 p-2">
+          {(["w", "b"] as const).map((color) => (
+            <div key={color}>
+              <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">{t(color === "w" ? "common.white" : "common.black")}</p>
+              {palette(color)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </ChessboardDnDProvider>
+  );
+}
+
+function InlineFenPieceStrip({ color, selectedPiece, onSelect }: {
+  color: "w" | "b";
+  selectedPiece: FenEditorPiece | null;
+  onSelect: (piece: FenEditorPiece) => void;
+}) {
+  const { t } = useT();
+  return (
+    <div className="flex items-center justify-center gap-1">
+      {(Object.keys(FEN_EDITOR_PIECES) as FenEditorPiece[]).filter((piece) => piece[0] === color).map((piece) => (
+        <button
+          key={piece}
+          type="button"
+          onClick={() => onSelect(piece)}
+          title={t(FEN_EDITOR_PIECES[piece].name)}
+          className={`flex size-8 items-center justify-center rounded-sm border sm:size-10 ${selectedPiece === piece ? "border-primary bg-primary/10" : "border-border bg-background"}`}
+        >
+          <SparePiece piece={piece} width={30} dndId={`fen-inline-${color}-${piece}`} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: ReviewProps) {
   const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
@@ -250,6 +431,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [fenEditor, setFenEditor] = useState<{ mode: "add" | "edit"; index: number | null; value: string } | null>(null);
   const [savingFen, setSavingFen] = useState(false);
   const [fenSaveError, setFenSaveError] = useState<string | null>(null);
+  const [insertAfterFenIndex, setInsertAfterFenIndex] = useState<number | null>(null);
+  const [insertFenDraft, setInsertFenDraft] = useState<string | null>(null);
+  const [insertingFen, setInsertingFen] = useState(false);
+  const [inlineFenDraft, setInlineFenDraft] = useState<string | null>(null);
+  const [savingInlineFen, setSavingInlineFen] = useState(false);
+  const [inlineSelectedPiece, setInlineSelectedPiece] = useState<FenEditorPiece | null>(null);
+  const [dialogSelectedPiece, setDialogSelectedPiece] = useState<FenEditorPiece | null>(null);
   const [bulkFenEditor, setBulkFenEditor] = useState<string | null>(null);
   const [savingBulkFens, setSavingBulkFens] = useState(false);
   const [bulkFenError, setBulkFenError] = useState<string | null>(null);
@@ -264,6 +452,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
   const [showHistoryMoveAnnotations, setShowHistoryMoveAnnotations] = useState(true);
+  const [mobileReviewMenuOpen, setMobileReviewMenuOpen] = useState(false);
   const [showPgnEditor, setShowPgnEditor] = useState(false);
   const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
   const [savingPgn, setSavingPgn] = useState(false);
@@ -393,9 +582,15 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         // FEN sources render their persisted timeline directly. Raw ESP32 data
         // is never overwritten by the standardized recover-service timeline.
         const out: ReviewMove[] = [initial];
-        sourceFens.forEach((rawFen, index) => {
-          const fen = typeof rawFen === "string" ? rawFen.trim() : "";
-          if (!fen) return;
+        // A persisted history normally includes its initial snapshot. It is
+        // not a move, so remove that duplicate before mapping PGN ply N to
+        // the FEN produced after PGN move N.
+        const snapshots = sourceFens
+          .map((value) => typeof value === "string" ? value.trim() : "")
+          .filter(Boolean);
+        const hasInitialSnapshot = snapshots[0] === initialFen.trim();
+        const moveSnapshots = hasInitialSnapshot ? snapshots.slice(1) : snapshots;
+        moveSnapshots.forEach((fen, index) => {
           const uci = game.uciHistory?.[index];
           const lastMove = uci && /^[a-h][1-8][a-h][1-8]/.test(uci)
             ? { from: uci.slice(0, 2), to: uci.slice(2, 4) }
@@ -473,6 +668,19 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
+  const inlineFenIndex = useMemo(() => {
+    if (!isAdmin || selectedSource !== "base") return null;
+    const initialFen = (game.initialFen ?? DEFAULT_FEN).trim();
+    const startsWithInitial = preferredFenHistory[0]?.trim() === initialFen;
+    const index = startsWithInitial ? currentIndex : currentIndex - 1;
+    return index >= 0 && index < preferredFenHistory.length ? index : null;
+  }, [currentIndex, game.initialFen, isAdmin, preferredFenHistory, selectedSource]);
+  const isInsertingFen = insertAfterFenIndex !== null && insertFenDraft !== null;
+  const inlineFenValue = isInsertingFen ? insertFenDraft : inlineFenDraft ?? current.fen;
+  const inlineBoardWidth = Math.max(240, boardWidth - 28);
+  useEffect(() => {
+    setInlineFenDraft(null);
+  }, [current.fen, inlineFenIndex]);
   const reviewRows = useMemo(() => {
     type ReviewCell = { move: ReviewMove; ply: number; side: "w" | "b"; number: number };
     const rows: Array<{ number: number; white?: ReviewCell; black?: ReviewCell }> = [];
@@ -513,6 +721,48 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     }
     return reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell)));
   }, [reviewRows, selectedSource, timeline]);
+  // The persisted/recovered PGN and the FEN timeline are both ordered by ply:
+  // clicking notation at ply N must therefore select timeline[N], i.e. the
+  // position immediately after that move.
+  const pgnNotationMoves = useMemo(() => {
+    let sanMoves: string[] = [];
+    try {
+      const chess = new Chess();
+      chess.loadPgn(reviewPgn);
+      sanMoves = chess.history();
+    } catch {
+      sanMoves = [];
+    }
+    if (sanMoves.length === 0) sanMoves = selectedRecoveryLine?.sanMoves ?? extractPgnMoveTokens(reviewPgn);
+    if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
+
+    const fields = (game.initialFen ?? DEFAULT_FEN).trim().split(/\s+/);
+    const initialSide: "w" | "b" = fields[1] === "b" ? "b" : "w";
+    const initialMoveNumber = Number(fields[5]);
+    const firstMoveNumber = Number.isInteger(initialMoveNumber) && initialMoveNumber > 0 ? initialMoveNumber : 1;
+
+    return sanMoves
+      .slice(0, Math.max(0, timeline.length - 1))
+      .map((san, index) => {
+        const ply = index + 1;
+        const side: "w" | "b" = (index % 2 === 0) === (initialSide === "w") ? "w" : "b";
+        const number = firstMoveNumber + Math.floor((index + (initialSide === "b" ? 1 : 0)) / 2);
+        return { san, ply, side, number, fen: timeline[ply]?.fen ?? "" };
+      });
+  }, [game.initialFen, reviewPgn, selectedRecoveryLine, timeline]);
+  const pgnNotationRows = useMemo(() => {
+    const rows: { number: number; white?: typeof pgnNotationMoves[number]; black?: typeof pgnNotationMoves[number] }[] = [];
+    for (const move of pgnNotationMoves) {
+      let row = rows[rows.length - 1];
+      if (!row || row.number !== move.number || (move.side === "w" ? row.white : row.black)) {
+        row = { number: move.number };
+        rows.push(row);
+      }
+      if (move.side === "w") row.white = move;
+      else row.black = move;
+    }
+    return rows;
+  }, [pgnNotationMoves]);
   const sourceAnalysis = selectedSource === "base"
     ? baseAnalysisMoves
     : branchAnalysisBySource[String(selectedSource)] ?? [];
@@ -951,6 +1201,62 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     }
   };
 
+  /** Inserts the duplicated FEN directly after the snapshot chosen in the list. */
+  const insertDuplicatedFenSnapshot = async () => {
+    const fen = insertFenDraft?.trim();
+    if (insertAfterFenIndex === null || !fen || !token || insertingFen) return;
+    setInsertingFen(true);
+    setFenSaveError(null);
+    try {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fen, afterIndex: insertAfterFenIndex }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
+        if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
+        throw new Error("save_failed");
+      }
+      const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      setBaseAnalysisMoves([]);
+      setInsertAfterFenIndex(null);
+      setInsertFenDraft(null);
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
+    } catch (error) {
+      setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
+    } finally {
+      setInsertingFen(false);
+    }
+  };
+
+  /** Saves an admin drag/drop correction to the separate edited FEN timeline. */
+  const saveInlineFenSnapshot = async (fen: string) => {
+    if (inlineFenIndex === null || !token || savingInlineFen) return;
+    setInlineFenDraft(fen);
+    setSavingInlineFen(true);
+    setFenSaveError(null);
+    try {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens/${inlineFenIndex}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fen }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
+        if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
+        throw new Error("save_failed");
+      }
+      const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      setBaseAnalysisMoves([]);
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
+    } catch (error) {
+      setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
+    } finally {
+      setSavingInlineFen(false);
+    }
+  };
+
   /** Replaces the entire FEN sequence pasted by an administrator. */
   const replaceFenHistory = async () => {
     if (bulkFenEditor === null || !token || savingBulkFens) return;
@@ -1108,20 +1414,56 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         </div>
 
         {/* Review board */}
+        <ChessboardDnDProvider>
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto">
-            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(320px,520px)_minmax(0,1fr)]">
+            <div className="relative flex min-h-10 items-center justify-center">
+              {inlineFenIndex !== null && (
+                <InlineFenPieceStrip color="b" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+              )}
+              <div className="absolute right-0 top-1/2 -translate-y-1/2 xl:hidden">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={t("rev.moveReview")}
+                  aria-expanded={mobileReviewMenuOpen}
+                  onClick={() => setMobileReviewMenuOpen((open) => !open)}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+                {mobileReviewMenuOpen && (
+                  <div className="absolute right-0 top-10 z-30 flex min-w-56 flex-col gap-1 rounded-md border border-border bg-background p-1.5 shadow-lg">
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistoryEvaluation(); setMobileReviewMenuOpen(false); }}>
+                      <BarChart3 className="size-3.5" />{showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistorySuggestions(); setMobileReviewMenuOpen(false); }}>
+                      {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistoryMoveAnnotations(); setMobileReviewMenuOpen(false); }}>
+                      {showHistoryMoveAnnotations ? <EyeOff className="size-3.5" /> : <CircleAlert className="size-3.5" />}{showHistoryMoveAnnotations ? t("analysis.hideMoveAnnotations") : t("analysis.showMoveAnnotations")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="hidden items-center justify-end gap-2 xl:flex">
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
                             {showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
               {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                             {showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryMoveAnnotations} aria-pressed={showHistoryMoveAnnotations}>
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryMoveAnnotations} aria-pressed={showHistoryMoveAnnotations}>
               {showHistoryMoveAnnotations ? <EyeOff className="size-3.5" /> : <CircleAlert className="size-3.5" />}
               {showHistoryMoveAnnotations ? t("analysis.hideMoveAnnotations") : t("analysis.showMoveAnnotations")}
-            </Button>
+                </Button>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
             <div className="flex min-w-0 flex-col gap-1.5">
@@ -1131,16 +1473,54 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                   className="min-w-0 flex-1 select-none overscroll-contain"
                   title={t("rev.wheelNavigation")}
                 >
-                  <ChessBoardView
-                    fen={current.fen}
-                    lastMove={current.lastMove}
-                    boardWidth={boardWidth}
-                    moveAnnotation={boardMoveAnnotation}
-                    predictedMove={reviewPredictedMove}
-                  />
+                  {inlineFenIndex !== null ? (
+                      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-1">
+                        <div className="flex w-full items-stretch gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <ChessBoardView
+                              fen={inlineFenValue}
+                              lastMove={null}
+                              boardWidth={inlineBoardWidth}
+                              editablePiece={inlineSelectedPiece}
+                              onFenChange={(fen) => {
+                                if (isInsertingFen) setInsertFenDraft(fen);
+                                else void saveInlineFenSnapshot(fen);
+                              }}
+                            />
+                          </div>
+                          {showHistoryEvaluation && (
+                            <div className="w-[22px] shrink-0" style={inlineBoardWidth > 0 ? { height: inlineBoardWidth } : undefined}>
+                              <EvalBar
+                                cp={reviewCp}
+                                mate={reviewMate}
+                                isAnalyzing={reviewAnalyzing}
+                                engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <InlineFenPieceStrip color="w" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                      </div>
+                  ) : (
+                    <ChessBoardView
+                      fen={current.fen}
+                      lastMove={current.lastMove}
+                      boardWidth={boardWidth}
+                      moveAnnotation={boardMoveAnnotation}
+                      predictedMove={reviewPredictedMove}
+                    />
+                  )}
+                  {inlineFenIndex !== null && (savingInlineFen || insertingFen || fenSaveError) && (
+                    <p className={fenSaveError ? "mt-1 text-xs text-destructive" : "mt-1 text-xs text-muted-foreground"} role="status">
+                      {fenSaveError ?? t("common.saving")}
+                    </p>
+                  )}
                 </div>
-                {showHistoryEvaluation && (
-                  <div className="hidden w-[22px] shrink-0 sm:block">
+                {showHistoryEvaluation && inlineFenIndex === null && (
+                  <div
+                    className="hidden w-[22px] shrink-0 self-start sm:block"
+                    style={boardWidth > 0 ? { height: boardWidth } : undefined}
+                  >
                     <EvalBar
                       cp={reviewCp}
                       mate={reviewMate}
@@ -1226,6 +1606,12 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                   )}
                   {reviewCells.map((cell) => {
                     const { move: m, ply, side, number } = cell;
+                    const initialFen = (game.initialFen ?? DEFAULT_FEN).trim();
+                    const hasInitialSnapshot = preferredFenHistory[0]?.trim() === initialFen;
+                    const fenIndex = selectedSource === "base"
+                      ? (hasInitialSnapshot ? ply : ply - 1)
+                      : null;
+                    const canInsertAfter = isAdmin && fenIndex !== null && fenIndex >= 0 && fenIndex < preferredFenHistory.length;
                     const moveDuration = m.originalPly
                       ? game.moveDurationsMs?.[m.originalPly - 1]
                       : undefined;
@@ -1237,32 +1623,64 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                         : null,
                     ].filter((note): note is string => Boolean(note));
                     return (
-                      <button
-                        key={`${m.san}-${ply}`}
-                        ref={currentIndex === ply ? activeMoveRef : undefined}
-                        type="button"
-                        onClick={() => goTo(ply)}
-                        className={`w-full min-h-9 rounded-sm border px-3 py-2 text-left ${m.fenFallback ? "font-mono text-xs" : "text-sm"} transition-colors ${m.fenFallback
-                          ? currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
-                          : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
-                            {selectedSource === "base"
-                              ? `${t("rev.fenPosition", { number: m.originalPly ?? ply })}: ${m.fen}`
-                              : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
-                          </span>
-                          {selectedSource !== "base" && (
-                            <span
-                              className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-                              title={t("rev.moveDuration")}
-                              aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                      <div key={`${m.san}-${ply}`}>
+                        <div className="flex items-stretch gap-1">
+                          {canInsertAfter && (
+                            <button
+                              type="button"
+                              className="w-7 shrink-0 rounded-sm border border-transparent text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                              title={t("rev.addFen")}
+                              aria-label={t("rev.addFen")}
+                              onClick={() => {
+                                setFenSaveError(null);
+                                setInsertAfterFenIndex(fenIndex);
+                                setInsertFenDraft(m.fen);
+                                goTo(ply);
+                              }}
                             >
-                              {formatMoveDuration(moveDuration)}
-                            </span>
+                              <Plus className="mx-auto size-3.5" />
+                            </button>
                           )}
-                        </span>
-                      </button>
+                          <button
+                            ref={currentIndex === ply ? activeMoveRef : undefined}
+                            type="button"
+                            onClick={() => goTo(ply)}
+                            className={`w-full min-h-9 rounded-sm border px-3 py-2 text-left ${m.fenFallback ? "font-mono text-xs" : "text-sm"} transition-colors ${m.fenFallback
+                              ? currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
+                              : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
+                                {selectedSource === "base"
+                                  ? `${t("rev.fenPosition", { number: m.originalPly ?? ply })}: ${m.fen}`
+                                  : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
+                              </span>
+                              {selectedSource !== "base" && (
+                                <span
+                                  className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                                  title={t("rev.moveDuration")}
+                                  aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                                >
+                                  {formatMoveDuration(moveDuration)}
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                        {canInsertAfter && insertAfterFenIndex === fenIndex && insertFenDraft !== null && (
+                          <div className="ml-8 mt-1 flex items-center gap-2 rounded-sm border border-primary/30 bg-primary/5 px-2 py-1.5">
+                            <span className="min-w-0 flex-1 truncate font-mono text-[11px] text-muted-foreground">
+                              {insertFenDraft}
+                            </span>
+                            <Button type="button" size="sm" className="h-7 text-xs" onClick={() => void insertDuplicatedFenSnapshot()} disabled={insertingFen}>
+                              {t("rev.saveFen")}
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 text-xs" onClick={() => { setInsertAfterFenIndex(null); setInsertFenDraft(null); }} disabled={insertingFen}>
+                              {t("played.cancel")}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1270,6 +1688,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
             </div>
           </div>
         </div>
+        </ChessboardDnDProvider>
 
         {/* PGN section */}
         <div className="px-4 sm:px-5 pb-5 space-y-2">
@@ -1285,9 +1704,39 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
 
           {/* Moves only */}
           <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
-            <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-              {displayPgn ? movesOnly(displayPgn) : recoveryNotice}
-            </pre>
+            {pgnNotationRows.length > 0 ? (
+              <div className="space-y-0.5 p-3 font-mono text-xs text-foreground">
+                {pgnNotationRows.map((row) => (
+                  <div key={row.number} className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-1">
+                    <span className="text-muted-foreground">{row.number}.</span>
+                    {row.white ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(row.white!.ply)}
+                        title={row.white.fen}
+                        className={`min-w-0 rounded-sm px-1 py-0.5 text-left transition-colors ${currentIndex === row.white.ply ? "bg-primary/15 text-foreground" : "hover:bg-accent"}`}
+                      >
+                        {row.white.san}
+                      </button>
+                    ) : <span />}
+                    {row.black ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(row.black!.ply)}
+                        title={row.black.fen}
+                        className={`min-w-0 rounded-sm px-1 py-0.5 text-left transition-colors ${currentIndex === row.black.ply ? "bg-primary/15 text-foreground" : "hover:bg-accent"}`}
+                      >
+                        {row.black.san}
+                      </button>
+                    ) : <span />}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+                {displayPgn ? movesOnly(displayPgn) : recoveryNotice}
+              </pre>
+            )}
           </ScrollArea>
 
           {/* Full PGN collapsible */}
@@ -1487,6 +1936,19 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 px-5 py-3">
+              <ChessboardDnDProvider>
+                <div className="mx-auto flex w-full max-w-[440px] flex-col items-center gap-1">
+                  <InlineFenPieceStrip color="b" selectedPiece={dialogSelectedPiece} onSelect={setDialogSelectedPiece} />
+                  <ChessBoardView
+                    fen={fenEditor?.value ?? DEFAULT_FEN}
+                    lastMove={null}
+                    boardWidth={440}
+                    editablePiece={dialogSelectedPiece}
+                    onFenChange={(value) => setFenEditor((current) => current ? { ...current, value } : current)}
+                  />
+                  <InlineFenPieceStrip color="w" selectedPiece={dialogSelectedPiece} onSelect={setDialogSelectedPiece} />
+                </div>
+              </ChessboardDnDProvider>
               <label htmlFor="history-fen-value" className="text-sm font-medium">{t("rev.fenValue")}</label>
               <Input
                 id="history-fen-value"
