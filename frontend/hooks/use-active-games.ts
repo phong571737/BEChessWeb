@@ -46,8 +46,13 @@ export function useActiveGames() {
             void refresh();
         };
         // Patch FEN/lastMove on individual game cards without a full re-fetch
-        const onMove = (data: { gameID: string; fen: string; lastMove: ActiveGame["lastMove"] }) => {
-            patchActiveGame(data.gameID, { fen: data.fen, lastMove: data.lastMove });
+        const onMove = (data: { gameID: string; fen: string; lastMove: ActiveGame["lastMove"]; lastSeq?: number }) => {
+            if (!data || typeof data.gameID !== "string" || typeof data.fen !== "string") return;
+            patchActiveGame(data.gameID, {
+                fen: data.fen,
+                lastMove: data.lastMove,
+                ...(typeof data.lastSeq === "number" ? { lastSeq: data.lastSeq } : {}),
+            });
         };
         // esp_move is emitted by the server when a physical board move is processed (contains authoritative FEN)
         const onEspMove = (rawData: any) => {
@@ -91,11 +96,7 @@ export function useActiveGames() {
         socket.on(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
         socket.on("connect", requestSnapshot);
         requestSnapshot();
-        const reconciliationInterval = window.setInterval(() => {
-            if (socket.connected) requestSnapshot();
-        }, 5_000);
         return () => {
-            window.clearInterval(reconciliationInterval);
             socket.off(SOCKET_CONSTANTS.GAME_CREATED, onChanged);
             socket.off(SOCKET_CONSTANTS.GAME_DESTROYED, onChanged);
             socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);

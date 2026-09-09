@@ -339,6 +339,10 @@ export async function saveGame(
             updateAt: new Date()
         };
 
+        if (typeof seq === "number" && Number.isInteger(seq) && seq >= 0) {
+            setFields.lastSeq = seq;
+        }
+
         // Reset feild
         if (Array.isArray(uciHistory)) setFields.uciHistory = uciHistory;
         if (Array.isArray(fenHistory)) setFields.fenHistory = fenHistory;

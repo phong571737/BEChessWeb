@@ -127,13 +127,22 @@ async function reschedulePendingEvents(delayMs: number): Promise<void> {
         .sort({ createdAt: 1, _id: 1 })
         .toArray();
     const releaseByStream = new Map<string, number>();
+    const shiftByStream = new Map<string, number>();
     const now = Date.now();
     const operations = pending.flatMap((item) => {
         if (!item._id) return [];
         const stream = item.gameID ?? "global";
         const createdAt = new Date(item.createdAt).getTime();
         const requested = (Number.isFinite(createdAt) ? createdAt : now) + delayMs;
-        const releaseAt = Math.max(requested, (releaseByStream.get(stream) ?? 0) + 1);
+        // If a shorter delay makes several queued events overdue, shift the
+        // whole stream forward by the same amount. The first event is released
+        // now while every following move keeps its original time gap instead
+        // of all overdue moves being emitted in one burst.
+        if (!shiftByStream.has(stream)) {
+            shiftByStream.set(stream, Math.max(0, now - requested));
+        }
+        const shifted = requested + (shiftByStream.get(stream) ?? 0);
+        const releaseAt = Math.max(shifted, (releaseByStream.get(stream) ?? 0) + 1);
         releaseByStream.set(stream, releaseAt);
         return [{
             updateOne: {
@@ -217,17 +226,9 @@ export async function removePublicGameSnapshots(gameIDs: string[]): Promise<void
 export async function startSpectatorDelayService(): Promise<void> {
     await queue().createIndex({ releaseAt: 1, createdAt: 1 });
     await publicGames().createIndex({ gameID: 1 }, { unique: true });
-    const pending = await queue().find({}).project({ gameID: 1, releaseAt: 1 }).toArray();
-    for (const item of pending) {
-        const stream = typeof item.gameID === "string" ? item.gameID : "global";
-        const timestamp = new Date(item.releaseAt).getTime();
-        if (Number.isFinite(timestamp)) {
-            lastReleaseByStream.set(stream, Math.max(timestamp, lastReleaseByStream.get(stream) ?? 0));
-        }
-    }
     const liveGames = await getAllGame();
     for (const game of liveGames ?? []) await ensurePublicGameSnapshot(game);
-    await releaseDueEvents();
+    await reschedulePendingEvents(await getSpectatorDelayMs());
     if (!worker) worker = setInterval(() => void releaseDueEvents(), 100);
     worker.unref?.();
 }
