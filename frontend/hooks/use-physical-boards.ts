@@ -8,7 +8,13 @@ import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
 
 export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean } {
-  const { physicalBoards, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID } = useGameStore();
+  // Physical-board events must not subscribe this hook to every chess-board
+  // state update; only the physical-board slice is relevant here.
+  const physicalBoards = useGameStore((state) => state.physicalBoards);
+  const patchPhysicalBoard = useGameStore((state) => state.patchPhysicalBoard);
+  const patchPhysicalBoardGameStatus = useGameStore((state) => state.patchPhysicalBoardGameStatus);
+  const removePhysicalBoard = useGameStore((state) => state.removePhysicalBoard);
+  const clearPhysicalBoardGameID = useGameStore((state) => state.clearPhysicalBoardGameID);
   const socket = useSocket();
   const [loading, setLoading] = useState(true);
 

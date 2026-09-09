@@ -15,7 +15,11 @@ export interface BoardAlert {
 }
 
 export function useGame(gameID: string) {
-    const { patchBoard, boards, patchPhysicalBoard } = useGameStore();
+    // A multi-board page creates one hook per slot. Select the current game
+    // only, otherwise a move on one board rerenders every open board.
+    const patchBoard = useGameStore((state) => state.patchBoard);
+    const patchPhysicalBoard = useGameStore((state) => state.patchPhysicalBoard);
+    const board = useGameStore((state) => state.boards[gameID]);
     const socket = useSocket();
     const chessRef = useRef<Chess>(new Chess());
     const initialMoveCountRef = useRef<number>(0);
@@ -25,7 +29,7 @@ export function useGame(gameID: string) {
     const [moveTimesMap, setMoveTimesMap] = useState<Record<number, number>>({});
     const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
 
-    const cachedBoard = boards[gameID];
+    const cachedBoard = board;
     const resetRevision = cachedBoard?.resetRevision;
 
     // ------- Branch state ----------------------------------------
@@ -509,8 +513,6 @@ export function useGame(gameID: string) {
     
 
     // --- PGN history -----------------------------------------
-    const board = boards[gameID];
-
     const branches = board?.branches ?? [];
     const selectedBranchId = board?.selectedBranchId ?? null;
 

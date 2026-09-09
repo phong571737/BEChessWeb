@@ -4,7 +4,7 @@ import { ActiveGame, PhysicalBoard } from "@/types/game.types";
 import dynamic from "next/dynamic"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect, useMemo } from "react";
+import { memo, useRef, useState, useEffect, useMemo } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
@@ -25,7 +25,7 @@ interface Props {
     isAdmin?: boolean;
 }
 
-export function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
+export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
@@ -180,4 +180,4 @@ export function GameCard({ game, physicalBoard, showStatus = true, isAdmin = fal
       )}
     </Link>
   );
-}
+});

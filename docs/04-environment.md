@@ -21,6 +21,7 @@ The environment contract is declared in [backend/src/config/environment.ts](../b
 - `PORT` – HTTP server port; defaults to `80`
 - `CORS_ORIGINS` – comma-separated exact browser origins allowed to call REST and Socket.IO; local development also allows localhost:3000/3001 automatically
 - `BACKEND_INTERNAL_URL` – backend URL used by the frontend container through the internal Compose network; it must be defined in the deployment `.env`
+- `BACKEND_PUBLIC_URL` – public backend origin used to build browser REST and Socket.IO URLs; for same-domain `/chess` deployments it is the domain origin without `/chess`
 - `RECOVER_SERVICE_URL` – internal URL of the FEN recovery service; it must be defined in the deployment `.env`
 - `RECOVERY_TIMEOUT_MS` – maximum wait for one FEN recovery request in milliseconds; defaults to `60000` and must be a positive integer
 - `VERCEL_WEB` – additional allowed frontend origin retained for compatible deployments
@@ -35,6 +36,8 @@ The environment contract is declared in [backend/src/config/environment.ts](../b
 - `USER_USERNAME` – optional bootstrap standard-user username
 - `USER_EMAIL` – optional bootstrap standard-user email/login
 - `USER_PASSWORD` – optional bootstrap standard-user password
+
+The spectator delay is stored in the `broadcast_settings` document as milliseconds. A missing value is treated as `0`; public viewers are therefore immediate by default. Set it only when a delayed spectator stream is required.
 
 ### Bootstrap accounts
 
@@ -78,6 +81,15 @@ The frontend relies on a smaller runtime contract for browser and server-side ta
 - `NEXT_PUBLIC_SOCKET_URL` – browser-side Socket.IO endpoint
 - `NEXT_PUBLIC_BASE_PATH` – optional frontend build-time subpath, such as `/chess`
 - `BACKEND_PROXY_URL` – server-only backend origin used by Next.js rewrites, for example `https://<render-service>.onrender.com`.
+
+In Docker Compose, server-side frontend requests must use the service name, not `localhost`:
+
+```env
+BACKEND_INTERNAL_URL=http://ttlab-chess-app:8080
+API_URL=http://ttlab-chess-app:8080
+```
+
+`localhost:8080` inside the frontend container points back to the frontend container and causes `ECONNREFUSED`.
 
 ### Runtime URL resolution logic
 

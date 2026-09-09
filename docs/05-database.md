@@ -88,6 +88,24 @@ erDiagram
         date updatedAt
     }
 
+    SPECTATOR_EVENTS {
+        string eventID PK
+        string gameID
+        string boardID
+        number seq
+        date releaseAt
+        string payload
+    }
+
+    PUBLIC_GAME_SNAPSHOTS {
+        string gameID PK
+        string boardID
+        number lastSeq
+        string fen
+        string pgn
+        date updatedAt
+    }
+
     MOVES {
         ObjectId _id PK
         string gameID
@@ -198,6 +216,8 @@ The data model assumes:
 - History deletion is a soft delete: records move to the recycle bin with `deletedAt` and `deleteAfter` fields.
 - A MongoDB TTL index permanently removes trashed records after 30 days; administrators can restore them before expiry.
 - `board_game_locks` uses `boardID` as `_id` and a short `leaseUntil` timestamp; it is a concurrency control collection, not game history.
+- `spectator_events` is the durable queue for public move delivery. Each accepted move keeps its sequence and release time so delayed viewers receive moves in order and at the configured spacing.
+- `public_game_snapshots` stores the latest state visible to the public audience, keyed by `gameID`. The release path removes older snapshots for the same `boardID`, preventing duplicate cards for one physical board while supplying reload/reconnect hydration.
 - `users.password` is a bcrypt hash; never return it from an API response or include it in exports.
 - Bootstrap account synchronization updates username, role, and a changed bcrypt password hash by configured email; a standard bootstrap account cannot reuse an administrator email.
 

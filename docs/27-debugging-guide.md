@@ -365,6 +365,29 @@ curl -IL --max-redirs 10 https://ttlab.uit.edu.vn/chess
 
 Socket.IO polling trả `200` và một `sid` chứng minh route HTTP của Socket.IO hoạt động. Việc nâng cấp WebSocket vẫn có thể thất bại nếu Nginx thiếu header `Upgrade`/`Connection` hoặc cổng HTTPS không truy cập được.
 
+### `ECONNREFUSED ::1:8080` hoặc `127.0.0.1:8080`
+
+Nếu log Next.js báo `Failed to proxy ... /boards` hoặc `/games/current`, frontend đang gọi `localhost` từ bên trong container. Địa chỉ đó không phải backend. Kiểm tra và sửa biến build-time:
+
+```bash
+sudo docker compose config | grep -n -E 'BACKEND_INTERNAL_URL|API_URL'
+sudo docker compose exec frontend printenv API_URL
+sudo docker compose exec frontend wget -qO- http://ttlab-chess-app:8080/health
+```
+
+Sau khi đổi `.env`, phải build lại frontend rồi recreate container:
+
+```bash
+sudo docker compose build --no-cache ttlab-chess-app frontend
+sudo docker compose up -d --force-recreate ttlab-chess-app frontend
+```
+
+### Không thấy nước đi sau thời gian delay
+
+`GET/PATCH /broadcast-settings` là route quản trị. Giá trị delay được lưu bằng milliseconds và mặc định là `0`; admin nhận ngay, người xem nhận từ hàng đợi `spectator_events` qua `public_game_snapshots`. Hàng đợi phát từng nước theo thứ tự và khoảng cách gốc, không xả toàn bộ sau một lần timeout. Khi kiểm tra lỗi, xác nhận socket public đã kết nối, có `active_games_snapshot`, và `releaseAt` của event đã đến hạn. Reload chỉ hydrate lại snapshot hiện hành, không bỏ qua delay.
+
+Nếu trang chủ hiển thị trùng nhiều thẻ cùng một bàn, kiểm tra `boardID`: backend và frontend đều phải deduplicate theo `boardID`, không theo tên hiển thị `Board_04`.
+
 ## Docker và ba service
 
 ```bash

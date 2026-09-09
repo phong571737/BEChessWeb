@@ -14,6 +14,7 @@ The socket layer registers the following lifecycle handlers:
 
 - `join` for room membership
 - `request_current_game` for restore-on-reconnect
+- `request_active_games` for home-dashboard snapshot hydration
 - authenticated compatibility listeners for `resign` and `restart`, plus disconnect cleanup
 
 ## Room model
@@ -32,6 +33,8 @@ This room-based structure gives the system three important properties:
 | --- | --- | --- |
 | `join` | Client → Server | Adds the client socket to the game room |
 | `request_current_game` | Client → Server | Requests a restore payload for a reconnect or hydration flow |
+| `request_active_games` | Client → Server | Requests the current audience-filtered active-game snapshot |
+| `active_games_snapshot` | Server → Requesting client | Returns active games and clock state for the home dashboard |
 | `restore_game` | Server → Client | Returns the current FEN and last move payload |
 | `esp_move` | Server → All connected clients | Broadcasts the authoritative move outcome; clients filter the payload by `gameID` |
 | `initcheck` | Server → Room | Broadcasts board initialization readiness information |
@@ -54,6 +57,8 @@ Client behavior:
 
 - sends `{ gameID }`
 - becomes a member of that game room
+- receives an acknowledgement `{ ok: true }` when the room join is accepted
+- receives `clock_state` and `restore_game` hydration after joining
 
 Use case:
 
@@ -89,6 +94,12 @@ It carries the authoritative post-move state, including:
 - `branches`
 
 This event is the primary feed used by the board review interface.
+
+The server separates audiences: an administrator socket receives the accepted move immediately; a public socket receives the same move only after the configured spectator delay. The public stream is sequential and preserves move spacing. A zero-millisecond delay is the default.
+
+### `request_active_games` / `active_games_snapshot`
+
+The home dashboard requests a snapshot on initial load and after a socket reconnect. The backend returns administrator-visible live state to administrators and delayed public snapshots to other viewers. The frontend also patches this list from `esp_move`; it does not rely on a periodic reload. One entry is returned per physical `boardID`.
 
 ### `initcheck`
 
@@ -127,6 +138,17 @@ From the browser side, the socket layer is used to do three things:
 1. restore the board state after reconnect,
 2. push live move changes into the chessboard view,
 3. refresh the home dashboard or board card once a lifecycle transition happens.
+
+## Reload and reconnect behavior
+
+Socket.IO is a transport, not durable storage. After a browser reload or reconnect:
+
+- the board page rejoins its room and requests the current game/clock;
+- the home page requests `active_games_snapshot`;
+- administrators hydrate from the authoritative active-game runtime/DB state;
+- public viewers hydrate from `public_game_snapshots`, so the delay policy remains enforced.
+
+If a viewer receives no live update, check the Socket.IO connection and the audience snapshot request before using a manual reload as a workaround.
 
 ## Reliability model
 

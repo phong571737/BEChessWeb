@@ -32,12 +32,15 @@ This is especially useful because the application depends on dynamic network end
 
 ## Compose topology
 
-The compose setup wires together two containers:
+The compose setup wires together three application containers:
 
 - `ttlab-chess-app` for the Node backend
 - `frontend` for the Next.js UI
+- `recover-service` for FEN-to-PGN recovery
 
 MongoDB and MQTT are external endpoints configured through `.env`; Compose does not start local MongoDB or MQTT services. The frontend reaches the backend internally as `http://ttlab-chess-app:${PORT}` and receives browser-visible public origins as build arguments.
+
+The frontend must use the Compose DNS name for server-side calls. The supported default is `BACKEND_INTERNAL_URL=http://ttlab-chess-app:8080`; do not use `localhost:8080` inside the container. After changing this value or any browser-visible URL, rebuild the frontend image because Next.js embeds these values at build time.
 
 ## Deployment variables
 
@@ -51,6 +54,8 @@ The deployment setup depends on environment variables described in [04-environme
 - `URL_HIVEMQTT`
 - `MQTT_USER`
 - `MQTT_PASSWORD`
+- `BACKEND_INTERNAL_URL` (Compose default: `http://ttlab-chess-app:8080`)
+- `RECOVER_SERVICE_URL` (inside Compose set to `http://recover-service:8000`)
 
 ## Operational notes
 
@@ -63,6 +68,8 @@ The frontend is expected to know its public-facing API and socket URLs at build 
 The backend process is expected to stay alive and maintain the active game state map through the app lifecycle. This is why the runtime is designed around in-memory state plus durable persistence rather than fully stateless HTTP requests.
 
 MongoDB Atlas `mongodb+srv://` connections use SRV DNS records. The backend uses the operating system DNS resolver so it works with institutional networks and VPN DNS policies; ensure the host can resolve `_mongodb._tcp.<cluster-host>` and reach the Atlas cluster.
+
+Socket.IO starts with HTTP polling and upgrades to WebSocket when Nginx forwards `Upgrade` and `Connection`. Delayed spectator delivery is controlled by the persisted broadcast setting and defaults to zero seconds.
 
 ## Vercel frontend with a Render backend
 
