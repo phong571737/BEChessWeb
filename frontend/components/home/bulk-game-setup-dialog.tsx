@@ -77,14 +77,14 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
         return () => { cancelled = true; };
     }, [activeGames, open, t]);
 
-    const saveSpectatorDelay = async () => {
+    const saveSpectatorDelay = async (seconds = spectatorDelaySeconds) => {
         setDelayLoading(true);
         setError(null);
         try {
             const response = await apiFetch("/broadcast-settings", {
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ delaySeconds: spectatorDelaySeconds }),
+                body: JSON.stringify({ delaySeconds: seconds }),
             });
             if (!response.ok) throw new Error("SAVE_DELAY_FAILED");
         } catch {
@@ -221,7 +221,10 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                                     variant={spectatorDelaySeconds === seconds ? "secondary" : "outline"}
                                     size="sm"
                                     className="h-7 px-2 text-xs"
-                                    onClick={() => setSpectatorDelaySeconds(seconds)}
+                                    onClick={() => {
+                                        setSpectatorDelaySeconds(seconds);
+                                        void saveSpectatorDelay(seconds);
+                                    }}
                                     disabled={delayLoading}
                                 >
                                     {seconds < 60

@@ -1,7 +1,7 @@
 import { Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
 import { getAllGame } from "../models/game.model.js";
-import { getSpectatorDelayMs } from "../models/broadcast-setting.model.js";
+import { getSpectatorDelayMs, setSpectatorDelayMs } from "../models/broadcast-setting.model.js";
 import { getIO } from "../sockets/index.js";
 import type { GameDoc } from "../types/game.types.js";
 
@@ -53,6 +53,15 @@ async function applyPublicState(item: DelayedBroadcast): Promise<void> {
         if (game.clockStartedAt && ["playing", "active"].includes(game.status ?? "")) {
             game.clockStartedAt = item.releaseAt;
         }
+        // A replacement session for the same physical board supersedes the
+        // previously released public snapshot. Without this cleanup, every
+        // resign/new-game cycle leaves another card with the same boardID.
+        if (typeof game.boardID === "string" && game.boardID.trim()) {
+            await publicGames().deleteMany({
+                boardID: game.boardID,
+                gameID: { $ne: game.gameID },
+            });
+        }
         await publicGames().replaceOne({ gameID: game.gameID }, game, { upsert: true });
     }
 }
@@ -101,6 +110,48 @@ function nextReleaseAt(delayMs: number, options: BroadcastOptions): Date {
     return new Date(releaseAt);
 }
 
+/**
+ * Applies a changed delay to events that have not been released yet. Rebuild
+ * the in-memory stream clocks as well; otherwise an earlier 60-second setting
+ * can keep newly queued events at 60 seconds after the admin selects 30.
+ */
+async function reschedulePendingEvents(delayMs: number): Promise<void> {
+    const pending = await queue()
+        .find({})
+        .sort({ createdAt: 1, _id: 1 })
+        .toArray();
+    const releaseByStream = new Map<string, number>();
+    const now = Date.now();
+    const operations = pending.flatMap((item) => {
+        if (!item._id) return [];
+        const stream = item.gameID ?? "global";
+        const createdAt = new Date(item.createdAt).getTime();
+        const requested = (Number.isFinite(createdAt) ? createdAt : now) + delayMs;
+        const releaseAt = Math.max(requested, (releaseByStream.get(stream) ?? 0) + 1);
+        releaseByStream.set(stream, releaseAt);
+        return [{
+            updateOne: {
+                filter: { _id: item._id },
+                update: { $set: { releaseAt: new Date(releaseAt) } },
+            },
+        }];
+    });
+
+    if (operations.length) await queue().bulkWrite(operations);
+    lastReleaseByStream.clear();
+    for (const [stream, releaseAt] of releaseByStream) {
+        lastReleaseByStream.set(stream, releaseAt);
+    }
+    await releaseDueEvents();
+}
+
+/** Persists a new delay and immediately applies it to the pending queue. */
+export async function updateSpectatorDelayMs(delayMs: number): Promise<number> {
+    const normalized = await setSpectatorDelayMs(delayMs);
+    await reschedulePendingEvents(normalized);
+    return normalized;
+}
+
 export async function emitWithSpectatorDelay(event: string, payload: unknown, options: BroadcastOptions = {}): Promise<void> {
     const scope = options.scope ?? "global";
     emitToAudience("admin", event, payload, scope, options.gameID);
@@ -134,7 +185,18 @@ export async function ensurePublicGameSnapshot(game: GameDoc): Promise<void> {
 }
 
 export async function getPublicGameSnapshots(): Promise<GameDoc[]> {
-    return publicGames().find({}).toArray();
+    const snapshots = await publicGames()
+        .find({})
+        .sort({ updateAt: -1, lastMoveAt: -1, createdAt: -1, _id: -1 })
+        .toArray();
+    const seenBoards = new Set<string>();
+    return snapshots.filter((game) => {
+        const boardKey = typeof game.boardID === "string" ? game.boardID.trim().toLowerCase() : "";
+        if (!boardKey) return true;
+        if (seenBoards.has(boardKey)) return false;
+        seenBoards.add(boardKey);
+        return true;
+    });
 }
 
 export async function getPublicGameSnapshot(gameID: string): Promise<GameDoc | null> {

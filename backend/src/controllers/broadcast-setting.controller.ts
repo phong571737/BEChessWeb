@@ -1,5 +1,6 @@
 import type { Request, Response } from "express";
-import { getSpectatorDelayMs, setSpectatorDelayMs } from "../models/broadcast-setting.model.js";
+import { getSpectatorDelayMs } from "../models/broadcast-setting.model.js";
+import { updateSpectatorDelayMs } from "../services/spectator-delay.service.js";
 
 export const BroadcastSettingController = {
     async get(_req: Request, res: Response): Promise<void> {
@@ -12,7 +13,7 @@ export const BroadcastSettingController = {
             res.status(400).json({ error: "Invalid spectator delay" });
             return;
         }
-        const delayMs = await setSpectatorDelayMs(delaySeconds * 1_000);
+        const delayMs = await updateSpectatorDelayMs(delaySeconds * 1_000);
         res.json({ delayMs });
     },
 };

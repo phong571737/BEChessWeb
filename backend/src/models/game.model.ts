@@ -398,11 +398,24 @@ export async function getAllGame(limit = 200) {
     // Only live sessions belong in the active-games response.  Ended sessions
     // remain persisted for recovery/diagnostics but must not be rendered as
     // duplicate cards on the home page.
-    return games()
+    const liveGames = await games()
         .find({ status: { $in: ["waiting", "ready", "playing", "active"] } } as Filter<GameDoc>)
-        .sort({ createdAt: -1 })
+        .sort({ updateAt: -1, lastMoveAt: -1, createdAt: -1 })
         .limit(limit)
         .toArray();
+
+    // A physical board can own only one live session. Legacy rows created by
+    // an interrupted restart may still coexist in MongoDB, so retain the most
+    // recently updated row for each board when rebuilding runtime state or
+    // returning the admin live-games list.
+    const seenBoards = new Set<string>();
+    return liveGames.filter((game) => {
+        const boardKey = typeof game.boardID === "string" ? game.boardID.trim().toLowerCase() : "";
+        if (!boardKey) return true;
+        if (seenBoards.has(boardKey)) return false;
+        seenBoards.add(boardKey);
+        return true;
+    });
 }
 
 /**This function is used to load game by id */

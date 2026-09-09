@@ -50,9 +50,25 @@ const defaultBoard = (): BoardState => ({
     errorSquares: [],
 });
 
+function boardKey(boardID?: string): string {
+    return boardID?.trim().toLowerCase() ?? "";
+}
+
+/** Keep one visible live session per physical board, even with stale API data. */
+function uniqueGamesByBoard(games: ActiveGame[]): ActiveGame[] {
+    const seenBoards = new Set<string>();
+    return games.filter((game) => {
+        const key = boardKey(game.boardID);
+        if (!key) return true;
+        if (seenBoards.has(key)) return false;
+        seenBoards.add(key);
+        return true;
+    });
+}
+
 export const useGameStore = create<GameStoreState>((set, get) => ({
     activeGames: [],
-    setActiveGames: (games) => set({ activeGames: games }),
+    setActiveGames: (games) => set({ activeGames: uniqueGamesByBoard(games) }),
     patchActiveGame: (gameID, patch) =>
         set((state) => ({
             activeGames: state.activeGames.map((g) =>
@@ -65,8 +81,10 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         })),
     upsertActiveGame: (game, boardID) =>
         set((state) => {
+            const replacementBoardKey = boardKey(boardID ?? game.boardID);
             const filtered = state.activeGames.filter((candidate) =>
-                candidate.gameID !== game.gameID && (!boardID || candidate.boardID !== boardID),
+                candidate.gameID !== game.gameID
+                && (!replacementBoardKey || boardKey(candidate.boardID) !== replacementBoardKey),
             );
             return { activeGames: [game, ...filtered] };
         }),
