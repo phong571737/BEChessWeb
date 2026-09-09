@@ -79,3 +79,6 @@ Light and dark modes share the same semantic tokens and component implementation
 5. Stockfish runs only in the browser and never mutates authoritative server state.
 
 Detailed frontend documentation starts at [../docs/10-state-management.md](../docs/10-state-management.md).
+Administrator spectator-delay settings are configured in the bulk setup dialog
+and persisted through the `/broadcast-settings` rewrite; the dialog supports
+quick minute/second presets plus manual seconds.

@@ -145,7 +145,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
             setCursor(-1);
             onNavigate(null, null);
         }
-    }, [hasBranches]);
+    }, [hasBranches, onNavigate]);
 
     const goTo = useCallback((idx: number) => {
         const clamped = Math.max(0, Math.min(totalMoves, idx));

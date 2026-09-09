@@ -8,6 +8,7 @@ import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
 import { getCurrentClock } from "../services/clock.service.js";
 import { emitGameState } from "../game/game.state.js";
+import { emitWithSpectatorDelay, getPublicGameSnapshot } from "../services/spectator-delay.service.js";
 
 type RequestCurrentGamePayload = Partial<GameIDPayload>;
 interface MatchStatus {
@@ -39,25 +40,39 @@ function requireAuthenticatedSocket(socket: Socket): boolean {
     return false;
 }
 
+function socketAudience(socket: Socket): "admin" | "public" {
+    const token = typeof socket.handshake.auth?.token === "string" ? socket.handshake.auth.token : null;
+    if (!token) return "public";
+    try {
+        const payload = jwt.verify(token, env.JWT_SECRET) as SocketAuthPayload;
+        return payload.role === "admin" ? "admin" : "public";
+    } catch {
+        return "public";
+    }
+}
+
 export function initGameSocket(io: Server): void {
     io.on("connection", (socket) =>{
         const joinedGames = new Set<string>();
+        const audience = socketAudience(socket);
+        socket.data.audience = audience;
+        void socket.join(`audience:${audience}`);
 
         // Join only existing game rooms.  The membership is also checked for
         // mutating events so a client cannot publish actions to an arbitrary
         // game ID just by guessing it.
         socket.on("join", async (payload: Partial<GameIDPayload> = {}) =>{
             const gameID = typeof payload.gameID === "string" ? payload.gameID.trim() : "";
-            if (!gameID || !(await getGame(gameID))) {
+            const availableGame = gameID
+                ? audience === "admin" ? await getGame(gameID) : await getPublicGameSnapshot(gameID)
+                : null;
+            if (!gameID || !availableGame) {
                 socket.emit("action_error", { error: "Game not found" });
                 return;
             }
             joinedGames.add(gameID);
-            await socket.join(gameID);
-            const game = await getGame(gameID);
-            if (game) {
-                socket.emit("clock_state", { gameID, ...getCurrentClock(game), fen: game.fen });
-            }
+            await socket.join(`game:${gameID}:${audience}`);
+            socket.emit("clock_state", { gameID, ...getCurrentClock(availableGame), fen: availableGame.fen });
         });
 
         socket.on("request_clock_state", async (payload: Partial<GameIDPayload> = {}) => {
@@ -66,7 +81,7 @@ export function initGameSocket(io: Server): void {
                 socket.emit("action_error", { error: "Join the game room before requesting its clock" });
                 return;
             }
-            const game = await getGame(gameID);
+            const game = audience === "admin" ? await getGame(gameID) : await getPublicGameSnapshot(gameID);
             if (game) socket.emit("clock_state", { gameID, ...getCurrentClock(game), fen: game.fen });
         });
 
@@ -90,7 +105,9 @@ export function initGameSocket(io: Server): void {
                 socket.emit("action_error", { error: "Join the game room before requesting its state" });
                 return;
             }
-            const currentstate = await getCurrentState(gameID);
+            const currentstate = audience === "admin"
+                ? await getCurrentState(gameID)
+                : await getPublicGameSnapshot(gameID);
 
             if(currentstate){
                 socket.emit("restore_game", {
@@ -119,11 +136,12 @@ export function initGameSocket(io: Server): void {
                 if (!boardResetPublished) {
                     console.error(`[Socket] Could not request physical-board reset for ${result.boardID}`);
                 }
-                io.to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide });
-                io.emit("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
+                await emitWithSpectatorDelay("update_all_game", { gameID, result: resultTag, resignSide }, { scope: "game", gameID, removePublicGameID: gameID });
+                await emitWithSpectatorDelay("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
                 emitGameState(result.boardID);
-                io.emit("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
-                io.emit("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+                const nextGame = await getGame(result.newGameID);
+                await emitWithSpectatorDelay("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+                await emitWithSpectatorDelay("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
                 socket.emit("resign_complete", { ...result, boardResetPublished });
             } catch (error) {
                 socket.emit("action_error", { error: error instanceof Error ? error.message : "Unable to resign game" });

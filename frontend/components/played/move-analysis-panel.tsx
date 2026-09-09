@@ -45,6 +45,7 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
 
   useEffect(() => {
     let cancelled = false;
+    const pendingAnalysisPromises = analysisPromisesRef.current;
     let ownsPendingAnalysis = false;
     let analysisSettled = false;
     const controller = new AbortController();
@@ -79,7 +80,7 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
         onAnalysisSaved?.(result);
       })
       .catch(() => {
-        analysisPromisesRef.current.delete(analysisKey);
+        pendingAnalysisPromises.delete(analysisKey);
         if (!cancelled && !controller.signal.aborted && activeAnalysisKeyRef.current === analysisKey) {
           setError(t("analysis.error"));
         }
@@ -93,7 +94,7 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
       cancelled = true;
       if (ownsPendingAnalysis && !analysisSettled) {
         controller.abort();
-        analysisPromisesRef.current.delete(analysisKey);
+        pendingAnalysisPromises.delete(analysisKey);
       }
     };
   }, [analysisKey, onAnalysisSaved, sourceGame, t]);

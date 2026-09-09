@@ -13,6 +13,8 @@ import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
+const SPECTATOR_DELAY_PRESETS = [0, 5, 10, 30, 60, 120, 300, 600, 1_800] as const;
+const MATCH_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 
 interface Props {
     activeGames: ActiveGame[];
@@ -28,13 +30,17 @@ function boardKey(value?: string): string {
 export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     const { t } = useT();
     const fileRef = useRef<HTMLInputElement>(null);
+    const dialogWasOpenRef = useRef(false);
     const [open, setOpen] = useState(false);
     const [imported, setImported] = useState<ExcelGameImport | null>(null);
     const [tournamentName, setTournamentName] = useState("");
     const [boardAssignments, setBoardAssignments] = useState<Record<number, string>>({});
+    const [selectedMatchIndex, setSelectedMatchIndex] = useState(0);
     const [applyClock, setApplyClock] = useState(true);
     const [initialTimeMs, setInitialTimeMs] = useState(DEFAULT_INITIAL_TIME_MS);
     const [incrementMs, setIncrementMs] = useState(DEFAULT_INCREMENT_MS);
+    const [spectatorDelaySeconds, setSpectatorDelaySeconds] = useState(0);
+    const [delayLoading, setDelayLoading] = useState(false);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -44,12 +50,49 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     }), [activeGames, boardAssignments, imported]);
 
     useEffect(() => {
-        if (!open) return;
+        if (!open) {
+            dialogWasOpenRef.current = false;
+            return;
+        }
         const last = getLastTimeControl();
         setInitialTimeMs(last.initialTimeMs);
         setIncrementMs(last.incrementMs);
+        if (!dialogWasOpenRef.current) {
+            setSelectedMatchIndex((current) => Math.min(current, MATCH_OPTIONS.length - 1));
+            dialogWasOpenRef.current = true;
+        }
         setError(null);
-    }, [open]);
+        let cancelled = false;
+        void apiFetch("/broadcast-settings")
+            .then(async (response) => {
+                if (!response.ok) throw new Error("LOAD_DELAY_FAILED");
+                return response.json() as Promise<{ delayMs?: number }>;
+            })
+            .then((data) => {
+                if (!cancelled) setSpectatorDelaySeconds(Math.max(0, Math.round(Number(data.delayMs ?? 0) / 1_000)));
+            })
+            .catch(() => {
+                if (!cancelled) setError(t("bulk.delayLoadError"));
+            });
+        return () => { cancelled = true; };
+    }, [activeGames, open, t]);
+
+    const saveSpectatorDelay = async () => {
+        setDelayLoading(true);
+        setError(null);
+        try {
+            const response = await apiFetch("/broadcast-settings", {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ delaySeconds: spectatorDelaySeconds }),
+            });
+            if (!response.ok) throw new Error("SAVE_DELAY_FAILED");
+        } catch {
+            setError(t("bulk.delaySaveError"));
+        } finally {
+            setDelayLoading(false);
+        }
+    };
 
     const importWorkbook = async (file?: File) => {
         if (!file) return;
@@ -150,6 +193,44 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                     <p className="text-xs text-muted-foreground">{t("bulk.hint")}</p>
                 </DialogHeader>
                 <div className="space-y-4 px-5 py-4">
+                    <div className="space-y-1.5 rounded-md border border-border p-3">
+                        <Label htmlFor="bulk-spectator-delay">{t("bulk.spectatorDelay")}</Label>
+                        <div className="flex items-center gap-2">
+                            <input
+                                id="bulk-spectator-delay"
+                                type="number"
+                                min={0}
+                                max={3600}
+                                step={1}
+                                value={spectatorDelaySeconds}
+                                onChange={(event) => setSpectatorDelaySeconds(Math.min(3600, Math.max(0, Number(event.target.value) || 0)))}
+                                disabled={delayLoading}
+                                className="h-9 min-w-0 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                            />
+                            <span className="text-xs text-muted-foreground">{t("bulk.spectatorDelayUnit")}</span>
+                            <Button type="button" variant="outline" size="sm" onClick={() => void saveSpectatorDelay()} disabled={delayLoading}>
+                                {delayLoading ? t("common.saving") : t("bulk.saveDelay")}
+                            </Button>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="mr-1 text-xs text-muted-foreground">{t("bulk.spectatorDelayPresets")}</span>
+                            {SPECTATOR_DELAY_PRESETS.map((seconds) => (
+                                <Button
+                                    key={seconds}
+                                    type="button"
+                                    variant={spectatorDelaySeconds === seconds ? "secondary" : "outline"}
+                                    size="sm"
+                                    className="h-7 px-2 text-xs"
+                                    onClick={() => setSpectatorDelaySeconds(seconds)}
+                                    disabled={delayLoading}
+                                >
+                                    {seconds < 60
+                                        ? t("bulk.delayPresetSeconds", { count: seconds })
+                                        : t("bulk.delayPresetMinutes", { count: seconds / 60 })}
+                                </Button>
+                            ))}
+                        </div>
+                    </div>
                     <div className="flex items-center justify-between gap-3">
                         <p className="text-xs text-muted-foreground">{t("bulk.importHint")}</p>
                         <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => void importWorkbook(event.target.files?.[0])} />
@@ -222,6 +303,23 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                             </div>
                         </div>
                     )}
+
+                    <div className="space-y-2 rounded-md border border-border p-3">
+                        <Label htmlFor="bulk-match-select">{t("bulk.selectMatches")}</Label>
+                        <select
+                            id="bulk-match-select"
+                            value={selectedMatchIndex}
+                            onChange={(event) => setSelectedMatchIndex(Number(event.target.value))}
+                            disabled={loading}
+                            className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+                        >
+                            {MATCH_OPTIONS.map((index) => (
+                                <option key={index} value={index}>
+                                    {t("bulk.matchOption", { number: index + 1 })}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
 
                     {error && <p className="text-xs text-destructive">{error}</p>}
                 </div>

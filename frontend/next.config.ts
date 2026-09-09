@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
             { source: "/moves/:path*", destination: `${API_URL}/moves/:path*` },
             { source: "/boards", destination: `${API_URL}/boards` },
             { source: "/boards/:path*", destination: `${API_URL}/boards/:path*` },
+            { source: "/broadcast-settings", destination: `${API_URL}/broadcast-settings` },
+            { source: "/broadcast-settings/:path*", destination: `${API_URL}/broadcast-settings/:path*` },
             { source: "/eval", destination: `${API_URL}/eval` },
         ];
     }

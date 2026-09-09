@@ -32,6 +32,8 @@ mongodb_data/
 dist/
 build/
 .codegraph/
+.archguard/history/
+.archguard/metrics.json
 *.log
 chessserver.exe
 *.tsbuildinfo
@@ -40,7 +42,10 @@ chessserver.exe
 /.cursor/mcp.json
 /.vscode/mcp.json
 
-# Documentation is maintained locally and must not be published.
-/docs/
+# Keep maintained Markdown documentation available on GitHub while ignoring
+# generated diagram exports and local visual-check artifacts.
+/docs/*
+!/docs/
+!/docs/**/*.md
 /recover_service_v2/
 AGENTS.md

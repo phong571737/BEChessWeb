@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, removeGame, saveGame } from "../models/game.model.js";
+import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, removeGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";

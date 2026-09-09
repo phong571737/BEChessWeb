@@ -1,14 +1,30 @@
 import { Request, Response } from "express";
 import { GameService } from "../services/game.service.js";
-import { getAllGame, removeGame } from "../models/game.model.js";
+import { getAllGame } from "../models/game.model.js";
 import { getCurrentGame } from "../game/game.manager.js";
 import { ERROR_STATUS, BOARD_TYPE, BOARD_STATUS } from "../constant.js";
 import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
 import { gameState, emitGameState } from "../game/game.state.js";
 import { getIO } from "../sockets/index.js";
-import { CreateBoardBody, InitCheckBody } from "../types/board.types.js";
+import { CreateBoardBody, InitCheckBody, NFCBoard } from "../types/board.types.js";
 import { GameIdParams } from "../types/game.types.js";
-import { games, gameSeq, activeBranches } from "../game/game.repository.js";
+import { ensurePublicGameSnapshot } from "../services/spectator-delay.service.js";
+
+type BoardCheckResult = ReturnType<typeof checkInitialBoard> | ReturnType<typeof checkInitialBoardNFC>;
+
+function runInitialBoardCheck(boardType: unknown, board: unknown): BoardCheckResult {
+    if (boardType === BOARD_TYPE.NFC) {
+        if (typeof board !== "object" || board === null || Array.isArray(board)) {
+            throw new Error("INVALID_NFC_BOARD");
+        }
+        return checkInitialBoardNFC(board as NFCBoard);
+    }
+    if (boardType === BOARD_TYPE.HALL) {
+        if (!Array.isArray(board)) throw new Error("INVALID_HALL_BOARD");
+        return checkInitialBoard(convertHalltoBoard(board));
+    }
+    throw new Error("INVALID_BOARD_TYPE");
+}
 
 export const BoardController = {
     // This function is used to create a new game
@@ -27,6 +43,7 @@ export const BoardController = {
             const gameID = crypto.randomUUID();
 
             const created = await GameService.create(boardID, gameID);
+            await ensurePublicGameSnapshot(created);
 
             // Notify frontend clients that a board was scanned/created so UI updates immediately
             try {
@@ -102,35 +119,16 @@ export const BoardController = {
                 });
             }
 
-            let result, board2D;
-
-            // -------------- NFC BOARD -------------------------
-            if (boardType === BOARD_TYPE.NFC) {
-                if (typeof board !== "object" || Array.isArray(board)) {
-                    return res.status(400).json({
-                        status: ERROR_STATUS.INVALID,
-                    });
+            let result: BoardCheckResult;
+            try {
+                result = runInitialBoardCheck(boardType, board);
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : "";
+                if (reason === "INVALID_NFC_BOARD") return res.status(400).json({ status: ERROR_STATUS.INVALID });
+                if (reason === "INVALID_HALL_BOARD") {
+                    return res.status(400).json({ status: ERROR_STATUS.INVALID, error: "HALL board must be an array" });
                 }
-
-                result = checkInitialBoardNFC(board);
-            }
-            // -------------- HALL BOARD -------------------------
-            else if (boardType === BOARD_TYPE.HALL) {
-                if (!Array.isArray(board)) {
-                    return res.status(400).json({
-                        status: ERROR_STATUS.INVALID,
-                        error: "HALL board must be an array",
-                    });
-                }
-
-                board2D = convertHalltoBoard(board);
-                result = checkInitialBoard(board2D);
-            }
-            else {
-                return res.status(400).json({
-                    status: BOARD_STATUS.INVALID,
-                    error: "Unknown boardType",
-                })
+                return res.status(400).json({ status: BOARD_STATUS.INVALID, error: "Unknown boardType" });
             }
 
             let finalStatus = result.status;

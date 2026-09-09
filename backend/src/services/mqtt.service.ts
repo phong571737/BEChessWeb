@@ -2,7 +2,7 @@ import mqtt, { MqttClient } from "mqtt";
 import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { removeGameByBoardID } from "../models/game.model.js";
+import { getGame, removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
@@ -10,6 +10,7 @@ import { GameResignService } from "./game.resign.service.js";
 import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
+import { emitWithSpectatorDelay, removePublicGameSnapshots } from "./spectator-delay.service.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -79,6 +80,7 @@ async function cleanupBoard(boardID: string) {
         }
         removeCurrenGame(boardID); // remove old gameID
         gameState.delete(boardID); // xóa hẳn thay vì set offline để tránh leak
+        await removePublicGameSnapshots(result?.gameIDs ?? []);
         try {
             console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
             getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
@@ -155,11 +157,12 @@ async function handleMessage(topic: string, message: Buffer) {
                     const resultTag = "unconfirmed" in result && result.unconfirmed
                         ? "*"
                         : result.loser === "white" ? "0-1" : "1-0";
-                    getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide: result.loser });
-                    getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
+                    await emitWithSpectatorDelay("update_all_game", { gameID, result: resultTag, resignSide: result.loser }, { scope: "game", gameID, removePublicGameID: gameID });
+                    await emitWithSpectatorDelay("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
                     emitGameState(boardID);
-                    getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
-                    getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
+                    const nextGame = await getGame(result.newGameID);
+                    await emitWithSpectatorDelay("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+                    await emitWithSpectatorDelay("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
                 }
             } else if (command === "restart_game") {
                 await GameActionService.restart(gameID);
@@ -179,11 +182,12 @@ async function handleMessage(topic: string, message: Buffer) {
                 const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
                 // Match the web resignation flow: update the old game room, then
                 // attach the board to the newly created waiting game.
-                getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide });
-                getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
+                await emitWithSpectatorDelay("update_all_game", { gameID, result: resultTag, resignSide }, { scope: "game", gameID, removePublicGameID: gameID });
+                await emitWithSpectatorDelay("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
                 emitGameState(boardID);
-                getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
-                getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
+                const nextGame = await getGame(result.newGameID);
+                await emitWithSpectatorDelay("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+                await emitWithSpectatorDelay("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
             }
         } catch (e) {
             console.log("[MQTT] Command parse or lifecycle error: ", e);

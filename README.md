@@ -2,7 +2,31 @@
 
 TTLab Chess Web connects a physical electronic chessboard to a real-time web interface. The repository contains an Express/Socket.IO/MQTT backend and a Next.js frontend, with MongoDB providing durable active-game and history snapshots.
 
-Current release: `v1.1.4-change18`.
+Current release: `v1.1.5-change1`.
+
+## Table of contents
+
+- [Features](#features)
+- [Architecture](#runtime-architecture)
+- [Requirements](#requirements)
+- [Quick start](#quick-start)
+- [Configuration](#environment)
+- [Docker deployment](#docker-compose)
+- [Authentication](#authentication-and-authorization)
+- [Documentation](#documentation)
+- [Validation](#validation)
+- [Contributing](#contributing)
+- [Security](#security)
+
+## Features
+
+- Real-time physical-board moves through HTTP, MQTT, and Socket.IO.
+- Durable active-game and history snapshots in MongoDB.
+- Administrator-only game lifecycle controls and FEN correction workflows.
+- Branch-aware FEN recovery with raw and edited histories preserved separately.
+- Browser-side Stockfish evaluation and saved post-game analysis.
+- Configurable spectator delay with manual seconds and quick presets.
+- Vietnamese and English localization with light and dark themes.
 
 ## Runtime architecture
 
@@ -20,6 +44,11 @@ flowchart LR
 - Express owns game mutations, authentication, persistence, concurrency checks, and Socket.IO broadcasts.
 - Next.js renders the home, board, history, dashboard, guide, login, and paste/import pages.
 - Stockfish runs in the browser for optional live evaluation and saved post-game analysis.
+
+Spectator delay is configured by an administrator through `/broadcast-settings`.
+The value is stored in MongoDB in milliseconds; administrator sockets receive
+authoritative updates immediately while public snapshots are released after the
+configured delay. A zero-second delay keeps public updates immediate.
 
 The detailed design is in [docs/01-architecture.md](docs/01-architecture.md), and the complete documentation index is [docs/README.md](docs/README.md).
 
@@ -65,7 +94,7 @@ Bootstrap accounts are synchronized when the backend starts. Passwords are hashe
 
 See [docs/04-environment.md](docs/04-environment.md) for every supported variable.
 
-## Local development
+## Quick start
 
 Install dependencies:
 
@@ -177,6 +206,7 @@ The backend mounts:
 
 - `/auth`
 - `/boards`
+- `/broadcast-settings` (administrator-only delay configuration)
 - `/moves`
 - `/games`
 - `/socket.io/`
@@ -245,3 +275,38 @@ Configure Nginx using [docs/16-deployment.md](docs/16-deployment.md): `/chess` t
 Run `git pull origin master`, `docker compose build --no-cache`, and `docker compose up -d --force-recreate --remove-orphans`. If only frontend build-time URLs changed, use `docker compose build --no-cache frontend` followed by `docker compose up -d --force-recreate frontend`; restarting an old container does not change compiled Next.js browser chunks.
 
 Common failures: `503 /games/recover` means recovery is down or its internal URL is wrong; `504 /games/history/:id/recovered-pgn` means recovery exceeded `RECOVERY_TIMEOUT_MS` (60 seconds by default), usually because a long or damaged FEN history creates too many possible branches; browser calls to `localhost:8080` mean the frontend was built with the wrong public URL; missing `/chess` in assets means `FRONTEND_BASE_PATH` was absent at build time; mixed-content/WSS errors mean the public URL protocol or gateway upgrade configuration is wrong; MongoDB `querySrv ETIMEOUT` means Atlas DNS or outbound network access is unavailable.
+
+## Documentation
+
+The maintained documentation index is [docs/README.md](docs/README.md). Start
+with [docs/01-architecture.md](docs/01-architecture.md), then use the REST and
+Socket.IO references for integration work. The recovery sidecar has its own
+[README](recover_service/README.md) and API payload reference
+([API_RESPONSE.md](recover_service/API_RESPONSE.md)).
+
+## Validation
+
+Run the checks that match the area you changed:
+
+```powershell
+npm run build
+npm run test:time-control
+npm --prefix frontend run lint -- --quiet
+npm --prefix frontend run build
+npm --prefix frontend run test:analysis
+```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the expected change and review flow.
+
+## Contributing
+
+Contributions should preserve the existing UI and API contracts unless a change
+explicitly requests a redesign. Keep frontend strings localized in both
+language dictionaries, preserve the evaluation-bar/board height contract, and
+include a focused validation result with each change.
+
+## Security
+
+Do not commit `.env` files, JWT secrets, database credentials, MQTT credentials,
+or private deployment URLs. Report a suspected vulnerability privately to the
+repository owner rather than opening a public issue. See [SECURITY.md](SECURITY.md).

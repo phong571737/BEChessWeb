@@ -6,8 +6,10 @@ import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
-import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
+import { currentHistoryFen } from "../utils/history-metrics.js";
 import { getCurrentClock } from "../services/clock.service.js";
+import type { OptionalAuthRequest } from "../middleware/auth.middleware.js";
+import { getPublicGameSnapshots } from "../services/spectator-delay.service.js";
 
 /** Normalizes an administrator-supplied snapshot without enforcing chess legality. */
 function storedFen(value: unknown): string | null {
@@ -48,9 +50,9 @@ function historyResult(record: MongoDocument): "1-0" | "0-1" | "1/2-1/2" | "*" {
 
 export const GameController = {
     // Get current state
-    async getCurrent(req: Request, res: Response): Promise<void> {
+    async getCurrent(req: OptionalAuthRequest, res: Response): Promise<void> {
         try {
-            const game = await getAllGame();
+            const game = req.auth?.role === "admin" ? await getAllGame() : await getPublicGameSnapshots();
             if (!game) {
                 res.json(null);
                 return;

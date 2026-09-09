@@ -1,6 +1,6 @@
 "use client";
 
-import { Trophy, Home, ArrowLeft } from "lucide-react";
+import { Trophy, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { cn } from "@/lib/utils";

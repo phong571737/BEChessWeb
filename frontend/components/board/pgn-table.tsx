@@ -187,9 +187,10 @@ export function PGNTable({ pgn, mainPgn, cursor, branches = [], selectedBranchId
     return [...rows.values()];
   }, [pgn, initialFen, timelineFens]);
 
+  const branchSourcePgn = mainPgn ?? pgn;
   const branchPly = useMemo(
-    () => detectBranchPly(mainPgn ?? pgn, branches),
-    [mainPgn ?? pgn, branches]);
+    () => detectBranchPly(branchSourcePgn, branches),
+    [branchSourcePgn, branches]);
 
   const branchPairIdx = branchPly >= 0 ? Math.floor(branchPly / 2) : -1;
   const branchCol = branchPly >= 0 ? branchPly % 2 : -1;

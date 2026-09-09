@@ -1,4 +1,4 @@
-import { getIO } from "../sockets/index.js";
+import { emitWithSpectatorDelay } from "../services/spectator-delay.service.js";
 
 export type BoardStatus = "offline" | "online";
 export type GameStatus = "idle" | "playing" | "finished" | "restart" | "checkinit" | "ready";
@@ -72,9 +72,11 @@ export function emitGameState(gameID: string): void {
     const state = gameState.get(gameID);
     if (!state) return;
 
-    getIO().emit("game_state", {
+    void emitWithSpectatorDelay("game_state", {
         boardID: gameID,
         gameID,
         ...state,
+    }, { gameID }).catch((error) => {
+        console.error("Unable to emit game state:", error);
     });
 }

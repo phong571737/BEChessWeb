@@ -2,7 +2,6 @@ import { Chess } from "chess.js";
 import { createGame, destroyBoard, setCurrentGame } from "../game/game.manager.js";
 import { acquireBoardCreationLock, closeActiveGamesForBoard, getLatestGameByBoardID, releaseBoardCreationLock, removeEndedGamesByBoardID, saveGame } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
-import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
 import { MoveLike, Branch } from "../types/chess.types.js";
 import { classifyTimeControl, DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";

@@ -4,7 +4,7 @@ import { GAME_STATUS } from "@/lib/constants/game";
 import { useT } from "@/lib/i18n";
 import { PhysicalBoard } from "@/types/game.types";
 import { cn } from "@/lib/utils";
-import { Cpu, Loader2 } from "lucide-react";
+import { Cpu } from "lucide-react";
 
 interface Props {
     board: PhysicalBoard;

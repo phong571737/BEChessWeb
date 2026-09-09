@@ -1,7 +1,6 @@
-import { GAME_STATUS } from "@/lib/constants/game";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
-export interface lastMove {
+export interface LastMove {
     from: string;
     to: string;
     uci: string;
@@ -50,7 +49,7 @@ export interface ActiveGame extends GameSetupMetadata {
     pgn: string;
     initialFen?: string;
     fenHistory?: string[];
-    lastMove?: lastMove | null;
+    lastMove?: LastMove | null;
     lastSeq: number;
     createdAt: string;
     status?: string | null;

@@ -48,7 +48,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
         const lastTimeControl = getLastTimeControl();
         setInitialTimeMs(lastTimeControl.initialTimeMs);
         setIncrementMs(lastTimeControl.incrementMs);
-    }, [board?.boardID]);
+    }, [board]);
 
     const canStart = white.trim().length > 0 && black.trim().length > 0;
 

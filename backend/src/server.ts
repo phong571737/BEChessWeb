@@ -3,7 +3,6 @@ import express from "express";
 import cors from "cors";
 import { initSocket } from "./sockets/index.js";
 import { connectDB } from "./config/database.js";
-// import { evalRouter } from "./routes/eval.router.js";
 import { initMqtt } from "./services/mqtt.service.js";
 import { boardRouter } from "./routes/board.router.js";
 import { gameRouter } from "./routes/game.router.js";
@@ -14,8 +13,10 @@ import { env } from "./config/environment.js";
 import { ensureDefaultAdmin, ensureDefaultUser } from "./models/user.model.js";
 import { corsOptions } from "./config/cors.js";
 import { restoreActiveGamesFromDB } from "./game/game.manager.js";
+import { broadcastSettingRouter } from "./routes/broadcast-setting.router.js";
+import { startSpectatorDelayService } from "./services/spectator-delay.service.js";
 
-async function StartServer() {
+async function startServer() {
   const app = express();
   const server = createServer(app);
 
@@ -36,6 +37,7 @@ async function StartServer() {
   app.use("/games", gameRouter); // get games/current and games
   app.use("/boards", boardRouter); // create a new board
   app.use("/auth", authRouter); // auth routes
+  app.use("/broadcast-settings", broadcastSettingRouter);
   // app.use("/", evalRouter);
 
   await connectDB();
@@ -48,6 +50,7 @@ async function StartServer() {
     await ensureDefaultUser(env.USER_USERNAME, env.USER_EMAIL, env.USER_PASSWORD);
   }
   initSocket(server);
+  await startSpectatorDelayService();
   // stockfishService.init();
   initMqtt();
   // Server listen
@@ -56,4 +59,4 @@ async function StartServer() {
   });
 }
 
-StartServer();
+startServer();

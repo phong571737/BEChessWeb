@@ -71,10 +71,6 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
 
   // Live updates via Socket.io
   useEffect(() => {
-    // Dev: log socket presence so we can see when client connects
-    try {
-      // eslint-disable-next-line no-console
-    } catch (e) {}
     if (!socket) return;
 
     const unwrap = (rawData: any) => (Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData);
@@ -83,14 +79,7 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       const payload = unwrap(rawData);
       if (!payload || typeof payload.boardID !== "string") return;
       const { boardID } = payload;
-      // Dev: log offline events
-      try {
-        // eslint-disable-next-line no-console
-      } catch (e) {}
       removePhysicalBoard(boardID);
-      try {
-        // eslint-disable-next-line no-console
-      } catch (e) {}
     };
 
     const onGameStatusUpdate = (rawData: any) => {

@@ -6,6 +6,7 @@ import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { useGameStore } from "@/lib/store";
 import { ActiveGame } from "@/types/game.types";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { apiFetch } from "@/lib/api-fetch";
 
 export function useActiveGames() {
     const { activeGames, setActiveGames, patchActiveGame, removeActiveGame, upsertActiveGame } = useGameStore();
@@ -66,7 +67,7 @@ export function useActiveGames() {
             // Hydrate the new game directly so the mini-board immediately uses
             // its starting FEN instead of waiting for a potentially racing list
             // refresh. The list refresh remains the reconciliation fallback.
-            void fetch(`/games/${encodeURIComponent(data.gameID)}`, { cache: "no-store" })
+            void apiFetch(`/games/${encodeURIComponent(data.gameID)}`, { cache: "no-store" })
                 .then((response) => response.ok ? response.json() : null)
                 .then((game) => {
                     if (game && typeof game.gameID === "string") {

@@ -9,7 +9,7 @@ import { Branch } from "@/types/game.types";
 import { extractSanMoves } from "@/lib/custom-chess";
 import { apiFetch } from "@/lib/api-fetch";
 
-export interface boardAlert {
+export interface BoardAlert {
     code: string;
     detail: string;
 }
@@ -237,7 +237,7 @@ export function useGame(gameID: string) {
             controller.abort();
             if (interval) clearInterval(interval);
         };
-    }, [gameID, isLoaded, resetRevision]);
+    }, [gameID, isLoaded, patchBoard, resetRevision]);
 
     const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number; whiteRemainingMs?: number; blackRemainingMs?: number } = {}) => {
         const resetAt = data.resetAt ?? Date.now();
@@ -498,7 +498,7 @@ export function useGame(gameID: string) {
             socket.off("game:reset", onGameReset);
             socket.off("clock_state", onClockState);
         }
-    }, [socket, gameID, applyGameReset]);
+    }, [socket, gameID, applyGameReset, patchBoard]);
 
     
 

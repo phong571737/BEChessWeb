@@ -4,8 +4,9 @@ import { GameResignService } from "../services/game.resign.service.js";
 import { BulkGameSetupBody, GameIdParams, RenameBody, ResignBody } from "../types/game.types.js";
 import { ERROR_STATUS } from "../constant.js";
 import { publishBoardCommand } from "../services/mqtt.service.js";
-import { getIO } from "../sockets/index.js";
 import { emitGameState } from "../game/game.state.js";
+import { getGame } from "../models/game.model.js";
+import { emitWithSpectatorDelay } from "../services/spectator-delay.service.js";
 
 export const GameActionController = {
     async bulkSetup(
@@ -77,15 +78,16 @@ export const GameActionController = {
             const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
             // Keep every viewer in the room synchronized with the server-side
             // terminal transition, including HTTP resignations.
-            getIO().to(gameID).emit("update_all_game", {
+            await emitWithSpectatorDelay("update_all_game", {
                 gameID,
                 result: resultTag,
                 resignSide,
-            });
-            getIO().emit("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
+            }, { scope: "game", gameID, removePublicGameID: gameID });
+            await emitWithSpectatorDelay("game_status_update", { boardID: result.boardID, gameID, status: "finished", result: resultTag });
             emitGameState(result.boardID);
-            getIO().emit("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
-            getIO().emit("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
+            const nextGame = await getGame(result.newGameID);
+            await emitWithSpectatorDelay("game_status_update", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+            await emitWithSpectatorDelay("board_scan_ok", { boardID: result.boardID, gameID: result.newGameID, status: "waiting" });
             res.json({ ...result, boardResetPublished });
         } catch (e) {
             console.error("RESIGN ERROR:", e);
@@ -135,6 +137,7 @@ export const GameActionController = {
         try {
             const gameID = req.params.id;
             const result = await GameActionService.destroy(gameID);
+            await emitWithSpectatorDelay("game:destroyed", { gameID }, { removePublicGameID: gameID });
             res.json({
                 result
             });

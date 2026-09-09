@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard, CircleAlert, MoreHorizontal,
-  Tag} from "lucide-react";
+  CircuitBoard, CircleAlert, MoreHorizontal} from "lucide-react";
 import { Chess } from "chess.js";
 import { ChessboardDnDProvider, SparePiece } from "react-chessboard";
 import { publicPath } from "@/lib/public-path";
@@ -33,6 +32,8 @@ import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
 import { useAuth } from "@/components/providers/auth-provider";
 import { apiFetch } from "@/lib/api-fetch";
+import { EDITOR_FILES, EDITOR_RANKS, FEN_EDITOR_PIECES, fenEditorPosition, fenWithEditorPosition, type FenEditorPiece } from "@/lib/fen-editor";
+import { fetchRecoveredPgn, saveHistoryTraces as persistHistoryTraces } from "@/lib/pgn-history-api";
 
 interface Props {
   game:    HistoryGame | null;
@@ -58,18 +59,6 @@ interface RecoveryStep {
   effectivePly?: number;
   originalPly?: number | null;
   synthetic?: boolean;
-}
-
-interface RecoveryPayload {
-  pgn?: unknown;
-  bestPgn?: unknown;
-  fenHistory?: unknown;
-  rawFenHistory?: unknown;
-  fenHistoryEdited?: unknown;
-  preferredFenHistory?: unknown;
-  bestMoveLists?: unknown;
-  steps?: unknown;
-  preprocessing?: unknown;
 }
 
 interface ReviewMove {
@@ -242,51 +231,6 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   return `${headers}\n\n${movetext}`;
 }
 
-type FenEditorPiece = "wP" | "wN" | "wB" | "wR" | "wQ" | "wK" | "bP" | "bN" | "bB" | "bR" | "bQ" | "bK";
-
-const FEN_EDITOR_PIECES: Record<FenEditorPiece, { symbol: string; fen: string; name: "piece.pawn" | "piece.knight" | "piece.bishop" | "piece.rook" | "piece.queen" | "piece.king" }> = {
-  wP: { symbol: "♙", fen: "P", name: "piece.pawn" }, wN: { symbol: "♘", fen: "N", name: "piece.knight" },
-  wB: { symbol: "♗", fen: "B", name: "piece.bishop" }, wR: { symbol: "♖", fen: "R", name: "piece.rook" },
-  wQ: { symbol: "♕", fen: "Q", name: "piece.queen" }, wK: { symbol: "♔", fen: "K", name: "piece.king" },
-  bP: { symbol: "♟", fen: "p", name: "piece.pawn" }, bN: { symbol: "♞", fen: "n", name: "piece.knight" },
-  bB: { symbol: "♝", fen: "b", name: "piece.bishop" }, bR: { symbol: "♜", fen: "r", name: "piece.rook" },
-  bQ: { symbol: "♛", fen: "q", name: "piece.queen" }, bK: { symbol: "♚", fen: "k", name: "piece.king" },
-};
-
-const EDITOR_FILES = ["a", "b", "c", "d", "e", "f", "g", "h"];
-const EDITOR_RANKS = [8, 7, 6, 5, 4, 3, 2, 1];
-
-function fenEditorPosition(fen: string): Record<string, FenEditorPiece> {
-  const position: Record<string, FenEditorPiece> = {};
-  const ranks = (fen.trim().split(/\s+/)[0] ?? "").split("/");
-  ranks.forEach((rank, rankIndex) => {
-    let fileIndex = 0;
-    for (const value of rank) {
-      if (/^[1-8]$/.test(value)) { fileIndex += Number(value); continue; }
-      const piece = Object.entries(FEN_EDITOR_PIECES).find(([, item]) => item.fen === value)?.[0] as FenEditorPiece | undefined;
-      if (piece && fileIndex < 8) position[`${EDITOR_FILES[fileIndex]}${8 - rankIndex}`] = piece;
-      fileIndex += 1;
-    }
-  });
-  return position;
-}
-
-function fenWithEditorPosition(fen: string, position: Record<string, FenEditorPiece>): string {
-  const placement = EDITOR_RANKS.map((rank) => {
-    let empty = 0;
-    let text = "";
-    for (const file of EDITOR_FILES) {
-      const piece = position[`${file}${rank}`];
-      if (!piece) { empty += 1; continue; }
-      if (empty) text += String(empty);
-      empty = 0;
-      text += FEN_EDITOR_PIECES[piece].fen;
-    }
-    return `${text}${empty || ""}` || "8";
-  }).join("/");
-  const fields = fen.trim().split(/\s+/);
-  return [placement, fields[1] === "b" ? "b" : "w", fields[2] || "-", fields[3] || "-", fields[4] || "0", fields[5] || "1"].join(" ");
-}
 
 function FenBoardEditor({ fen, onChange, inline = false }: { fen: string; onChange: (fen: string) => void; inline?: boolean }) {
   const { t } = useT();
@@ -508,22 +452,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       fenHistory: recoveryInputFens,
     });
 
-    const debugQuery = typeof window !== "undefined"
-      && new URLSearchParams(window.location.search).get("debugRecovery") === "1"
-      ? "?debugRecovery=1"
-      : "";
-    fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn${debugQuery}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          const body = await response.json().catch(() => null) as { code?: unknown } | null;
-          if (body?.code === "RECOVERY_BRANCH_LIMIT") throw new Error("branch_limit");
-          if (body?.code === "RECOVERY_TIMEOUT") throw new Error("timeout");
-          if (response.status === 503) throw new Error("unavailable");
-          throw new Error("failed");
-        }
-        const data = await response.json() as RecoveryPayload;
-        return data;
-      })
+    const debugRecovery = typeof window !== "undefined"
+      && new URLSearchParams(window.location.search).get("debugRecovery") === "1";
+    fetchRecoveredPgn(game._id, debugRecovery)
       .then((data) => {
         if (cancelled) return;
         traceRecovery("2 - response GET /games/history/:id/recovered-pgn", data);
@@ -556,13 +487,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       });
 
     return () => { cancelled = true; };
-  }, [game._id, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
+  }, [game._id, game.initialFen, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
 
   useEffect(() => {
     setEditablePgn(game.pgn ?? "");
     setShowPgnEditor(false);
     setPgnSaveError(null);
-  }, [game._id]);
+  }, [game._id, game.pgn]);
 
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
@@ -1034,16 +965,16 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     };
   }, []);
 
-  const getAudioCtx = () => {
+  const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
       const AC = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
       audioCtxRef.current = new AC();
     }
     return audioCtxRef.current;
-  };
+  }, []);
 
-  const playNavSound = (forward: boolean) => {
+  const playNavSound = useCallback((forward: boolean) => {
     const ctx = getAudioCtx();
     if (!ctx) return;
     const osc = ctx.createOscillator();
@@ -1060,14 +991,14 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     osc.start(now);
     osc.stop(now + 0.07);
     osc.onended = () => {};
-  };
+  }, [getAudioCtx]);
 
   const goTo = useCallback((idx: number, withSound = true) => {
     const clamped = Math.max(0, Math.min(idx, timeline.length - 1));
     if (clamped === currentIndex) return;
     if (withSound) playNavSound(clamped > currentIndex);
     setCursor(clamped === timeline.length - 1 ? -1 : clamped);
-  }, [currentIndex, timeline.length]);
+  }, [currentIndex, playNavSound, timeline.length]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1313,20 +1244,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
 
   const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;
-    const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    const body = await response.json().catch(() => null) as { success?: boolean; pgn?: unknown; uciHistory?: unknown } | null;
-    if (!response.ok || body?.success !== true) throw new Error("save_failed");
-    const nextGame: HistoryGame = {
-      ...game,
-      ...(typeof body.pgn === "string" ? { pgn: body.pgn } : {}),
-      ...(Array.isArray(body.uciHistory) ? { uciHistory: body.uciHistory.filter((value): value is string => typeof value === "string") } : {}),
-      analysis: undefined,
-    };
-    onGameUpdate?.(nextGame);
+    onGameUpdate?.(await persistHistoryTraces(game, payload.pgn ?? ""));
     return true;
   };
 

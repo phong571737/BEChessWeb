@@ -3,7 +3,7 @@
 import { useT } from "@/lib/i18n";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { RotateCcw, Flag, Loader2, Ellipse, Ellipsis, AlertTriangle, Check } from "lucide-react";
+import { RotateCcw, Flag, Loader2, Ellipsis, AlertTriangle, Check } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogDescription, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Branch } from "@/types/game.types";
 

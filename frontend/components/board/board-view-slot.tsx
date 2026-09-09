@@ -17,10 +17,8 @@ import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { EvalBar } from "@/components/board/eval-bar";
-import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { formatClockMs, useChessClock } from "@/hooks/use-chess-clock";
-import { ChessClockCard } from "@/components/board/chess-clock-card";
 import { useAuth } from "@/components/providers/auth-provider";
 import { classifyTimeControl } from "@/lib/time-control";
 

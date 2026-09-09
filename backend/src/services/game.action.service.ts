@@ -3,11 +3,11 @@ import { Chess } from "chess.js";
 import { getGame, renamePlayer, saveActiveGameHistorySnapshot, saveGame, removeGame } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState, emitGameState } from "../game/game.state.js";
-import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
 import { BulkGameSetupItem, GameIDPayload } from "../types/game.types.js";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { getCurrentClock } from "./clock.service.js";
+import { emitWithSpectatorDelay, ensurePublicGameSnapshot } from "./spectator-delay.service.js";
 
 export const GameActionService = {
     // Restart keeps the existing game/session identity so clients and board mapping stay connected.
@@ -16,6 +16,7 @@ export const GameActionService = {
         if (!game) {
             throw new Error(ERROR_STATUS.NOTFOUND);
         }
+        await ensurePublicGameSnapshot(game);
         const boardID = game.boardID ?? getBoardIDByGame(gameID);
         if (!boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);
@@ -49,21 +50,22 @@ export const GameActionService = {
             throw new Error("GAME_STATE_CONFLICT");
         }
         const reset = resetGame(gameID);
+        const updatedGame = await getGame(gameID);
         // A physical-board scan must validate the reset position before a new game can start.
         gameState.set(boardID, { gameID, gameStatus: "checkinit", initResultStatus: "checkinit", buttonReady: false, wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);
         // Home-page physical-board cards are not members of the game room.
         // Broadcast the retained board/game association so the card remains visible after restart.
-        getIO().emit("game_status_update", { gameID, boardID, status: "waiting" });
-        getIO().to(gameID).emit("game:reset", {
+        await emitWithSpectatorDelay("game_status_update", { gameID, boardID, status: "waiting" }, { publicGame: updatedGame ?? undefined });
+        await emitWithSpectatorDelay("game:reset", {
             gameID,
             boardID,
             fen: reset.fen(),
             resetAt,
             initialTimeMs,
             incrementMs,
-        });
-        getIO().to(gameID).emit("clock_state", {
+        }, { scope: "game", gameID });
+        await emitWithSpectatorDelay("clock_state", {
             gameID,
             whiteRemainingMs: initialTimeMs ?? 0,
             blackRemainingMs: initialTimeMs ?? 0,
@@ -71,7 +73,7 @@ export const GameActionService = {
             clockStartedAt: null,
             serverNow: resetAt,
             fen: initialFen,
-        });
+        }, { scope: "game", gameID });
 
         return {
             gameID,
@@ -107,7 +109,7 @@ export const GameActionService = {
         if (incrementMs !== undefined) payload.incrementMs = incrementMs;
         if (round !== undefined) payload.round = round;
         if (location !== undefined) payload.location = location;
-        getIO().to(gameID).emit("game:renamed", payload);
+        await emitWithSpectatorDelay("game:renamed", payload, { scope: "game", gameID, publicGame: updatedGame ?? undefined });
 
         // Keep every connected client on the same server-authoritative clock,
         // including clients that are viewing the game while it is configured.
@@ -115,7 +117,7 @@ export const GameActionService = {
             gameID,
             ...getCurrentClock(updatedGame),
         };
-        getIO().to(gameID).emit("clock_state", clockState);
+        await emitWithSpectatorDelay("clock_state", clockState, { scope: "game", gameID });
         return clockState;
     },
 

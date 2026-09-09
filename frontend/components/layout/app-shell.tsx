@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";

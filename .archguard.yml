@@ -1,0 +1,46 @@
+version: 1
+languages: [typescript, javascript, python]
+include:
+  - "backend/src/**"
+  - "frontend/app/**"
+  - "frontend/components/**"
+  - "frontend/hooks/**"
+  - "frontend/lib/**"
+  - "frontend/scripts/**"
+  - "recover_service/**"
+  - "tools/**"
+exclude:
+  - "**/node_modules/**"
+  - "frontend/.next/**"
+  - "frontend/public/stockfish/**"
+  - "**/*.wasm"
+severity:
+  failOn: error
+  maxWarnings: 100
+analyzers:
+  security:
+    enabled: true
+    severity: error
+  aiSmells:
+    enabled: true
+    severity: warning
+  conventions:
+    enabled: true
+    severity: warning
+  duplicates:
+    enabled: true
+    severity: warning
+  complexity:
+    enabled: true
+    severity: warning
+  # IaC scanning is run separately in CI because the current repository has
+  # multiple Docker build contexts and exceeds the CLI's local timeout.
+  iac:
+    enabled: false
+  # The project uses barrel exports and runtime entry points, so static
+  # unused-export detection produces false positives.
+  deadCode:
+    enabled: false
+  taint:
+    enabled: true
+    severity: error

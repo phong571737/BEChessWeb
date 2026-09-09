@@ -1,10 +1,10 @@
 import { getOrRestoreCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
 import { getGame, saveActiveGameHistorySnapshot, saveGame } from "../models/game.model.js";
-import { getIO } from "../sockets/index.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
 import { MoveState, ParseCandidatesInput, ParsedCandidates, ProcessMoveInput } from "../types/move.types.js";
 import { getCurrentClock } from "./clock.service.js";
+import { emitWithSpectatorDelay, ensurePublicGameSnapshot } from "./spectator-delay.service.js";
 
 /**Parse json
  * boardType is HALL
@@ -93,6 +93,7 @@ async function afterMove(
     const now = new Date();
     const persistedGame = await getGame(gameID);
     if (!persistedGame) throw new Error("GAME_STATE_CONFLICT");
+    await ensurePublicGameSnapshot(persistedGame);
     const clock = getCurrentClock(persistedGame, now.getTime());
 
     const nextSide = state.fen?.split(" ")[1] === "b" ? "black" : "white";
@@ -147,16 +148,16 @@ async function afterMove(
     // authoritative move to connected clients and let each client select its
     // own gameID. This prevents an otherwise healthy Socket.IO connection
     // from silently missing moves when room membership has not completed yet.
-    getIO().emit("esp_move", state);
+    await emitWithSpectatorDelay("esp_move", state, { gameID, publicGame: updatedGame ?? undefined });
     if (updatedGame) {
         // Keep the clock event tied to the exact FEN persisted by the board.
         // Consumers must derive the side to move from this FEN, never from a
         // client-side clock toggle or a locally reconstructed position.
-        getIO().to(gameID).emit("clock_state", {
+        await emitWithSpectatorDelay("clock_state", {
             gameID,
             ...getCurrentClock(updatedGame),
             fen: updatedGame.fen,
-        });
+        }, { scope: "game", gameID });
     }
 }
 

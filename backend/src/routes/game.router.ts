@@ -5,7 +5,9 @@ import { Chess } from "chess.js";
 import { GameActionController } from "../controllers/game.action.controller.js";
 import { GameController } from "../controllers/game.controller.js";
 import { gameSeq } from "../game/game.repository.js";
-import { requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
+import { optionalAuth, requireAdmin, requireAuthenticated } from "../middleware/auth.middleware.js";
+import type { OptionalAuthRequest } from "../middleware/auth.middleware.js";
+import { getPublicGameSnapshot } from "../services/spectator-delay.service.js";
 import { gameDestructiveRateLimit, gameInitCheckRateLimit, gameMutationRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
 import { GameIdParams, RenameBody } from "../types/game.types.js";
 import { evaluatePosition } from "../services/stockfish.service.js";
@@ -22,7 +24,7 @@ function sendInternalError(res: express.Response, operation: string, error: unkn
  * POST /games/current
  * This api used to get current game(F5)
  */
-gameRouter.get("/current", gameReadRateLimit, GameController.getCurrent);
+gameRouter.get("/current", gameReadRateLimit, optionalAuth, GameController.getCurrent);
 
 /** Applies one administrator-selected pairing import to several live games. */
 gameRouter.post("/bulk-setup", gameMutationRateLimit, requireAdmin, GameActionController.bulkSetup);
@@ -102,10 +104,10 @@ gameRouter.get("/history/:id/result-suggestion", gameMutationRateLimit, requireA
  * GET games/:id
  * This api is used to get single game by id
  */
-gameRouter.get("/:id", gameReadRateLimit, async (req, res) => {
+gameRouter.get("/:id", gameReadRateLimit, optionalAuth, async (req, res) => {
     try {
         const id = String(req.params.id ?? "");
-        const game = await getGame(id);
+        const game = (req as OptionalAuthRequest).auth?.role === "admin" ? await getGame(id) : await getPublicGameSnapshot(id);
         if (!game) {
             return res.status(404).json({ error: "Game not found" });
         }
