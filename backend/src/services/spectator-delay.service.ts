@@ -80,7 +80,13 @@ function emitToAudience(audience: "admin" | "public", event: string, payload: un
         io.to(`game:${gameID}:${audience}`).emit(event, payload);
         return;
     }
-    io.to(`audience:${audience}`).emit(event, payload);
+    // Global live-board events must also reach sockets that connected while
+    // their audience-room join was still being registered. Emit directly to
+    // the sockets classified at handshake time so the delayed move is not
+    // silently lost and only discovered after a page reload.
+    for (const socket of io.sockets.sockets.values()) {
+        if (socket.data.audience === audience) socket.emit(event, payload);
+    }
 }
 
 async function release(item: DelayedBroadcast): Promise<void> {

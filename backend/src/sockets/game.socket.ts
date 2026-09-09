@@ -3,12 +3,12 @@ import jwt from "jsonwebtoken";
 import { getCurrentState } from "../game/game.manager.js";
 import { GameIDPayload, ResignPayload } from "../types/game.types.js";
 import { env } from "../config/environment.js";
-import { getGame } from "../models/game.model.js";
+import { getAllGame, getGame } from "../models/game.model.js";
 import { GameActionService } from "../services/game.action.service.js";
 import { GameResignService } from "../services/game.resign.service.js";
 import { getCurrentClock } from "../services/clock.service.js";
 import { emitGameState } from "../game/game.state.js";
-import { emitWithSpectatorDelay, getPublicGameSnapshot } from "../services/spectator-delay.service.js";
+import { emitWithSpectatorDelay, getPublicGameSnapshot, getPublicGameSnapshots } from "../services/spectator-delay.service.js";
 
 type RequestCurrentGamePayload = Partial<GameIDPayload>;
 interface MatchStatus {
@@ -61,18 +61,40 @@ export function initGameSocket(io: Server): void {
         // Join only existing game rooms.  The membership is also checked for
         // mutating events so a client cannot publish actions to an arbitrary
         // game ID just by guessing it.
-        socket.on("join", async (payload: Partial<GameIDPayload> = {}) =>{
+        socket.on("join", async (payload: Partial<GameIDPayload> = {}, acknowledge?: (result: { ok: boolean }) => void) =>{
             const gameID = typeof payload.gameID === "string" ? payload.gameID.trim() : "";
             const availableGame = gameID
                 ? audience === "admin" ? await getGame(gameID) : await getPublicGameSnapshot(gameID)
                 : null;
             if (!gameID || !availableGame) {
                 socket.emit("action_error", { error: "Game not found" });
+                acknowledge?.({ ok: false });
                 return;
             }
             joinedGames.add(gameID);
             await socket.join(`game:${gameID}:${audience}`);
             socket.emit("clock_state", { gameID, ...getCurrentClock(availableGame), fen: availableGame.fen });
+            socket.emit("restore_game", {
+                gameID,
+                fen: availableGame.fen,
+                pgn: availableGame.pgn,
+                lastMove: availableGame.lastMove,
+                fenHistory: availableGame.fenHistory,
+            });
+            acknowledge?.({ ok: true });
+        });
+
+        // Reconcile the home-page cards through the requesting socket itself.
+        // This heals a missed broadcast without requiring a browser reload and
+        // still respects the delayed public snapshot for non-admin viewers.
+        socket.on("request_active_games", async () => {
+            const activeGames = audience === "admin"
+                ? await getAllGame()
+                : await getPublicGameSnapshots();
+            socket.emit("active_games_snapshot", activeGames.map((game) => ({
+                ...game,
+                ...getCurrentClock(game),
+            })));
         });
 
         socket.on("request_clock_state", async (payload: Partial<GameIDPayload> = {}) => {

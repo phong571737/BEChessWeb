@@ -74,8 +74,11 @@ export function useGame(gameID: string) {
     useEffect(() => {
         if (!socket || !gameID) return;
         const join = () => {
-            socket.emit("join", { gameID });
-            socket.emit("request_clock_state", { gameID });
+            socket.emit("join", { gameID }, (result: { ok?: boolean } | undefined) => {
+                if (!result?.ok) return;
+                socket.emit("request_clock_state", { gameID });
+                socket.emit(CLIENT_EVENT.REQUEST_CURRENT, { gameID });
+            });
         };
         join();
         socket.on("connect", join);
@@ -83,7 +86,10 @@ export function useGame(gameID: string) {
         // snapshot. This keeps long-running and newly opened clients aligned
         // without continuously writing the clock to MongoDB.
         const clockSyncInterval = window.setInterval(() => {
-            if (socket.connected) socket.emit("request_clock_state", { gameID });
+            if (socket.connected) {
+                socket.emit("request_clock_state", { gameID });
+                socket.emit(CLIENT_EVENT.REQUEST_CURRENT, { gameID });
+            }
         }, 15_000);
 
         return () => {
@@ -391,7 +397,7 @@ export function useGame(gameID: string) {
 
         // Restore game 
         const onRestore = (data: any) => {
-            if (data.game != gameID) return;
+            if (data.gameID !== gameID) return;
             const currentBoard = useGameStore.getState().boards[gameID];
 
             try {

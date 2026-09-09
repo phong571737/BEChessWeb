@@ -1,7 +1,7 @@
 "use client"
 
 import { useSocket } from "@/components/providers/socket-provider";
-import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
+import { CLIENT_EVENT, SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { useGameStore } from "@/lib/store";
 import { ActiveGame } from "@/types/game.types";
@@ -36,6 +36,11 @@ export function useActiveGames() {
     // (e.g. waiting_scan → active after a successful board scan)
     useEffect(() => {
         if (!socket) return;
+        const requestSnapshot = () => socket.emit(CLIENT_EVENT.REQUEST_ACTIVE_GAMES);
+        const onActiveGamesSnapshot = (rawData: unknown) => {
+            const games = Array.isArray(rawData) ? rawData : [];
+            setActiveGames(games as ActiveGame[]);
+        };
         const onChanged = () => {
             invalidateFetchCache("/games/current");
             void refresh();
@@ -83,15 +88,24 @@ export function useActiveGames() {
         socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
         socket.on(SOCKET_CONSTANTS.GAME_MOVE, onMove);
         socket.on(SERVER_EVENT.ESP_MOVE, onEspMove);
+        socket.on(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
+        socket.on("connect", requestSnapshot);
+        requestSnapshot();
+        const reconciliationInterval = window.setInterval(() => {
+            if (socket.connected) requestSnapshot();
+        }, 5_000);
         return () => {
+            window.clearInterval(reconciliationInterval);
             socket.off(SOCKET_CONSTANTS.GAME_CREATED, onChanged);
             socket.off(SOCKET_CONSTANTS.GAME_DESTROYED, onChanged);
             socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);
             socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
             socket.off(SOCKET_CONSTANTS.GAME_MOVE, onMove);
             socket.off(SERVER_EVENT.ESP_MOVE, onEspMove);
+            socket.off(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
+            socket.off("connect", requestSnapshot);
         };
-    }, [socket, refresh, patchActiveGame, removeActiveGame, upsertActiveGame]);
+    }, [socket, refresh, patchActiveGame, removeActiveGame, setActiveGames, upsertActiveGame]);
 
     return { loading, refresh, activeGames };
 }
