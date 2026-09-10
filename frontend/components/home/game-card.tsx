@@ -12,6 +12,9 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { GameActions } from "@/components/board/game-actions";
 import { apiFetch } from "@/lib/api-fetch";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
+import type { Square } from "chess.js";
+import { useHomeMoveSuggestion } from "@/hooks/use-home-move-suggestion";
+import { getSuggestionColor } from "@/components/board/chess-board-view";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -31,6 +34,15 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors } = useBoardDisplay();
+  const [showMoveSuggestion, setShowMoveSuggestion] = useState(false);
+  useEffect(() => {
+    setShowMoveSuggestion(localStorage.getItem(`live-show-suggestions-${game.gameID}`) !== "false");
+  }, [game.gameID]);
+  const suggestedMove = useHomeMoveSuggestion(game.fen, showMoveSuggestion);
+  const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
+  const suggestionArrows = useMemo(() => suggestedMove
+    ? [[suggestedMove.from, suggestedMove.to, suggestionColor]] as [Square, Square, string][]
+    : [], [suggestedMove, suggestionColor]);
   const { t } = useT();
   const timeControl = resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType);
   const timeControlLabel = {
@@ -134,6 +146,9 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
             customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
             customLightSquareStyle={{ backgroundColor: boardColors.light }}
             customSquareStyles={initSquareStyles}
+            customArrows={suggestionArrows}
+            customArrowColor={suggestionColor}
+            areArrowsAllowed={false}
             boardWidth={boardWidth}
           />
         ) : (

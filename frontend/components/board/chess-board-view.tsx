@@ -33,7 +33,7 @@ function getRelativeLuminance(color: string) {
   return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2];
 }
 
-function getSuggestionColor(boardColors: { light: string; dark: string }) {
+export function getSuggestionColor(boardColors: { light: string; dark: string }) {
   const backgrounds = [
     getRelativeLuminance(boardColors.light),
     getRelativeLuminance(boardColors.dark),
