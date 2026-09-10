@@ -914,14 +914,18 @@ function CompactPlayer({
     mobileInline?: boolean;
 }) {
     const active = side === activeSide;
+    const mobileTurnColor = side === "white"
+        ? "border-l-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
+        : "border-l-red-500 bg-red-500/10 text-red-600 dark:text-red-400";
     return (
         <div className={cn(
             "relative mx-auto grid w-full items-center gap-x-2 gap-y-0 rounded-sm px-1 py-1 transition-colors",
             mobileInline ? "grid-cols-[minmax(0,1fr)_auto] grid-rows-none" : "grid-cols-1 grid-rows-[auto_auto]",
+            mobileInline && "border-l-[3px] border-l-transparent",
             desktopAtLarge
                 ? "lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:grid-rows-none"
                 : "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-none",
-            active && highlightActive && "bg-accent text-foreground"
+            active && highlightActive && (mobileInline ? mobileTurnColor : "bg-accent text-foreground")
         )}>
             <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
                 <span className={cn("break-words", desktopAtLarge ? "lg:truncate" : "md:truncate")}>{name}</span>
@@ -932,7 +936,11 @@ function CompactPlayer({
                 desktopAtLarge
                     ? "lg:col-auto lg:row-auto lg:justify-self-center"
                     : "md:col-auto md:row-auto md:justify-self-center",
-                active ? "font-bold text-foreground" : "text-muted-foreground"
+                active
+                    ? cn("font-bold", mobileInline
+                        ? (side === "white" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                        : "text-foreground")
+                    : "text-muted-foreground"
             )}>
                 {formatClockMs(timeMs)}
             </span>
