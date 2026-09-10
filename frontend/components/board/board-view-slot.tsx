@@ -271,7 +271,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, whiteName, blackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, initialFen, fenHistory, boardNumber,
+        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, initialFen, fenHistory, boardNumber, liveDataWarning,
     } = useGame(gameID);
     const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
     const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
@@ -328,7 +328,23 @@ export function BoardViewSlot({
                         : initStatus === GAME_STATUS.WAITING || initStatus === "idle"
                             ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initWaiting") }
                         : null
-        : null;
+                        : null;
+    const warningReasons = liveDataWarning?.issues.map((issue) => t(
+        issue === "invalid_fen"
+            ? "board.invalidFenWarning"
+            : issue === "fen_uci_mismatch"
+                ? "board.fenUciMismatchWarning"
+                : "board.uciXWarning",
+    )) ?? [];
+    const warningReason = warningReasons.reduce<string | undefined>((combined, reason) =>
+        combined ? t("board.dataWarningMultiple", { first: combined, second: reason }) : reason,
+    undefined);
+    const warningText = warningReason && liveDataWarning?.seq !== undefined
+        ? t("board.dataWarningAtSeq", { reason: warningReason, seq: liveDataWarning.seq })
+        : warningReason;
+    const boardNotice = isAdmin && warningText
+        ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: warningText }
+        : initNotice;
 
     const handleUnavailable = useCallback(() => {
         if (unavailableHandled.current) return;
@@ -603,26 +619,26 @@ export function BoardViewSlot({
                 {twoBoardLayout && (
                     <div className={cn(
                         "col-span-2 row-start-1 grid min-h-5 items-center gap-1 px-1 py-0.5 lg:hidden",
-                        isAdmin && initNotice ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
+                        isAdmin && boardNotice ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
                     )}>
-                        {isAdmin && initNotice ? (
-                            <span className={cn("flex min-w-0 items-center gap-1 rounded-sm border px-1 py-0.5 text-[9px] font-medium", initNotice.className)} role="status">
-                                <initNotice.icon className="size-2.5 shrink-0" />
-                                <span className="truncate">{initNotice.text}</span>
+                        {isAdmin && boardNotice ? (
+                            <span className={cn("flex min-w-0 items-center gap-1 rounded-sm border px-1 py-0.5 text-[9px] font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                                <boardNotice.icon className="size-2.5 shrink-0" />
+                                <span className="truncate">{boardNotice.text}</span>
                             </span>
                         ) : <span />}
                         <span className={cn(
                             "shrink-0 whitespace-nowrap text-[10px] font-medium text-muted-foreground",
-                            isAdmin && initNotice ? "justify-self-end" : "justify-self-center"
+                            isAdmin && boardNotice ? "justify-self-end" : "justify-self-center"
                         )}>
                             {compactBoardLabel} · {timeControlLabel}
                         </span>
                     </div>
                 )}
-                {!twoBoardLayout && initNotice && (
-                    <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-sm border px-2.5 py-2 text-xs font-medium", initNotice.className)} role="status">
-                        <initNotice.icon className="size-3.5 shrink-0" />
-                        <span className="truncate">{initNotice.text}</span>
+                {!twoBoardLayout && boardNotice && (
+                    <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-sm border px-2.5 py-2 text-xs font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                        <boardNotice.icon className="size-3.5 shrink-0" />
+                        <span className="truncate">{boardNotice.text}</span>
                     </div>
                 )}
                 <div className={cn(
@@ -636,10 +652,10 @@ export function BoardViewSlot({
                         )}
                         style={twoBoardLayout && boardWidth > 0 ? { "--board-width": `${boardWidth}px` } as React.CSSProperties : undefined}
                     >
-                        {twoBoardLayout && isAdmin && initNotice && (
-                            <div className={cn("mb-1 hidden items-center gap-1 rounded-sm border px-1.5 py-1 text-[10px] font-medium lg:flex", initNotice.className)} role="status">
-                                <initNotice.icon className="size-3 shrink-0" />
-                                <span className="truncate">{initNotice.text}</span>
+                        {twoBoardLayout && isAdmin && boardNotice && (
+                            <div className={cn("mb-1 hidden items-center gap-1 rounded-sm border px-1.5 py-1 text-[10px] font-medium lg:flex", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                                <boardNotice.icon className="size-3 shrink-0" />
+                                <span className="truncate">{boardNotice.text}</span>
                             </div>
                         )}
                         <CompactPlayer
@@ -736,10 +752,10 @@ export function BoardViewSlot({
 
     return (
         <div className={cn("flex flex-col h-full min-h-0", className)}>
-            {initNotice && (
-                <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", initNotice.className)} role="status">
-                    <initNotice.icon className="size-4 shrink-0" />
-                    <span>{initNotice.text}</span>
+            {boardNotice && (
+                <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                    <boardNotice.icon className="size-4 shrink-0" />
+                    <span>{boardNotice.text}</span>
                 </div>
             )}
             {enableEval && (

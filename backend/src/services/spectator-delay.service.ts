@@ -43,6 +43,9 @@ function publicGames() {
 function withoutMongoId(game: GameDoc): GameDoc {
     const copy = { ...game } as GameDoc & { _id?: unknown };
     delete copy._id;
+    // Hardware diagnostics are administrator-only and must never be copied
+    // into the delayed public snapshot collection or public API responses.
+    delete copy.liveDataWarning;
     return copy;
 }
 
@@ -228,7 +231,7 @@ export async function ensurePublicGameSnapshot(game: GameDoc): Promise<void> {
 
 export async function getPublicGameSnapshots(): Promise<GameDoc[]> {
     const snapshots = await publicGames()
-        .find({})
+        .find({}, { projection: { liveDataWarning: 0 } })
         .sort({ updateAt: -1, lastMoveAt: -1, createdAt: -1, _id: -1 })
         .toArray();
     const seenBoards = new Set<string>();
@@ -242,7 +245,7 @@ export async function getPublicGameSnapshots(): Promise<GameDoc[]> {
 }
 
 export async function getPublicGameSnapshot(gameID: string): Promise<GameDoc | null> {
-    return publicGames().findOne({ gameID });
+    return publicGames().findOne({ gameID }, { projection: { liveDataWarning: 0 } });
 }
 
 export async function removePublicGameSnapshots(gameIDs: string[], boardID?: string): Promise<void> {

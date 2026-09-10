@@ -4,7 +4,7 @@ import { useSocket } from "@/components/providers/socket-provider";
 import { CLIENT_EVENT, SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { useGameStore } from "@/lib/store";
-import { ActiveGame } from "@/types/game.types";
+import { ActiveGame, LiveBoardDataWarning } from "@/types/game.types";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -75,6 +75,10 @@ export function useActiveGames() {
             const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
             onMove(data);
         };
+        const onBoardDataWarning = (data: LiveBoardDataWarning) => {
+            if (!data || typeof data.gameID !== "string") return;
+            patchActiveGame(data.gameID, { liveDataWarning: data });
+        };
         const onGameStatusUpdate = (rawData: any) => {
             const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
             if (!data || typeof data.gameID !== "string") return;
@@ -131,6 +135,7 @@ export function useActiveGames() {
         socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
         socket.on(SOCKET_CONSTANTS.GAME_MOVE, onMove);
         socket.on(SERVER_EVENT.ESP_MOVE, onEspMove);
+        socket.on(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
         socket.on(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
         socket.on("connect", requestSnapshot);
         requestSnapshot();
@@ -141,6 +146,7 @@ export function useActiveGames() {
             socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
             socket.off(SOCKET_CONSTANTS.GAME_MOVE, onMove);
             socket.off(SERVER_EVENT.ESP_MOVE, onEspMove);
+            socket.off(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
             socket.off(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
             socket.off("connect", requestSnapshot);
         };

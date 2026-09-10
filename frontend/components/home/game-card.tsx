@@ -93,7 +93,23 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
                 ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
                 : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit" || game.status === "idle"
                   ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
-                : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
+                  : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
+  const warningReasons = game.liveDataWarning?.issues.map((issue) => t(
+    issue === "invalid_fen"
+      ? "board.invalidFenWarning"
+      : issue === "fen_uci_mismatch"
+        ? "board.fenUciMismatchWarning"
+        : "board.uciXWarning",
+  )) ?? [];
+  const warningReason = warningReasons.reduce<string | undefined>((combined, reason) =>
+    combined ? t("board.dataWarningMultiple", { first: combined, second: reason }) : reason,
+  undefined);
+  const warningLabel = warningReason && game.liveDataWarning?.seq !== undefined
+    ? t("board.dataWarningAtSeq", { reason: warningReason, seq: game.liveDataWarning.seq })
+    : warningReason;
+  const cardStatus = isAdmin && warningLabel
+    ? { label: warningLabel, className: "bg-destructive/10 text-destructive" }
+    : boardStatus;
   const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     const styles: Record<string, React.CSSProperties> = {};
     physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
@@ -135,7 +151,7 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
     >
       <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
         {boardNumber ? <span className="min-w-0 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span />}
-        {showStatus ? <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold ${boardStatus.className}`}>{boardStatus.label}</span> : null}
+        {showStatus ? <span role={isAdmin && warningLabel ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 shrink rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${cardStatus.className}`}>{cardStatus.label}</span> : null}
       </div>
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">

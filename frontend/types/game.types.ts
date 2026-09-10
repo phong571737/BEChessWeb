@@ -21,6 +21,16 @@ export interface PhysicalBoard {
     resetConfirmedAt?: number;
 }
 
+export interface LiveBoardDataWarning {
+    gameID: string;
+    boardID: string;
+    issues: Array<"invalid_fen" | "fen_uci_mismatch" | "uci_x">;
+    seq?: number;
+    fen?: string;
+    uci?: string;
+    receivedAt: string;
+}
+
 // Common interface for both active, state and history games
 export interface GameSetupMetadata {
     /** Chess clock configuration in milliseconds. */
@@ -54,6 +64,7 @@ export interface ActiveGame extends GameSetupMetadata {
     createdAt: string;
     status?: string | null;
     timeControlType?: "blitz" | "rapid" | "classical";
+    liveDataWarning?: LiveBoardDataWarning;
 }
 
 /** Completed game returned by GET /games/history */
@@ -133,6 +144,7 @@ export interface BoardState extends GameSetupMetadata {
     /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;
+    liveDataWarning?: LiveBoardDataWarning;
 }
 
 export interface BranchMove {

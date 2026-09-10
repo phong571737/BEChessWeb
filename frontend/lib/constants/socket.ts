@@ -24,5 +24,6 @@ export const SERVER_EVENT = {
     ESP_MOVE: "esp_move",
     GAME_STATE: "game_state",
     ACTIVE_GAMES_SNAPSHOT: "active_games_snapshot",
+    BOARD_DATA_WARNING: "board_data_warning",
 
 } as const;

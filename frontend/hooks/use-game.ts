@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Chess } from "chess.js"
 import { CLIENT_EVENT, SERVER_EVENT, SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
-import { Branch } from "@/types/game.types";
+import { Branch, LiveBoardDataWarning } from "@/types/game.types";
 import { extractSanMoves } from "@/lib/custom-chess";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -179,6 +179,7 @@ export function useGame(gameID: string) {
                     activeClockSide: game.activeClockSide,
                     clockStartedAt: game.clockStartedAt ?? null,
                     serverNow: game.serverNow,
+                    liveDataWarning: game.liveDataWarning,
                 })
                 setIsLoaded(true);
             })
@@ -441,10 +442,16 @@ export function useGame(gameID: string) {
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
 
+        const onBoardDataWarning = (data: LiveBoardDataWarning) => {
+            if (!data || data.gameID !== gameID) return;
+            patchBoard(gameID, { liveDataWarning: data });
+        };
+
         socket.on(SERVER_EVENT.ESP_MOVE, onMove);
         socket.on(CLIENT_EVENT.RESTORED, onRestore);
         socket.on(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
         socket.on("clock_state", onClockState);
+        socket.on(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
 
         const onUpdateAllGame = (data: any) => {
             // Never apply a broadcast without an explicit game identity. A
@@ -507,6 +514,7 @@ export function useGame(gameID: string) {
             socket.off("game_restart", onGameRestart);
             socket.off("game:reset", onGameReset);
             socket.off("clock_state", onClockState);
+            socket.off(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
         }
     }, [socket, gameID, applyGameReset, patchBoard]);
 
@@ -636,6 +644,7 @@ export function useGame(gameID: string) {
         missingSquares: board?.missingSquares ?? [],
         extraSquares: board?.extraSquares ?? [],
         wrongPieceSquares: board?.wrongPieceSquares ?? [],
+        liveDataWarning: board?.liveDataWarning,
 
         // branches
         branches: board?.branches ?? [],

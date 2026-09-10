@@ -143,6 +143,11 @@ export const vi: Record<TranslationKeys, string> = {
     "board.initPieces": "Khởi tạo chưa thành công: hãy đặt đầy đủ quân cờ về đúng vị trí ban đầu.",
     "board.initWaiting": "Đang chờ bàn cờ vật lý gửi kiểm tra khởi tạo...",
     "board.initChecking": "Đang kiểm tra vị trí quân cờ...",
+    "board.invalidFenWarning": "Đã nhận FEN không hợp lệ",
+    "board.fenUciMismatchWarning": "FEN không khớp với UCI",
+    "board.uciXWarning": "Đã nhận UCI = X",
+    "board.dataWarningMultiple": "{first}; {second}",
+    "board.dataWarningAtSeq": "{reason} · lượt {seq}",
     "board.layout1": "1 bàn cờ",
     "board.layout2": "2 bàn cờ hai bên",
 

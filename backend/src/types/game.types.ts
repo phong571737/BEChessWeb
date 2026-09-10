@@ -2,6 +2,18 @@ import { Document } from "mongodb";
 
 export type ResignSide = "white" | "black" | "draw";
 
+export type LiveBoardDataWarningIssue = "invalid_fen" | "fen_uci_mismatch" | "uci_x";
+
+export interface LiveBoardDataWarning {
+    gameID: string;
+    boardID: string;
+    issues: LiveBoardDataWarningIssue[];
+    seq?: number;
+    fen?: string;
+    uci?: string;
+    receivedAt: Date;
+}
+
 export interface GameBranch {
     id: string;
     pgn?: string;
@@ -70,6 +82,8 @@ export interface GameDoc extends Document, GameSetupMetadata {
     clockSeconds?: number;
     clockIncrement?: number;
     timeControlType?: "blitz" | "rapid" | "classical";
+    /** Latest malformed electronic-board payload, visible to administrators only. */
+    liveDataWarning?: LiveBoardDataWarning;
     [key: string]: unknown;
 }
 

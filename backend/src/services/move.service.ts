@@ -1,10 +1,64 @@
 import { getOrRestoreCurrentGame, makeMove, restorefromDB } from "../game/game.manager.js";
-import { getGame, saveActiveGameHistorySnapshot, saveGame } from "../models/game.model.js";
+import { getGame, saveActiveGameHistorySnapshot, saveGame, saveLiveBoardDataWarning } from "../models/game.model.js";
 import { BOARD_TYPE, MOVE_STATUS, MOVE_TYPE } from "../constant.js";
 import { games } from "../game/game.repository.js";
 import { MoveState, ParseCandidatesInput, ParsedCandidates, ProcessMoveInput } from "../types/move.types.js";
+import type { LiveBoardDataWarning, LiveBoardDataWarningIssue } from "../types/game.types.js";
 import { getCurrentClock } from "./clock.service.js";
 import { emitWithSpectatorDelay, ensurePublicGameSnapshot } from "./spectator-delay.service.js";
+import { Chess, validateFen } from "chess.js";
+import { getIO } from "../sockets/index.js";
+
+function boardPayloadWarning(
+    gameID: string,
+    { boardID, fen, uci, seq }: Pick<ProcessMoveInput, "boardID" | "fen" | "uci" | "seq">,
+    previousFen?: string,
+): LiveBoardDataWarning | null {
+    const issues: LiveBoardDataWarningIssue[] = [];
+    const normalizedFen = typeof fen === "string" ? fen.trim() : "";
+    const normalizedUci = typeof uci === "string" ? uci.trim() : "";
+
+    const fenValidation = normalizedFen ? validateFen(normalizedFen) : null;
+    if (fenValidation && !fenValidation.ok) issues.push("invalid_fen");
+    if (normalizedUci.toUpperCase() === "X") issues.push("uci_x");
+    if (fenValidation?.ok && previousFen && /^[a-h][1-8][a-h][1-8][qrbn]?$/i.test(normalizedUci)) {
+        try {
+            const expected = new Chess();
+            expected.load(previousFen, { skipValidation: true });
+            const applied = expected.move({
+                from: normalizedUci.slice(0, 2),
+                to: normalizedUci.slice(2, 4),
+                promotion: normalizedUci.slice(4, 5).toLowerCase() || undefined,
+            });
+            const expectedPlacement = expected.fen().split(" ")[0];
+            const receivedPlacement = normalizedFen.split(" ")[0];
+            if (applied && expectedPlacement !== receivedPlacement) issues.push("fen_uci_mismatch");
+        } catch {
+            // A non-standard previous position cannot be used for comparison;
+            // syntax and explicit UCI=X checks still apply independently.
+        }
+    }
+    if (!issues.length) return null;
+
+    return {
+        gameID,
+        boardID,
+        issues,
+        ...(Number.isInteger(seq) ? { seq } : {}),
+        ...(normalizedFen ? { fen: normalizedFen } : {}),
+        ...(normalizedUci ? { uci: normalizedUci } : {}),
+        receivedAt: new Date(),
+    };
+}
+
+async function notifyAdminOfBoardPayload(warning: LiveBoardDataWarning): Promise<void> {
+    await saveLiveBoardDataWarning(warning.gameID, warning);
+    try {
+        getIO().to("audience:admin").emit("board_data_warning", warning);
+    } catch (error) {
+        console.error("Unable to emit electronic-board data warning", error);
+    }
+}
 
 /**Parse json
  * boardType is HALL
@@ -177,6 +231,8 @@ export const MoveService = {
             return { error: true, message: "GAME_STATE_CONFLICT" };
         }
         const expectedVersion = persistedGame.version ?? 0;
+        const warning = boardPayloadWarning(gameID, { boardID, fen, uci, seq }, persistedGame.fen);
+        if (warning) await notifyAdminOfBoardPayload(warning);
 
         // Ensure game is loaded into memory
         if (!games.has(gameID)) {

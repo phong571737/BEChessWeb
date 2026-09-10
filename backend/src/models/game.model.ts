@@ -1,6 +1,6 @@
 import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
-import { GameDoc, SaveGameOptions } from "../types/game.types.js"
+import { GameDoc, LiveBoardDataWarning, SaveGameOptions } from "../types/game.types.js"
 import { classifyTimeControl, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";
 import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
 import { getCurrentClock } from "../services/clock.service.js";
@@ -396,6 +396,14 @@ export async function saveGame(
         console.log(e);
         return null;
     }
+}
+
+/** Persists the latest electronic-board payload warning without advancing the game revision. */
+export async function saveLiveBoardDataWarning(gameID: string, warning: LiveBoardDataWarning) {
+    return games().updateOne(
+        { gameID } as Filter<GameDoc>,
+        { $set: { liveDataWarning: warning } } as UpdateFilter<GameDoc>,
+    );
 }
 
 export async function getAllGame(limit = 200) {
