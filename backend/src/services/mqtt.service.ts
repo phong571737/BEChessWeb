@@ -10,7 +10,7 @@ import { GameResignService } from "./game.resign.service.js";
 import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
-import { emitWithSpectatorDelay, removePublicGameSnapshots } from "./spectator-delay.service.js";
+import { emitWithSpectatorDelay, schedulePublicBoardCleanup } from "./spectator-delay.service.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -18,7 +18,7 @@ interface StatusPayload {
     status: "online" | "offline" | string;
 }
 
-const OFFLINE_CLEANUP_DELAY_MS = 5 * 60 * 1000;  // 2 minutes
+const OFFLINE_CLEANUP_DELAY_MS = 3 * 60 * 1000; // 3 minutes
 const pendingCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 interface RemoveGameByBoardResult {
@@ -80,10 +80,13 @@ async function cleanupBoard(boardID: string) {
         }
         removeCurrenGame(boardID); // remove old gameID
         gameState.delete(boardID); // xóa hẳn thay vì set offline để tránh leak
-        await removePublicGameSnapshots(result?.gameIDs ?? []);
+        // Public clients may still have moves waiting in the spectator queue.
+        // Schedule their removal on that same timeline so all earlier moves
+        // are released first. Administrators can remove the live card now.
+        await schedulePublicBoardCleanup(boardID, result?.gameIDs ?? []);
         try {
             console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
-            getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
+            getIO().to("audience:admin").emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
         } catch (e) {
             // socket may not be initialized; ignore
         }
@@ -234,9 +237,9 @@ async function handleMessage(topic: string, message: Buffer) {
                 // Hủy timer cũ nếu có
                 cancelPendingCleanup(boardID);
 
-                // Chờ 2 phút mới thực sự xóa game để phòng trường hợp rớt ping chốc lát hoặc reconnect
+                // Wait three minutes before deleting the game in case the board reconnects.
                 const timer = setTimeout(async () => {
-                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 2m offline`);
+                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 3m offline`);
                     await cleanupBoard(boardID);
                 }, OFFLINE_CLEANUP_DELAY_MS);
 

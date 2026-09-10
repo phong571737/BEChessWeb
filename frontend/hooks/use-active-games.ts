@@ -15,6 +15,7 @@ export function useActiveGames() {
     const setActiveGames = useGameStore((state) => state.setActiveGames);
     const patchActiveGame = useGameStore((state) => state.patchActiveGame);
     const removeActiveGame = useGameStore((state) => state.removeActiveGame);
+    const removeActiveGames = useGameStore((state) => state.removeActiveGames);
     const upsertActiveGame = useGameStore((state) => state.upsertActiveGame);
     const socket = useSocket();
 
@@ -87,6 +88,24 @@ export function useActiveGames() {
             }
             reconcileSilently();
         };
+        const onGameDestroyed = (rawData: any) => {
+            const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
+            if (!data || typeof data !== "object") {
+                reconcileSilently();
+                return;
+            }
+            const gameIDs = Array.isArray(data.gameIDs)
+                ? data.gameIDs.filter((gameID: unknown): gameID is string => typeof gameID === "string")
+                : typeof data.gameID === "string" ? [data.gameID] : [];
+            // Delayed public cleanup carries the exact retired game IDs. Do
+            // not remove by boardID in that case because the physical board
+            // may already have reconnected with a replacement game.
+            removeActiveGames(
+                gameIDs,
+                gameIDs.length === 0 && typeof data.boardID === "string" ? data.boardID : undefined,
+            );
+            reconcileSilently();
+        };
         const onBoardScanOk = (rawData: any) => {
             const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
             if (!data || typeof data.gameID !== "string") {
@@ -107,7 +126,7 @@ export function useActiveGames() {
             reconcileSilently();
         };
         socket.on(SOCKET_CONSTANTS.GAME_CREATED, reconcileSilently);
-        socket.on(SOCKET_CONSTANTS.GAME_DESTROYED, reconcileSilently);
+        socket.on(SOCKET_CONSTANTS.GAME_DESTROYED, onGameDestroyed);
         socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);
         socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
         socket.on(SOCKET_CONSTANTS.GAME_MOVE, onMove);
@@ -117,7 +136,7 @@ export function useActiveGames() {
         requestSnapshot();
         return () => {
             socket.off(SOCKET_CONSTANTS.GAME_CREATED, reconcileSilently);
-            socket.off(SOCKET_CONSTANTS.GAME_DESTROYED, reconcileSilently);
+            socket.off(SOCKET_CONSTANTS.GAME_DESTROYED, onGameDestroyed);
             socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);
             socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
             socket.off(SOCKET_CONSTANTS.GAME_MOVE, onMove);
@@ -125,7 +144,7 @@ export function useActiveGames() {
             socket.off(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
             socket.off("connect", requestSnapshot);
         };
-    }, [socket, refreshSilently, patchActiveGame, removeActiveGame, setActiveGames, upsertActiveGame]);
+    }, [socket, refreshSilently, patchActiveGame, removeActiveGame, removeActiveGames, setActiveGames, upsertActiveGame]);
 
     return { loading, refresh, activeGames };
 }

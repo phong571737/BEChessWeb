@@ -18,6 +18,7 @@ interface DelayedBroadcast extends Document {
     createdAt: Date;
     publicGame?: GameDoc;
     removePublicGameID?: string;
+    removePublicGameIDs?: string[];
 }
 
 interface BroadcastOptions {
@@ -48,6 +49,9 @@ function withoutMongoId(game: GameDoc): GameDoc {
 async function applyPublicState(item: DelayedBroadcast): Promise<void> {
     if (item.removePublicGameID) {
         await publicGames().deleteOne({ gameID: item.removePublicGameID });
+    }
+    if (item.removePublicGameIDs?.length) {
+        await publicGames().deleteMany({ gameID: { $in: item.removePublicGameIDs } });
     }
     if (item.publicGame?.gameID) {
         const game = withoutMongoId(item.publicGame);
@@ -241,9 +245,51 @@ export async function getPublicGameSnapshot(gameID: string): Promise<GameDoc | n
     return publicGames().findOne({ gameID });
 }
 
-export async function removePublicGameSnapshots(gameIDs: string[]): Promise<void> {
+export async function removePublicGameSnapshots(gameIDs: string[], boardID?: string): Promise<void> {
     const normalized = gameIDs.filter((gameID) => typeof gameID === "string" && gameID.length > 0);
     if (normalized.length) await publicGames().deleteMany({ gameID: { $in: normalized } });
+    const normalizedBoardID = typeof boardID === "string" ? boardID.trim() : "";
+    if (normalizedBoardID) await publicGames().deleteMany({ boardID: normalizedBoardID });
+}
+
+/**
+ * Queues public removal on the spectator timeline. Events received before a
+ * board went offline therefore remain visible in order before its card is
+ * removed. Snapshot IDs are captured now so a later replacement game on the
+ * same physical board cannot be deleted by this older cleanup event.
+ */
+export async function schedulePublicBoardCleanup(boardID: string, gameIDs: string[]): Promise<void> {
+    const normalizedBoardID = boardID.trim();
+    const snapshotIDs = normalizedBoardID
+        ? await publicGames()
+            .find({ boardID: normalizedBoardID })
+            .project<{ gameID?: string }>({ gameID: 1, _id: 0 })
+            .toArray()
+        : [];
+    const normalizedGameIDs = Array.from(new Set([
+        ...gameIDs,
+        ...snapshotIDs.map((snapshot) => snapshot.gameID),
+    ].filter((gameID): gameID is string => typeof gameID === "string" && gameID.length > 0)));
+
+    if (!normalizedGameIDs.length) return;
+
+    const delayMs = await getSpectatorDelayMs();
+    const streamGameID = normalizedGameIDs[0];
+    const item: DelayedBroadcast = {
+        event: "game:destroyed",
+        payload: { gameIDs: normalizedGameIDs },
+        scope: "global",
+        gameID: streamGameID,
+        releaseAt: nextReleaseAt(delayMs, { gameID: streamGameID }),
+        createdAt: new Date(),
+        removePublicGameIDs: normalizedGameIDs,
+    };
+
+    if (delayMs === 0) {
+        await release(item);
+        return;
+    }
+    await queue().insertOne(item);
 }
 
 export async function startSpectatorDelayService(): Promise<void> {

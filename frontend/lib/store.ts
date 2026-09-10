@@ -8,6 +8,7 @@ interface GameStoreState {
     setActiveGames: (games: ActiveGame[]) => void;
     patchActiveGame: (gameID: string, patch: Partial<ActiveGame>) => void;
     removeActiveGame: (gameID: string) => void;
+    removeActiveGames: (gameIDs: string[], boardID?: string) => void;
     upsertActiveGame: (game: ActiveGame, boardID?: string) => void;
 
     /** Physical boards detected via heartbeat */
@@ -79,6 +80,17 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         set((state) => ({
             activeGames: state.activeGames.filter((game) => game.gameID !== gameID),
         })),
+    removeActiveGames: (gameIDs, boardID) =>
+        set((state) => {
+            const ids = new Set(gameIDs);
+            const targetBoard = boardKey(boardID);
+            return {
+                activeGames: state.activeGames.filter((game) =>
+                    !ids.has(game.gameID)
+                    && (!targetBoard || boardKey(game.boardID) !== targetBoard),
+                ),
+            };
+        }),
     upsertActiveGame: (game, boardID) =>
         set((state) => {
             const replacementBoardKey = boardKey(boardID ?? game.boardID);
