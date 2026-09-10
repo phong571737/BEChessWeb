@@ -520,6 +520,7 @@ export const en = {
     "analysis.hideEvaluation": "Hide evaluation bar",
     "analysis.showMoveSuggestions": "Show move suggestions",
     "analysis.hideMoveSuggestions": "Hide move suggestions",
+    "analysis.boardDisplayControls": "Board display controls",
     "analysis.showMoveAnnotations": "Show move labels",
     "analysis.hideMoveAnnotations": "Hide move labels",
     "analysis.description": "Stockfish analyzes the selected review branch locally for this viewer.",

@@ -3,11 +3,11 @@
 import { GAME_STATUS } from "@/lib/constants/game";
 import { useT } from "@/lib/i18n";
 import { Chess } from "chess.js";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { PGNTable } from "./pgn-table";
 import { Button } from "@/components/ui/button";
-import { ChevronsLeft, ChevronRight, ChevronLeft, ChevronsRight } from "lucide-react";
+import { BarChart3, ChevronsLeft, ChevronRight, ChevronLeft, ChevronsRight, EyeOff, FlipHorizontal, Lightbulb, Menu } from "lucide-react";
 import { GameActions } from "./game-actions";
 import { GameSetupDialog } from "./game-setup-dialog";
 import { Branch } from "@/types/game.types";
@@ -52,6 +52,12 @@ interface Props {
     location: string;
     /** Latest initial-position validation from the physical board. */
     initStatus?: string;
+    showBoardDisplayControls?: boolean;
+    showLiveEvaluation?: boolean;
+    showLiveSuggestions?: boolean;
+    onToggleBoardFlip?: () => void;
+    onToggleLiveEvaluation?: () => void;
+    onToggleLiveSuggestions?: () => void;
 }
 
 export interface GamePanelHandle {
@@ -65,6 +71,8 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, whiteName, blackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
     whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID,
+    showBoardDisplayControls = false, showLiveEvaluation = true, showLiveSuggestions = true,
+    onToggleBoardFlip, onToggleLiveEvaluation, onToggleLiveSuggestions,
 }, ref) {
     const { t } = useT();
     const timeControl = classifyTimeControl(initialTimeMs, incrementMs);
@@ -74,6 +82,25 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
         classical: t("timeControl.classical"),
     }[timeControl];
     const [cursor, setCursor] = useState(-1);
+    const [mobileControlsOpen, setMobileControlsOpen] = useState(false);
+    const mobileControlsRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        if (!mobileControlsOpen) return;
+        const closeOnOutsidePointer = (event: PointerEvent) => {
+            const target = event.target as Node | null;
+            if (target && !mobileControlsRef.current?.contains(target)) setMobileControlsOpen(false);
+        };
+        const closeOnEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setMobileControlsOpen(false);
+        };
+        document.addEventListener("pointerdown", closeOnOutsidePointer);
+        document.addEventListener("keydown", closeOnEscape);
+        return () => {
+            document.removeEventListener("pointerdown", closeOnOutsidePointer);
+            document.removeEventListener("keydown", closeOnEscape);
+        };
+    }, [mobileControlsOpen]);
 
     // Determine the current branch
     const currentBranch = useMemo(() => {
@@ -208,10 +235,12 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{timeControlLabel}</span>
                 <span className="font-mono text-[10px] text-muted-foreground">{Math.round((initialTimeMs ?? DEFAULT_INITIAL_TIME_MS) / 60_000)}+{Math.round((incrementMs ?? DEFAULT_INCREMENT_MS) / 1_000)}</span>
             </div>
-            <PlayerRow player={firstPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
+            <div className="hidden sm:block">
+                <PlayerRow player={firstPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
+            </div>
 
             {/* ── Navigation controls ── */}
-            <div className="flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/20">
+            <div className="relative flex items-center justify-between gap-2 px-3 py-2 border-b border-border bg-muted/20">
                 <div className="grid flex-1 grid-cols-4 gap-1">
                     <Button variant="ghost" size="icon" className="h-9 w-full" onClick={goStart} disabled={activeCursor === 0}>
                         <ChevronsLeft className="size-4" />
@@ -229,6 +258,38 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 <span className="shrink-0 text-xs text-muted-foreground font-mono tabular-nums select-none">
                     {activeCursor}/{totalMoves}
                 </span>
+                {showBoardDisplayControls && (
+                    <div ref={mobileControlsRef} className="relative shrink-0 sm:hidden">
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="size-9"
+                            aria-label={t("analysis.boardDisplayControls")}
+                            aria-expanded={mobileControlsOpen}
+                            aria-haspopup="menu"
+                            onClick={() => setMobileControlsOpen((open) => !open)}
+                        >
+                            <Menu className="size-4" />
+                        </Button>
+                        {mobileControlsOpen && (
+                            <div role="menu" className="absolute right-0 top-full z-[80] mt-1 flex w-60 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-md border border-border bg-background p-1.5 shadow-xl">
+                                <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleBoardFlip?.(); setMobileControlsOpen(false); }}>
+                                    <FlipHorizontal className="size-3.5" />
+                                    {t("settings.flipBoard")}
+                                </Button>
+                                <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveEvaluation?.(); setMobileControlsOpen(false); }}>
+                                    <BarChart3 className="size-3.5" />
+                                    {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
+                                </Button>
+                                <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveSuggestions?.(); setMobileControlsOpen(false); }}>
+                                    {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
+                                    {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* ── PGN move list ── */}
@@ -248,7 +309,9 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                 />
             </div>
 
-            <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
+            <div className="hidden sm:block">
+                <PlayerRow player={secondPlayer} isWhiteTurn={isWhiteTurn} activeClockSide={activeClockSide} />
+            </div>
 
             {isAuthenticated && status !== GAME_STATUS.FINISHED && status !== GAME_STATUS.ENDED && (
                 <div className="flex items-center justify-between gap-3 border-b border-border bg-muted/20 px-3 py-1.5">

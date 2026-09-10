@@ -753,15 +753,18 @@ export function BoardViewSlot({
     return (
         <div className={cn("flex flex-col h-full min-h-0", className)}>
             {(boardNotice || enableEval) && (
-                <div className="sm:flex sm:items-center sm:gap-2 sm:px-3 sm:pt-2">
+                <div className={cn(
+                    "relative items-center gap-2 px-2 pt-2 sm:flex sm:px-3",
+                    boardNotice ? "flex" : "hidden"
+                )}>
                     {boardNotice && (
-                        <div className={cn("mx-2 mt-2 flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-0 sm:mt-0 sm:h-8 sm:flex-1 sm:py-1.5", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                        <div className={cn("flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
                             <boardNotice.icon className="size-4 shrink-0" />
                             <span className="truncate">{boardNotice.text}</span>
                         </div>
                     )}
                     {enableEval && (
-                        <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:ml-auto sm:px-0 sm:pt-0">
+                        <div className="hidden flex-nowrap justify-end gap-2 sm:ml-auto sm:flex">
                             <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
                                 <FlipHorizontal className="size-3.5" />
                                 {t("settings.flipBoard")}
@@ -786,6 +789,15 @@ export function BoardViewSlot({
                     lg:grid-cols-[minmax(0,1fr)_clamp(300px,24vw,380px)]
                     ">
                         <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
+                            <div className="sm:hidden">
+                                <CompactPlayer
+                                    name={boardFlipped ? whiteName : blackName}
+                                    side={boardFlipped ? "white" : "black"}
+                                    timeMs={boardFlipped ? whiteMs : blackMs}
+                                    activeSide={activeSide}
+                                    mobileInline
+                                />
+                            </div>
                             <div className="flex gap-1.5 min-w-0 sm:flex-1 sm:min-h-0 items-stretch">
                                 <div
                                     ref={boardWrapRef}
@@ -814,6 +826,16 @@ export function BoardViewSlot({
                                     <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="sm:hidden">
+                                <CompactPlayer
+                                    name={boardFlipped ? blackName : whiteName}
+                                    side={boardFlipped ? "black" : "white"}
+                                    timeMs={boardFlipped ? blackMs : whiteMs}
+                                    activeSide={activeSide}
+                                    mobileInline
+                                />
                             </div>
 
                             {evaluationBarVisible && (
@@ -855,6 +877,12 @@ export function BoardViewSlot({
                                 boardID={boardLabel}
                                 location={location}
                                 initStatus={initStatus}
+                                showBoardDisplayControls={enableEval}
+                                showLiveEvaluation={showLiveEvaluation}
+                                showLiveSuggestions={showLiveSuggestions}
+                                onToggleBoardFlip={toggleBoardFlip}
+                                onToggleLiveEvaluation={toggleLiveEvaluation}
+                                onToggleLiveSuggestions={toggleLiveSuggestions}
                             />
                         </div>
                     </div>
@@ -873,6 +901,7 @@ function CompactPlayer({
     highlightActive = true,
     labelHiddenMobile = false,
     desktopAtLarge = false,
+    mobileInline = false,
 }: {
     name: string;
     side: "white" | "black";
@@ -882,11 +911,13 @@ function CompactPlayer({
     highlightActive?: boolean;
     labelHiddenMobile?: boolean;
     desktopAtLarge?: boolean;
+    mobileInline?: boolean;
 }) {
     const active = side === activeSide;
     return (
         <div className={cn(
-            "relative mx-auto grid w-full grid-cols-1 grid-rows-[auto_auto] items-center gap-x-2 gap-y-0 rounded-sm px-1 py-1 transition-colors",
+            "relative mx-auto grid w-full items-center gap-x-2 gap-y-0 rounded-sm px-1 py-1 transition-colors",
+            mobileInline ? "grid-cols-[minmax(0,1fr)_auto] grid-rows-none" : "grid-cols-1 grid-rows-[auto_auto]",
             desktopAtLarge
                 ? "lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:grid-rows-none"
                 : "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-none",
@@ -896,7 +927,8 @@ function CompactPlayer({
                 <span className={cn("break-words", desktopAtLarge ? "lg:truncate" : "md:truncate")}>{name}</span>
             </span>
             <span className={cn(
-                "col-start-1 row-start-2 justify-self-start font-mono text-sm tabular-nums",
+                mobileInline ? "col-start-2 row-start-1 justify-self-end" : "col-start-1 row-start-2 justify-self-start",
+                "font-mono text-sm tabular-nums",
                 desktopAtLarge
                     ? "lg:col-auto lg:row-auto lg:justify-self-center"
                     : "md:col-auto md:row-auto md:justify-self-center",

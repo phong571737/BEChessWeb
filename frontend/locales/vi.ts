@@ -523,6 +523,7 @@ export const vi: Record<TranslationKeys, string> = {
     "analysis.hideEvaluation": "Ẩn thanh đánh giá",
     "analysis.showMoveSuggestions": "Hiện gợi ý nước đi",
     "analysis.hideMoveSuggestions": "Ẩn gợi ý nước đi",
+    "analysis.boardDisplayControls": "Điều khiển hiển thị bàn cờ",
     "analysis.showMoveAnnotations": "Hiện ký hiệu nước đi",
     "analysis.hideMoveAnnotations": "Ẩn ký hiệu nước đi",
     "analysis.description": "Stockfish tự phân tích nhánh đang chọn riêng cho người xem này.",
