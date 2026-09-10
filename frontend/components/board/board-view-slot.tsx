@@ -752,26 +752,30 @@ export function BoardViewSlot({
 
     return (
         <div className={cn("flex flex-col h-full min-h-0", className)}>
-            {boardNotice && (
-                <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", boardNotice.className)} role={warningText ? "alert" : "status"}>
-                    <boardNotice.icon className="size-4 shrink-0" />
-                    <span>{boardNotice.text}</span>
-                </div>
-            )}
-            {enableEval && (
-                <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:px-3">
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
-                        <FlipHorizontal className="size-3.5" />
-                        {t("settings.flipBoard")}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
-                        <BarChart3 className="size-3.5" />
-                        {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
-                        {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
-                        {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-                    </Button>
+            {(boardNotice || enableEval) && (
+                <div className="sm:flex sm:items-center sm:gap-2 sm:px-3 sm:pt-2">
+                    {boardNotice && (
+                        <div className={cn("mx-2 mt-2 flex min-w-0 items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-0 sm:mt-0 sm:h-8 sm:flex-1 sm:py-1.5", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                            <boardNotice.icon className="size-4 shrink-0" />
+                            <span className="truncate">{boardNotice.text}</span>
+                        </div>
+                    )}
+                    {enableEval && (
+                        <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:ml-auto sm:px-0 sm:pt-0">
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
+                                <FlipHorizontal className="size-3.5" />
+                                {t("settings.flipBoard")}
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
+                                <BarChart3 className="size-3.5" />
+                                {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
+                                {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
+                                {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
             <div className="flex-1 min-h-0 p-2 sm:p-3">
