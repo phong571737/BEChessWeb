@@ -11,6 +11,7 @@ import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
 import { emitWithSpectatorDelay, schedulePublicBoardCleanup } from "./spectator-delay.service.js";
+import { markBoardOffline, markBoardOnline } from "../models/board-uptime.model.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -38,6 +39,21 @@ interface CommandPayload {
 const COMMAND_DEDUPE_WINDOW_MS = 15_000;
 const AUTO_RESULT_THRESHOLD_CP = 150;
 const recentCommandKeys = new Map<string, number>();
+const boardConnectionWrites = new Map<string, Promise<void>>();
+
+function persistBoardConnection(boardID: string, online: boolean): void {
+    const previous = boardConnectionWrites.get(boardID) ?? Promise.resolve();
+    const write = previous
+        .then(() => online ? markBoardOnline(boardID) : markBoardOffline(boardID))
+        .catch((error) => {
+            // Dashboard accounting must never interrupt the live board lifecycle.
+            console.error(`[MQTT] Could not persist ${online ? "online" : "offline"} state for ${boardID}:`, error);
+        });
+    boardConnectionWrites.set(boardID, write);
+    void write.finally(() => {
+        if (boardConnectionWrites.get(boardID) === write) boardConnectionWrites.delete(boardID);
+    });
+}
 
 function claimCommand(boardID: string, payload: CommandPayload, command: string, side?: string) {
     const requestKey = typeof payload.requestId === "string" && payload.requestId.trim()
@@ -202,16 +218,18 @@ async function handleMessage(topic: string, message: Buffer) {
         const boardID = parts[1];
         if (!boardID) return;
         try {
-            const payload = JSON.parse(message.toString());
+            const payload = JSON.parse(message.toString()) as StatusPayload;
 
             // if status is online(board connected)
             if (payload.status === 'online') {
                 console.log(`[MQTT] Board ${boardID} online`);
                 cancelPendingCleanup(boardID);
+                persistBoardConnection(boardID, true);
                 gameState.set(boardID, { boardStatus: "online" });
             } else if (payload.status === 'reset') {
                 console.log(`[MQTT] Board ${boardID} confirmed local reset`);
                 cancelPendingCleanup(boardID);
+                persistBoardConnection(boardID, true);
                 gameState.set(boardID, {
                     boardStatus: "online",
                     gameStatus: "checkinit",
@@ -224,6 +242,7 @@ async function handleMessage(topic: string, message: Buffer) {
                 getIO().emit("board_reset", { boardID, status: "reset", confirmedAt: Date.now() });
             } else if (payload.status === 'offline') { // board disconnected (power outage or network hiccup)
                 console.log(`[MQTT] Board ${boardID} offline signal received`);
+                persistBoardConnection(boardID, false);
                 gameState.set(boardID, { boardStatus: "offline" });
 
                 // Notify frontend immediately that the board is offline

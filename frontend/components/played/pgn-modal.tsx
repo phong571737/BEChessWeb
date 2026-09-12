@@ -33,7 +33,7 @@ import type { MoveAnalysis } from "@/lib/post-game-analysis";
 import { useAuth } from "@/components/providers/auth-provider";
 import { apiFetch } from "@/lib/api-fetch";
 import { EDITOR_FILES, EDITOR_RANKS, FEN_EDITOR_PIECES, fenEditorPosition, fenWithEditorPosition, type FenEditorPiece } from "@/lib/fen-editor";
-import { fetchRecoveredPgn, saveHistoryTraces as persistHistoryTraces } from "@/lib/pgn-history-api";
+import { fetchRecoveredPgn, replaceFenHistory as persistFenHistory, saveHistoryTraces as persistHistoryTraces } from "@/lib/pgn-history-api";
 
 interface Props {
   game:    HistoryGame | null;
@@ -389,6 +389,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [editedFenHistory, setEditedFenHistory] = useState<string[]>(game.fenHistoryEdited ?? []);
+  const fenUndoStackRef = useRef<string[][]>([]);
+  const [undoingFen, setUndoingFen] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
@@ -414,6 +416,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     () => (editedFenHistory.length ? editedFenHistory : rawFenHistory),
     [editedFenHistory, rawFenHistory],
   );
+  const rememberFenHistory = useCallback((snapshot: string[]) => {
+    const stack = fenUndoStackRef.current;
+    const previous = stack.at(-1);
+    if (previous?.length === snapshot.length && previous.every((fen, index) => fen === snapshot[index])) return;
+    stack.push([...snapshot]);
+    if (stack.length > 50) stack.shift();
+  }, []);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -433,6 +442,10 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   // FEN-backed history notation must come exclusively from recover-service.
   // A failed request is surfaced to the user instead of invoking a local
   // renderer that could disagree with the canonical recovery algorithm.
+  useEffect(() => {
+    fenUndoStackRef.current = [];
+  }, [game._id]);
+
   useEffect(() => {
     let cancelled = false;
     setBasePgn(null);
@@ -1093,6 +1106,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   /** Deletes only the selected persisted FEN snapshot after admin confirmation. */
   const deleteFenSnapshot = async () => {
     if (pendingFenIndex === null || !token || deletingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setDeletingFen(true);
     setFenDeleteError(null);
     try {
@@ -1103,6 +1117,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown } | null;
       if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) throw new Error("delete_failed");
       const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       setPendingFenIndex(null);
       onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
@@ -1116,6 +1132,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   /** Adds or replaces one FEN snapshot through the administrator API. */
   const saveFenSnapshot = async () => {
     if (!fenEditor || !token || savingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setSavingFen(true);
     setFenSaveError(null);
     try {
@@ -1134,6 +1151,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         throw new Error("save_failed");
       }
       const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       setFenEditor(null);
       onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
@@ -1148,6 +1167,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const insertDuplicatedFenSnapshot = async () => {
     const fen = insertFenDraft?.trim();
     if (insertAfterFenIndex === null || !fen || !token || insertingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setInsertingFen(true);
     setFenSaveError(null);
     try {
@@ -1162,6 +1182,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         throw new Error("save_failed");
       }
       const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       setInsertAfterFenIndex(null);
       setInsertFenDraft(null);
@@ -1176,6 +1198,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   /** Saves an admin drag/drop correction to the separate edited FEN timeline. */
   const saveInlineFenSnapshot = async (fen: string) => {
     if (inlineFenIndex === null || !token || savingInlineFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setInlineFenDraft(fen);
     setSavingInlineFen(true);
     setFenSaveError(null);
@@ -1191,6 +1214,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         throw new Error("save_failed");
       }
       const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
     } catch (error) {
@@ -1203,6 +1228,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   /** Replaces the entire FEN sequence pasted by an administrator. */
   const replaceFenHistory = async () => {
     if (bulkFenEditor === null || !token || savingBulkFens) return;
+    const previousFenHistory = [...preferredFenHistory];
     const fenHistory = bulkFenEditor
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -1229,6 +1255,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         throw new Error("save_failed");
       }
       const savedFenHistory = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(savedFenHistory);
       setBaseAnalysisMoves([]);
       setBulkFenEditor(null);
       onGameUpdate?.({ ...game, fenHistoryEdited: savedFenHistory, analysis: undefined });
@@ -1241,6 +1269,41 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       setSavingBulkFens(false);
     }
   };
+
+  const undoLastFenEdit = useCallback(async () => {
+    if (!isAdmin || !token || undoingFen || fenUndoStackRef.current.length === 0) return;
+    const previousFenHistory = fenUndoStackRef.current.pop();
+    if (!previousFenHistory) return;
+    setUndoingFen(true);
+    setFenSaveError(null);
+    try {
+      const restoredFenHistory = await persistFenHistory(game._id, previousFenHistory);
+      setEditedFenHistory(restoredFenHistory);
+      setBaseAnalysisMoves([]);
+      setCursor(-1);
+      onGameUpdate?.({ ...game, fenHistoryEdited: restoredFenHistory, analysis: undefined });
+    } catch {
+      fenUndoStackRef.current.push(previousFenHistory);
+      setFenSaveError(t("rev.saveFenFailed"));
+    } finally {
+      setUndoingFen(false);
+    }
+  }, [game, isAdmin, onGameUpdate, t, token, undoingFen]);
+
+  useEffect(() => {
+    const handleFenUndo = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      // Preserve the browser's native text undo while an input editor has focus.
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) return;
+      if (!isAdmin || undoingFen || fenUndoStackRef.current.length === 0) return;
+      event.preventDefault();
+      void undoLastFenEdit();
+    };
+    window.addEventListener("keydown", handleFenUndo);
+    return () => window.removeEventListener("keydown", handleFenUndo);
+  }, [isAdmin, undoLastFenEdit, undoingFen]);
 
   const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;

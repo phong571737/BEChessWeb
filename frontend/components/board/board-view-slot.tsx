@@ -271,7 +271,7 @@ export function BoardViewSlot({
     const {
         fen, pgn, whiteName, blackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, initialFen, fenHistory, boardNumber, liveDataWarning,
+        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, tournament, initialFen, fenHistory, boardNumber, liveDataWarning,
     } = useGame(gameID);
     const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
     const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
@@ -312,7 +312,7 @@ export function BoardViewSlot({
             return next;
         });
     }, [gameID]);
-    const initNotice = isAuthenticated && status !== GAME_STATUS.PLAYING
+    const initNotice = isAdmin && status !== GAME_STATUS.PLAYING
         ? initStatus === GAME_STATUS.READY
             ? { icon: CircleCheckBig, className: "border-success/35 bg-success/10 text-success", text: t("board.initReady") }
             : initStatus === "waiting_button"
@@ -681,9 +681,9 @@ export function BoardViewSlot({
                                 fen={displayFen}
                             lastMove={displayLastMove}
                             boardWidth={boardWidth}
-                            missingSquares={missingSquares}
-                            extraSquares={extraSquares}
-                            wrongPieceSquares={wrongPieceSquares}
+                            missingSquares={isAdmin ? missingSquares : []}
+                            extraSquares={isAdmin ? extraSquares : []}
+                            wrongPieceSquares={isAdmin ? wrongPieceSquares : []}
                                 predictedMove={predictedMove}
                                 flipped={boardFlipped}
                             />
@@ -810,9 +810,9 @@ export function BoardViewSlot({
                                         fen={displayFen}
                                         lastMove={displayLastMove}
                                         boardWidth={boardWidth}
-                                        missingSquares={missingSquares}
-                                        extraSquares={extraSquares}
-                                        wrongPieceSquares={wrongPieceSquares}
+                                        missingSquares={isAdmin ? missingSquares : []}
+                                        extraSquares={isAdmin ? extraSquares : []}
+                                        wrongPieceSquares={isAdmin ? wrongPieceSquares : []}
                                         predictedMove={predictedMove}
                                         flipped={boardFlipped}
                                     />
@@ -876,6 +876,7 @@ export function BoardViewSlot({
                                 boardNumber={boardNumber}
                                 boardID={boardLabel}
                                 location={location}
+                                tournament={tournament}
                                 initStatus={initStatus}
                                 showBoardDisplayControls={enableEval}
                                 showLiveEvaluation={showLiveEvaluation}

@@ -14,6 +14,7 @@ import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { apiFetch } from "@/lib/api-fetch";
 import { saveLastTimeControl } from "@/lib/last-time-control";
+import { readBulkGameSetupDraft } from "@/lib/bulk-game-setup-draft";
 
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
@@ -26,6 +27,7 @@ interface Props {
     round: number;
     boardNumber?: string;
     location: string;
+    tournament?: string;
 }
 const BOARD_NUMBER_OPTIONS = Array.from(
     { length: 10 },
@@ -36,7 +38,7 @@ function isPresetBoardNumber(value: string) {
     return BOARD_NUMBER_OPTIONS.includes(value.trim());
 }
 
-export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location }: Props) {
+export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location, tournament = "" }: Props) {
     const { t } = useT();
     const { token, isAdmin } = useAuth();
     const [open, setOpen] = useState(false);
@@ -51,6 +53,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         !isPresetBoardNumber(initialBoardNumber.trim())
     );
     const [gameLocation, setGameLocation] = useState(location);
+    const [tournamentName, setTournamentName] = useState(tournament);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [excelImport, setExcelImport] = useState<ExcelGameImport | null>(null);
@@ -75,11 +78,36 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             !isPresetBoardNumber(initialBoardNumber.trim())
         );
         setGameLocation(location);
+        setTournamentName(tournament);
         setError(null);
-        setExcelImport(null);
-        setSelectedExcelRow("");
+        const draft = readBulkGameSetupDraft();
+        const assignedRowIndex = draft
+            ? Object.entries(draft.boardAssignments).find(([, assignedGameID]) => assignedGameID === gameID)?.[0]
+            : undefined;
+        const assignedRow = assignedRowIndex !== undefined
+            ? draft?.imported.rows[Number(assignedRowIndex)]
+            : undefined;
+        if (draft && assignedRow && assignedRow.whiteName.trim() && assignedRow.blackName.trim()) {
+            const importedBoardNumber = String(assignedRow.boardNumber || "").trim();
+            setExcelImport(draft.imported);
+            setSelectedExcelRow(assignedRowIndex ?? "");
+            setWhite(assignedRow.whiteName);
+            setBlack(assignedRow.blackName);
+            setBoardNumber(importedBoardNumber);
+            setIsCustomBoardNumber(importedBoardNumber !== "" && !isPresetBoardNumber(importedBoardNumber));
+            setGameLocation(assignedRow.location ?? draft.imported.location ?? location);
+            setTournamentName(draft.tournamentName || assignedRow.tournament || draft.imported.tournament || tournament);
+            setSelectedRound(draft.selectedMatchIndex + 1);
+            if (draft.applyClock) {
+                setTime(draft.initialTimeMs);
+                setIncrement(draft.incrementMs);
+            }
+        } else {
+            setExcelImport(null);
+            setSelectedExcelRow("");
+        }
         setExcelError(null);
-    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location, initialBoardNumber]);
+    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location, initialBoardNumber, gameID, tournament]);
 
     const applyExcelRow = (index: string, imported = excelImport) => {
         setSelectedExcelRow(index);
@@ -94,6 +122,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             !isPresetBoardNumber(importedBoardNumber)
         );
         if (row.location || imported?.location) setGameLocation(row.location ?? imported?.location ?? "");
+        setTournamentName(row.tournament ?? imported?.tournament ?? tournament);
         setExcelError(null);
     };
 
@@ -132,7 +161,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const first = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber, tournament: excelImport?.tournament ?? "" }),
+                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber, tournament: tournamentName.trim() }),
             });
             const firstData = await first.json().catch(() => null) as {
                 error?: string;
@@ -147,7 +176,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const second = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ color: "Black", name: black.trim(), tournament: excelImport?.tournament ?? "" }),
+                body: JSON.stringify({ color: "Black", name: black.trim(), tournament: tournamentName.trim() }),
             });
             if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));
 
@@ -159,7 +188,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 round: selectedRound,
                 boardNumber: normalizedBoardNumber,
                 location: gameLocation.trim(),
-                tournament: excelImport?.tournament ?? "",
+                tournament: tournamentName.trim(),
                 ...(typeof firstData?.whiteRemainingMs === "number" ? { whiteRemainingMs: firstData.whiteRemainingMs } : {}),
                 ...(typeof firstData?.blackRemainingMs === "number" ? { blackRemainingMs: firstData.blackRemainingMs } : {}),
                 ...(firstData?.activeClockSide ? { activeClockSide: firstData.activeClockSide } : {}),

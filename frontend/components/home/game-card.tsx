@@ -107,11 +107,15 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const warningLabel = warningReason && game.liveDataWarning?.seq !== undefined
     ? t("board.dataWarningAtSeq", { reason: warningReason, seq: game.liveDataWarning.seq })
     : warningReason;
-  const cardStatus = isAdmin && warningLabel
-    ? { label: warningLabel, className: "bg-destructive/10 text-destructive" }
+  const cardWarningLabel = game.liveDataWarning?.issues.includes("invalid_fen")
+    ? t("home.invalidFen")
+    : warningLabel;
+  const cardStatus = isAdmin && cardWarningLabel
+    ? { label: cardWarningLabel, className: "bg-destructive/10 text-destructive" }
     : boardStatus;
   const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     const styles: Record<string, React.CSSProperties> = {};
+    if (!isAdmin) return styles;
     physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
     physicalBoard?.extraSquares?.forEach((square) => { styles[square] = { background: "rgba(255,165,0,0.60)" }; });
     physicalBoard?.wrongPieceSquares?.forEach((item) => {
@@ -119,7 +123,7 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
       if (square) styles[square] = { background: "rgba(255,230,0,0.65)" };
     });
     return styles;
-  }, [physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
+  }, [isAdmin, physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -150,8 +154,8 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
       aria-label={t("home.openGame", { players: `${game.whiteName} vs ${game.blackName}` })}
     >
       <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
-        {boardNumber ? <span className="min-w-0 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span />}
-        {showStatus ? <span role={isAdmin && warningLabel ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 shrink rounded-full px-2 py-0.5 text-[10px] font-semibold truncate ${cardStatus.className}`}>{cardStatus.label}</span> : null}
+        {boardNumber ? <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span className="flex-1" />}
+        {showStatus ? <span role={isAdmin && cardWarningLabel ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 max-w-[55%] shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${cardStatus.className}`}>{cardStatus.label}</span> : null}
       </div>
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">

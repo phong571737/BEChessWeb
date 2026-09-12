@@ -62,6 +62,10 @@ export interface ActiveGame extends GameSetupMetadata {
     lastMove?: LastMove | null;
     lastSeq: number;
     createdAt: string;
+    /** First accepted move time and persisted elapsed duration for dashboard metrics. */
+    startedAt?: string | null;
+    lastMoveAt?: string | null;
+    durationSec?: number | null;
     status?: string | null;
     timeControlType?: "blitz" | "rapid" | "classical";
     liveDataWarning?: LiveBoardDataWarning;
@@ -70,6 +74,7 @@ export interface ActiveGame extends GameSetupMetadata {
 /** Completed game returned by GET /games/history */
 export interface HistoryGame extends GameSetupMetadata {
     _id: string;
+    gameID?: string;
     whiteName: string;
     blackName: string;
     Result: "1-0" | "0-1" | "1/2-1/2" | "*";

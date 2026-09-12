@@ -3,7 +3,6 @@ import { getDB } from "../config/database.js";
 import { getAllGame } from "../models/game.model.js";
 import { getSpectatorDelayMs, setSpectatorDelayMs } from "../models/broadcast-setting.model.js";
 import { getIO } from "../sockets/index.js";
-import { getCurrentClock } from "./clock.service.js";
 import type { GameDoc } from "../types/game.types.js";
 
 type BroadcastScope = "global" | "game";
@@ -101,20 +100,14 @@ async function release(item: DelayedBroadcast): Promise<void> {
     await applyPublicState(item);
     emitToAudience("public", item.event, publicPayload(item), item.scope, item.gameID);
 
-    // `esp_move` is the fast path, but a browser can miss it while polling is
-    // upgrading or reconnecting. Send the same already-delayed durable state
-    // through the normal Socket.IO hydration events as well. This is not an
-    // HTTP reload: home cards receive a global snapshot and an open board that
-    // joined its room receives its own restore payload.
+    // An open board also receives a room-scoped durable restore. Do not emit a
+    // complete active-games snapshot for every move: replacing the whole home
+    // list makes every card rerender even though only one board changed.
+    // Reconnecting home clients request the durable snapshot themselves.
     if (item.event !== "esp_move" || !item.gameID) return;
     const game = await getPublicGameSnapshot(item.gameID);
     if (!game) return;
 
-    const activeGames = await getPublicGameSnapshots();
-    emitToAudience("public", "active_games_snapshot", activeGames.map((activeGame) => ({
-        ...activeGame,
-        ...getCurrentClock(activeGame),
-    })), "global");
     emitToAudience("public", "restore_game", {
         gameID: game.gameID,
         fen: game.fen,

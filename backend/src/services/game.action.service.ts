@@ -109,7 +109,12 @@ export const GameActionService = {
         if (incrementMs !== undefined) payload.incrementMs = incrementMs;
         if (round !== undefined) payload.round = round;
         if (location !== undefined) payload.location = location;
-        await emitWithSpectatorDelay("game:renamed", payload, { scope: "game", gameID, publicGame: updatedGame ?? undefined });
+        if (tournament !== undefined) payload.tournament = tournament;
+        // Rename/setup metadata is used by both the home card and an open
+        // board page. Broadcast globally and let clients filter by gameID;
+        // keeping gameID as the queue stream also preserves per-game delay
+        // ordering for public viewers.
+        await emitWithSpectatorDelay("game:renamed", payload, { scope: "global", gameID, publicGame: updatedGame ?? undefined });
 
         // Keep every connected client on the same server-authoritative clock,
         // including clients that are viewing the game while it is configured.

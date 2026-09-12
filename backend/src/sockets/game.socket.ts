@@ -1,7 +1,7 @@
 import { Server, Socket } from "socket.io";
 import jwt from "jsonwebtoken";
-import { getCurrentState } from "../game/game.manager.js";
 import { GameIDPayload, ResignPayload } from "../types/game.types.js";
+import type { GameDoc } from "../types/game.types.js";
 import { env } from "../config/environment.js";
 import { getAllGame, getGame } from "../models/game.model.js";
 import { GameActionService } from "../services/game.action.service.js";
@@ -51,6 +51,25 @@ function socketAudience(socket: Socket): "admin" | "public" {
     }
 }
 
+function restorePayload(game: GameDoc) {
+    return {
+        gameID: game.gameID,
+        fen: game.fen,
+        initialFen: game.initialFen,
+        pgn: game.pgn,
+        lastMove: game.lastMove,
+        fenHistory: game.fenHistory,
+        whiteName: game.whiteName,
+        blackName: game.blackName,
+        initialTimeMs: game.initialTimeMs,
+        incrementMs: game.incrementMs,
+        round: game.round,
+        boardNumber: game.boardNumber,
+        location: game.location,
+        tournament: game.tournament,
+    };
+}
+
 export function initGameSocket(io: Server): void {
     io.on("connection", (socket) =>{
         const joinedGames = new Set<string>();
@@ -74,13 +93,7 @@ export function initGameSocket(io: Server): void {
             joinedGames.add(gameID);
             await socket.join(`game:${gameID}:${audience}`);
             socket.emit("clock_state", { gameID, ...getCurrentClock(availableGame), fen: availableGame.fen });
-            socket.emit("restore_game", {
-                gameID,
-                fen: availableGame.fen,
-                pgn: availableGame.pgn,
-                lastMove: availableGame.lastMove,
-                fenHistory: availableGame.fenHistory,
-            });
+            socket.emit("restore_game", restorePayload(availableGame));
             acknowledge?.({ ok: true });
         });
 
@@ -128,15 +141,11 @@ export function initGameSocket(io: Server): void {
                 return;
             }
             const currentstate = audience === "admin"
-                ? await getCurrentState(gameID)
+                ? await getGame(gameID)
                 : await getPublicGameSnapshot(gameID);
 
             if(currentstate){
-                socket.emit("restore_game", {
-                    gameID: currentstate.gameID,
-                    fen: currentstate.fen,
-                    lastMove: currentstate.lastMove
-                });
+                socket.emit("restore_game", restorePayload(currentstate));
             }else{
                 console.log("No valid games found.");
             }

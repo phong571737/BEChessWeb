@@ -79,6 +79,21 @@ export function useActiveGames() {
             if (!data || typeof data.gameID !== "string") return;
             patchActiveGame(data.gameID, { liveDataWarning: data });
         };
+        const onGameRenamed = (rawData: unknown) => {
+            const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
+            if (!data || typeof data !== "object" || typeof (data as { gameID?: unknown }).gameID !== "string") return;
+            const renamed = data as Partial<ActiveGame> & { gameID: string };
+            const patch: Partial<ActiveGame> = {};
+            if (typeof renamed.whiteName === "string") patch.whiteName = renamed.whiteName;
+            if (typeof renamed.blackName === "string") patch.blackName = renamed.blackName;
+            if (typeof renamed.initialTimeMs === "number") patch.initialTimeMs = renamed.initialTimeMs;
+            if (typeof renamed.incrementMs === "number") patch.incrementMs = renamed.incrementMs;
+            if (typeof renamed.round === "number") patch.round = renamed.round;
+            if (typeof renamed.boardNumber === "string") patch.boardNumber = renamed.boardNumber;
+            if (typeof renamed.location === "string") patch.location = renamed.location;
+            if (typeof renamed.tournament === "string") patch.tournament = renamed.tournament;
+            if (Object.keys(patch).length) patchActiveGame(renamed.gameID, patch);
+        };
         const onGameStatusUpdate = (rawData: any) => {
             const data = Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData;
             if (!data || typeof data.gameID !== "string") return;
@@ -134,6 +149,7 @@ export function useActiveGames() {
         socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);
         socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
         socket.on(SOCKET_CONSTANTS.GAME_MOVE, onMove);
+        socket.on(SOCKET_CONSTANTS.GAME_RENAME, onGameRenamed);
         socket.on(SERVER_EVENT.ESP_MOVE, onEspMove);
         socket.on(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
         socket.on(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
@@ -145,6 +161,7 @@ export function useActiveGames() {
             socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onBoardScanOk);
             socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
             socket.off(SOCKET_CONSTANTS.GAME_MOVE, onMove);
+            socket.off(SOCKET_CONSTANTS.GAME_RENAME, onGameRenamed);
             socket.off(SERVER_EVENT.ESP_MOVE, onEspMove);
             socket.off(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
             socket.off(SERVER_EVENT.ACTIVE_GAMES_SNAPSHOT, onActiveGamesSnapshot);
@@ -152,5 +169,5 @@ export function useActiveGames() {
         };
     }, [socket, refreshSilently, patchActiveGame, removeActiveGame, removeActiveGames, setActiveGames, upsertActiveGame]);
 
-    return { loading, refresh, activeGames };
+    return { loading, refresh, refreshSilently, activeGames };
 }

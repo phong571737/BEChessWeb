@@ -50,6 +50,7 @@ interface Props {
     boardNumber?: string;
     boardID?: string;
     location: string;
+    tournament?: string;
     /** Latest initial-position validation from the physical board. */
     initStatus?: string;
     showBoardDisplayControls?: boolean;
@@ -70,7 +71,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, whiteName, blackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false, initialTimeMs, incrementMs, round, location, boardNumber, boardID,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false, initialTimeMs, incrementMs, round, location, tournament, boardNumber, boardID,
     showBoardDisplayControls = false, showLiveEvaluation = true, showLiveSuggestions = true,
     onToggleBoardFlip, onToggleLiveEvaluation, onToggleLiveSuggestions,
 }, ref) {
@@ -336,6 +337,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                         round={round}
                         boardNumber={boardNumber}
                         location={location}
+                        tournament={tournament}
                     />
                 </div>
             )}

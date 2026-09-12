@@ -18,7 +18,7 @@ import { decodeGameID } from "@/lib/id-utils";
 import { Suspense } from "react";
 
 function GameGridContent() {
-    const { loading, refresh, activeGames } = useActiveGames();
+    const { loading, refresh, refreshSilently, activeGames } = useActiveGames();
     const {boards: physicalBoards} = usePhysicalBoards();
     const { t } = useT();
     const { isAdmin } = useAuth();
@@ -61,7 +61,7 @@ function GameGridContent() {
                     </div>
 
                     <div className="flex items-center gap-2">
-                        {isAdmin && <BulkGameSetupDialog activeGames={cardGames} onApplied={refresh} />}
+                        {isAdmin && <BulkGameSetupDialog activeGames={cardGames} onApplied={refreshSilently} />}
                         <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
                             className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex">
                             <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />

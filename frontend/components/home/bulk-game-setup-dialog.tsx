@@ -7,6 +7,7 @@ import { apiFetch } from "@/lib/api-fetch";
 import { ExcelGameImport, parseExcelGameFile } from "@/lib/excel-game-import";
 import { useT } from "@/lib/i18n";
 import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
+import { readBulkGameSetupDraft, removeBulkGameSetupDraft, writeBulkGameSetupDraft, type BulkGameSetupDraft } from "@/lib/bulk-game-setup-draft";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import type { ActiveGame } from "@/types/game.types";
 import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
@@ -31,8 +32,10 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     const { t } = useT();
     const fileRef = useRef<HTMLInputElement>(null);
     const dialogWasOpenRef = useRef(false);
+    const [draftHydrated, setDraftHydrated] = useState(false);
     const [open, setOpen] = useState(false);
     const [imported, setImported] = useState<ExcelGameImport | null>(null);
+    const [selectedFileName, setSelectedFileName] = useState("");
     const [tournamentName, setTournamentName] = useState("");
     const [boardAssignments, setBoardAssignments] = useState<Record<number, string>>({});
     const [selectedMatchIndex, setSelectedMatchIndex] = useState(0);
@@ -50,14 +53,59 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     }), [activeGames, boardAssignments, imported]);
 
     useEffect(() => {
+        try {
+            const draft = readBulkGameSetupDraft();
+            if (draft) {
+                setImported(draft.imported);
+                setSelectedFileName(draft.fileName);
+                setTournamentName(draft.tournamentName);
+                setBoardAssignments(draft.boardAssignments);
+                setSelectedMatchIndex(draft.selectedMatchIndex);
+                setApplyClock(draft.applyClock);
+                setInitialTimeMs(draft.initialTimeMs);
+                setIncrementMs(draft.incrementMs);
+            }
+        } catch {
+            removeBulkGameSetupDraft();
+        } finally {
+            setDraftHydrated(true);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!draftHydrated) return;
+        try {
+            if (!imported) {
+                removeBulkGameSetupDraft();
+                return;
+            }
+            const draft: BulkGameSetupDraft = {
+                fileName: selectedFileName,
+                imported,
+                tournamentName,
+                boardAssignments,
+                selectedMatchIndex,
+                applyClock,
+                initialTimeMs,
+                incrementMs,
+            };
+            writeBulkGameSetupDraft(draft);
+        } catch {
+            // Browser storage can be unavailable; the open dialog still works.
+        }
+    }, [applyClock, boardAssignments, draftHydrated, imported, incrementMs, initialTimeMs, selectedFileName, selectedMatchIndex, tournamentName]);
+
+    useEffect(() => {
         if (!open) {
             dialogWasOpenRef.current = false;
             return;
         }
-        const last = getLastTimeControl();
-        setInitialTimeMs(last.initialTimeMs);
-        setIncrementMs(last.incrementMs);
         if (!dialogWasOpenRef.current) {
+            if (!imported) {
+                const last = getLastTimeControl();
+                setInitialTimeMs(last.initialTimeMs);
+                setIncrementMs(last.incrementMs);
+            }
             setSelectedMatchIndex((current) => Math.min(current, MATCH_OPTIONS.length - 1));
             dialogWasOpenRef.current = true;
         }
@@ -75,7 +123,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                 if (!cancelled) setError(t("bulk.delayLoadError"));
             });
         return () => { cancelled = true; };
-    }, [activeGames, open, t]);
+    }, [imported, open, t]);
 
     const saveSpectatorDelay = async (seconds = spectatorDelaySeconds) => {
         setDelayLoading(true);
@@ -112,10 +160,12 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                 }
             });
             setImported(workbook);
+            setSelectedFileName(file.name);
             setTournamentName(workbook.tournament ?? "");
             setBoardAssignments(defaults);
         } catch {
             setImported(null);
+            setSelectedFileName("");
             setTournamentName("");
             setBoardAssignments({});
             setError(t("sg.excelImportError"));
@@ -156,7 +206,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                         gameID: game.gameID,
                         whiteName: row.whiteName,
                         blackName: row.blackName,
-                        round: game.round ?? 1,
+                        round: selectedMatchIndex + 1,
                         boardNumber: row.boardNumber || game.boardNumber || "",
                         location: row.location ?? imported?.location ?? game.location ?? "",
                         tournament: tournamentName.trim() || row.tournament || imported?.tournament || game.tournament || "",
@@ -234,14 +284,21 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                             ))}
                         </div>
                     </div>
-                    <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs text-muted-foreground">{t("bulk.importHint")}</p>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                        <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t("bulk.importHint")}</p>
                         <input ref={fileRef} type="file" accept=".xlsx" className="hidden" onChange={(event) => void importWorkbook(event.target.files?.[0])} />
-                        <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => fileRef.current?.click()} disabled={loading}>
-                            <FileSpreadsheet className="size-3.5" />
-                            {t("sg.excelImport")}
-                            <Upload className="size-3.5" />
-                        </Button>
+                        <div className="flex min-w-0 items-center justify-end gap-2">
+                            {selectedFileName && (
+                                <span className="min-w-0 max-w-32 truncate text-xs text-muted-foreground sm:max-w-52" title={selectedFileName}>
+                                    {selectedFileName}
+                                </span>
+                            )}
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 text-xs" onClick={() => fileRef.current?.click()} disabled={loading}>
+                                <FileSpreadsheet className="size-3.5" />
+                                {t("sg.excelImport")}
+                                <Upload className="size-3.5" />
+                            </Button>
+                        </div>
                     </div>
 
                     {imported && (

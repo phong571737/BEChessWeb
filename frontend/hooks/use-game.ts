@@ -5,7 +5,7 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Chess } from "chess.js"
 import { CLIENT_EVENT, SERVER_EVENT, SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
-import { Branch, LiveBoardDataWarning } from "@/types/game.types";
+import { BoardState, Branch, LiveBoardDataWarning } from "@/types/game.types";
 import { extractSanMoves } from "@/lib/custom-chess";
 import { apiFetch } from "@/lib/api-fetch";
 
@@ -324,7 +324,13 @@ export function useGame(gameID: string) {
             // }
 
             const incomingBranches: Branch[] = data.branches ?? [];
-            const newPgn = data.pgn || chessRef.current.pgn();
+            // Loading a FEN clears chess.js move history. Preserve the PGN
+            // currently rendered before loading the incoming position so an
+            // older/partial move payload cannot make the PGN table disappear.
+            const currentPgn = useGameStore.getState().boards[gameID]?.pgn ?? chessRef.current.pgn();
+            const newPgn = typeof data.pgn === "string" && data.pgn.trim()
+                ? data.pgn
+                : currentPgn;
 
             try {
                 // if (data.pgn) chessRef.current.loadPgn(data.pgn);
@@ -366,7 +372,7 @@ export function useGame(gameID: string) {
                         const nextFen = typeof data.fen === "string" ? data.fen.trim() : "";
                         return nextFen && current.at(-1) !== nextFen ? [...current, nextFen] : current;
                     })(),
-                pgn: data.pgn || chessRef.current.pgn(),
+                pgn: newPgn,
                 lastMove: data.lastMove || null,
                 // branches: incomingBranches ?? board?.branches ?? [],
                 branches: incomingBranches,
@@ -415,23 +421,33 @@ export function useGame(gameID: string) {
             } catch { }
 
             initialMoveCountRef.current = chessRef.current.history().length;
-            patchBoard(gameID, {
+            const patch: Partial<BoardState> = {
                 fen: data.fen || chessRef.current.fen(),
                 initialFen: data.initialFen ?? currentBoard?.initialFen,
                 fenHistory: Array.isArray(data.fenHistory)
                     ? data.fenHistory
                     : (currentBoard?.fenHistory ?? []),
-                pgn: data.pgn || "",
-                whiteName: data.whiteName || "White",
-                blackName: data.blackName || "Black",
-                lastMove: data.lastMove || null,
-            })
+                pgn: typeof data.pgn === "string" ? data.pgn : (currentBoard?.pgn ?? ""),
+                lastMove: data.lastMove !== undefined ? (data.lastMove || null) : (currentBoard?.lastMove ?? null),
+            };
+            // A partial restore must never erase setup metadata. Older servers
+            // sent only FEN/lastMove, which previously reverted renamed players
+            // to the hard-coded defaults every 15 seconds.
+            if (typeof data.whiteName === "string") patch.whiteName = data.whiteName;
+            if (typeof data.blackName === "string") patch.blackName = data.blackName;
+            if (typeof data.initialTimeMs === "number") patch.initialTimeMs = data.initialTimeMs;
+            if (typeof data.incrementMs === "number") patch.incrementMs = data.incrementMs;
+            if (typeof data.round === "number") patch.round = data.round;
+            if (typeof data.boardNumber === "string") patch.boardNumber = data.boardNumber;
+            if (typeof data.location === "string") patch.location = data.location;
+            if (typeof data.tournament === "string") patch.tournament = data.tournament;
+            patchBoard(gameID, patch);
         }
 
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ whiteName: string, blackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string }> = {};
+            const patch: Partial<{ whiteName: string, blackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string, tournament: string }> = {};
             if (data.whiteName !== undefined) patch.whiteName = data.whiteName;
             if (data.blackName !== undefined) patch.blackName = data.blackName;
             if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
@@ -439,6 +455,7 @@ export function useGame(gameID: string) {
             if (data.round !== undefined) patch.round = data.round;
             if (data.boardNumber !== undefined) patch.boardNumber = data.boardNumber;
             if (data.location !== undefined) patch.location = data.location;
+            if (data.tournament !== undefined) patch.tournament = data.tournament;
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
 
@@ -664,6 +681,7 @@ export function useGame(gameID: string) {
         round: board?.round ?? 1,
         location: board?.location ?? "",
         boardNumber: board?.boardNumber ?? "",
+        tournament: board?.tournament ?? "",
         resetRevision: board?.resetRevision,
     }
 }
