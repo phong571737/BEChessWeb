@@ -29,7 +29,7 @@ export const en = {
 
     // -----Home --------------------------------------------------------
     "home.activeGames": "Active Games",
-    "home.gamesLive": "{n} games live",
+    "home.gamesLive": "{n} games",
     "home.physicalBoards": "Physical Boards",
     "home.tournament": "Tournament",
     "home.noGames": "No active games",

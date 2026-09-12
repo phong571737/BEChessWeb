@@ -53,8 +53,10 @@ function GameGridContent() {
 
             {homeLayout === 1 && (
                 <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
-                    <div>
-                        <h1 className="text-sm sm:text-base">{t("home.activeGames")}</h1>
+                    <div className={cn("active-games-heading", isAdmin && "active-games-heading-admin", !isAdmin && "active-games-heading-user")}>
+                        <h1 className="text-sm sm:text-base">
+                            {t("home.activeGames")}
+                        </h1>
                         <p className="text-xs text-muted-foreground mt-0.5">
                             {t("home.gamesLive", { n: cardGames.length })}
                         </p>

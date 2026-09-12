@@ -171,3 +171,19 @@
   height: 100%;
   align-self: stretch;
 }
+
+@media (max-width: 639px) {
+  .active-games-heading:not(.active-games-heading-admin) {
+    display: flex;
+    width: 100%;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .active-games-heading:not(.active-games-heading-admin) p {
+    margin-top: 0;
+    flex-shrink: 0;
+    white-space: nowrap;
+  }
+}

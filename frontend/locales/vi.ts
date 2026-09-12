@@ -31,7 +31,7 @@ export const vi: Record<TranslationKeys, string> = {
 
     // ----- Home ----------------------------------------------------------
     "home.activeGames": "Ván cờ đang diễn ra",
-    "home.gamesLive": "{n} ván đang chơi",
+    "home.gamesLive": "{n} ván",
     "home.physicalBoards": "Bàn cờ vật lý",
     "home.tournament": "Giải đấu",
     "home.noGames": "Chưa có ván cờ nào",
