@@ -96,19 +96,20 @@ export const GameController = {
                 ? baseHistoryFilter
                 : { $and: historyConditions };
             const collection = getPGNCollections();
-            // Filter choices must cover the complete archive, not only the 25
-            // records loaded for the current page.
-            const [allBoardIDs, allBoardNumbers, allLocations] = await Promise.all([
-                collection.distinct("boardID", baseHistoryFilter),
-                collection.distinct("boardNumber", baseHistoryFilter),
-                collection.distinct("location", baseHistoryFilter),
-            ]);
             const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
             // The history list is paginated, but the summary must describe the
             // complete archive rather than only the records on the current page.
             const summaryRows = await collection.find(historyFilter, {
                 projection: { result: 1, Result: 1, pgn: 1 },
             }).toArray();
+            // Read filter choices from the archive with one compatible find()
+            // query. Some deployed Mongo-compatible servers reject distinct()
+            // with the soft-delete filter, which must never make history fail.
+            const summaryWithOptions = await collection.find(baseHistoryFilter, {
+                projection: { boardID: 1, boardNumber: 1, location: 1 },
+            }).toArray();
+            const allBoards = summaryWithOptions.flatMap((record) => [record.boardID, record.boardNumber]);
+            const allLocations = summaryWithOptions.map((record) => record.location);
             const summary = summaryRows.reduce((counts, record) => {
                 const result = historyResult(record);
                 if (result === "1-0") counts.whiteWins += 1;
@@ -175,7 +176,7 @@ export const GameController = {
                     totalPages: Math.max(1, Math.ceil(total / pageSize)),
                     summary: { ...summary, total: summaryRows.length },
                     filterOptions: {
-                        boards: Array.from(new Set([...allBoardIDs, ...allBoardNumbers]))
+                        boards: Array.from(new Set(allBoards))
                             .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
                             .map((value) => value.trim())
                             .sort(),
