@@ -5,7 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, XAxis, YAxis } from 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useT } from "@/lib/i18n";
-import type { MoveAnalysis, MoveClassification } from "@/lib/post-game-analysis";
+import type { MoveClassification } from "@/lib/post-game-analysis";
 import { moveClassificationMark, moveClassificationTone } from "@/lib/move-classification";
 import type { HistoryGame } from "@/types/game.types";
 
@@ -19,21 +19,15 @@ const classifications: MoveClassification[] = [
   "blunder",
 ];
 
-interface MatchAnalysisProps {
-  game: HistoryGame;
-  /** Stockfish result for the review source selected by the current viewer. */
-  analysisMoves?: MoveAnalysis[];
-}
-
-/** Summarizes the Stockfish labels for the selected review source. */
-export function MatchAnalysis({ game, analysisMoves }: MatchAnalysisProps) {
+/** Summarizes the persisted Stockfish labels without reparsing legacy PGN data. */
+export function MatchAnalysis({ game }: { game: HistoryGame }) {
   const { t } = useT();
   const chartConfig = {
     white: { label: t("played.white"), color: "hsl(var(--primary))" },
     black: { label: t("played.black"), color: "hsl(var(--destructive))" },
   } satisfies ChartConfig;
   const summary = useMemo(() => {
-    const moves = analysisMoves ?? game.analysis?.moves ?? [];
+    const moves = game.analysis?.moves ?? [];
     const counts = Object.fromEntries(
       [...classifications, "unavailable"].map((classification) => [
         classification,
@@ -53,7 +47,7 @@ export function MatchAnalysis({ game, analysisMoves }: MatchAnalysisProps) {
       total: moves.length,
       analyzed: moves.length - counts.unavailable.total,
     };
-  }, [analysisMoves, game.analysis?.moves]);
+  }, [game.analysis?.moves]);
   const chartData = classifications.map((classification) => ({
     classification: t(`analysis.${classification}`),
     white: summary.counts[classification].white,
@@ -64,6 +58,7 @@ export function MatchAnalysis({ game, analysisMoves }: MatchAnalysisProps) {
     <div className="space-y-3 p-4 sm:p-5">
       <div>
         <h3 className="text-sm font-semibold">{t("rev.analysis")}</h3>
+        <p className="mt-0.5 text-xs text-muted-foreground">{t("rev.stockfishSummaryDescription")}</p>
       </div>
 
       {summary.total === 0 ? (

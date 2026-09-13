@@ -7,7 +7,6 @@ import { CLIENT_EVENT, SERVER_EVENT, SOCKET_CONSTANTS } from "@/lib/constants/so
 import { GAME_STATUS } from "@/lib/constants/game";
 import { Branch } from "@/types/game.types";
 import { extractSanMoves } from "@/lib/custom-chess";
-import { apiFetch } from "@/lib/api-fetch";
 
 export interface boardAlert {
     code: string;
@@ -522,8 +521,10 @@ export function useGame(gameID: string) {
     // ----- Game actions ---------------------------------------
     const restart = async () => {
         try {
-            const response = await apiFetch(`/games/${gameID}/restart`, {
+            const token = localStorage.getItem("token");
+            const response = await fetch(`/games/${gameID}/restart`, {
                 method: "POST",
+                headers: token ? { Authorization: `Bearer ${token}` } : {},
             });
             if (!response.ok) throw new Error(`Restart failed with ${response.status}`);
             const data = await response.json().catch(() => ({}));
@@ -542,10 +543,12 @@ export function useGame(gameID: string) {
         resignRequestRef.current = true;
         const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
         try {
-            const res = await apiFetch(`/games/${gameID}/resign`, {
+            const token = localStorage.getItem("token");
+            const res = await fetch(`/games/${gameID}/resign`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
+                    ...(token ? { Authorization: `Bearer ${token}` } : {}),
                 },
                 body: JSON.stringify({ resignSide, branchId: branchId ?? null }),
             });

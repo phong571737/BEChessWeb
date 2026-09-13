@@ -2,11 +2,15 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+RUN apt-get update && apt-get install -y --no-install-recommends stockfish \
+    && rm -rf /var/lib/apt/lists/*
+ENV STOCKFISH_PATH=/usr/games/stockfish
+
 COPY recover_service/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY recover_service ./recover_service
-COPY recover_service_v3 ./recover_service_v3
+COPY recover_service/app ./recover_service/app
+COPY recover_service_v4/*.py ./recover_service_v4/
 
 EXPOSE 8000
 

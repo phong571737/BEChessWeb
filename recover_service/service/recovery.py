@@ -34,18 +34,24 @@ class DetectedTransition:
     ply: int
     before_fen: str
     after_fen: str
-    move: chess.Move | None
+    moves: tuple[chess.Move, ...]
     error: str | None = None
 
     @property
+    def move(self) -> chess.Move | None:
+        return self.moves[0] if len(self.moves) == 1 else None
+
+    @property
     def detected(self) -> bool:
-        return self.move is not None
+        return bool(self.moves)
 
     def to_dict(self) -> dict[str, object]:
         return {
             "ply": self.ply,
             "detected": self.detected,
             "move": self.move.uci() if self.move is not None else None,
+            "moves": [move.uci() for move in self.moves],
+            "ambiguous": len(self.moves) > 1,
             "error": self.error,
         }
 
@@ -78,13 +84,14 @@ class RecoveryStep:
     synthetic: bool
     observed_fen: str
     detected_move: str | None
+    detected_moves: tuple[str, ...]
     detection_error: str | None
     candidates: tuple[RecoveryLine, ...]
     rejected_branches: Mapping[str, int]
 
     @property
     def used_assumption(self) -> bool:
-        return self.detected_move is None
+        return not self.detected_moves
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -93,6 +100,8 @@ class RecoveryStep:
             "synthetic": self.synthetic,
             "observedFen": self.observed_fen,
             "detectedMove": self.detected_move,
+            "detectedMoves": list(self.detected_moves),
+            "ambiguousDetection": len(self.detected_moves) > 1,
             "detectionError": self.detection_error,
             "usedAssumption": self.used_assumption,
             "candidateCount": len(self.candidates),
@@ -258,10 +267,18 @@ def detect_transitions(
 
     for ply, after_fen in enumerate(history, start=1):
         try:
-            move = infer_move_from_fen(before_fen, after_fen)
-            error = None if move is not None else "No piece-placement change"
+            inferred = infer_move_from_fen(before_fen, after_fen)
+            if inferred is None:
+                moves: tuple[chess.Move, ...] = ()
+                error = "No piece-placement change"
+            elif isinstance(inferred, tuple):
+                moves = inferred
+                error = None
+            else:
+                moves = (inferred,)
+                error = None
         except (FenConversionError, ValueError) as exc:
-            move = None
+            moves = ()
             error = str(exc)
 
         detections.append(
@@ -269,7 +286,7 @@ def detect_transitions(
                 ply=ply,
                 before_fen=before_fen,
                 after_fen=after_fen,
-                move=move,
+                moves=moves,
                 error=error,
             )
         )
@@ -279,9 +296,13 @@ def detect_transitions(
 
 
 def detected_move_token(transition: DetectedTransition) -> str:
-    if transition.move is None:
+    if not transition.moves:
         return "X"
-    return _san_for_inferred_move(transition.before_fen, transition.move)
+    tokens = [
+        _san_for_inferred_move(transition.before_fen, move)
+        for move in transition.moves
+    ]
+    return tokens[0] if len(tokens) == 1 else "{" + "|".join(tokens) + "}"
 
 
 def parse_fen_text(text: str) -> list[str]:
@@ -313,7 +334,7 @@ def recover_fens(
     start_fen: str = chess.STARTING_FEN,
     headers: Mapping[str, str] | None = None,
     max_branches: int | None = None,
-    n_retry: int = 5,
+    n_retry: int = 3,
     deduplicate_positions: bool = True,
     max_repair_gaps: int = 10,
     max_total_padding: int = 20,
@@ -323,6 +344,8 @@ def recover_fens(
         raise ValueError("max_branches must be at least 1")
     if n_retry < 0:
         raise ValueError("n_retry must be at least 0")
+    if n_retry > 3:
+        raise ValueError("n_retry must be at most 3")
     if max_repair_gaps < 0:
         raise ValueError("max_repair_gaps must be at least 0")
     if max_total_padding < 0:
@@ -471,8 +494,8 @@ def _recover_once(
             rejected[reason] = rejected.get(reason, 0) + 1
 
         for branch in branches:
-            forced_move = None if observation.synthetic else detection.move
-            if forced_move is None:
+            forced_moves = () if observation.synthetic else detection.moves
+            if not forced_moves:
                 moves = list(branch.board.legal_moves)
                 if observation.synthetic:
                     source = "padding_assumed"
@@ -482,16 +505,16 @@ def _recover_once(
                     source = "assumed"
                 if branch.board.is_check() and not moves:
                     reject("unresolvedCheck")
-            elif forced_move in branch.board.legal_moves:
-                moves = [forced_move]
-                source = "detected"
             else:
-                moves = []
                 source = "detected"
-                reject(
-                    "unresolvedCheck" if branch.board.is_check()
-                    else "illegalDetectedMove"
-                )
+                moves = [
+                    move for move in forced_moves if move in branch.board.legal_moves
+                ]
+                if not moves:
+                    reject(
+                        "unresolvedCheck" if branch.board.is_check()
+                        else "illegalDetectedMove"
+                    )
 
             for move in moves:
                 san = branch.board.san(move)
@@ -534,6 +557,7 @@ def _recover_once(
                 detected_move=(
                     detection.move.uci() if detection.move is not None else None
                 ),
+                detected_moves=tuple(move.uci() for move in detection.moves),
                 detection_error=detection.error,
                 candidates=tuple(branch.freeze() for branch in branches),
                 rejected_branches=rejected,

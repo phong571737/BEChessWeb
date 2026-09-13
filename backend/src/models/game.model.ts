@@ -64,12 +64,6 @@ function pgnDate(value: unknown, fallback = new Date()): string {
     return resolved.toISOString().slice(0, 10).replace(/-/g, ".");
 }
 
-// Save a game into history and remove it from the live collection
-export async function archiveAndRemoveGame(game: GameDoc, result: string) {
-    await saveActiveGameHistorySnapshot({...game, result, status: "finished",});
-    await games().deleteOne({ gameID: game.gameID });
-}
-
 /** Mirrors durable live-game metadata into its in-progress history record. */
 export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void> {
     const now = new Date();
@@ -388,14 +382,7 @@ export async function saveGame(
 }
 
 export async function getAllGame(limit = 200) {
-    // Only live sessions belong in the active-games response.  Ended sessions
-    // remain persisted for recovery/diagnostics but must not be rendered as
-    // duplicate cards on the home page.
-    return games()
-        .find({ status: { $in: ["waiting", "ready", "playing", "active"] } } as Filter<GameDoc>)
-        .sort({ createdAt: -1 })
-        .limit(limit)
-        .toArray();
+    return games().find({ status: { $ne: "finished" } } as Filter<GameDoc>).limit(limit).toArray();
 }
 
 /**This function is used to load game by id */
@@ -423,12 +410,6 @@ export async function closeActiveGamesForBoard(boardID: string): Promise<number>
         { $set: { status: "ended", result: "*", endedAt: now, updateAt: now } } as UpdateFilter<GameDoc>,
     );
     return result.modifiedCount;
-}
-
-/** Removes retired runtime sessions for a board after they have been archived. */
-export async function removeEndedGamesByBoardID(boardID: string): Promise<number> {
-    const result = await games().deleteMany({ boardID, status: "ended" } as Filter<GameDoc>);
-    return result.deletedCount;
 }
 
 /**This function is used to remove the game */

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
-import { useAuth } from "@/components/providers/auth-provider";
+import { useAuth } from "@/lib/auth-context";
 import { BOARD_COLOR_PRESETS, useBoardDisplay } from "@/components/providers/board-display-provider";
 import { APP_RELEASE_VERSION } from "@/lib/app-version";
 import { publicPath } from "@/lib/public-path";
@@ -23,8 +23,11 @@ const sectionDefs = [
     { key: "nav.guide" as const, url: "/guide", icon: BookOpen},
 ];
 
-// 
-function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
+function AppSidebar({
+    collapsed,
+    mobileOpen,
+    onCloseMobile
+}: {
     collapsed: boolean,
     mobileOpen: boolean,
     onCloseMobile: () => void
@@ -37,8 +40,6 @@ function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
         : sectionDefs;
     const base = (
         <aside
-            id="app-sidebar"
-            aria-label={t("app.mobileNavigation")}
             className={cn(
                 "h-screen flex flex-col border-r transition-all duration-200",
                 "bg-[hsl(var(--sidebar))] border-[hsl(var(--sidebar-border))]",
@@ -69,8 +70,6 @@ function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
                     size="icon"
                     className={cn("size-7 md:hidden shrink-0", !collapsed && "ml-auto")}
                     onClick={onCloseMobile}
-                    aria-label={t("app.closeMenu")}
-                    title={t("app.closeMenu")}
                 >
                     <X className="size-3.5" />
                 </Button>
@@ -136,16 +135,10 @@ function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
         <>
             <div className="hidden md:block h-screen sticky top-0">{base}</div>
             {mobileOpen && (
-                <div
-                    className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-                    onClick={onCloseMobile}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label={t("app.mobileNavigation")}
-                >
-                    <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                        {base}
-                    </div>
+                <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCloseMobile}>
+                <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                    {base}
+                </div>
                 </div>
             )}
         </>
@@ -172,10 +165,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
-        document.documentElement.lang = locale;
-    }, [locale]);
-
-    useEffect(() => {
         const closeMenus = (event: MouseEvent) => {
             const target = event.target as Node;
             if (accountMenuRef.current && !accountMenuRef.current.contains(target)) setAccountMenuOpen(false);
@@ -184,15 +173,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         document.addEventListener("mousedown", closeMenus);
         return () => document.removeEventListener("mousedown", closeMenus);
     }, []);
-
-    useEffect(() => {
-        if (!mobileOpen) return;
-        const handleEscape = (event: KeyboardEvent) => {
-            if (event.key === "Escape") setMobileOpen(false);
-        };
-        document.addEventListener("keydown", handleEscape);
-        return () => document.removeEventListener("keydown", handleEscape);
-    }, [mobileOpen]);
 
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
@@ -234,12 +214,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 size="icon"
                                 className="size-8 md:hidden"
                                 onClick={() => setMobileOpen(true)}
-                                aria-label={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-                                title={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
-                                aria-expanded={mobileOpen}
-                                aria-controls="app-sidebar"
                             >
-                                <Menu className="size-4" />
+                                <Menu className="size-4" />  
                             </Button>
 
                             {/* Desktop collapse toggle */}
@@ -248,8 +224,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 size="icon"
                                 className="size-8 hidden md:inline-flex"
                                 onClick={() => setCollapsed((v) => !v)}
-                                aria-label={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
-                                title={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
                             >
                                 <ChevronRight className={cn(
                                 "size-4 transition-transform duration-200",

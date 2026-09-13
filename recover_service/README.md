@@ -1,119 +1,110 @@
-# FEN Recovery Service
-Run a small REST wrapper around the FEN recovery service.
+# FEN recovery V4 integration
 
-API (concise)
-- Endpoint: `POST /recover`
+The website uses `recover_service.app.main:app` on internal port 8000.
+Its `/recover` adapter calls the V4 pipeline. V4 recovery and ranking are
+unchanged; only package imports in `recover_service_v4` were adjusted.
+The standalone V4 API remains available as `recover_service_v4.api:app`
+at `/v1/recover`, but does not provide the website's presentation metadata.
 
-## Recovery v2 options
+## Request
 
-The service preprocesses observations before recovery. Consecutive FENs with
-the same piece placement are collapsed by the standalone
-`service/preprocessing.py` module; non-consecutive repetitions are preserved.
+`POST /recover` accepts:
 
-Optional request fields:
-
-- `deduplicatePositions` (`true` by default): enable consecutive-position deduplication.
-- `nRetry` (`5` by default): maximum wildcard padding count tried at each broken gap; use `0` to disable retry.
-- `maxBranches`: fail rather than silently truncate compatible branches.
-- The standalone `index.html` visualizer sends `maxBranches: 10000` and aborts after 60 seconds so a damaged history cannot leave the browser waiting indefinitely. The backend timeout remains configurable through `RECOVERY_TIMEOUT_MS`.
-- `maxRepairGaps` (`10` by default): maximum repaired boundaries.
-- `maxTotalPadding` (`20` by default): maximum wildcard FENs for the request.
-- `finalOnly`: omit per-step candidate deltas.
-
-Responses use `schemaVersion: 2`. `steps[].candidates` contains one-move deltas
-with `id` and `parentId`; complete histories remain in `finalMoveLists` and
-`bestMoveLists`.
-- Method: POST
-- Request payload (JSON):
-  - `fenHistory`: array[string] — required, ordered FEN snapshots (one per observed ply)
-  - `startFen`: string — optional, initial FEN before first observed ply
-  - `headers`: object — optional PGN headers
-  - `maxBranches`: integer — optional limit to avoid combinatorial explosion
-  - `finalOnly`: boolean — optional, when true omit per-ply `steps` in response
-- Response (JSON): `RecoveryResult.to_dict()` with keys such as:
-  - `originalPgn`, `failedPlies`, `detections`, `fullyRecovered`, `longestRecoveredPly`, `finalMoveLists`, (optional) `steps`
-
-Setup (minimal)
-1. Create an environment and install deps:
-
-```bash
-pip install -r requirements.txt
+```json
+{
+  "fenHistory": ["rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"],
+  "startFen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+  "headers": {"White": "White", "Black": "Black", "Result": "*"},
+  "maxBranches": 10000,
+  "maxMissingFens": 2,
+  "stockfishDepth": 15
+}
 ```
 
-2. Run server from the repository root so package imports resolve:
+The history contains 1–500 observations. The adapter prepends `startFen`
+(standard starting position by default), collapses adjacent duplicate piece
+placements and keeps the mapping to original observation indices. The separate
+initial position does not consume the 500-observation allowance.
+Legacy V3 noise-cleaning and retry options no longer configure the engine.
 
-```bash
-uvicorn main.app:app --reload --port 8000
+## Response and selection
+
+The response has `schemaVersion: 4`, `engineVersion: recover_service_v4`,
+`pgn`, `bestPgn`, `fullyRecovered`, `failedPlies`, `longestRecoveredPly`,
+`bestMoveLists`, `finalMoveLists`, `recoveryGroups` and `preprocessing`.
+Each recovery line contains UCI, SAN, replayed FENs, normalized `startFen`, PGN,
+its own `steps`, `groupId`, `rank`, `paddingIndices`, `paddingScores` and `scoreSides`.
+Padding indices are zero-based move indices; `originalPly` is a one-based
+observation index and is null only for inserted intermediate positions.
+
+Groups are ordered by padding count, with stable engine order for ties.
+Within each group V4 ranks score vectors lexicographically, descending.
+Scores are from the perspective of the mover, evaluated after each padding move.
+They are suggestions, not confidence estimates. The UI shows conventional
+centipawn scores in pawn units; extreme integer scores retain their encoded form
+because V4's response does not explicitly distinguish mate from centipawn values.
+No scores are fabricated for unscored moves.
+
+The UI groups complete paths by their selected prefix. Choosing a move filters
+the continuations to existing V4 paths, never splicing incompatible paths or
+mixing groups. Compatible subsequent choices are preserved as far as possible.
+PGN export uses the selected full path, including correct initial turn and move number.
+
+## Partial recovery and limits
+
+The adapter first checkpoints the directly inferred prefix using V4, attempts
+the complete history, and, if no complete paths exist, tries successively shorter
+prefixes until V4 returns a path. This produces a continuous partial PGN, never
+a PGN with gaps or fabricated moves. The raw history is never overwritten.
+On a deadline, a checkpointed prefix is returned if available, otherwise HTTP 504.
+Errors in input, branch limits and unavailable Stockfish remain explicit errors.
+
+Each request runs in a separate worker process. The default wall-clock budget
+is 50 seconds and concurrency is 2. Linux process-group cleanup terminates
+Stockfish descendants as well. The branch limit is checked after V4 generates
+results, not inside its unchanged search algorithm.
+
+Environment:
+
+- `STOCKFISH_PATH`: engine executable; Docker installs Debian's Stockfish at `/usr/games/stockfish`.
+- `RECOVERY_WORKER_TIMEOUT_SECONDS=50`: worker budget; keep below backend `RECOVERY_TIMEOUT_MS=60000`.
+- `RECOVERY_CONCURRENCY=2`: simultaneous recovery workers per API process.
+
+For reproducible ranking across deployments, use the same Stockfish binary and
+depth. The bundled Windows engine can be used for local testing; distributions
+may package a different Stockfish version.
+
+## Run and verify
+
+From the repository root:
+
+```sh
+python -m pip install -r recover_service/requirements.txt httpx
+python -m unittest recover_service.test_v4_integration -v
+python -m uvicorn recover_service.app.main:app --host 127.0.0.1 --port 8014
 ```
 
+With that test service running:
 
-
-That is all — endpoint, method, payload, result, and minimal setup.
-
-API Usage
----------
-
-- Endpoint: `POST /recover` (JSON)
-
-- Request JSON fields:
-  - `fenHistory` (array[string], required): ordered FEN snapshots (one per ply observed).
-  - `startFen` (string, optional): initial FEN before the first observed ply. Defaults to standard start.
-  - `headers` (object, optional): PGN headers to include in the converted PGN.
-  - `maxBranches` (int, optional): fail if more than this number of compatible branches are produced.
-  - `finalOnly` (bool, optional): when true the response omits per-ply `steps` and returns only final move lists.
-
-- Example curl:
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/recover \
-  -H "Content-Type: application/json" \
-  -d '{"fenHistory":["rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1"], "maxBranches":1000}'
+```sh
+npm run build
+node --experimental-strip-types tools/verify-v4-client.ts
+node --experimental-strip-types frontend/scripts/verify-recovery-tree.ts
 ```
 
-- Example Python (requests):
+## Deploy
 
-```py
-import requests
+Deploy backend, recovery and frontend together: the V4 response contract replaces V3.
+Use the existing private `.env`; do not copy development credentials to production.
 
-resp = requests.post(
-    "http://127.0.0.1:8000/recover",
-    json={"fenHistory": ["rnbqkbnr/pppppppp/8/8/3P4/8/PPP1PPPP/RNBQKBNR b KQkq - 0 1"]},
-)
-print(resp.json())
+```sh
+docker compose config --quiet
+docker compose build recover-service ttlab-chess-app frontend
+docker compose up -d recover-service ttlab-chess-app frontend
+docker compose ps
+docker compose exec -T recover-service python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8000/health').read().decode())"
 ```
 
-- Example (truncated) response JSON keys:
-  - `originalPgn`: reconstructed PGN text (with X tokens for unknown moves).
-  - `failedPlies`: list of ply indices where detection failed.
-  - `detections`: per-ply detection results (move or X).
-  - `fullyRecovered`: boolean — whether at least one branch survived through all observed FENs.
-  - `longestRecoveredPly`: last ply that had any surviving branches.
-  - `finalMoveLists`: array of recovered move lists (each with `uciMoves`, `sanMoves`, `moveSources`, `assumedFens`).
-  - `steps`: (omitted when `finalOnly=true`) per-ply `RecoveryStep` objects with candidate branches.
-
-Quick test
-----------
-
-The repository includes a smoke-test script that POSTs the example 76-FEN history to the running server:
-
-```bash
-# run server from repo root so package imports resolve
-uvicorn recover_service.app:app --reload --port 8000
-
-# in another terminal
-python recover_service/test_run.py
-```
-
-When I ran this test against the local server, the service returned:
-
-```
-fullyRecovered: True
-longestRecoveredPly: 76
-finalMoveLists count: 1
-```
-
-Notes
------
-- The service treats observed FENs as piece-placement snapshots: side-to-move, castling and counters are ignored for compatibility checks.
-- If you run Uvicorn from inside `recover_service` use the module path `app.main:app`; if you run from the workspace root prefer `recover_service.app:app` so package imports resolve correctly.
-
+Verify importing FENs, switching groups and recovery choices, PGN downloads,
+history review and finalization of a game. Keep the previous images for rollback;
+roll all three services back together. No MongoDB schema migration is required.

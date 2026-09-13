@@ -191,6 +191,10 @@ The root package, frontend package, and `frontend/lib/app-version.ts` use the sa
 
 ## Deployment runbook
 
+The recovery integration now uses V4. Deploy backend, Python recovery and frontend
+together. See [V4 recovery integration](recover_service/README.md) for the score-based
+move chooser, partial-prefix recovery, test commands and deployment checks.
+
 The recommended VPS deployment uses Docker Compose. MongoDB and MQTT remain external services; Compose starts the backend, internal FEN recovery service, and frontend.
 
 ### Prepare and configure
@@ -212,6 +216,9 @@ BACKEND_PUBLIC_URL=http://<public-domain>
 BACKEND_INTERNAL_URL=http://ttlab-chess-app:8080
 RECOVER_SERVICE_URL=http://recover-service:8000
 RECOVERY_TIMEOUT_MS=60000
+STOCKFISH_RECOMMEND_PORT=8001
+STOCKFISH_THREADS=1
+STOCKFISH_HASH_MB=128
 ```
 
 Also set real `MONGO_URI`, `JWT_SECRET`, `URL_HIVEMQTT`, `MQTT_PORT`, `MQTT_USER`, `MQTT_PASSWORD`, and `CORS_ORIGINS`. `BACKEND_PUBLIC_URL` is the public origin only; do not append `/chess`. Keep `.env` private and do not put secrets in `.env.example` or `docker-compose.yml`.
@@ -220,13 +227,13 @@ Also set real `MONGO_URI`, `JWT_SECRET`, `URL_HIVEMQTT`, `MQTT_PORT`, `MQTT_USER
 
 Run `docker compose config` first; it must not warn that `BACKEND_INTERNAL_URL` or `RECOVER_SERVICE_URL` is empty. Then run `docker compose build --no-cache`, `docker compose up -d --remove-orphans`, and `docker compose ps`.
 
-The services are: `ttlab-chess-app` backend on `${PORT}`; `chess-recover-service` on internal port `8000`; and `chess-frontend` on host port `4000` forwarding to container port `3000`. Recovery is intentionally not exposed to the internet; the backend reaches it as `http://recover-service:8000`.
+The services are: `ttlab-chess-app` backend on `${PORT}`; `chess-recover-service` on internal port `8000`; `chess-stockfish-recommend` on loopback-only host port `${STOCKFISH_RECOMMEND_PORT:-8001}`; and `chess-frontend` on host port `4000` forwarding to container port `3000`. Recovery remains internal. Nginx is the only public entry point for the recommendation API.
 
 ### Verify and configure Nginx
 
 Check `curl -i http://127.0.0.1:${PORT}/health`, `curl -i http://127.0.0.1:4000/chess`, and the logs with `docker compose logs --tail=150 ttlab-chess-app`, `docker compose logs --tail=150 recover-service`, and `docker compose logs --tail=150 frontend`. The backend should report MongoDB connected; recovery should report `Application startup complete`.
 
-Configure Nginx using [docs/16-deployment.md](docs/16-deployment.md): `/chess` to `127.0.0.1:4000`, REST routes to the backend port, and `/socket.io/` to the backend with upgrade headers. Validate with `sudo nginx -t` and reload with `sudo systemctl reload nginx`. Do not create a second `/chess` to `/chess/` redirect or expose port 8000.
+Configure Nginx using [docs/16-deployment.md](docs/16-deployment.md): `/chess` to `127.0.0.1:4000`, REST routes to the backend port, and `/socket.io/` to the backend with upgrade headers. Install the two example snippets from `deploy/nginx/` in the Nginx `http` and HTTPS `server` contexts to publish `/stockfish-api/`. Validate with `sudo nginx -t` and reload with `sudo systemctl reload nginx`. Do not create a second `/chess` to `/chess/`, expose the recovery port, or bind the recommendation port to a public interface.
 
 ### Update an existing VPS
 

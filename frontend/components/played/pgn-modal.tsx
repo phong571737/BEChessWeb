@@ -4,8 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
-  CircuitBoard,
-  Tag} from "lucide-react";
+  CircuitBoard} from "lucide-react";
 import { Chess } from "chess.js";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
@@ -30,8 +29,9 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
-import { useAuth } from "@/components/providers/auth-provider";
-import { apiFetch } from "@/lib/api-fetch";
+import { useAuth } from "@/lib/auth-context";
+import { RecoveryExplorer } from "@/components/recovery/recovery-explorer";
+import { isTreeLine, type RecoveryTreeLine } from "@/lib/recovery-tree";
 
 interface Props {
   game:    HistoryGame | null;
@@ -41,17 +41,9 @@ interface Props {
 interface ReviewProps {
   game: HistoryGame;
   onGameUpdate?: (game: HistoryGame) => void;
-  /** Reports the Stockfish result for the review source selected by this viewer. */
-  onAnalysisChange?: (moves: MoveAnalysis[]) => void;
 }
 
-interface RecoveryLine {
-  uciMoves: string[];
-  sanMoves: string[];
-  assumedFens: string[];
-  moveSources?: string[];
-  movetext?: string;
-}
+type RecoveryLine = RecoveryTreeLine;
 
 interface RecoveryStep {
   effectivePly?: number;
@@ -60,6 +52,8 @@ interface RecoveryStep {
 }
 
 interface RecoveryPayload {
+  fullyRecovered?: boolean;
+  longestRecoveredPly?: number;
   pgn?: unknown;
   bestPgn?: unknown;
   fenHistory?: unknown;
@@ -85,23 +79,8 @@ interface ReviewMove {
 type RecoveryStatus = "idle" | "loading" | "ready" | "unavailable" | "branch_limit" | "timeout" | "error";
 type ReviewSource = "base" | "raw" | number;
 
-/**
- * Uses the selected FEN list exactly as recorded. The first snapshot is the
- * analysis baseline and every following snapshot represents one transition.
- */
-function buildAnalysisTimeline(
-  fens: string[],
-): { fenHistory: string[] } {
-  const cleanedFens = fens.filter((fen) => typeof fen === "string" && fen.trim().length > 0);
-  return { fenHistory: cleanedFens };
-}
-
 function isRecoveryLine(value: unknown): value is RecoveryLine {
-  if (!value || typeof value !== "object") return false;
-  const line = value as Partial<RecoveryLine>;
-  return Array.isArray(line.uciMoves)
-    && Array.isArray(line.sanMoves)
-    && Array.isArray(line.assumedFens);
+  return isTreeLine(value);
 }
 
 function isRecoveryStep(value: unknown): value is RecoveryStep {
@@ -198,6 +177,7 @@ function readPgnHeaders(pgn: string): Record<string, string> {
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
+  if (line.pgn) return line.pgn;
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
   const headerValues: Record<string, string> = {
     Event: savedHeaders.Event || "?",
@@ -223,13 +203,13 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   return `${headers}\n\n${movetext}`;
 }
 
-export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: ReviewProps) {
-  const { t, locale } = useT();
+export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
+  const { t } = useT();
   const { isAdmin, token } = useAuth();
   // Keep analysis isolated per review source. A recovered branch is a
   // client-local line, so its classifications must never overwrite (or be
   // confused with) the persisted analysis of the original PGN.
-  const [baseAnalysisMoves, setBaseAnalysisMoves] = useState<MoveAnalysis[]>([]);
+  const [baseAnalysisMoves, setBaseAnalysisMoves] = useState<MoveAnalysis[]>(game.analysis?.moves ?? []);
   const [branchAnalysisBySource, setBranchAnalysisBySource] = useState<Record<string, MoveAnalysis[]>>({});
   const analysisByPly = useMemo(() => new Map(baseAnalysisMoves.map((move) => [move.ply, move])), [baseAnalysisMoves]);
   const isFinishedResult = game.historyStatus === "finished" || game.outcomeStatus === "unconfirmed" || game.Result === "1-0" || game.Result === "0-1" || game.Result === "1/2-1/2";
@@ -258,6 +238,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [editedFenHistory, setEditedFenHistory] = useState<string[]>(game.fenHistoryEdited ?? []);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
+  const [recoveryComplete, setRecoveryComplete] = useState(true);
+  const [recoveredCount, setRecoveredCount] = useState(0);
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
   const [processedToInputIndexes, setProcessedToInputIndexes] = useState<number[][]>([]);
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
@@ -272,12 +254,6 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     [game.fenHistory, game.rawFenHistory],
   );
   const hasEditedFen = editedFenHistory.length > 0;
-  // The base review source always prefers the administrator-corrected FEN
-  // timeline. The electronic-board snapshots remain the immutable fallback.
-  const preferredFenHistory = useMemo(
-    () => (editedFenHistory.length ? editedFenHistory : rawFenHistory),
-    [editedFenHistory, rawFenHistory],
-  );
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
@@ -342,9 +318,12 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
           : (game.fenHistoryEdited ?? []));
         setBasePgn(typeof data.bestPgn === "string" && data.bestPgn.trim() ? data.bestPgn : data.pgn as string);
         setRecoveryLines(bestMoveLists);
+        setRecoveryComplete(data.fullyRecovered !== false);
+        setRecoveredCount(data.longestRecoveredPly ?? 0);
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
-        setSelectedSource("base");
+        setSelectedSource(bestMoveLists.length ? 0 : "base");
+        setCursor(bestMoveLists[0]?.paddingIndices[0] ?? 0);
         setRecoveryStatus("ready");
       })
       .catch((error: unknown) => {
@@ -376,12 +355,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
 
   const timeline = useMemo(() => {
     const isFenSource = selectedSource === "base" || selectedSource === "raw";
+    const preferredRecoveryFens = recoveryStatus === "ready" ? (recoveryLines[0]?.assumedFens ?? []) : [];
     const sourceFens = selectedSource === "raw"
       ? rawFenHistory
-      : selectedSource === "base"
-        ? preferredFenHistory
-        : (selectedRecoveryLine?.assumedFens ?? []);
-    const initialFen = game.initialFen ?? DEFAULT_FEN;
+      : selectedSource === "base" && preferredRecoveryFens.length
+        ? preferredRecoveryFens
+        : (editedFenHistory.length ? editedFenHistory : rawFenHistory);
+    const initialFen = selectedRecoveryLine?.startFen ?? game.initialFen ?? DEFAULT_FEN;
     const initial: ReviewMove = { fen: initialFen, san: "start", lastMove: null, originalPly: 0 };
     if (sourceFens.length > 0) {
       if (!isFenSource && (recoveryStatus !== "ready" || !reviewPgn)) {
@@ -414,7 +394,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       if (!selectedRecoveryLine) return [initial];
       const out: ReviewMove[] = [initial];
       selectedRecoveryLine.sanMoves.forEach((san, index) => {
-        const step = recoverySteps[index];
+        const step = selectedRecoveryLine.steps?.[index] ?? recoverySteps[index];
         const moveSource = selectedRecoveryLine.moveSources?.[index];
         const originalPly = step?.originalPly ?? null;
         const processedIndex = originalPly === null
@@ -455,7 +435,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       if (out.length > 1) return out;
     } catch {}
     return [initial];
-  }, [game, preferredFenHistory, processedToInputIndexes, rawFenHistory, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource]);
+  }, [editedFenHistory, game, processedToInputIndexes, rawFenHistory, recoveryLines, recoveryStatus, recoverySteps, reviewPgn, selectedRecoveryLine, selectedSource, t]);
 
   useEffect(() => {
     traceRecovery("4 - timeline frontend dùng để render", {
@@ -512,39 +492,36 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     }
     return reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell)));
   }, [reviewRows, selectedSource, timeline]);
-  const sourceAnalysis = selectedSource === "base"
-    ? baseAnalysisMoves
-    : branchAnalysisBySource[String(selectedSource)] ?? [];
-  const selectedAnalysisByPly = selectedSource === "base"
+  const branchAnalysis = typeof selectedSource === "number"
+    ? branchAnalysisBySource[String(selectedSource)] ?? []
+    : [];
+  const selectedAnalysisByPly = selectedSource === "base" || selectedSource === "raw"
     ? analysisByPly
-    : new Map(sourceAnalysis.map((move) => [move.ply, move]));
+    : new Map(branchAnalysis.map((move) => [move.ply, move]));
   const currentMoveAnalysis = selectedAnalysisByPly.get(
     selectedSource === "base" ? current.originalPly ?? currentIndex : currentIndex,
   );
   const analysisGame = useMemo<HistoryGame>(() => {
     if (selectedSource === "raw") {
-      const source = buildAnalysisTimeline(rawFenHistory);
-      return {
-        ...game,
-        ...source,
-      };
+      return { ...game, fenHistory: rawFenHistory };
     }
-    if (selectedSource === "base") {
-      const source = buildAnalysisTimeline(preferredFenHistory);
+    if (selectedSource === "base" && recoveryStatus === "ready" && recoveryLines[0]?.assumedFens?.length) {
       return {
         ...game,
-        ...source,
+        fenHistory: recoveryLines[0].assumedFens,
+        initialFen: game.initialFen,
+        pgn: basePgn ?? game.pgn,
       };
     }
     if (!selectedRecoveryLine?.assumedFens?.length) return game;
-    const source = buildAnalysisTimeline(
-      selectedRecoveryLine.assumedFens,
-    );
     return {
       ...game,
-      ...source,
+      fenHistory: selectedRecoveryLine.assumedFens,
+      uciHistory: selectedRecoveryLine.uciMoves,
+      initialFen: selectedRecoveryLine.startFen,
+      pgn: selectedRecoveryLine.pgn,
     };
-  }, [game, preferredFenHistory, rawFenHistory, selectedRecoveryLine, selectedSource]);
+  }, [basePgn, game, rawFenHistory, recoveryLines, recoveryStatus, selectedRecoveryLine, selectedSource]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
   const boardMoveAnnotation = typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
@@ -565,15 +542,6 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
             : t("pg.recoveryError")
     : "";
 
-  const branchDifferences = useMemo(() => recoveryLines.map((line, lineIndex) => {
-    for (let plyIndex = 0; plyIndex < line.sanMoves.length; plyIndex++) {
-      const differs = recoveryLines.some((candidate, candidateIndex) =>
-        candidateIndex !== lineIndex && candidate.sanMoves[plyIndex] !== line.sanMoves[plyIndex]
-      );
-      if (differs) return { ply: plyIndex + 1, move: line.sanMoves[plyIndex]! };
-    }
-    return null;
-  }), [recoveryLines]);
   const selectReviewSource = useCallback((source: ReviewSource) => {
     if (source === selectedSource) return;
     setCursor(currentIndex);
@@ -679,10 +647,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   useEffect(() => {
     setCursor(-1);
     setSelectedSource("base");
-    // Analysis is source-specific and is recomputed automatically. Persisted
-    // legacy results may belong to a different FEN source, so do not flash
-    // them while the selected source is being evaluated.
-    setBaseAnalysisMoves([]);
+    setBaseAnalysisMoves(game.analysis?.moves ?? []);
     setBranchAnalysisBySource({});
   }, [game?._id, game.analysis?.moves]);
 
@@ -708,14 +673,13 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const handleAnalysisSaved = useCallback((moves: MoveAnalysis[]) => {
     if (selectedSource === "base") {
       setBaseAnalysisMoves(moves);
-    } else {
-      setBranchAnalysisBySource((previous) => ({
-        ...previous,
-        [String(selectedSource)]: moves,
-      }));
+      return;
     }
-    onAnalysisChange?.(moves);
-  }, [onAnalysisChange, selectedSource]);
+    setBranchAnalysisBySource((previous) => ({
+      ...previous,
+      [String(selectedSource)]: moves,
+    }));
+  }, [selectedSource]);
 
   useEffect(() => {
     const moveElement = activeMoveRef.current;
@@ -799,41 +763,6 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   }, [currentIndex, timeline.length]);
 
   useEffect(() => {
-    const handleKeyDown = (event: KeyboardEvent) => {
-      const target = event.target as HTMLElement | null;
-      const tagName = target?.tagName;
-
-      // don't hijack arrow keys while typing
-      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) return;
-      if (event.ctrlKey || event.metaKey || event.altKey) return;
-
-      if (event.key === "ArrowLeft") {
-        event.preventDefault();
-        goTo(currentIndex - 1);
-      }
-
-      if (event.key === "ArrowRight") {
-        event.preventDefault();
-        goTo(currentIndex + 1);
-      }
-
-      if (event.key === "ArrowUp") {
-        event.preventDefault();
-        goTo(timeline.length - 1);
-      }
-
-      if (event.key === "ArrowDown") {
-        event.preventDefault();
-        goTo(0);
-      }
-    };
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [currentIndex, timeline.length, goTo]);
-
-  useEffect(() => {
     const el = boardWrapRef.current;
     if (!el) return;
 
@@ -894,9 +823,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     setDeletingFen(true);
     setFenDeleteError(null);
     try {
-      const response = await apiFetch(
+      const response = await fetch(
         `/games/history/${encodeURIComponent(game._id)}/fens/${pendingFenIndex}`,
-        { method: "DELETE" },
+        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
       );
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown } | null;
       if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) throw new Error("delete_failed");
@@ -921,9 +850,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       const endpoint = editing
         ? `/games/history/${encodeURIComponent(game._id)}/fens/${fenEditor.index}`
         : `/games/history/${encodeURIComponent(game._id)}/fens`;
-      const response = await apiFetch(endpoint, {
+      const response = await fetch(endpoint, {
         method: editing ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ fen: fenEditor.value }),
       });
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
@@ -958,9 +887,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     setSavingBulkFens(true);
     setBulkFenError(null);
     try {
-      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
+      const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
         body: JSON.stringify({ fenHistory }),
       });
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown; index?: unknown } | null;
@@ -986,9 +915,9 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
 
   const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;
-    const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
+    const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
       method: "PUT",
-      headers: { "Content-Type": "application/json" },
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
     const body = await response.json().catch(() => null) as { success?: boolean; pgn?: unknown; uciHistory?: unknown } | null;
@@ -1037,7 +966,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
             </Badge>
           </div>
           <p className="text-xs text-muted-foreground">
-            {formatDateTime(game.createdAt || game.endedAt || game.Date, locale)}
+            {formatDateTime(game.createdAt || game.endedAt || game.Date)}
           </p>
         </div>
 
@@ -1089,7 +1018,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
               <Calendar className="h-3 w-3" />
               {t("rev.started")}
             </div>
-            <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date, locale)}</span>
+            <span className="text-sm font-medium">{formatDateTime(game.startedAt || game.createdAt || game.createAt || game.Date)}</span>
           </div>
 
         </div>
@@ -1148,6 +1077,12 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                   />
                 </div>
               )}
+              {recoveryStatus === "ready" && recoveryLines.length > 0 && (
+                <RecoveryExplorer key={game._id} lines={recoveryLines}
+                  selectedIndex={typeof selectedSource === "number" ? selectedSource : 0}
+                  fullyRecovered={recoveryComplete} recoveredCount={recoveredCount}
+                  onSelect={(index, nextCursor) => { setSelectedSource(index); setCursor(nextCursor); }} />
+              )}
             </div>
             <div className="flex h-[420px] min-h-0 flex-col overflow-hidden rounded-sm border border-border bg-muted/50 xl:h-[520px]">
               <div className="flex items-center justify-between px-3 py-2 border-b border-border">
@@ -1163,7 +1098,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                       {t("rev.reviewSource")}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
-                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? recoveryLines.length + 1 : 1 })}
+                      {t("rev.sourceCount", { count: recoveryStatus === "ready" ? 3 : 2 })}
                     </span>
                   </div>
                   <select
@@ -1176,17 +1111,14 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
                     className="h-9 w-full truncate rounded-sm border border-input bg-background px-2 text-xs text-foreground outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/30"
                   >
                     <option value="base">
-                      {t("rev.basePgn")} · {t("rev.plyCount", { count: preferredFenHistory.length })}
+                      {t("rev.basePgn")} · {t("rev.plyCount", { count: Math.max(0, (recoveryStatus === "ready" ? (recoveryLines[0]?.sanMoves.length ?? 0) : 0) || (hasEditedFen ? editedFenHistory.length : rawFenHistory.length)) })}
                     </option>
-                    {recoveryStatus === "ready" && recoveryLines.map((line, index) => {
-                      const difference = branchDifferences[index];
-                      return (
-                        <option key={`recovery-source-${index}`} value={index}>
-                          {t("rev.recoveryBranch", { number: index + 1 })} · {t("rev.plyCount", { count: line.sanMoves.length })}
-                          {difference ? ` · ${t("rev.branchDifference", difference)}` : ""}
-                        </option>
-                      );
-                    })}
+                    <option value="raw">{t("rev.rawFen")}</option>
+                    {recoveryStatus === "ready" && recoveryLines.length > 0 && (
+                      <option value={typeof selectedSource === "number" ? selectedSource : 0}>
+                        {t("recoveryTree.title")}
+                      </option>
+                    )}
                   </select>
                 </div>
               )}
@@ -1436,9 +1368,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         </div>
         <MoveAnalysisPanel
           game={game}
-          // Analyze exactly the timeline selected by this viewer. Base means
-          // corrected FEN when present, otherwise immutable e-board FEN;
-          // recovery branches use their own reconstructed FEN sequence.
+          // Analyze the timeline selected by this viewer. The preferred base
+          // source is recover-service output; raw explicitly analyzes ESP32 data.
           analysisGame={analysisGame}
           currentPly={currentIndex}
           onSelectPly={goTo}

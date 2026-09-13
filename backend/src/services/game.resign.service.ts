@@ -1,5 +1,5 @@
 import { Chess } from "chess.js";
-import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, removeGame, saveGame } from "../models/game.model.js";
+import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
 import { resetGame } from "../game/game.manager.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
@@ -145,14 +145,10 @@ export const GameResignService = {
             timeControlType: classifyTimeControl(game.initialTimeMs, game.incrementMs),
         }
 
-        // Store the completed match
-        await endGame({...doc, result: resultTag, status: "finished", endReason: "resignation", finishedAt: new Date()});
-
-        // remove the game from the live collection
-        await removeGame(gameID);
+        await endGame(doc);
 
         resetGame(gameID);
-        // Clear in-memory state belonging to the  old game
+        // Remove old games from RAM
         games.delete(gameID);
         gameSeq.delete(gameID);
         activeBranches.delete(gameID);
@@ -160,7 +156,28 @@ export const GameResignService = {
         rawFenHistory.delete(gameID);
         pgnBaseFen.delete(gameID);
 
-        // Create a new game for the next round
+        const updateResult = await saveGame(gameID, {
+            fen: new Chess().fen(),
+            pgn: "",
+            lastMove: null,
+            lastSeq: 0,
+            status: GAME_STATUS.FINISHED,
+            result: resultTag,
+            round: nextRound,
+            uciHistory: [], // reset
+            fenHistory: [],
+            moveDurationsMs: [],
+            resigningAt: null,
+            clockStartedAt: null,
+        }, {
+            boardType,
+            expectedVersion: (game.version ?? 0) + 1,
+            expectedStatus: "resigning",
+        });
+        if (!updateResult?.modifiedCount) {
+            throw new Error("GAME_STATE_CONFLICT");
+        }
+
         const newGameID = crypto.randomUUID();
         if (!game.boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);

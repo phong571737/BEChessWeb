@@ -1,28 +1,7 @@
-import type { Metadata } from "next";
 import { AppShell } from "@/components/layout/app-shell";
 import "./globals.css";
 import { Providers } from "@/components/providers/providers";
-import { AuthProvider } from "@/components/providers/auth-provider";
-
-export const metadata: Metadata = {
-    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"),
-    title: {
-        default: "TTLab Chess",
-        template: "%s | TTLab Chess",
-    },
-    description: "Live chess boards, match history, and board setup tools for TTLab.",
-    applicationName: "TTLab Chess",
-    keywords: ["chess", "board management", "TTLab", "live games"],
-    alternates: {
-        canonical: "/",
-    },
-    openGraph: {
-        title: "TTLab Chess",
-        description: "Live chess boards, match history, and board setup tools for TTLab.",
-        siteName: "TTLab Chess",
-        type: "website",
-    },
-};
+import { AuthProvider } from "@/lib/auth-context";
 
 export const viewport = {
     width: "device-width",
@@ -35,9 +14,10 @@ export default function RootLayout({
 }: {
     children: React.ReactNode; 
 }) {
+    const siteUrl = process.env.API_URL || "http://localhost:3000";
     return (
-        <html lang="vi" suppressHydrationWarning>
-            <body>
+        <html lang="en" suppressHydrationWarning>
+            <body >
                 <AuthProvider>
                     <Providers>
                         <AppShell>{children}</AppShell>

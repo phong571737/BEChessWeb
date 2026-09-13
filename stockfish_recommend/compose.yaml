@@ -1,0 +1,33 @@
+services:
+  stockfish-recommend:
+    platform: linux/amd64
+    build:
+      context: .
+      dockerfile: Dockerfile
+    expose:
+      - "8000"
+    environment:
+      STOCKFISH_PATH: /usr/games/stockfish
+      STOCKFISH_THREADS: "2"
+      STOCKFISH_HASH_MB: "128"
+      ANALYSIS_TIMEOUT_SECONDS: "3"
+      ENGINE_STOP_GRACE_SECONDS: "1"
+      STARTUP_TIMEOUT_SECONDS: "10"
+      READINESS_TIMEOUT_SECONDS: "1"
+      QUEUE_WAIT_TIMEOUT_SECONDS: "5"
+      MAX_DEPTH: "20"
+      QUEUE_SIZE: "8"
+      MAX_REQUEST_BODY_BYTES: "2048"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 512m

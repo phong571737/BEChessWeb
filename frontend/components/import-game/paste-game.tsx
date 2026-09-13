@@ -22,6 +22,9 @@ import {
 } from "lucide-react";
 import { parseUciBranches, BranchResult, ParseUciResult } from "./parse-uci";
 import { cn } from "@/lib/utils";
+import { RecoveryExplorer } from "@/components/recovery/recovery-explorer";
+import { ChessBoardView } from "@/components/board/chess-board-view";
+import { isTreeLine, type RecoveryTreeLine } from "@/lib/recovery-tree";
 
 const MAX_VISIBLE_RECOVERY_BRANCHES = 5;
 
@@ -44,6 +47,7 @@ function pgnMoves(pgn: string): string[] {
 }
 
 interface RecoveryApiLine {
+    pgn?: string;
     uciMoves: string[];
     sanMoves: string[];
     movetext?: string;
@@ -86,7 +90,7 @@ function recoveryResult(data: RecoveryApiResponse, fenHistory: string[]): ParseU
             token === "X" ? [{ token, ply: index + 1 }] : []
         );
         return {
-            pgn: recoveryLinePgn(data.pgn!, line),
+            pgn: line.pgn || recoveryLinePgn(data.pgn!, line),
             sanHistory: line.sanMoves,
             skipped,
             appliedCount: line.uciMoves.length - skipped.length,
@@ -126,6 +130,8 @@ export function PasteGame() {
     const [fenError, setFenError] = useState<string | null>(null);
     const [isFenRecovering, setIsFenRecovering] = useState(false);
     const [showAllRecoveryBranches, setShowAllRecoveryBranches] = useState(false);
+    const [treeLines, setTreeLines] = useState<RecoveryTreeLine[]>([]);
+    const [treeCursor, setTreeCursor] = useState(0);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const timeoutRefs = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -161,6 +167,7 @@ export function PasteGame() {
         setParseError(null);
         setFenError(null);
         setShowAllRecoveryBranches(false);
+        setTreeLines([]);
         textareaRef.current?.focus();
     }
 
@@ -172,6 +179,9 @@ export function PasteGame() {
         });
         if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
         const data = await response.json() as RecoveryApiResponse;
+        setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine) : []);
+        setTreeCursor(0);
+        setSelectedBranch(0);
         setResult(recoveryResult(data, fenHistory));
         setShowAllRecoveryBranches(false);
     }
@@ -183,6 +193,7 @@ export function PasteGame() {
         try {
             await new Promise<void>((resolve) => schedule(() => resolve(), 150));
             setResult({ ...parseUciBranches(rawInput), mode: "uci" });
+            setTreeLines([]);
             setSelectedBranch(0);
             setCopiedBranch(null);
         } catch (error) {
@@ -207,6 +218,8 @@ export function PasteGame() {
             });
             if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
             const data = await response.json() as RecoveryApiResponse;
+            setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine) : []);
+            setTreeCursor(0);
             setResult(recoveryResult(data, fenHistory));
             setShowAllRecoveryBranches(false);
             setSelectedBranch(0);
@@ -302,14 +315,14 @@ export function PasteGame() {
             </div>
 
             {/* ─── Main Grid ─────────────────────────────────────────── */}
-            <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-4 sm:px-6 sm:py-6 lg:py-8">
-                <div className="grid min-w-0 items-start gap-4 md:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] md:gap-5 lg:gap-6">
+            <div className="mx-auto w-full min-w-0 max-w-7xl px-4 py-6 sm:px-6 lg:py-8">
+                <div className="grid min-w-0 items-start gap-5 lg:grid-cols-[minmax(0,1.04fr)_minmax(0,0.96fr)] lg:gap-6">
 
                     {/* ── Input Panel ─────────────────────────────────── */}
                     <div className="flex min-w-0 flex-col gap-4">
                         {/* Card */}
                         <div className={cn(
-                            "flex min-h-[280px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all sm:min-h-[360px] md:min-h-[380px] lg:min-h-[420px] 2xl:min-h-[458px]",
+                            "flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm transition-all sm:min-h-[420px] 2xl:min-h-[458px]",
                             isFocused && "border-primary/50 ring-1 ring-primary/30 shadow-md shadow-primary/5"
                         )}>
                             {/* Card Header */}
@@ -339,7 +352,7 @@ export function PasteGame() {
                             </div>
 
                             {/* Textarea Area */}
-                            <div className="relative min-h-[140px] flex-1 p-1.5 sm:min-h-[220px]">
+                            <div className="relative min-h-[220px] flex-1 p-1.5 sm:min-h-[320px]">
                                 <textarea
                                     ref={textareaRef}
                                     value={rawInput}
@@ -354,7 +367,7 @@ export function PasteGame() {
                                     onKeyDown={(e) => {
                                         if ((e.ctrlKey || e.metaKey) && e.key === "Enter") handleParse();
                                     }}
-                                    className="h-full min-h-[140px] w-full resize-none rounded-md bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[220px] sm:p-4 sm:text-sm"
+                                    className="h-full min-h-[220px] w-full resize-none rounded-md bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[320px] sm:p-4 sm:text-sm"
                                     placeholder={t("pg.pastePlaceholder")}
                                 />
                                 {rawInput.length > 0 && (
@@ -362,7 +375,6 @@ export function PasteGame() {
                                         type="button"
                                         onClick={handleClear}
                                         className="absolute right-4 top-4 flex size-7 items-center justify-center rounded-sm border border-border bg-card text-muted-foreground shadow-sm transition-colors hover:bg-surface-hover hover:text-foreground active:scale-95"
-                                        aria-label={t("pg.clear")}
                                         title={t("pg.clear")}
                                     >
                                         <RotateCcw className="size-3.5" />
@@ -428,7 +440,7 @@ export function PasteGame() {
                                 aria-label={t("pg.fenInput")}
                                 autoCorrect="off"
                                 spellCheck={false}
-                                className="min-h-[120px] w-full resize-y bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[150px] sm:p-4 sm:text-sm"
+                                className="min-h-[150px] w-full resize-y bg-transparent p-3 font-mono text-xs leading-relaxed text-foreground outline-none placeholder:text-muted-foreground/40 sm:min-h-[180px] sm:p-4 sm:text-sm"
                                 placeholder={t("pg.fenPlaceholder")}
                             />
                             <div className="border-t border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
@@ -462,8 +474,8 @@ export function PasteGame() {
                     </div>
 
                     {/* ── Result Panel ────────────────────────────────── */}
-                    <div className="flex min-w-0 flex-col gap-4 md:sticky md:top-4">
-                        <div className="flex min-h-[280px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:min-h-[360px] md:min-h-[380px] lg:min-h-[420px] 2xl:min-h-[458px]">
+                    <div className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-4">
+                        <div className="flex min-h-[360px] min-w-0 flex-col overflow-hidden rounded-xl border border-border bg-card shadow-sm sm:min-h-[420px] 2xl:min-h-[458px]">
                             {/* Card Header */}
                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border bg-background-secondary px-3 py-3 sm:px-5 sm:py-3.5">
                                 <div className="flex min-w-0 items-center gap-2.5">
@@ -564,7 +576,7 @@ export function PasteGame() {
                                 </div>
 
                                 {/* PGN Code block */}
-                                <div className="relative min-h-[140px] flex-1 overflow-hidden rounded-md border border-border bg-background-secondary sm:min-h-[180px]">
+                                <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-md border border-border bg-background-secondary sm:min-h-[220px]">
                                     {activeBranch?.pgn ? (
                                             <div className="max-h-[220px] overflow-auto sm:max-h-[260px]">
                                             <pre className="whitespace-pre-wrap break-words p-3 font-mono text-xs leading-relaxed text-foreground select-all sm:p-4 sm:text-sm">
@@ -582,7 +594,22 @@ export function PasteGame() {
                                 </div>
 
                                 {/* Branch Selector */}
-                                {result && result.branches.length > 1 && (
+                                {result?.mode === "fen" && treeLines.length > 0 && (
+                                    <>
+                                        <div className="mx-auto w-[240px]">
+                                            <ChessBoardView boardWidth={240}
+                                                fen={treeCursor > 0 ? treeLines[selectedBranch]?.assumedFens[treeCursor - 1] ?? treeLines[selectedBranch].startFen : treeLines[selectedBranch].startFen}
+                                                lastMove={treeCursor > 0 && treeLines[selectedBranch]?.uciMoves[treeCursor - 1] ? {
+                                                    from: treeLines[selectedBranch].uciMoves[treeCursor - 1].slice(0, 2),
+                                                    to: treeLines[selectedBranch].uciMoves[treeCursor - 1].slice(2, 4),
+                                                } : null} />
+                                        </div>
+                                        <RecoveryExplorer lines={treeLines} selectedIndex={selectedBranch}
+                                            fullyRecovered={result.fullyRecovered} recoveredCount={result.longestRecoveredPly}
+                                            onSelect={(index, cursor) => { setSelectedBranch(index); setTreeCursor(cursor); }} />
+                                    </>
+                                )}
+                                {result && result.branches.length > 1 && !treeLines.length && (
                                     <div className="space-y-2.5">
                                         <span className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
                                             <GitFork className="size-3" />
@@ -594,7 +621,6 @@ export function PasteGame() {
                                                     key={idx}
                                                     type="button"
                                                     onClick={() => setSelectedBranch(idx)}
-                                                    aria-pressed={idx === selectedBranch}
                                                     className={cn(
                                                         "group flex items-center justify-between rounded-sm border px-3 py-2.5 text-left text-xs transition-all duration-150",
                                                         idx === selectedBranch
