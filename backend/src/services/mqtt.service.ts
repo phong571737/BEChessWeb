@@ -2,7 +2,7 @@ import mqtt, { MqttClient } from "mqtt";
 import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { removeGameByBoardID } from "../models/game.model.js";
+import { getGame, removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
@@ -10,6 +10,8 @@ import { GameResignService } from "./game.resign.service.js";
 import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
+import { emitWithSpectatorDelay, schedulePublicBoardCleanup } from "./spectator-delay.service.js";
+import { markBoardOffline, markBoardOnline } from "../models/board-uptime.model.js";
 
 let mqttClient: MqttClient | null = null;
 
@@ -17,7 +19,7 @@ interface StatusPayload {
     status: "online" | "offline" | string;
 }
 
-const OFFLINE_CLEANUP_DELAY_MS = 5 * 60 * 1000;  // 2 minutes
+const OFFLINE_CLEANUP_DELAY_MS = 3 * 60 * 1000; // 3 minutes
 const pendingCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 interface RemoveGameByBoardResult {
@@ -37,6 +39,21 @@ interface CommandPayload {
 const COMMAND_DEDUPE_WINDOW_MS = 15_000;
 const AUTO_RESULT_THRESHOLD_CP = 150;
 const recentCommandKeys = new Map<string, number>();
+const boardConnectionWrites = new Map<string, Promise<void>>();
+
+function persistBoardConnection(boardID: string, online: boolean): void {
+    const previous = boardConnectionWrites.get(boardID) ?? Promise.resolve();
+    const write = previous
+        .then(() => online ? markBoardOnline(boardID) : markBoardOffline(boardID))
+        .catch((error) => {
+            // Dashboard accounting must never interrupt the live board lifecycle.
+            console.error(`[MQTT] Could not persist ${online ? "online" : "offline"} state for ${boardID}:`, error);
+        });
+    boardConnectionWrites.set(boardID, write);
+    void write.finally(() => {
+        if (boardConnectionWrites.get(boardID) === write) boardConnectionWrites.delete(boardID);
+    });
+}
 
 function claimCommand(boardID: string, payload: CommandPayload, command: string, side?: string) {
     const requestKey = typeof payload.requestId === "string" && payload.requestId.trim()
@@ -79,9 +96,13 @@ async function cleanupBoard(boardID: string) {
         }
         removeCurrenGame(boardID); // remove old gameID
         gameState.delete(boardID); // xóa hẳn thay vì set offline để tránh leak
+        // Public clients may still have moves waiting in the spectator queue.
+        // Schedule their removal on that same timeline so all earlier moves
+        // are released first. Administrators can remove the live card now.
+        await schedulePublicBoardCleanup(boardID, result?.gameIDs ?? []);
         try {
             console.log(`[MQTT] Emitting game:destroyed for ${boardID}`);
-            getIO().emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
+            getIO().to("audience:admin").emit("game:destroyed", { boardID, gameIDs: result?.gameIDs ?? [] });
         } catch (e) {
             // socket may not be initialized; ignore
         }
@@ -111,13 +132,14 @@ async function handleMessage(topic: string, message: Buffer) {
             // to. Do not execute our own outbound command a second time.
             if (payload.origin === "backend") return;
             const command = typeof payload.command === "string" ? payload.command.trim().toLowerCase() : "";
-            if (!["restart_game_esp", "restart_game", "resign", "draw"].includes(command)) return;
+            if (!["restart_game", "resign", "draw"].includes(command)) return;
             const rawSide = payload.side ?? payload.resignSide;
             const normalizedSide = typeof rawSide === "string" && ["white", "black"].includes(rawSide.trim().toLowerCase())
                 ? rawSide.trim().toLowerCase() as "white" | "black"
                 : undefined;
-            if (command === "resign" && !normalizedSide) {
-                console.warn(`[MQTT] Ignoring resign: payload must include side white or black for board ${boardID}`);
+            const hasResignSide = typeof rawSide === "string" && rawSide.trim().length > 0;
+            if (command === "resign" && hasResignSide && !normalizedSide) {
+                console.warn(`[MQTT] Ignoring resign: side must be white or black for board ${boardID}`);
                 return;
             }
             if (!claimCommand(boardID, payload, command, normalizedSide)) {
@@ -131,21 +153,35 @@ async function handleMessage(topic: string, message: Buffer) {
                 return;
             }
             console.log(`[MQTT] ${command} received for board ${boardID}, game ${gameID}`);
-            if (command === "restart_game_esp") {
+            // A physical long-press sends `resign` without a side.  Preserve
+            // the physical-board behavior: conclude the current game by
+            // evaluation when possible, otherwise mark its outcome as
+            // unconfirmed. Explicit `resign` commands with a side keep their
+            // normal, player-selected result.
+            if (command === "resign" && !normalizedSide) {
                 const boardType = typeof payload.boardType === "string" && payload.boardType.toUpperCase() === BOARD_TYPE.HALL
                     ? BOARD_TYPE.HALL
                     : BOARD_TYPE.NFC;
-                const result = await finishEspRestartByEvaluation(gameID, boardID, boardType)
+                const result = await finishEspResignByEvaluation(gameID, boardID, boardType)
                     ?? await GameResignService.handleUnconfirmed(gameID, boardType);
                 if (result) {
+                    // Do not let the ESP restart/initcheck before the new
+                    // game exists. Its long-press only requests resignation;
+                    // this acknowledgement starts physical-board reset after
+                    // finalization and GameService.create have completed.
+                    const resetPublished = await publishBoardCommand(boardID, "restart_game");
+                    if (!resetPublished) {
+                        console.error(`[MQTT] Could not request physical-board reset for ${boardID}`);
+                    }
                     const resultTag = "unconfirmed" in result && result.unconfirmed
                         ? "*"
                         : result.loser === "white" ? "0-1" : "1-0";
-                    getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide: result.loser });
-                    getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
+                    await emitWithSpectatorDelay("update_all_game", { gameID, result: resultTag, resignSide: result.loser }, { scope: "game", gameID, removePublicGameID: gameID });
+                    await emitWithSpectatorDelay("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
                     emitGameState(boardID);
-                    getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
-                    getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
+                    const nextGame = await getGame(result.newGameID);
+                    await emitWithSpectatorDelay("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+                    await emitWithSpectatorDelay("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
                 }
             } else if (command === "restart_game") {
                 await GameActionService.restart(gameID);
@@ -158,14 +194,19 @@ async function handleMessage(topic: string, message: Buffer) {
                     ? payload.branchId.trim()
                     : null;
                 const result = await GameResignService.handle(gameID, resignSide, boardType, branchId);
+                const resetPublished = await publishBoardCommand(boardID, "restart_game");
+                if (!resetPublished) {
+                    console.error(`[MQTT] Could not request physical-board reset for ${boardID}`);
+                }
                 const resultTag = resignSide === "draw" ? "1/2-1/2" : resignSide === "white" ? "0-1" : "1-0";
                 // Match the web resignation flow: update the old game room, then
                 // attach the board to the newly created waiting game.
-                getIO().to(gameID).emit("update_all_game", { gameID, result: resultTag, resignSide });
-                getIO().emit("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
+                await emitWithSpectatorDelay("update_all_game", { gameID, result: resultTag, resignSide }, { scope: "game", gameID, removePublicGameID: gameID });
+                await emitWithSpectatorDelay("game_status_update", { boardID, gameID, status: "finished", result: resultTag });
                 emitGameState(boardID);
-                getIO().emit("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" });
-                getIO().emit("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
+                const nextGame = await getGame(result.newGameID);
+                await emitWithSpectatorDelay("game_status_update", { boardID, gameID: result.newGameID, status: "waiting" }, { publicGame: nextGame ?? undefined });
+                await emitWithSpectatorDelay("board_scan_ok", { boardID, gameID: result.newGameID, status: "waiting" });
             }
         } catch (e) {
             console.log("[MQTT] Command parse or lifecycle error: ", e);
@@ -177,15 +218,31 @@ async function handleMessage(topic: string, message: Buffer) {
         const boardID = parts[1];
         if (!boardID) return;
         try {
-            const payload = JSON.parse(message.toString());
+            const payload = JSON.parse(message.toString()) as StatusPayload;
 
             // if status is online(board connected)
             if (payload.status === 'online') {
                 console.log(`[MQTT] Board ${boardID} online`);
                 cancelPendingCleanup(boardID);
+                persistBoardConnection(boardID, true);
                 gameState.set(boardID, { boardStatus: "online" });
+            } else if (payload.status === 'reset') {
+                console.log(`[MQTT] Board ${boardID} confirmed local reset`);
+                cancelPendingCleanup(boardID);
+                persistBoardConnection(boardID, true);
+                gameState.set(boardID, {
+                    boardStatus: "online",
+                    gameStatus: "checkinit",
+                    initResultStatus: "checkinit",
+                    buttonReady: false,
+                    wrongSquares: [],
+                    missingSquares: [],
+                    resetConfirmedAt: Date.now(),
+                });
+                getIO().emit("board_reset", { boardID, status: "reset", confirmedAt: Date.now() });
             } else if (payload.status === 'offline') { // board disconnected (power outage or network hiccup)
                 console.log(`[MQTT] Board ${boardID} offline signal received`);
+                persistBoardConnection(boardID, false);
                 gameState.set(boardID, { boardStatus: "offline" });
 
                 // Notify frontend immediately that the board is offline
@@ -199,9 +256,9 @@ async function handleMessage(topic: string, message: Buffer) {
                 // Hủy timer cũ nếu có
                 cancelPendingCleanup(boardID);
 
-                // Chờ 2 phút mới thực sự xóa game để phòng trường hợp rớt ping chốc lát hoặc reconnect
+                // Wait three minutes before deleting the game in case the board reconnects.
                 const timer = setTimeout(async () => {
-                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 2m offline`);
+                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 3m offline`);
                     await cleanupBoard(boardID);
                 }, OFFLINE_CLEANUP_DELAY_MS);
 
@@ -263,7 +320,7 @@ export function getMqttClient() {
  * A missing or inconclusive score deliberately returns null so the caller can
  * persist a finished session with an unconfirmed outcome instead of guessing.
  */
-async function finishEspRestartByEvaluation(gameID: string, boardID: string, boardType: string) {
+async function finishEspResignByEvaluation(gameID: string, boardID: string, boardType: string) {
     const { getGame } = await import("../models/game.model.js");
     const game = await getGame(gameID);
     const fen = game?.fenHistory?.at(-1) ?? game?.fen;
@@ -285,7 +342,7 @@ async function finishEspRestartByEvaluation(gameID: string, boardID: string, boa
         if (!loser) return null;
         return await GameResignService.handle(gameID, loser, boardType, null);
     } catch (error) {
-        console.error(`[MQTT] Stockfish restart evaluation failed for ${boardID}:`, error);
+        console.error(`[MQTT] Stockfish resignation evaluation failed for ${boardID}:`, error);
         return null;
     }
 }

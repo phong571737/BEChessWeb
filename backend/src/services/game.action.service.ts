@@ -3,11 +3,11 @@ import { Chess } from "chess.js";
 import { getGame, renamePlayer, saveActiveGameHistorySnapshot, saveGame, removeGame } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState, emitGameState } from "../game/game.state.js";
-import { getIO } from "../sockets/index.js";
 import { ERROR_STATUS } from "../constant.js";
-import { GameIDPayload } from "../types/game.types.js";
+import { BulkGameSetupItem, GameIDPayload } from "../types/game.types.js";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { getCurrentClock } from "./clock.service.js";
+import { emitWithSpectatorDelay, ensurePublicGameSnapshot } from "./spectator-delay.service.js";
 
 export const GameActionService = {
     // Restart keeps the existing game/session identity so clients and board mapping stay connected.
@@ -16,6 +16,7 @@ export const GameActionService = {
         if (!game) {
             throw new Error(ERROR_STATUS.NOTFOUND);
         }
+        await ensurePublicGameSnapshot(game);
         const boardID = game.boardID ?? getBoardIDByGame(gameID);
         if (!boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);
@@ -49,21 +50,22 @@ export const GameActionService = {
             throw new Error("GAME_STATE_CONFLICT");
         }
         const reset = resetGame(gameID);
+        const updatedGame = await getGame(gameID);
         // A physical-board scan must validate the reset position before a new game can start.
         gameState.set(boardID, { gameID, gameStatus: "checkinit", initResultStatus: "checkinit", buttonReady: false, wrongSquares: [], missingSquares: [] });
         emitGameState(boardID);
         // Home-page physical-board cards are not members of the game room.
         // Broadcast the retained board/game association so the card remains visible after restart.
-        getIO().emit("game_status_update", { gameID, boardID, status: "waiting" });
-        getIO().to(gameID).emit("game:reset", {
+        await emitWithSpectatorDelay("game_status_update", { gameID, boardID, status: "waiting" }, { publicGame: updatedGame ?? undefined });
+        await emitWithSpectatorDelay("game:reset", {
             gameID,
             boardID,
             fen: reset.fen(),
             resetAt,
             initialTimeMs,
             incrementMs,
-        });
-        getIO().to(gameID).emit("clock_state", {
+        }, { scope: "game", gameID });
+        await emitWithSpectatorDelay("clock_state", {
             gameID,
             whiteRemainingMs: initialTimeMs ?? 0,
             blackRemainingMs: initialTimeMs ?? 0,
@@ -71,7 +73,7 @@ export const GameActionService = {
             clockStartedAt: null,
             serverNow: resetAt,
             fen: initialFen,
-        });
+        }, { scope: "game", gameID });
 
         return {
             gameID,
@@ -86,16 +88,15 @@ export const GameActionService = {
         await GameActionService.restart(gameID);
     },
 
-    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number, round?: number, location?: string, boardNumber?: string): Promise<void> {
+    async rename(gameID: string, color: string, name: string, initialTimeMs?: number, incrementMs?: number, round?: number, location?: string, boardNumber?: string, tournament?: string): Promise<Record<string, unknown> | null> {
         if (!name.trim() || !["Black", "White"].includes(color)) {
-            return;
+            return null;
         }
 
         const game = await getGame(gameID);
-        if (!game) return;
+        if (!game) return null;
 
-        await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round, location, boardNumber);
-        const updatedGame = await getGame(gameID);
+        const updatedGame = await renamePlayer(gameID, color, name, initialTimeMs, incrementMs, round, location, boardNumber, tournament);
         if (updatedGame && ((updatedGame.lastSeq ?? 0) > 0 || (updatedGame.uciHistory?.length ?? 0) > 0)) {
             await saveActiveGameHistorySnapshot(updatedGame);
         }
@@ -108,16 +109,59 @@ export const GameActionService = {
         if (incrementMs !== undefined) payload.incrementMs = incrementMs;
         if (round !== undefined) payload.round = round;
         if (location !== undefined) payload.location = location;
-        getIO().to(gameID).emit("game:renamed", payload);
+        if (tournament !== undefined) payload.tournament = tournament;
+        // Rename/setup metadata is used by both the home card and an open
+        // board page. Broadcast globally and let clients filter by gameID;
+        // keeping gameID as the queue stream also preserves per-game delay
+        // ordering for public viewers.
+        await emitWithSpectatorDelay("game:renamed", payload, { scope: "global", gameID, publicGame: updatedGame ?? undefined });
 
         // Keep every connected client on the same server-authoritative clock,
         // including clients that are viewing the game while it is configured.
-        if (updatedGame) {
-            getIO().to(gameID).emit("clock_state", {
-                gameID,
-                ...getCurrentClock(updatedGame),
-            });
+        const clockState = {
+            gameID,
+            ...getCurrentClock(updatedGame),
+        };
+        await emitWithSpectatorDelay("clock_state", clockState, { scope: "game", gameID });
+        return clockState;
+    },
+
+    /** Applies one pairing workbook to multiple live boards without resetting active clocks. */
+    async bulkSetup(
+        items: BulkGameSetupItem[],
+        clock: { applyClock: boolean; initialTimeMs?: number; incrementMs?: number },
+    ): Promise<{ updated: string[]; failed: { gameID: string; error: string }[] }> {
+        const updated: string[] = [];
+        const failed: { gameID: string; error: string }[] = [];
+
+        // Sequential writes avoid multiple configuration writes racing against
+        // the same physical-board move stream. Each individual write remains
+        // guarded by the game's optimistic version.
+        for (const item of items) {
+            try {
+                const whiteUpdate = await GameActionService.rename(
+                    item.gameID,
+                    "White",
+                    item.whiteName,
+                    clock.applyClock ? clock.initialTimeMs : undefined,
+                    clock.applyClock ? clock.incrementMs : undefined,
+                    item.round,
+                    item.location,
+                    item.boardNumber,
+                    item.tournament,
+                );
+                if (!whiteUpdate) throw new Error("GAME_NOT_FOUND");
+                const blackUpdate = await GameActionService.rename(item.gameID, "Black", item.blackName);
+                if (!blackUpdate) throw new Error("GAME_NOT_FOUND");
+                updated.push(item.gameID);
+            } catch (error) {
+                failed.push({
+                    gameID: item.gameID,
+                    error: error instanceof Error ? error.message : "BULK_SETUP_FAILED",
+                });
+            }
         }
+        return { updated, failed };
     },
 
     async destroy(gameID: string) {

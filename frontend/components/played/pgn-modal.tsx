@@ -4,8 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Download, Clock, Hash, Trophy, 
   Calendar, ChevronsLeft, ChevronLeft, ChevronRight, 
   ChevronsRight, BarChart3, EyeOff, Lightbulb, Pencil, Plus, Trash2, ListOrdered,
+<<<<<<< HEAD
   CircuitBoard} from "lucide-react";
+=======
+  CircuitBoard, CircleAlert, MoreHorizontal} from "lucide-react";
+>>>>>>> origin/master
 import { Chess } from "chess.js";
+import { ChessboardDnDProvider, SparePiece } from "react-chessboard";
 import { publicPath } from "@/lib/public-path";
 import { resolveTimeControlType } from "@/lib/time-control";
 import {
@@ -29,9 +34,16 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
+<<<<<<< HEAD
 import { useAuth } from "@/lib/auth-context";
 import { RecoveryExplorer } from "@/components/recovery/recovery-explorer";
 import { isTreeLine, type RecoveryTreeLine } from "@/lib/recovery-tree";
+=======
+import { useAuth } from "@/components/providers/auth-provider";
+import { apiFetch } from "@/lib/api-fetch";
+import { EDITOR_FILES, EDITOR_RANKS, FEN_EDITOR_PIECES, fenEditorPosition, fenWithEditorPosition, type FenEditorPiece } from "@/lib/fen-editor";
+import { fetchRecoveredPgn, replaceFenHistory as persistFenHistory, saveHistoryTraces as persistHistoryTraces } from "@/lib/pgn-history-api";
+>>>>>>> origin/master
 
 interface Props {
   game:    HistoryGame | null;
@@ -51,6 +63,7 @@ interface RecoveryStep {
   synthetic?: boolean;
 }
 
+<<<<<<< HEAD
 interface RecoveryPayload {
   fullyRecovered?: boolean;
   longestRecoveredPly?: number;
@@ -65,6 +78,8 @@ interface RecoveryPayload {
   preprocessing?: unknown;
 }
 
+=======
+>>>>>>> origin/master
 interface ReviewMove {
   fen: string;
   san: string;
@@ -108,6 +123,24 @@ function traceRecovery(stage: string, value: unknown): void {
 
 function movesOnly(pgn: string): string {
   return pgn.replace(/\[[^\]]+\]\s*/g, "").trim();
+}
+
+/**
+ * Keeps displayed notation clickable even when a stored/recovered PGN cannot
+ * be replayed by chess.js (for example, an incomplete physical-board trace).
+ */
+function extractPgnMoveTokens(pgn: string): string[] {
+  return movesOnly(pgn)
+    .replace(/\{[^}]*\}/g, " ")
+    .replace(/\([^)]*\)/g, " ")
+    .replace(/;[^\n]*/g, " ")
+    .replace(/\d+\.(?:\.\.)?/g, " ")
+    .split(/\s+/)
+    .map((token) => token.trim())
+    .filter((token) => token.length > 0
+      && !/^(?:1-0|0-1|1\/2-1\/2|\*)$/.test(token)
+      && !/^\$\d+$/.test(token)
+      && token !== "...");
 }
 
 /** Reject malformed/custom snapshots before sending them to the WASM engine. */
@@ -203,8 +236,131 @@ function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
   return `${headers}\n\n${movetext}`;
 }
 
+<<<<<<< HEAD
 export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const { t } = useT();
+=======
+
+function FenBoardEditor({ fen, onChange, inline = false }: { fen: string; onChange: (fen: string) => void; inline?: boolean }) {
+  const { t } = useT();
+  const [selectedPiece, setSelectedPiece] = useState<FenEditorPiece | null>(null);
+  const position = useMemo(() => fenEditorPosition(fen), [fen]);
+  const place = (square: string, piece: FenEditorPiece | null, sourceSquare?: string) => {
+    const next = { ...position };
+    if (sourceSquare) delete next[sourceSquare];
+    if (piece) next[square] = piece;
+    else delete next[square];
+    onChange(fenWithEditorPosition(fen, next));
+  };
+  const handleDrop = (event: React.DragEvent<HTMLButtonElement>, square: string) => {
+    event.preventDefault();
+    const value = event.dataTransfer.getData("application/x-ttlab-fen-piece");
+    const [piece, sourceSquare] = value.split(":") as [FenEditorPiece, string | undefined];
+    if (FEN_EDITOR_PIECES[piece]) place(square, piece, sourceSquare);
+  };
+
+  const board = (
+    <div className="grid aspect-square grid-cols-8 overflow-hidden rounded-sm border border-border">
+        {EDITOR_RANKS.flatMap((rank, rankIndex) => EDITOR_FILES.map((file, fileIndex) => {
+          const square = `${file}${rank}`;
+          const piece = position[square];
+          return (
+            <button
+              key={square}
+              type="button"
+              onClick={() => selectedPiece && place(square, selectedPiece)}
+              onContextMenu={(event) => { event.preventDefault(); place(square, null); }}
+              onDragOver={(event) => event.preventDefault()}
+              onDrop={(event) => handleDrop(event, square)}
+              className={`flex min-h-0 items-center justify-center text-[clamp(22px,8vw,48px)] leading-none ${((rankIndex + fileIndex) % 2 === 0) ? "bg-[#f0d9b5]" : "bg-[#b58863]"}`}
+              aria-label={square}
+            >
+              {piece && (
+                <span
+                  draggable
+                  onDragStart={(event) => event.dataTransfer.setData("application/x-ttlab-fen-piece", `${piece}:${square}`)}
+                  className="cursor-grab select-none active:cursor-grabbing"
+                >
+                  {FEN_EDITOR_PIECES[piece].symbol}
+                </span>
+              )}
+            </button>
+          );
+        }))}
+    </div>
+  );
+  const palette = (color: "w" | "b", compact = false) => (
+    <div className={compact ? "flex items-center justify-center gap-1" : "grid grid-cols-3 gap-1"}>
+      {(Object.keys(FEN_EDITOR_PIECES) as FenEditorPiece[]).filter((piece) => piece[0] === color).map((piece) => (
+        <button
+          key={piece}
+          type="button"
+          draggable
+          onDragStart={(event) => event.dataTransfer.setData("application/x-ttlab-fen-piece", piece)}
+          onClick={() => setSelectedPiece(piece)}
+          title={t(FEN_EDITOR_PIECES[piece].name)}
+          className={`flex items-center justify-center rounded-sm border ${compact ? "size-8 sm:size-10" : "h-11 py-1"} ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
+        >
+          <SparePiece piece={piece} width={compact ? 30 : 38} dndId={`fen-dialog-${piece}`} />
+        </button>
+      ))}
+    </div>
+  );
+  if (inline) {
+    return (
+      <ChessboardDnDProvider>
+        <div className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-1">
+          {palette("b", true)}
+          <div className="w-full">{board}</div>
+          {palette("w", true)}
+        </div>
+      </ChessboardDnDProvider>
+    );
+  }
+  return (
+    <ChessboardDnDProvider>
+      <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9rem]">
+        {board}
+        <div className="space-y-2 rounded-sm border border-border bg-muted/30 p-2">
+          {(["w", "b"] as const).map((color) => (
+            <div key={color}>
+              <p className="mb-1 text-[10px] font-semibold uppercase text-muted-foreground">{t(color === "w" ? "common.white" : "common.black")}</p>
+              {palette(color)}
+            </div>
+          ))}
+        </div>
+      </div>
+    </ChessboardDnDProvider>
+  );
+}
+
+function InlineFenPieceStrip({ color, selectedPiece, onSelect, vertical = false }: {
+  color: "w" | "b";
+  selectedPiece: FenEditorPiece | null;
+  onSelect: (piece: FenEditorPiece) => void;
+  vertical?: boolean;
+}) {
+  const { t } = useT();
+  return (
+    <div className={vertical ? "flex flex-col items-center justify-center gap-1" : "flex items-center justify-center gap-1"}>
+      {(Object.keys(FEN_EDITOR_PIECES) as FenEditorPiece[]).filter((piece) => piece[0] === color).map((piece) => (
+        <button
+          key={piece}
+          type="button"
+          onClick={() => onSelect(piece)}
+          title={t(FEN_EDITOR_PIECES[piece].name)}
+          className={`flex items-center justify-center rounded-sm border ${vertical ? "size-7" : "size-8 sm:size-10"} ${selectedPiece === piece ? "border-primary bg-primary/10 dark:bg-slate-200" : "border-border bg-white dark:bg-slate-200"}`}
+        >
+          <SparePiece piece={piece} width={30} dndId={`fen-inline-${color}-${piece}`} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: ReviewProps) {
+  const { t, locale } = useT();
+>>>>>>> origin/master
   const { isAdmin, token } = useAuth();
   // Keep analysis isolated per review source. A recovered branch is a
   // client-local line, so its classifications must never overwrite (or be
@@ -230,12 +386,21 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [fenEditor, setFenEditor] = useState<{ mode: "add" | "edit"; index: number | null; value: string } | null>(null);
   const [savingFen, setSavingFen] = useState(false);
   const [fenSaveError, setFenSaveError] = useState<string | null>(null);
+  const [insertAfterFenIndex, setInsertAfterFenIndex] = useState<number | null>(null);
+  const [insertFenDraft, setInsertFenDraft] = useState<string | null>(null);
+  const [insertingFen, setInsertingFen] = useState(false);
+  const [inlineFenDraft, setInlineFenDraft] = useState<string | null>(null);
+  const [savingInlineFen, setSavingInlineFen] = useState(false);
+  const [inlineSelectedPiece, setInlineSelectedPiece] = useState<FenEditorPiece | null>(null);
+  const [dialogSelectedPiece, setDialogSelectedPiece] = useState<FenEditorPiece | null>(null);
   const [bulkFenEditor, setBulkFenEditor] = useState<string | null>(null);
   const [savingBulkFens, setSavingBulkFens] = useState(false);
   const [bulkFenError, setBulkFenError] = useState<string | null>(null);
   const [cursor, setCursor] = useState(-1);
   const [basePgn, setBasePgn] = useState<string | null>(null);
   const [editedFenHistory, setEditedFenHistory] = useState<string[]>(game.fenHistoryEdited ?? []);
+  const fenUndoStackRef = useRef<string[][]>([]);
+  const [undoingFen, setUndoingFen] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
   const [recoveryComplete, setRecoveryComplete] = useState(true);
@@ -245,6 +410,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
   const [showHistoryEvaluation, setShowHistoryEvaluation] = useState(true);
   const [showHistorySuggestions, setShowHistorySuggestions] = useState(true);
+  const [showHistoryMoveAnnotations, setShowHistoryMoveAnnotations] = useState(true);
+  const [mobileReviewMenuOpen, setMobileReviewMenuOpen] = useState(false);
+  const mobileReviewMenuRef = useRef<HTMLDivElement | null>(null);
   const [showPgnEditor, setShowPgnEditor] = useState(false);
   const [editablePgn, setEditablePgn] = useState(game.pgn ?? "");
   const [savingPgn, setSavingPgn] = useState(false);
@@ -254,15 +422,45 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     [game.fenHistory, game.rawFenHistory],
   );
   const hasEditedFen = editedFenHistory.length > 0;
+<<<<<<< HEAD
+=======
+  // The base review source always prefers the administrator-corrected FEN
+  // timeline. The electronic-board snapshots remain the immutable fallback.
+  const preferredFenHistory = useMemo(
+    () => (editedFenHistory.length ? editedFenHistory : rawFenHistory),
+    [editedFenHistory, rawFenHistory],
+  );
+  const rememberFenHistory = useCallback((snapshot: string[]) => {
+    const stack = fenUndoStackRef.current;
+    const previous = stack.at(-1);
+    if (previous?.length === snapshot.length && previous.every((fen, index) => fen === snapshot[index])) return;
+    stack.push([...snapshot]);
+    if (stack.length > 50) stack.shift();
+  }, []);
+>>>>>>> origin/master
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   // Keep move navigation inside the moves viewport so mobile page scroll is not hijacked.
   const reviewViewportRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(360);
   const lastWheelTsRef = useRef(0);
+
+  useEffect(() => {
+    if (!mobileReviewMenuOpen) return;
+    const closeOnOutsidePointer = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (target && !mobileReviewMenuRef.current?.contains(target)) setMobileReviewMenuOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsidePointer);
+    return () => document.removeEventListener("pointerdown", closeOnOutsidePointer);
+  }, [mobileReviewMenuOpen]);
   const activeMoveRef = useRef<HTMLButtonElement | null>(null);
   // FEN-backed history notation must come exclusively from recover-service.
   // A failed request is surfaced to the user instead of invoking a local
   // renderer that could disagree with the canonical recovery algorithm.
+  useEffect(() => {
+    fenUndoStackRef.current = [];
+  }, [game._id]);
+
   useEffect(() => {
     let cancelled = false;
     setBasePgn(null);
@@ -282,22 +480,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       fenHistory: recoveryInputFens,
     });
 
-    const debugQuery = typeof window !== "undefined"
-      && new URLSearchParams(window.location.search).get("debugRecovery") === "1"
-      ? "?debugRecovery=1"
-      : "";
-    fetch(`/games/history/${encodeURIComponent(game._id)}/recovered-pgn${debugQuery}`)
-      .then(async (response) => {
-        if (!response.ok) {
-          const body = await response.json().catch(() => null) as { code?: unknown } | null;
-          if (body?.code === "RECOVERY_BRANCH_LIMIT") throw new Error("branch_limit");
-          if (body?.code === "RECOVERY_TIMEOUT") throw new Error("timeout");
-          if (response.status === 503) throw new Error("unavailable");
-          throw new Error("failed");
-        }
-        const data = await response.json() as RecoveryPayload;
-        return data;
-      })
+    const debugRecovery = typeof window !== "undefined"
+      && new URLSearchParams(window.location.search).get("debugRecovery") === "1";
+    fetchRecoveredPgn(game._id, debugRecovery)
       .then((data) => {
         if (cancelled) return;
         traceRecovery("2 - response GET /games/history/:id/recovered-pgn", data);
@@ -333,13 +518,13 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       });
 
     return () => { cancelled = true; };
-  }, [game._id, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
+  }, [game._id, game.initialFen, game.fenHistory, game.fenHistoryEdited, game.rawFenHistory, rawFenHistory]);
 
   useEffect(() => {
     setEditablePgn(game.pgn ?? "");
     setShowPgnEditor(false);
     setPgnSaveError(null);
-  }, [game._id]);
+  }, [game._id, game.pgn]);
 
   const selectedRecoveryLine = typeof selectedSource === "number"
     ? recoveryLines[selectedSource] ?? null
@@ -372,9 +557,15 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         // FEN sources render their persisted timeline directly. Raw ESP32 data
         // is never overwritten by the standardized recover-service timeline.
         const out: ReviewMove[] = [initial];
-        sourceFens.forEach((rawFen, index) => {
-          const fen = typeof rawFen === "string" ? rawFen.trim() : "";
-          if (!fen) return;
+        // A persisted history normally includes its initial snapshot. It is
+        // not a move, so remove that duplicate before mapping PGN ply N to
+        // the FEN produced after PGN move N.
+        const snapshots = sourceFens
+          .map((value) => typeof value === "string" ? value.trim() : "")
+          .filter(Boolean);
+        const hasInitialSnapshot = snapshots[0] === initialFen.trim();
+        const moveSnapshots = hasInitialSnapshot ? snapshots.slice(1) : snapshots;
+        moveSnapshots.forEach((fen, index) => {
           const uci = game.uciHistory?.[index];
           const lastMove = uci && /^[a-h][1-8][a-h][1-8]/.test(uci)
             ? { from: uci.slice(0, 2), to: uci.slice(2, 4) }
@@ -452,6 +643,19 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
   const currentIndex = cursor === -1 ? timeline.length - 1 : Math.max(0, Math.min(cursor, timeline.length - 1));
   const current = timeline[currentIndex];
+  const inlineFenIndex = useMemo(() => {
+    if (!isAdmin || selectedSource !== "base") return null;
+    const initialFen = (game.initialFen ?? DEFAULT_FEN).trim();
+    const startsWithInitial = preferredFenHistory[0]?.trim() === initialFen;
+    const index = startsWithInitial ? currentIndex : currentIndex - 1;
+    return index >= 0 && index < preferredFenHistory.length ? index : null;
+  }, [currentIndex, game.initialFen, isAdmin, preferredFenHistory, selectedSource]);
+  const isInsertingFen = insertAfterFenIndex !== null && insertFenDraft !== null;
+  const inlineFenValue = isInsertingFen ? insertFenDraft : inlineFenDraft ?? current.fen;
+  const inlineBoardWidth = Math.max(240, boardWidth - 28);
+  useEffect(() => {
+    setInlineFenDraft(null);
+  }, [current.fen, inlineFenIndex]);
   const reviewRows = useMemo(() => {
     type ReviewCell = { move: ReviewMove; ply: number; side: "w" | "b"; number: number };
     const rows: Array<{ number: number; white?: ReviewCell; black?: ReviewCell }> = [];
@@ -492,10 +696,59 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
     return reviewRows.flatMap((row) => [row.white, row.black].filter((cell): cell is NonNullable<typeof cell> => Boolean(cell)));
   }, [reviewRows, selectedSource, timeline]);
+<<<<<<< HEAD
   const branchAnalysis = typeof selectedSource === "number"
     ? branchAnalysisBySource[String(selectedSource)] ?? []
     : [];
   const selectedAnalysisByPly = selectedSource === "base" || selectedSource === "raw"
+=======
+  // The persisted/recovered PGN and the FEN timeline are both ordered by ply:
+  // clicking notation at ply N must therefore select timeline[N], i.e. the
+  // position immediately after that move.
+  const pgnNotationMoves = useMemo(() => {
+    let sanMoves: string[] = [];
+    try {
+      const chess = new Chess();
+      chess.loadPgn(reviewPgn);
+      sanMoves = chess.history();
+    } catch {
+      sanMoves = [];
+    }
+    if (sanMoves.length === 0) sanMoves = selectedRecoveryLine?.sanMoves ?? extractPgnMoveTokens(reviewPgn);
+    if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
+
+    const fields = (game.initialFen ?? DEFAULT_FEN).trim().split(/\s+/);
+    const initialSide: "w" | "b" = fields[1] === "b" ? "b" : "w";
+    const initialMoveNumber = Number(fields[5]);
+    const firstMoveNumber = Number.isInteger(initialMoveNumber) && initialMoveNumber > 0 ? initialMoveNumber : 1;
+
+    return sanMoves
+      .slice(0, Math.max(0, timeline.length - 1))
+      .map((san, index) => {
+        const ply = index + 1;
+        const side: "w" | "b" = (index % 2 === 0) === (initialSide === "w") ? "w" : "b";
+        const number = firstMoveNumber + Math.floor((index + (initialSide === "b" ? 1 : 0)) / 2);
+        return { san, ply, side, number, fen: timeline[ply]?.fen ?? "" };
+      });
+  }, [game.initialFen, reviewPgn, selectedRecoveryLine, timeline]);
+  const pgnNotationRows = useMemo(() => {
+    const rows: { number: number; white?: typeof pgnNotationMoves[number]; black?: typeof pgnNotationMoves[number] }[] = [];
+    for (const move of pgnNotationMoves) {
+      let row = rows[rows.length - 1];
+      if (!row || row.number !== move.number || (move.side === "w" ? row.white : row.black)) {
+        row = { number: move.number };
+        rows.push(row);
+      }
+      if (move.side === "w") row.white = move;
+      else row.black = move;
+    }
+    return rows;
+  }, [pgnNotationMoves]);
+  const sourceAnalysis = selectedSource === "base"
+    ? baseAnalysisMoves
+    : branchAnalysisBySource[String(selectedSource)] ?? [];
+  const selectedAnalysisByPly = selectedSource === "base"
+>>>>>>> origin/master
     ? analysisByPly
     : new Map(branchAnalysis.map((move) => [move.ply, move]));
   const currentMoveAnalysis = selectedAnalysisByPly.get(
@@ -523,7 +776,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     };
   }, [basePgn, game, rawFenHistory, recoveryLines, recoveryStatus, selectedRecoveryLine, selectedSource]);
   const analyzedDestination = current.lastMove?.to || currentMoveAnalysis?.uci?.slice(2, 4) || "";
-  const boardMoveAnnotation = typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
+  const boardMoveAnnotation = showHistoryMoveAnnotations && typeof selectedSource === "number" && currentMoveAnalysis && currentMoveAnalysis.classification !== "unavailable" && /^[a-h][1-8]$/.test(analyzedDestination)
     ? {
         square: analyzedDestination,
         classification: currentMoveAnalysis.classification,
@@ -654,6 +907,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   useEffect(() => {
     setShowHistoryEvaluation(localStorage.getItem("history-show-evaluation") !== "false");
     setShowHistorySuggestions(localStorage.getItem("history-show-suggestions") !== "false");
+    setShowHistoryMoveAnnotations(localStorage.getItem("history-show-move-annotations") !== "false");
   }, []);
 
   const toggleHistoryEvaluation = () => {
@@ -666,6 +920,13 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   const toggleHistorySuggestions = () => {
     setShowHistorySuggestions((visible) => {
       localStorage.setItem("history-show-suggestions", String(!visible));
+      return !visible;
+    });
+  };
+
+  const toggleHistoryMoveAnnotations = () => {
+    setShowHistoryMoveAnnotations((visible) => {
+      localStorage.setItem("history-show-move-annotations", String(!visible));
       return !visible;
     });
   };
@@ -727,16 +988,16 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     };
   }, []);
 
-  const getAudioCtx = () => {
+  const getAudioCtx = useCallback(() => {
     if (!audioCtxRef.current) {
       const AC = window.AudioContext || (window as Window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
       if (!AC) return null;
       audioCtxRef.current = new AC();
     }
     return audioCtxRef.current;
-  };
+  }, []);
 
-  const playNavSound = (forward: boolean) => {
+  const playNavSound = useCallback((forward: boolean) => {
     const ctx = getAudioCtx();
     if (!ctx) return;
     const osc = ctx.createOscillator();
@@ -753,14 +1014,14 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     osc.start(now);
     osc.stop(now + 0.07);
     osc.onended = () => {};
-  };
+  }, [getAudioCtx]);
 
   const goTo = useCallback((idx: number, withSound = true) => {
     const clamped = Math.max(0, Math.min(idx, timeline.length - 1));
     if (clamped === currentIndex) return;
     if (withSound) playNavSound(clamped > currentIndex);
     setCursor(clamped === timeline.length - 1 ? -1 : clamped);
-  }, [currentIndex, timeline.length]);
+  }, [currentIndex, playNavSound, timeline.length]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -820,6 +1081,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   /** Deletes only the selected persisted FEN snapshot after admin confirmation. */
   const deleteFenSnapshot = async () => {
     if (pendingFenIndex === null || !token || deletingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setDeletingFen(true);
     setFenDeleteError(null);
     try {
@@ -830,6 +1092,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown } | null;
       if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) throw new Error("delete_failed");
       const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       setPendingFenIndex(null);
       onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
@@ -843,6 +1107,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
   /** Adds or replaces one FEN snapshot through the administrator API. */
   const saveFenSnapshot = async () => {
     if (!fenEditor || !token || savingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
     setSavingFen(true);
     setFenSaveError(null);
     try {
@@ -861,6 +1126,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         throw new Error("save_failed");
       }
       const fenHistoryEdited = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
       setBaseAnalysisMoves([]);
       setFenEditor(null);
       onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
@@ -871,9 +1138,72 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  /** Inserts the duplicated FEN directly after the snapshot chosen in the list. */
+  const insertDuplicatedFenSnapshot = async () => {
+    const fen = insertFenDraft?.trim();
+    if (insertAfterFenIndex === null || !fen || !token || insertingFen) return;
+    const previousFenHistory = [...preferredFenHistory];
+    setInsertingFen(true);
+    setFenSaveError(null);
+    try {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fen, afterIndex: insertAfterFenIndex }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
+        if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
+        throw new Error("save_failed");
+      }
+      const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
+      setBaseAnalysisMoves([]);
+      setInsertAfterFenIndex(null);
+      setInsertFenDraft(null);
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
+    } catch (error) {
+      setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
+    } finally {
+      setInsertingFen(false);
+    }
+  };
+
+  /** Saves an admin drag/drop correction to the separate edited FEN timeline. */
+  const saveInlineFenSnapshot = async (fen: string) => {
+    if (inlineFenIndex === null || !token || savingInlineFen) return;
+    const previousFenHistory = [...preferredFenHistory];
+    setInlineFenDraft(fen);
+    setSavingInlineFen(true);
+    setFenSaveError(null);
+    try {
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/fens/${inlineFenIndex}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fen }),
+      });
+      const body = await response.json().catch(() => null) as { fenHistoryEdited?: unknown; code?: unknown } | null;
+      if (!response.ok || !Array.isArray(body?.fenHistoryEdited)) {
+        if (body?.code === "INVALID_FEN") throw new Error("invalid_fen");
+        throw new Error("save_failed");
+      }
+      const fenHistoryEdited = body.fenHistoryEdited.filter((value): value is string => typeof value === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(fenHistoryEdited);
+      setBaseAnalysisMoves([]);
+      onGameUpdate?.({ ...game, fenHistoryEdited, analysis: undefined });
+    } catch (error) {
+      setFenSaveError(t(error instanceof Error && error.message === "invalid_fen" ? "rev.invalidFen" : "rev.saveFenFailed"));
+    } finally {
+      setSavingInlineFen(false);
+    }
+  };
+
   /** Replaces the entire FEN sequence pasted by an administrator. */
   const replaceFenHistory = async () => {
     if (bulkFenEditor === null || !token || savingBulkFens) return;
+    const previousFenHistory = [...preferredFenHistory];
     const fenHistory = bulkFenEditor
       .split(/\r?\n/)
       .map((line) => line.trim())
@@ -900,6 +1230,8 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         throw new Error("save_failed");
       }
       const savedFenHistory = body.fenHistoryEdited.filter((fen): fen is string => typeof fen === "string");
+      rememberFenHistory(previousFenHistory);
+      setEditedFenHistory(savedFenHistory);
       setBaseAnalysisMoves([]);
       setBulkFenEditor(null);
       onGameUpdate?.({ ...game, fenHistoryEdited: savedFenHistory, analysis: undefined });
@@ -913,8 +1245,44 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
     }
   };
 
+  const undoLastFenEdit = useCallback(async () => {
+    if (!isAdmin || !token || undoingFen || fenUndoStackRef.current.length === 0) return;
+    const previousFenHistory = fenUndoStackRef.current.pop();
+    if (!previousFenHistory) return;
+    setUndoingFen(true);
+    setFenSaveError(null);
+    try {
+      const restoredFenHistory = await persistFenHistory(game._id, previousFenHistory);
+      setEditedFenHistory(restoredFenHistory);
+      setBaseAnalysisMoves([]);
+      setCursor(-1);
+      onGameUpdate?.({ ...game, fenHistoryEdited: restoredFenHistory, analysis: undefined });
+    } catch {
+      fenUndoStackRef.current.push(previousFenHistory);
+      setFenSaveError(t("rev.saveFenFailed"));
+    } finally {
+      setUndoingFen(false);
+    }
+  }, [game, isAdmin, onGameUpdate, t, token, undoingFen]);
+
+  useEffect(() => {
+    const handleFenUndo = (event: KeyboardEvent) => {
+      if (!(event.ctrlKey || event.metaKey) || event.shiftKey || event.key.toLowerCase() !== "z") return;
+      const target = event.target as HTMLElement | null;
+      const tagName = target?.tagName;
+      // Preserve the browser's native text undo while an input editor has focus.
+      if (tagName === "INPUT" || tagName === "TEXTAREA" || tagName === "SELECT" || target?.isContentEditable) return;
+      if (!isAdmin || undoingFen || fenUndoStackRef.current.length === 0) return;
+      event.preventDefault();
+      void undoLastFenEdit();
+    };
+    window.addEventListener("keydown", handleFenUndo);
+    return () => window.removeEventListener("keydown", handleFenUndo);
+  }, [isAdmin, undoLastFenEdit, undoingFen]);
+
   const saveHistoryTraces = async (payload: { pgn?: string }) => {
     if (!token) return false;
+<<<<<<< HEAD
     const response = await fetch(`/games/history/${encodeURIComponent(game._id)}/traces`, {
       method: "PUT",
       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
@@ -929,6 +1297,9 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
       analysis: undefined,
     };
     onGameUpdate?.(nextGame);
+=======
+    onGameUpdate?.(await persistHistoryTraces(game, payload.pgn ?? ""));
+>>>>>>> origin/master
     return true;
   };
 
@@ -1028,16 +1399,58 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
         </div>
 
         {/* Review board */}
+        <ChessboardDnDProvider>
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto">
-            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
+          <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(320px,520px)_minmax(0,1fr)]">
+            <div className="relative flex min-h-10 items-center justify-start sm:justify-center">
+              {inlineFenIndex !== null && (
+                <div className="block">
+                  <InlineFenPieceStrip color="b" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                </div>
+              )}
+              <div ref={mobileReviewMenuRef} className="absolute right-0 top-1/2 z-40 -translate-y-1/2 xl:hidden">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label={t("rev.moveReview")}
+                  aria-expanded={mobileReviewMenuOpen}
+                  onClick={() => setMobileReviewMenuOpen((open) => !open)}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+                {mobileReviewMenuOpen && (
+                  <div className="absolute right-0 top-10 z-50 flex w-56 max-w-[calc(100vw-2rem)] flex-col gap-1 rounded-md border border-border bg-background p-1.5 shadow-lg">
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistoryEvaluation(); setMobileReviewMenuOpen(false); }}>
+                      <BarChart3 className="size-3.5" />{showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistorySuggestions(); setMobileReviewMenuOpen(false); }}>
+                      {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+                    </Button>
+                    <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { toggleHistoryMoveAnnotations(); setMobileReviewMenuOpen(false); }}>
+                      {showHistoryMoveAnnotations ? <EyeOff className="size-3.5" /> : <CircleAlert className="size-3.5" />}{showHistoryMoveAnnotations ? t("analysis.hideMoveAnnotations") : t("analysis.showMoveAnnotations")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="hidden items-center justify-end gap-2 xl:flex">
+              <div className="flex items-center gap-2">
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryEvaluation}>
               <BarChart3 className="size-3.5" />
                             {showHistoryEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-            </Button>
-            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistorySuggestions}>
               {showHistorySuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                             {showHistorySuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-            </Button>
+                </Button>
+                <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleHistoryMoveAnnotations} aria-pressed={showHistoryMoveAnnotations}>
+              {showHistoryMoveAnnotations ? <EyeOff className="size-3.5" /> : <CircleAlert className="size-3.5" />}
+              {showHistoryMoveAnnotations ? t("analysis.hideMoveAnnotations") : t("analysis.showMoveAnnotations")}
+                </Button>
+              </div>
+            </div>
           </div>
           <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(320px,520px)_1fr]">
             <div className="flex min-w-0 flex-col gap-1.5">
@@ -1047,16 +1460,56 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   className="min-w-0 flex-1 select-none overscroll-contain"
                   title={t("rev.wheelNavigation")}
                 >
-                  <ChessBoardView
-                    fen={current.fen}
-                    lastMove={current.lastMove}
-                    boardWidth={boardWidth}
-                    moveAnnotation={boardMoveAnnotation}
-                    predictedMove={reviewPredictedMove}
-                  />
+                  {inlineFenIndex !== null ? (
+                      <div className="mx-auto flex w-full max-w-[520px] flex-col items-center gap-1">
+                        <div className="flex w-full items-stretch gap-1.5">
+                          <div className="min-w-0 flex-1">
+                            <ChessBoardView
+                              fen={inlineFenValue}
+                              lastMove={null}
+                              boardWidth={inlineBoardWidth}
+                              editablePiece={inlineSelectedPiece}
+                              onFenChange={(fen) => {
+                                if (isInsertingFen) setInsertFenDraft(fen);
+                                else void saveInlineFenSnapshot(fen);
+                              }}
+                            />
+                          </div>
+                          {showHistoryEvaluation && (
+                            <div className="w-[22px] shrink-0" style={inlineBoardWidth > 0 ? { height: inlineBoardWidth } : undefined}>
+                              <EvalBar
+                                cp={reviewCp}
+                                mate={reviewMate}
+                                isAnalyzing={reviewAnalyzing}
+                                engineUnavailable={reviewEngineError || !isEngineSafeFen(current.fen)}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        <div className="flex w-full justify-start sm:justify-center">
+                          <InlineFenPieceStrip color="w" selectedPiece={inlineSelectedPiece} onSelect={setInlineSelectedPiece} />
+                        </div>
+                      </div>
+                  ) : (
+                    <ChessBoardView
+                      fen={current.fen}
+                      lastMove={current.lastMove}
+                      boardWidth={boardWidth}
+                      moveAnnotation={boardMoveAnnotation}
+                      predictedMove={reviewPredictedMove}
+                    />
+                  )}
+                  {inlineFenIndex !== null && (savingInlineFen || insertingFen || fenSaveError) && (
+                    <p className={fenSaveError ? "mt-1 text-xs text-destructive" : "mt-1 text-xs text-muted-foreground"} role="status">
+                      {fenSaveError ?? t("common.saving")}
+                    </p>
+                  )}
                 </div>
-                {showHistoryEvaluation && (
-                  <div className="hidden w-[22px] shrink-0 sm:block">
+                {showHistoryEvaluation && inlineFenIndex === null && (
+                  <div
+                    className="hidden w-[22px] shrink-0 self-start sm:block"
+                    style={boardWidth > 0 ? { height: boardWidth } : undefined}
+                  >
                     <EvalBar
                       cp={reviewCp}
                       mate={reviewMate}
@@ -1066,7 +1519,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   </div>
                 )}
               </div>
-              {showHistoryEvaluation && (
+              {showHistoryEvaluation && inlineFenIndex === null && (
                 <div className="sm:hidden">
                   <EvalBar
                     cp={reviewCp}
@@ -1145,6 +1598,12 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                   )}
                   {reviewCells.map((cell) => {
                     const { move: m, ply, side, number } = cell;
+                    const initialFen = (game.initialFen ?? DEFAULT_FEN).trim();
+                    const hasInitialSnapshot = preferredFenHistory[0]?.trim() === initialFen;
+                    const fenIndex = selectedSource === "base"
+                      ? (hasInitialSnapshot ? ply : ply - 1)
+                      : null;
+                    const canInsertAfter = isAdmin && fenIndex !== null && fenIndex >= 0 && fenIndex < preferredFenHistory.length;
                     const moveDuration = m.originalPly
                       ? game.moveDurationsMs?.[m.originalPly - 1]
                       : undefined;
@@ -1156,32 +1615,64 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
                         : null,
                     ].filter((note): note is string => Boolean(note));
                     return (
-                      <button
-                        key={`${m.san}-${ply}`}
-                        ref={currentIndex === ply ? activeMoveRef : undefined}
-                        type="button"
-                        onClick={() => goTo(ply)}
-                        className={`w-full min-h-9 rounded-sm border px-3 py-2 text-left ${m.fenFallback ? "font-mono text-xs" : "text-sm"} transition-colors ${m.fenFallback
-                          ? currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
-                          : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
-                      >
-                        <span className="flex items-center justify-between gap-2">
-                          <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
-                            {selectedSource === "base"
-                              ? `${t("rev.fenPosition", { number: m.originalPly ?? ply })}: ${m.fen}`
-                              : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
-                          </span>
-                          {selectedSource !== "base" && (
-                            <span
-                              className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
-                              title={t("rev.moveDuration")}
-                              aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                      <div key={`${m.san}-${ply}`}>
+                        <div className="flex items-stretch gap-1">
+                          {canInsertAfter && (
+                            <button
+                              type="button"
+                              className="w-7 shrink-0 rounded-sm border border-transparent text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/10 hover:text-primary"
+                              title={t("rev.addFen")}
+                              aria-label={t("rev.addFen")}
+                              onClick={() => {
+                                setFenSaveError(null);
+                                setInsertAfterFenIndex(fenIndex);
+                                setInsertFenDraft(m.fen);
+                                goTo(ply);
+                              }}
                             >
-                              {formatMoveDuration(moveDuration)}
-                            </span>
+                              <Plus className="mx-auto size-3.5" />
+                            </button>
                           )}
-                        </span>
-                      </button>
+                          <button
+                            ref={currentIndex === ply ? activeMoveRef : undefined}
+                            type="button"
+                            onClick={() => goTo(ply)}
+                            className={`w-full min-h-9 rounded-sm border px-3 py-2 text-left ${m.fenFallback ? "font-mono text-xs" : "text-sm"} transition-colors ${m.fenFallback
+                              ? currentIndex === ply ? "border-primary/40 bg-primary/10 text-foreground" : "border-warning/30 bg-warning/5 text-muted-foreground hover:bg-warning/10"
+                              : currentIndex === ply ? "border-border bg-accent text-foreground" : "border-transparent text-muted-foreground hover:bg-accent/70"}`}
+                          >
+                            <span className="flex items-center justify-between gap-2">
+                              <span className={selectedSource === "base" ? "min-w-0 whitespace-pre-wrap break-all font-mono text-[11px] leading-5" : "min-w-0 truncate"}>
+                                {selectedSource === "base"
+                                  ? `${t("rev.fenPosition", { number: m.originalPly ?? ply })}: ${m.fen}`
+                                  : `${number}${side === "w" ? "." : "..."} ${m.san}${notes.length > 0 ? ` (${notes.join(", ")})` : ""}`}
+                              </span>
+                              {selectedSource !== "base" && (
+                                <span
+                                  className="shrink-0 font-mono text-xs tabular-nums text-muted-foreground"
+                                  title={t("rev.moveDuration")}
+                                  aria-label={`${t("rev.moveDuration")}: ${formatMoveDuration(moveDuration)}`}
+                                >
+                                  {formatMoveDuration(moveDuration)}
+                                </span>
+                              )}
+                            </span>
+                          </button>
+                        </div>
+                        {canInsertAfter && insertAfterFenIndex === fenIndex && insertFenDraft !== null && (
+                          <div className="mt-1 grid grid-cols-2 gap-2 rounded-sm border border-primary/30 bg-primary/5 px-2 py-1.5 sm:ml-8 sm:flex sm:items-center">
+                            <span className="col-span-2 min-w-0 truncate font-mono text-[11px] text-muted-foreground sm:flex-1">
+                              {insertFenDraft}
+                            </span>
+                            <Button type="button" size="sm" className="h-7 w-full text-xs sm:w-auto" onClick={() => void insertDuplicatedFenSnapshot()} disabled={insertingFen}>
+                              {t("rev.saveFen")}
+                            </Button>
+                            <Button type="button" variant="ghost" size="sm" className="h-7 w-full text-xs sm:w-auto" onClick={() => { setInsertAfterFenIndex(null); setInsertFenDraft(null); }} disabled={insertingFen}>
+                              {t("played.cancel")}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     );
                   })}
                 </div>
@@ -1189,6 +1680,7 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
             </div>
           </div>
         </div>
+        </ChessboardDnDProvider>
 
         {/* PGN section */}
         <div className="px-4 sm:px-5 pb-5 space-y-2">
@@ -1204,9 +1696,39 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
 
           {/* Moves only */}
           <ScrollArea className="h-36 rounded-sm border border-border bg-muted">
-            <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
-              {displayPgn ? movesOnly(displayPgn) : recoveryNotice}
-            </pre>
+            {pgnNotationRows.length > 0 ? (
+              <div className="space-y-0.5 p-3 font-mono text-xs text-foreground">
+                {pgnNotationRows.map((row) => (
+                  <div key={row.number} className="grid grid-cols-[2.5rem_minmax(0,1fr)_minmax(0,1fr)] gap-1">
+                    <span className="text-muted-foreground">{row.number}.</span>
+                    {row.white ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(row.white!.ply)}
+                        title={row.white.fen}
+                        className={`min-w-0 rounded-sm px-1 py-0.5 text-left transition-colors ${currentIndex === row.white.ply ? "bg-primary/15 text-foreground" : "hover:bg-accent"}`}
+                      >
+                        {row.white.san}
+                      </button>
+                    ) : <span />}
+                    {row.black ? (
+                      <button
+                        type="button"
+                        onClick={() => goTo(row.black!.ply)}
+                        title={row.black.fen}
+                        className={`min-w-0 rounded-sm px-1 py-0.5 text-left transition-colors ${currentIndex === row.black.ply ? "bg-primary/15 text-foreground" : "hover:bg-accent"}`}
+                      >
+                        {row.black.san}
+                      </button>
+                    ) : <span />}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <pre className="p-3 font-mono text-xs text-foreground whitespace-pre-wrap break-words">
+                {displayPgn ? movesOnly(displayPgn) : recoveryNotice}
+              </pre>
+            )}
           </ScrollArea>
 
           {/* Full PGN collapsible */}
@@ -1405,6 +1927,19 @@ export function PGNReviewContent({ game, onGameUpdate }: ReviewProps) {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2 px-5 py-3">
+              <ChessboardDnDProvider>
+                <div className="mx-auto flex w-full max-w-[440px] flex-col items-center gap-1">
+                  <InlineFenPieceStrip color="b" selectedPiece={dialogSelectedPiece} onSelect={setDialogSelectedPiece} />
+                  <ChessBoardView
+                    fen={fenEditor?.value ?? DEFAULT_FEN}
+                    lastMove={null}
+                    boardWidth={440}
+                    editablePiece={dialogSelectedPiece}
+                    onFenChange={(value) => setFenEditor((current) => current ? { ...current, value } : current)}
+                  />
+                  <InlineFenPieceStrip color="w" selectedPiece={dialogSelectedPiece} onSelect={setDialogSelectedPiece} />
+                </div>
+              </ChessboardDnDProvider>
               <label htmlFor="history-fen-value" className="text-sm font-medium">{t("rev.fenValue")}</label>
               <Input
                 id="history-fen-value"

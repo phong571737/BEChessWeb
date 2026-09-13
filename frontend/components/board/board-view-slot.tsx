@@ -7,20 +7,25 @@ import { useGame } from "@/hooks/use-game";
 import { ChessBoardView, type PredictedMove } from "@/components/board/chess-board-view";
 import { useT } from "@/lib/i18n";
 import { GamePanel } from "@/components/board/game-panel";
+import { GameActions } from "@/components/board/game-actions";
 import { useSocket } from "@/components/providers/socket-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Trophy, Home, X, ArrowLeftRight, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb, FlipHorizontal, Settings2 } from "lucide-react";
+import { Trophy, Home, X, CircleCheckBig, CircleAlert, ScanLine, BarChart3, EyeOff, Lightbulb, FlipHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { GAME_STATUS } from "@/lib/constants/game";
 import { EvalBar } from "@/components/board/eval-bar";
-import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useStockfish } from "@/hooks/use-stockfish";
 import { formatClockMs, useChessClock } from "@/hooks/use-chess-clock";
+<<<<<<< HEAD
 import { ChessClockCard } from "@/components/board/chess-clock-card";
 import { useAuth } from "@/lib/auth-context";
+=======
+import { useAuth } from "@/components/providers/auth-provider";
+import { classifyTimeControl } from "@/lib/time-control";
+>>>>>>> origin/master
 
 interface Props {
     gameID: string;
@@ -28,6 +33,8 @@ interface Props {
     compact?: boolean;
     /** Run Stockfish eval (full single-board view only) */
     enableEval?: boolean;
+    /** Dedicated full-height presentation used by the two-board layout. */
+    twoBoardLayout?: boolean;
     /** In multi-view: clear this slot instead of redirecting home */
     onUnavailable?: () => void;
     /** Allow removing this slot from multi-view */
@@ -227,6 +234,7 @@ export function BoardViewSlot({
     gameID,
     compact = false,
     enableEval = false,
+    twoBoardLayout = false,
     onUnavailable,
     onRemove,
     onChangeGame,
@@ -264,16 +272,17 @@ export function BoardViewSlot({
     const boardWrapRef = useRef<HTMLDivElement | null>(null);
     const [boardWidth, setBoardWidth] = useState(0);
     const unavailableHandled = useRef(false);
-    const compactSettingsRef = useRef<HTMLDivElement | null>(null);
-    const [compactSettingsOpen, setCompactSettingsOpen] = useState(false);
 
     const {
         fen, pgn, whiteName, blackName, lastMove, result, isLoaded, loadError, restart, resign, lastMoveAt, moveTimesMap, status,
         missingSquares, extraSquares, wrongPieceSquares, branches, mainPgnBeforeBranch, selectBranch, selectedBranchId, moves, initStatus,
-        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, initialFen, fenHistory, boardNumber,
+        initialTimeMs, incrementMs, whiteRemainingMs, blackRemainingMs, activeClockSide, clockStartedAt, serverNow, resetRevision, round, location, tournament, initialFen, fenHistory, boardNumber, liveDataWarning,
     } = useGame(gameID);
     const physicalBoard = useGameStore((state) => state.physicalBoards.find((board) => board.gameID === gameID));
     const boardLabel = physicalBoard?.boardID ?? `Board-${gameID.slice(0, 8)}`;
+    const compactBoardLabel = boardNumber?.trim() ? t("common.boardNumber", { n: boardNumber.trim() }) : boardLabel;
+    const timeControlType = classifyTimeControl(initialTimeMs, incrementMs);
+    const timeControlLabel = t(`timeControl.${timeControlType}` as "timeControl.blitz" | "timeControl.rapid" | "timeControl.classical");
 
     const { whiteMs, blackMs, activeSide } = useChessClock({
         gameID,
@@ -308,17 +317,39 @@ export function BoardViewSlot({
             return next;
         });
     }, [gameID]);
-    const initNotice = !compact && isAuthenticated
+    const initNotice = isAdmin && status !== GAME_STATUS.PLAYING
         ? initStatus === GAME_STATUS.READY
             ? { icon: CircleCheckBig, className: "border-success/35 bg-success/10 text-success", text: t("board.initReady") }
             : initStatus === "waiting_button"
                 ? { icon: CircleAlert, className: "border-warning/35 bg-warning/10 text-warning", text: t("board.initButton") }
                 : initStatus === "missing_piece" || initStatus === "wrong_piece"
                     ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: t("board.initPieces") }
+                    // A newly created/restarted physical board begins as "idle"
+                    // until its first initcheck arrives from the ESP32. Treat it
+                    // as a pending initialization state so the page does not
+                    // silently omit the status notice during that interval.
                     : initStatus === GAME_STATUS.CHECK_INIT
                         ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initChecking") }
+                        : initStatus === GAME_STATUS.WAITING || initStatus === "idle"
+                            ? { icon: ScanLine, className: "border-info/35 bg-info/10 text-info", text: t("board.initWaiting") }
                         : null
-        : null;
+                        : null;
+    const warningReasons = liveDataWarning?.issues.map((issue) => t(
+        issue === "invalid_fen"
+            ? "board.invalidFenWarning"
+            : issue === "fen_uci_mismatch"
+                ? "board.fenUciMismatchWarning"
+                : "board.uciXWarning",
+    )) ?? [];
+    const warningReason = warningReasons.reduce<string | undefined>((combined, reason) =>
+        combined ? t("board.dataWarningMultiple", { first: combined, second: reason }) : reason,
+    undefined);
+    const warningText = warningReason && liveDataWarning?.seq !== undefined
+        ? t("board.dataWarningAtSeq", { reason: warningReason, seq: liveDataWarning.seq })
+        : warningReason;
+    const boardNotice = isAdmin && warningText
+        ? { icon: CircleAlert, className: "border-destructive/35 bg-destructive/10 text-destructive", text: warningText }
+        : initNotice;
 
     const handleUnavailable = useCallback(() => {
         if (unavailableHandled.current) return;
@@ -508,8 +539,10 @@ export function BoardViewSlot({
             const h = rect.height > 40
                 ? Math.floor(rect.height)
                 : Math.floor(window.innerHeight - rect.top - 80);
-            const minSize = compact ? 120 : 200;
-            const next = Math.max(minSize, Math.min(w, h) - 4);
+            const mobileTwoBoard = twoBoardLayout && window.innerWidth < 1024;
+            const availableHeight = h;
+            const minSize = compact ? (mobileTwoBoard ? 64 : 120) : 200;
+            const next = Math.max(minSize, Math.min(w, availableHeight) - 4);
             setBoardWidth(next);
         };
         measure();
@@ -521,18 +554,7 @@ export function BoardViewSlot({
             ro.disconnect();
             window.removeEventListener("resize", measure);
         };
-    }, [isLoaded, compact]);
-
-    useEffect(() => {
-        if (!compactSettingsOpen) return;
-        const onDocumentMouseDown = (event: MouseEvent) => {
-            if (compactSettingsRef.current && !compactSettingsRef.current.contains(event.target as Node)) {
-                setCompactSettingsOpen(false);
-            }
-        };
-        document.addEventListener("mousedown", onDocumentMouseDown);
-        return () => document.removeEventListener("mousedown", onDocumentMouseDown);
-    }, [compactSettingsOpen]);
+    }, [isLoaded, compact, twoBoardLayout]);
 
     useEffect(() => {
         if (fen !== prevFenRef.current) {
@@ -594,133 +616,174 @@ export function BoardViewSlot({
 
     if (compact) {
         return (
-            <div className={cn("h-full min-h-0 flex flex-col border border-border rounded-sm overflow-hidden bg-background", className)}>
-                <div className="shrink-0 px-2.5 py-1.5 border-b border-border flex items-center justify-between gap-2">
-                    <button
-                        type="button"
+            <div className={cn(
+                "relative h-full min-h-0 flex flex-col border border-border rounded-sm overflow-hidden bg-background",
+                twoBoardLayout && "lg:flex-col lg:grid-cols-none lg:grid-rows-none grid grid-cols-[minmax(0,0.6fr)_minmax(0,1.4fr)] grid-rows-[auto_minmax(0,1fr)_minmax(0,1fr)_auto]",
+                className
+            )}>
+                {twoBoardLayout && (
+                    <div className={cn(
+                        "col-span-2 row-start-1 grid min-h-5 items-center gap-1 px-1 py-0.5 lg:hidden",
+                        isAdmin && boardNotice ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1"
+                    )}>
+                        {isAdmin && boardNotice ? (
+                            <span className={cn("flex min-w-0 items-center gap-1 rounded-sm border px-1 py-0.5 text-[9px] font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                                <boardNotice.icon className="size-2.5 shrink-0" />
+                                <span className="truncate">{boardNotice.text}</span>
+                            </span>
+                        ) : <span />}
+                        <span className={cn(
+                            "shrink-0 whitespace-nowrap text-[10px] font-medium text-muted-foreground",
+                            isAdmin && boardNotice ? "justify-self-end" : "justify-self-center"
+                        )}>
+                            {compactBoardLabel} · {timeControlLabel}
+                        </span>
+                    </div>
+                )}
+                {!twoBoardLayout && boardNotice && (
+                    <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-sm border px-2.5 py-2 text-xs font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                        <boardNotice.icon className="size-3.5 shrink-0" />
+                        <span className="truncate">{boardNotice.text}</span>
+                    </div>
+                )}
+                <div className={cn(
+                    "flex min-h-0 flex-1 flex-col items-stretch",
+                    twoBoardLayout ? "contents lg:flex lg:px-2 lg:py-1.5" : "justify-center px-2 pb-1 pt-1.5"
+                )}>
+                    <div
                         className={cn(
-                            "min-w-0 text-xs truncate text-left flex-1 rounded-sm px-0.5 -mx-0.5",
-                            onChangeGame && "hover:bg-foreground/[0.04] cursor-pointer"
+                            "shrink-0 pb-1 text-xs font-semibold text-foreground",
+                            twoBoardLayout && "col-start-1 row-start-2 self-start px-1 w-auto lg:col-auto lg:row-auto lg:self-auto lg:px-0 lg:w-[var(--board-width)]"
                         )}
-                        onClick={onChangeGame}
-                        title={onChangeGame ? t("board.changeGame") : undefined}
-                        disabled={!onChangeGame}
+                        style={twoBoardLayout && boardWidth > 0 ? { "--board-width": `${boardWidth}px` } as React.CSSProperties : undefined}
                     >
-                        <span className="font-semibold text-primary">{boardLabel}</span>
-                    </button>
-                    <div className="min-w-0 flex-1 flex items-center justify-center gap-1 text-[11px] truncate">
-                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? blackName : whiteName}</span>
-                        <span className="shrink-0 text-muted-foreground">vs</span>
-                        <span className="max-w-[34%] truncate font-semibold text-foreground">{boardFlipped ? whiteName : blackName}</span>
-                    </div>
-                    <div className="flex items-center gap-0.5 shrink-0">
-                        <div ref={compactSettingsRef} className="relative">
-                            <Button variant="ghost" size="icon" className="size-6" onClick={() => setCompactSettingsOpen((open) => !open)} title={t("settings.open")} aria-label={t("settings.open")} aria-expanded={compactSettingsOpen}>
-                                <Settings2 className="size-3.5" />
-                            </Button>
-                            {compactSettingsOpen && (
-                                <div className="absolute right-0 top-full z-[70] mt-1 w-52 rounded-md border border-border bg-popover p-1.5 shadow-lg">
-                                    <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleBoardFlip(); setCompactSettingsOpen(false); }}>
-                                        <FlipHorizontal className="size-3.5" />{t("settings.flipBoard")}
-                                    </button>
-                                    {enableEval && <>
-                                        <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveEvaluation(); setCompactSettingsOpen(false); }}>
-                                            <BarChart3 className="size-3.5" />{showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-                                        </button>
-                                        <button type="button" className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-left text-xs hover:bg-foreground/[0.06]" onClick={() => { toggleLiveSuggestions(); setCompactSettingsOpen(false); }}>
-                                            {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}{showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-                                        </button>
-                                    </>}
-                                </div>
-                            )}
-                        </div>
-                        {onChangeGame && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-6"
-                                onClick={onChangeGame}
-                                title={t("board.changeGame")}
-                            >
-                                <ArrowLeftRight className="size-3.5" />
-                            </Button>
+                        {twoBoardLayout && isAdmin && boardNotice && (
+                            <div className={cn("mb-1 hidden items-center gap-1 rounded-sm border px-1.5 py-1 text-[10px] font-medium lg:flex", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                                <boardNotice.icon className="size-3 shrink-0" />
+                                <span className="truncate">{boardNotice.text}</span>
+                            </div>
                         )}
-                        {onRemove && (
-                            <Button
-                                variant="ghost"
-                                size="icon"
-                                className="size-6"
-                                onClick={onRemove}
-                                title={t("board.removeSlot")}
-                            >
-                                <X className="size-3.5" />
-                            </Button>
-                        )}
-                    </div>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col items-stretch justify-center p-1.5">
-                    <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
                         <CompactPlayer
                             name={boardFlipped ? whiteName : blackName}
                             side={boardFlipped ? "white" : "black"}
                             timeMs={boardFlipped ? whiteMs : blackMs}
                             activeSide={activeSide}
+                            highlightActive={!twoBoardLayout}
+                            labelHiddenMobile={twoBoardLayout}
+                            desktopAtLarge={twoBoardLayout}
+                            label={`${compactBoardLabel} · ${timeControlLabel}`}
                         />
                     </div>
-                    <div className="flex min-h-0 flex-1 items-stretch justify-center">
-                    <div ref={boardWrapRef} className="flex min-w-0 flex-1 items-center justify-center">
-                                        <ChessBoardView
-                                            fen={displayFen}
+                    <div className={cn(
+                        "relative flex min-h-0 flex-1 items-stretch",
+                        twoBoardLayout && "col-start-2 row-start-2 row-span-2 min-h-0 lg:col-auto lg:row-auto lg:row-span-auto"
+                    )}>
+                        <div ref={boardWrapRef} className={cn(
+                            "flex min-w-0 flex-1 items-start",
+                            twoBoardLayout ? "justify-start lg:items-center" : "justify-center md:items-center"
+                        )}>
+                            <ChessBoardView
+                                fen={displayFen}
                             lastMove={displayLastMove}
                             boardWidth={boardWidth}
-                            missingSquares={missingSquares}
-                            extraSquares={extraSquares}
-                            wrongPieceSquares={wrongPieceSquares}
-                                            predictedMove={predictedMove}
-                                            flipped={boardFlipped}
-                        />
-                    </div>
-                    {evaluationBarVisible && (
-                        <div className="w-[18px] shrink-0">
-                            <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                            missingSquares={isAdmin ? missingSquares : []}
+                            extraSquares={isAdmin ? extraSquares : []}
+                            wrongPieceSquares={isAdmin ? wrongPieceSquares : []}
+                                predictedMove={predictedMove}
+                                flipped={boardFlipped}
+                            />
                         </div>
-                    )}
+                        {evaluationBarVisible && (
+                            <div
+                                className={cn("w-[22px] shrink-0", twoBoardLayout && "ml-auto self-start")}
+                                style={twoBoardLayout && boardWidth > 0 ? { height: boardWidth } : undefined}
+                            >
+                                <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                            </div>
+                        )}
                     </div>
-                    <div className="shrink-0 py-1 text-center text-xs font-semibold text-foreground">
+                    <div className={cn(
+                        "shrink-0 pt-1 text-xs font-semibold text-foreground",
+                        twoBoardLayout && "col-start-1 row-start-3 self-end px-1 w-auto lg:col-auto lg:row-auto lg:self-auto lg:px-0 lg:w-[var(--board-width)]"
+                    )}
+                        style={twoBoardLayout && boardWidth > 0 ? { "--board-width": `${boardWidth}px` } as React.CSSProperties : undefined}
+                    >
                         <CompactPlayer
                             name={boardFlipped ? blackName : whiteName}
                             side={boardFlipped ? "black" : "white"}
                             timeMs={boardFlipped ? blackMs : whiteMs}
                             activeSide={activeSide}
+                            highlightActive={!twoBoardLayout}
+                            desktopAtLarge={twoBoardLayout}
                         />
+                        {twoBoardLayout && isAdmin && (
+                            <div className="hidden lg:block">
+                                <GameActions
+                                    gameID={gameID}
+                                    onRestart={restart}
+                                    onResign={resign}
+                                    branches={branches}
+                                    isAuthenticated={isAuthenticated}
+                                    compact
+                                />
+                            </div>
+                        )}
                     </div>
+                    {twoBoardLayout && isAdmin && (
+                        <div className="col-span-2 row-start-4 lg:hidden">
+                            <GameActions
+                                gameID={gameID}
+                                onRestart={restart}
+                                onResign={resign}
+                                branches={branches}
+                                isAuthenticated={isAuthenticated}
+                                compact
+                            />
+                        </div>
+                    )}
                 </div>
+                {!twoBoardLayout && (
+                    <GameActions
+                        gameID={gameID}
+                        onRestart={restart}
+                        onResign={resign}
+                        branches={branches}
+                        isAuthenticated={isAuthenticated}
+                    />
+                )}
             </div>
         );
     }
 
     return (
         <div className={cn("flex flex-col h-full min-h-0", className)}>
-            {initNotice && (
-                <div className={cn("mx-2 mt-2 flex items-center gap-2 rounded-md border px-3 py-2 text-xs font-medium sm:mx-3", initNotice.className)} role="status">
-                    <initNotice.icon className="size-4 shrink-0" />
-                    <span>{initNotice.text}</span>
-                </div>
-            )}
-            {enableEval && (
-                <div className="flex flex-nowrap justify-end gap-2 overflow-x-auto px-2 pt-2 sm:px-3">
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
-                        <FlipHorizontal className="size-3.5" />
-                        {t("settings.flipBoard")}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
-                        <BarChart3 className="size-3.5" />
-                        {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-                    </Button>
-                    <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
-                        {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
-                        {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-                    </Button>
+            {(boardNotice || enableEval) && (
+                <div className={cn(
+                    "relative items-center gap-2 px-2 pt-2 sm:flex sm:px-3",
+                    boardNotice ? "flex" : "hidden"
+                )}>
+                    {boardNotice && (
+                        <div className={cn("flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-1.5 text-xs font-medium", boardNotice.className)} role={warningText ? "alert" : "status"}>
+                            <boardNotice.icon className="size-4 shrink-0" />
+                            <span className="truncate">{boardNotice.text}</span>
+                        </div>
+                    )}
+                    {enableEval && (
+                        <div className="hidden flex-nowrap justify-end gap-2 sm:ml-auto sm:flex">
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleBoardFlip}>
+                                <FlipHorizontal className="size-3.5" />
+                                {t("settings.flipBoard")}
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
+                                <BarChart3 className="size-3.5" />
+                                {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
+                            </Button>
+                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
+                                {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
+                                {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
             <div className="flex-1 min-h-0 p-2 sm:p-3">
@@ -731,6 +794,15 @@ export function BoardViewSlot({
                     lg:grid-cols-[minmax(0,1fr)_clamp(300px,24vw,380px)]
                     ">
                         <div className="flex flex-col gap-2 sm:h-full sm:min-h-0">
+                            <div className="sm:hidden">
+                                <CompactPlayer
+                                    name={boardFlipped ? whiteName : blackName}
+                                    side={boardFlipped ? "white" : "black"}
+                                    timeMs={boardFlipped ? whiteMs : blackMs}
+                                    activeSide={activeSide}
+                                    mobileInline
+                                />
+                            </div>
                             <div className="flex gap-1.5 min-w-0 sm:flex-1 sm:min-h-0 items-stretch">
                                 <div
                                     ref={boardWrapRef}
@@ -743,19 +815,32 @@ export function BoardViewSlot({
                                         fen={displayFen}
                                         lastMove={displayLastMove}
                                         boardWidth={boardWidth}
-                                        missingSquares={missingSquares}
-                                        extraSquares={extraSquares}
-                                        wrongPieceSquares={wrongPieceSquares}
+                                        missingSquares={isAdmin ? missingSquares : []}
+                                        extraSquares={isAdmin ? extraSquares : []}
+                                        wrongPieceSquares={isAdmin ? wrongPieceSquares : []}
                                         predictedMove={predictedMove}
                                         flipped={boardFlipped}
                                     />
                                 </div>
 
                                 {evaluationBarVisible && (
-                                    <div className="hidden sm:block w-[22px] shrink-0 self-stretch min-h-0">
+                                    <div
+                                        className="hidden sm:block w-[22px] shrink-0 self-start"
+                                        style={boardWidth > 0 ? { height: boardWidth } : undefined}
+                                    >
                                     <EvalBar cp={cp} mate={mate} flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                     </div>
                                 )}
+                            </div>
+
+                            <div className="sm:hidden">
+                                <CompactPlayer
+                                    name={boardFlipped ? blackName : whiteName}
+                                    side={boardFlipped ? "black" : "white"}
+                                    timeMs={boardFlipped ? blackMs : whiteMs}
+                                    activeSide={activeSide}
+                                    mobileInline
+                                />
                             </div>
 
                             {evaluationBarVisible && (
@@ -796,6 +881,14 @@ export function BoardViewSlot({
                                 boardNumber={boardNumber}
                                 boardID={boardLabel}
                                 location={location}
+                                tournament={tournament}
+                                initStatus={initStatus}
+                                showBoardDisplayControls={enableEval}
+                                showLiveEvaluation={showLiveEvaluation}
+                                showLiveSuggestions={showLiveSuggestions}
+                                onToggleBoardFlip={toggleBoardFlip}
+                                onToggleLiveEvaluation={toggleLiveEvaluation}
+                                onToggleLiveSuggestions={toggleLiveSuggestions}
                             />
                         </div>
                     </div>
@@ -810,25 +903,60 @@ function CompactPlayer({
     side,
     timeMs,
     activeSide,
+    label,
+    highlightActive = true,
+    labelHiddenMobile = false,
+    desktopAtLarge = false,
+    mobileInline = false,
 }: {
     name: string;
     side: "white" | "black";
     timeMs: number;
     activeSide: "white" | "black";
+    label?: string;
+    highlightActive?: boolean;
+    labelHiddenMobile?: boolean;
+    desktopAtLarge?: boolean;
+    mobileInline?: boolean;
 }) {
     const active = side === activeSide;
+    const mobileTurnColor = side === "white"
+        ? "border-l-green-500 bg-green-500/10 text-green-700 dark:text-green-400"
+        : "border-l-red-500 bg-red-500/10 text-red-600 dark:text-red-400";
     return (
         <div className={cn(
-            "mx-auto flex w-full max-w-[240px] items-center justify-center gap-2 rounded-sm px-2 py-1 transition-colors",
-            active && "bg-accent text-foreground"
+            "relative mx-auto grid w-full items-center gap-x-2 gap-y-0 rounded-sm px-1 py-1 transition-colors",
+            mobileInline ? "grid-cols-[minmax(0,1fr)_auto] grid-rows-none" : "grid-cols-1 grid-rows-[auto_auto]",
+            mobileInline && "border-l-[3px] border-l-transparent",
+            desktopAtLarge
+                ? "lg:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] lg:grid-rows-none"
+                : "md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:grid-rows-none",
+            active && highlightActive && (mobileInline ? mobileTurnColor : "bg-accent text-foreground")
         )}>
-            <span className="min-w-0 truncate">{name}</span>
+            <span className="col-start-1 row-start-1 flex min-w-0 items-center gap-2">
+                <span className={cn("break-words", desktopAtLarge ? "lg:truncate" : "md:truncate")}>{name}</span>
+            </span>
             <span className={cn(
+                mobileInline ? "col-start-2 row-start-1 justify-self-end" : "col-start-1 row-start-2 justify-self-start",
                 "font-mono text-sm tabular-nums",
-                active ? "font-bold text-foreground" : "text-muted-foreground"
+                desktopAtLarge
+                    ? "lg:col-auto lg:row-auto lg:justify-self-center"
+                    : "md:col-auto md:row-auto md:justify-self-center",
+                active
+                    ? cn("font-bold", mobileInline
+                        ? (side === "white" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400")
+                        : "text-foreground")
+                    : "text-muted-foreground"
             )}>
                 {formatClockMs(timeMs)}
             </span>
+            <span className={cn(
+                "absolute left-1/2 justify-self-center -translate-x-1/2 text-xs font-medium text-muted-foreground",
+                desktopAtLarge
+                    ? "lg:static lg:translate-x-0 lg:justify-self-end"
+                    : "md:static md:translate-x-0 md:justify-self-end",
+                labelHiddenMobile && (desktopAtLarge ? "hidden lg:block" : "hidden md:block")
+            )}>{label}</span>
         </div>
     );
 }

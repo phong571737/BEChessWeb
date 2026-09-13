@@ -27,6 +27,64 @@ function findSplitIndex(fens: string[]): number {
   return -1;
 }
 
+type SplitOptions = {
+  apply: boolean;
+  requestedUciSplit?: string;
+  collection: ReturnType<MongoClient["db"]>["collection"];
+  backups: ReturnType<MongoClient["db"]>["collection"];
+};
+
+/** Preview and, when requested, persist the split for one history document. */
+async function splitHistoryDocument(original: HistoryDocument, options: SplitOptions): Promise<boolean> {
+  const fens = Array.isArray(original.fenHistory)
+    ? original.fenHistory.filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+    : [];
+  const split = findSplitIndex(fens);
+  if (split <= 0 || split >= fens.length) return false;
+
+  const uci = Array.isArray(original.uciHistory) ? original.uciHistory : [];
+  const firstId = typeof original._id === "string" ? original._id : (original.gameID ?? randomUUID());
+  const secondId = randomUUID();
+  const parsedUciSplit = options.requestedUciSplit === undefined ? split : Number(options.requestedUciSplit);
+  const uciSplit = Number.isInteger(parsedUciSplit) && parsedUciSplit >= 0 && parsedUciSplit <= uci.length
+    ? parsedUciSplit
+    : Math.min(split, uci.length);
+  const first: Document = {
+    ...original,
+    _id: firstId,
+    gameID: firstId,
+    fenHistory: fens.slice(0, split),
+    uciHistory: uci.slice(0, uciSplit),
+    totalMoves: split,
+    pgn: "",
+    Result: "*",
+    historyStatus: "active",
+  };
+  const second: Document = {
+    ...original,
+    _id: secondId,
+    gameID: secondId,
+    fenHistory: fens.slice(split),
+    uciHistory: uci.slice(uciSplit),
+    totalMoves: fens.length - split,
+    pgn: "",
+    Result: "*",
+    historyStatus: "active",
+    createdAt: new Date(),
+  };
+  delete first.deletedAt;
+  delete first.deleteAfter;
+  delete second.deletedAt;
+  delete second.deleteAfter;
+  console.log(JSON.stringify({ source: firstId, fenSplitAt: split, uciSplitAt: uciSplit, firstGameID: firstId, secondGameID: secondId, firstPlies: split, secondPlies: fens.length - split, apply: options.apply }, null, 2));
+  if (options.apply) {
+    await options.backups.insertOne({ sourceId: original._id, backedUpAt: new Date(), document: original });
+    await options.collection.replaceOne({ _id: original._id }, first, { upsert: false });
+    await options.collection.insertOne(second);
+  }
+  return true;
+}
+
 /** Create a safe migration preview and optionally write the two sessions. */
 async function main() {
   const uri = process.env.MONGO_URI;
@@ -44,29 +102,8 @@ async function main() {
     const candidates = await collection.find(filter).toArray();
     let changed = 0;
 
-    for (const original of candidates) {
-      const fens = Array.isArray(original.fenHistory) ? original.fenHistory.filter((value): value is string => typeof value === "string" && value.trim().length > 0) : [];
-      const split = findSplitIndex(fens);
-      if (split <= 0 || split >= fens.length) continue;
-      const uci = Array.isArray(original.uciHistory) ? original.uciHistory : [];
-      const firstId = typeof original._id === "string" ? original._id : (original.gameID ?? randomUUID());
-      const secondId = randomUUID();
-      const parsedUciSplit = requestedUciSplit === undefined ? split : Number(requestedUciSplit);
-      const uciSplit = Number.isInteger(parsedUciSplit) && parsedUciSplit >= 0 && parsedUciSplit <= uci.length
-        ? parsedUciSplit
-        : Math.min(split, uci.length);
-      const first: Document = { ...original, _id: firstId, gameID: firstId, fenHistory: fens.slice(0, split), uciHistory: uci.slice(0, uciSplit), totalMoves: split, pgn: "", Result: "*", historyStatus: "active" };
-      const second: Document = { ...original, _id: secondId, gameID: secondId, fenHistory: fens.slice(split), uciHistory: uci.slice(uciSplit), totalMoves: fens.length - split, pgn: "", Result: "*", historyStatus: "active", createdAt: new Date() };
-      delete first.deletedAt; delete first.deleteAfter;
-      delete second.deletedAt; delete second.deleteAfter;
-      console.log(JSON.stringify({ source: firstId, fenSplitAt: split, uciSplitAt: uciSplit, firstGameID: firstId, secondGameID: secondId, firstPlies: split, secondPlies: fens.length - split, apply }, null, 2));
-      if (apply) {
-        await backups.insertOne({ sourceId: original._id, backedUpAt: new Date(), document: original });
-        await collection.replaceOne({ _id: original._id }, first, { upsert: false });
-        await collection.insertOne(second);
-      }
-      changed += 1;
-    }
+    const options = { apply, requestedUciSplit, collection, backups };
+    for (const original of candidates) changed += Number(await splitHistoryDocument(original, options));
 
     if (!changed) console.log("No concatenated history record was found.");
     else if (!apply) console.log("Dry run only. Re-run with --apply after checking the split preview.");

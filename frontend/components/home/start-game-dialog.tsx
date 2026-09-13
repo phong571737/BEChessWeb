@@ -1,10 +1,15 @@
 import { useT } from "@/lib/i18n";
 import { PhysicalBoard } from "@/types/game.types";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useGameStore } from "@/lib/store";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
+<<<<<<< HEAD
+=======
+import { apiFetch } from "@/lib/api-fetch";
+import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
+>>>>>>> origin/master
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -13,7 +18,6 @@ import { useAuth } from "@/lib/auth-context";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Upload } from "lucide-react";
-import { useRef } from "react";
 
 interface Props {
     board: PhysicalBoard | null;
@@ -40,6 +44,13 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
     const excelInputRef = useRef<HTMLInputElement>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!board) return;
+        const lastTimeControl = getLastTimeControl();
+        setInitialTimeMs(lastTimeControl.initialTimeMs);
+        setIncrementMs(lastTimeControl.incrementMs);
+    }, [board]);
 
     const canStart = white.trim().length > 0 && black.trim().length > 0;
 
@@ -89,6 +100,7 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                     round,
                     location: location.trim(),
                     boardNumber: boardNumber.trim(),
+                    tournament: excelImport?.tournament ?? "",
                 }),
             });
             if (!whiteResponse.ok) {
@@ -98,8 +110,13 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
 
             const blackResponse = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
+<<<<<<< HEAD
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim() }),
+=======
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim(), tournament: excelImport?.tournament ?? "" }),
+>>>>>>> origin/master
             });
             if (!blackResponse.ok) {
                 const body = await blackResponse.json().catch(() => null);
@@ -114,7 +131,9 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 round,
                 location: location.trim(),
                 boardNumber: boardNumber.trim(),
+                tournament: excelImport?.tournament ?? "",
             });
+            saveLastTimeControl({ initialTimeMs, incrementMs });
 
             invalidateFetchCache(`/games/${gameID}`);
 

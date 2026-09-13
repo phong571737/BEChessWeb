@@ -1,45 +1,34 @@
 "use client"
 
 import { useActiveGames } from "@/hooks/use-active-games";
-import { useRouter } from "next/navigation";
 import { RefreshCw } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { usePhysicalBoards } from "@/hooks/use-physical-boards";
-import type { PhysicalBoard } from "@/types/game.types";
 import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
-import { encodeGameID } from "@/lib/id-utils";
-import { useState, useEffect } from "react";
 import { useT } from "@/lib/i18n";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "./empty-state";
 import { GameCard } from "./game-card";
+<<<<<<< HEAD
 import { PhysicalBoardCard } from "./physical-board-card";
 import { StartGameDialog } from "./start-game-dialog";
 import { useAuth } from "@/lib/auth-context";
+=======
+import { BoardViewSlot } from "@/components/board/board-view-slot";
+import { BulkGameSetupDialog } from "./bulk-game-setup-dialog";
+import { useAuth } from "@/components/providers/auth-provider";
+import { useSearchParams } from "next/navigation";
+import { decodeGameID } from "@/lib/id-utils";
+import { Suspense } from "react";
+>>>>>>> origin/master
 
-export function GameGrid() {
-    const router = useRouter();
-    const { loading, refresh, activeGames } = useActiveGames();
+function GameGridContent() {
+    const { loading, refresh, refreshSilently, activeGames } = useActiveGames();
     const {boards: physicalBoards} = usePhysicalBoards();
-    const [selectedBoard, setselectedBoard] = useState<PhysicalBoard | null>(null);
     const { t } = useT();
-    const { isAuthenticated } = useAuth();
-
-    // Keep the setup dialog attached when a newly detected board receives its gameID.
-    // Closing it here caused the first setup attempt to navigate away before names
-    // and time controls could be saved.
-    useEffect(() => {
-        if (!selectedBoard) return;
-        const current = physicalBoards.find((b) => b.boardID === selectedBoard.boardID);
-        if (!current || !current.online) {
-            setselectedBoard(null);
-            return;
-        }
-        if (current.gameID !== selectedBoard.gameID || current.gameStatus !== selectedBoard.gameStatus) {
-            setselectedBoard(current);
-        }
-    }, [physicalBoards, selectedBoard]);
+    const { isAdmin } = useAuth();
+    const searchParams = useSearchParams();
 
     // Keep a restarted game visible while its physical board is being initialized.
     // This preserves the mini chessboard card and lets the user reopen its session.
@@ -48,65 +37,60 @@ export function GameGrid() {
             && g.status !== GAME_STATUS.FINISHED
     );
 
-    const handleBoardClick = (board: PhysicalBoard) => {
-
-        // Guests can open an existing board, but never see the setup form.
-        if (!isAuthenticated) {
-            if (board.gameID) router.push(`/board?id=${encodeGameID(board.gameID)}`);
-            return;
+    const tournamentName = cardGames.find((game) => game.tournament?.trim())?.tournament?.trim();
+    const requestedLayout = Number(searchParams.get("homeLayout"));
+    const homeLayout = requestedLayout === 2 || requestedLayout === 4 ? requestedLayout : 1;
+    const homeSlotIds = searchParams.get("homeIds")?.split(",").map((value) => {
+        try {
+            return decodeGameID(value.trim());
+        } catch {
+            return "";
         }
-
-        // A restarted ESP board keeps its game session while it waits for initialization.
-        // Open that session instead of presenting the start-game dialog again.
-        const hasOpenSession = board.gameID != null && [
-            GAME_STATUS.ACTIVE,
-            GAME_STATUS.WAITING,
-            "checkinit",
-        ].includes(board.gameStatus ?? "");
-        if (hasOpenSession && board.gameID) {
-            router.push(`/board?id=${encodeGameID(board.gameID)}`);
-            return;
-        }
-
-        setselectedBoard(board);
-    }
+    }).filter(Boolean) ?? [];
+    const displayedGames = homeLayout === 1
+        ? cardGames
+        : homeSlotIds.map((gameID) => cardGames.find((game) => game.gameID === gameID)).filter((game): game is typeof cardGames[number] => Boolean(game));
+    const gamesForLayout = displayedGames.length > 0 ? displayedGames : cardGames.slice(0, homeLayout);
+    const gridClassName = homeLayout === 1 ? "grid gap-3" : "grid grid-cols-2 gap-1 lg:gap-3";
+    const twoBoardView = homeLayout === 2;
 
     return (
-        <div className="flex flex-col min-h-0">
+        <div className={cn("flex flex-col min-h-0", twoBoardView && "h-[calc(100vh-var(--header-h))]")}>
 
-            {/* ----Page header ---------------------------------- */}
-            <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
-                <div>
-                    <h1>{t("home.activeGames")}</h1>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                        {t("home.gamesLive", { n: cardGames.length })}
-                    </p>
-                </div>
-
-                <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
-                    className="size-8 rounded-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-                    <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                </button>
-            </div>
-
-            <div className="flex flex-col">
-                {/* ------------------ Physical board --------------------------*/}
-                {isAuthenticated && physicalBoards.length > 0 && (
-                    <div className="px-4 sm:px-5 py-4 border-b border-border">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">
-                            {t("home.physicalBoards")}
+            {homeLayout === 1 && (
+                <div className="flex items-center justify-between px-4 sm:px-5 py-3 border-b border-border bg-background/60">
+                    <div className={cn("active-games-heading", isAdmin && "active-games-heading-admin", !isAdmin && "active-games-heading-user")}>
+                        <h1 className="text-sm sm:text-base">
+                            {t("home.activeGames")}
+                        </h1>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                            {t("home.gamesLive", { n: cardGames.length })}
                         </p>
-                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                            {physicalBoards.map((b) => (
-                                <PhysicalBoardCard key={b.boardID} board={b} onClick={handleBoardClick}/>
-                            ))}
-                        </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                        {isAdmin && <BulkGameSetupDialog activeGames={cardGames} onApplied={refreshSilently} />}
+                        <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
+                            className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex">
+                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            <div className={cn("flex flex-col", twoBoardView && "min-h-0 flex-1")}>
+                {tournamentName && (
+                    <div className="border-b border-border px-1 py-1 lg:px-5 lg:py-4">
+                        <p className="hidden text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 lg:block">
+                            {t("home.tournament")}
+                        </p>
+                        <h2 className="text-center text-sm font-semibold text-foreground lg:text-left lg:text-lg">{tournamentName}</h2>
                     </div>
                 )}
 
                 {/* -----------------Active game grid --------------------------*/}
                 {loading ? (
-                    <div className="p-4 sm:p-5 grid gap-3" style={{
+                    <div className={cn("grid gap-3", twoBoardView ? "p-1 lg:p-5" : "p-4 sm:p-5")} style={{
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
                     }}>
                         {Array.from({ length: 4 }).map((_, i) => (
@@ -124,25 +108,38 @@ export function GameGrid() {
                 ) : cardGames.length === 0 ? (
                     <EmptyState />
                 ) : (
-                    <div className="p-4 sm:p-5 grid gap-3" style={{
+                    <div className={cn(
+                        gridClassName,
+                        twoBoardView ? "min-h-0 flex-1 p-1 lg:p-5" : "p-4 sm:p-5"
+                    )} style={homeLayout === 1 ? {
                         gridTemplateColumns: "repeat(auto-fill, minmax(clamp(150px, 42vw, 190px), 1fr))"
-                    }}>
-                        {cardGames.map((game) => (
-                            <GameCard key={game.gameID} game={game} />
+                    } : undefined}>
+                        {gamesForLayout.map((game) => (
+                            twoBoardView ? (
+                                <BoardViewSlot
+                                    key={game.gameID}
+                                    gameID={game.gameID}
+                                    compact
+                                    enableEval
+                                    twoBoardLayout
+                                />
+                            ) : (
+                                <GameCard key={game.gameID} game={game} physicalBoard={physicalBoards.find((board) => board.boardID === game.boardID)} showStatus={isAdmin} isAdmin={isAdmin} />
+                            )
                         ))}
                     </div>
                 )}
 
             </div>
-
-            {isAuthenticated && (
-                <StartGameDialog
-                    board={selectedBoard}
-                    gameID={selectedBoard?.gameID ?? null}
-                    onClose={() => setselectedBoard(null)}
-                />
-            )}
         </div>
 
+    );
+}
+
+export function GameGrid() {
+    return (
+        <Suspense fallback={<div className="min-h-24" />}>
+            <GameGridContent />
+        </Suspense>
     );
 }

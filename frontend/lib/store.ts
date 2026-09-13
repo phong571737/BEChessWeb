@@ -7,10 +7,13 @@ interface GameStoreState {
     activeGames: ActiveGame[];
     setActiveGames: (games: ActiveGame[]) => void;
     patchActiveGame: (gameID: string, patch: Partial<ActiveGame>) => void;
+    removeActiveGame: (gameID: string) => void;
+    removeActiveGames: (gameIDs: string[], boardID?: string) => void;
+    upsertActiveGame: (game: ActiveGame, boardID?: string) => void;
 
     /** Physical boards detected via heartbeat */
     physicalBoards: PhysicalBoard[];
-    patchPhysicalBoard: (board: Omit<PhysicalBoard, "gameStatus"> & { gameStatus?: PhysicalBoard["gameStatus"] }) => void;
+    patchPhysicalBoard: (board: Pick<PhysicalBoard, "boardID"> & Partial<Omit<PhysicalBoard, "boardID">>) => void;
     patchPhysicalBoardGameStatus: (gameID: string, gameStatus: PhysicalBoard["gameStatus"]) => void;
     removePhysicalBoard: (boardID: string) => void;
 
@@ -48,15 +51,55 @@ const defaultBoard = (): BoardState => ({
     errorSquares: [],
 });
 
+function boardKey(boardID?: string): string {
+    return boardID?.trim().toLowerCase() ?? "";
+}
+
+/** Keep one visible live session per physical board, even with stale API data. */
+function uniqueGamesByBoard(games: ActiveGame[]): ActiveGame[] {
+    const seenBoards = new Set<string>();
+    return games.filter((game) => {
+        const key = boardKey(game.boardID);
+        if (!key) return true;
+        if (seenBoards.has(key)) return false;
+        seenBoards.add(key);
+        return true;
+    });
+}
+
 export const useGameStore = create<GameStoreState>((set, get) => ({
     activeGames: [],
-    setActiveGames: (games) => set({ activeGames: games }),
+    setActiveGames: (games) => set({ activeGames: uniqueGamesByBoard(games) }),
     patchActiveGame: (gameID, patch) =>
         set((state) => ({
             activeGames: state.activeGames.map((g) =>
                 g.gameID === gameID ? { ...g, ...patch } : g
             ),
         })),
+    removeActiveGame: (gameID) =>
+        set((state) => ({
+            activeGames: state.activeGames.filter((game) => game.gameID !== gameID),
+        })),
+    removeActiveGames: (gameIDs, boardID) =>
+        set((state) => {
+            const ids = new Set(gameIDs);
+            const targetBoard = boardKey(boardID);
+            return {
+                activeGames: state.activeGames.filter((game) =>
+                    !ids.has(game.gameID)
+                    && (!targetBoard || boardKey(game.boardID) !== targetBoard),
+                ),
+            };
+        }),
+    upsertActiveGame: (game, boardID) =>
+        set((state) => {
+            const replacementBoardKey = boardKey(boardID ?? game.boardID);
+            const filtered = state.activeGames.filter((candidate) =>
+                candidate.gameID !== game.gameID
+                && (!replacementBoardKey || boardKey(candidate.boardID) !== replacementBoardKey),
+            );
+            return { activeGames: [game, ...filtered] };
+        }),
 
     physicalBoards: [],
     patchPhysicalBoard: (board) =>
@@ -65,7 +108,9 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
             // Don't add a brand-new entry just to mark it offline
             if (!existing && !board.online) return state;
             const merged: PhysicalBoard = {
+                gameID: null,
                 gameStatus: null,
+                online: false,
                 ...existing,
                 ...board,
             };

@@ -1,7 +1,6 @@
-import { GAME_STATUS } from "@/lib/constants/game";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
 
-export interface lastMove {
+export interface LastMove {
     from: string;
     to: string;
     uci: string;
@@ -14,6 +13,22 @@ export interface PhysicalBoard {
     gameStatus: "waiting" | "checkinit" | "waiting_scan" | "scan_failed" | "active" | "finished" | null;
     online: boolean;
     ip?: string | null;
+    /** Latest initial-position check received from the physical board. */
+    initStatus?: string;
+    missingSquares?: string[];
+    extraSquares?: string[];
+    wrongPieceSquares?: Array<{ square: string; expected?: string; actual?: string } | string>;
+    resetConfirmedAt?: number;
+}
+
+export interface LiveBoardDataWarning {
+    gameID: string;
+    boardID: string;
+    issues: Array<"invalid_fen" | "fen_uci_mismatch" | "uci_x">;
+    seq?: number;
+    fen?: string;
+    uci?: string;
+    receivedAt: string;
 }
 
 // Common interface for both active, state and history games
@@ -24,6 +39,7 @@ export interface GameSetupMetadata {
     round?: number;
     location?: string;
     boardNumber?: string;
+    tournament?: string;
     /** Server-authoritative live clock snapshot. */
     whiteRemainingMs?: number;
     blackRemainingMs?: number;
@@ -43,16 +59,22 @@ export interface ActiveGame extends GameSetupMetadata {
     pgn: string;
     initialFen?: string;
     fenHistory?: string[];
-    lastMove?: lastMove | null;
+    lastMove?: LastMove | null;
     lastSeq: number;
     createdAt: string;
+    /** First accepted move time and persisted elapsed duration for dashboard metrics. */
+    startedAt?: string | null;
+    lastMoveAt?: string | null;
+    durationSec?: number | null;
     status?: string | null;
     timeControlType?: "blitz" | "rapid" | "classical";
+    liveDataWarning?: LiveBoardDataWarning;
 }
 
 /** Completed game returned by GET /games/history */
 export interface HistoryGame extends GameSetupMetadata {
     _id: string;
+    gameID?: string;
     whiteName: string;
     blackName: string;
     Result: "1-0" | "0-1" | "1/2-1/2" | "*";
@@ -111,7 +133,7 @@ export interface BoardState extends GameSetupMetadata {
     scanReason: "MISSING" | "DUPLICATE" | null;
 
     // Check init state
-    initStatus: "waiting" | "ready" | "check_init" | "waiting_button" | "wrong_piece" | "missing_piece";
+    initStatus: "waiting" | "ready" | "checkinit" | "waiting_button" | "wrong_piece" | "missing_piece";
     buttonReady?: boolean;
     missingSquares: string[];
     extraSquares: string[];
@@ -127,6 +149,7 @@ export interface BoardState extends GameSetupMetadata {
     /** Legacy second-based fields returned by older games. */
     clockSeconds?: number;
     clockIncrement?: number;
+    liveDataWarning?: LiveBoardDataWarning;
 }
 
 export interface BranchMove {

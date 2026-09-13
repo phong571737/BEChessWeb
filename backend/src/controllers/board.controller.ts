@@ -1,16 +1,42 @@
 import { Request, Response } from "express";
 import { GameService } from "../services/game.service.js";
-import { getAllGame, removeGame } from "../models/game.model.js";
+import { getAllGame } from "../models/game.model.js";
 import { getCurrentGame } from "../game/game.manager.js";
 import { ERROR_STATUS, BOARD_TYPE, BOARD_STATUS } from "../constant.js";
 import { checkInitialBoard, checkInitialBoardNFC, convertHalltoBoard } from "../services/board.service.js";
 import { gameState, emitGameState } from "../game/game.state.js";
 import { getIO } from "../sockets/index.js";
-import { CreateBoardBody, InitCheckBody } from "../types/board.types.js";
+import { CreateBoardBody, InitCheckBody, NFCBoard } from "../types/board.types.js";
 import { GameIdParams } from "../types/game.types.js";
-import { games, gameSeq, activeBranches } from "../game/game.repository.js";
+import { ensurePublicGameSnapshot } from "../services/spectator-delay.service.js";
+import { getBoardUptimeSummaries } from "../models/board-uptime.model.js";
+
+type BoardCheckResult = ReturnType<typeof checkInitialBoard> | ReturnType<typeof checkInitialBoardNFC>;
+
+function runInitialBoardCheck(boardType: unknown, board: unknown): BoardCheckResult {
+    if (boardType === BOARD_TYPE.NFC) {
+        if (typeof board !== "object" || board === null || Array.isArray(board)) {
+            throw new Error("INVALID_NFC_BOARD");
+        }
+        return checkInitialBoardNFC(board as NFCBoard);
+    }
+    if (boardType === BOARD_TYPE.HALL) {
+        if (!Array.isArray(board)) throw new Error("INVALID_HALL_BOARD");
+        return checkInitialBoard(convertHalltoBoard(board));
+    }
+    throw new Error("INVALID_BOARD_TYPE");
+}
 
 export const BoardController = {
+    async getUptime(_req: Request, res: Response): Promise<void> {
+        try {
+            res.json(await getBoardUptimeSummaries());
+        } catch (error) {
+            console.error("Unable to load board uptime statistics:", error);
+            res.status(500).json({ error: "Unable to load board uptime statistics" });
+        }
+    },
+
     // This function is used to create a new game
     async create(req: Request<unknown, unknown, CreateBoardBody>, res: Response): Promise<Response> {
         try {
@@ -27,6 +53,7 @@ export const BoardController = {
             const gameID = crypto.randomUUID();
 
             const created = await GameService.create(boardID, gameID);
+            await ensurePublicGameSnapshot(created);
 
             // Notify frontend clients that a board was scanned/created so UI updates immediately
             try {
@@ -66,7 +93,19 @@ export const BoardController = {
                 res.json(null);
                 return;
             }
-            res.json(game);
+            // Include the latest in-memory initial-board validation so a home
+            // page opened after initcheck can still render the same warning
+            // squares without waiting for the next physical-board scan.
+            res.json(game.map((item) => {
+                const state = item.boardID ? gameState.get(item.boardID) : undefined;
+                return {
+                    ...item,
+                    initStatus: state?.initResultStatus ?? state?.gameStatus,
+                    missingSquares: state?.missingSquares ?? [],
+                    extraSquares: state?.extraSquares ?? [],
+                    wrongPieceSquares: state?.wrongPieceSquares ?? [],
+                };
+            }));
         } catch (e) {
             console.log(e);
         }
@@ -90,35 +129,16 @@ export const BoardController = {
                 });
             }
 
-            let result, board2D;
-
-            // -------------- NFC BOARD -------------------------
-            if (boardType === BOARD_TYPE.NFC) {
-                if (typeof board !== "object" || Array.isArray(board)) {
-                    return res.status(400).json({
-                        status: ERROR_STATUS.INVALID,
-                    });
+            let result: BoardCheckResult;
+            try {
+                result = runInitialBoardCheck(boardType, board);
+            } catch (error) {
+                const reason = error instanceof Error ? error.message : "";
+                if (reason === "INVALID_NFC_BOARD") return res.status(400).json({ status: ERROR_STATUS.INVALID });
+                if (reason === "INVALID_HALL_BOARD") {
+                    return res.status(400).json({ status: ERROR_STATUS.INVALID, error: "HALL board must be an array" });
                 }
-
-                result = checkInitialBoardNFC(board);
-            }
-            // -------------- HALL BOARD -------------------------
-            else if (boardType === BOARD_TYPE.HALL) {
-                if (!Array.isArray(board)) {
-                    return res.status(400).json({
-                        status: ERROR_STATUS.INVALID,
-                        error: "HALL board must be an array",
-                    });
-                }
-
-                board2D = convertHalltoBoard(board);
-                result = checkInitialBoard(board2D);
-            }
-            else {
-                return res.status(400).json({
-                    status: BOARD_STATUS.INVALID,
-                    error: "Unknown boardType",
-                })
+                return res.status(400).json({ status: BOARD_STATUS.INVALID, error: "Unknown boardType" });
             }
 
             let finalStatus = result.status;

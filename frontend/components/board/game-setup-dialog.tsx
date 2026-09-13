@@ -12,6 +12,12 @@ import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
+<<<<<<< HEAD
+=======
+import { apiFetch } from "@/lib/api-fetch";
+import { saveLastTimeControl } from "@/lib/last-time-control";
+import { readBulkGameSetupDraft } from "@/lib/bulk-game-setup-draft";
+>>>>>>> origin/master
 
 const INCREMENT_OPTIONS = [0, 1_000, 2_000, 5_000, 10_000, 15_000];
 
@@ -24,6 +30,7 @@ interface Props {
     round: number;
     boardNumber?: string;
     location: string;
+    tournament?: string;
 }
 const BOARD_NUMBER_OPTIONS = Array.from(
     { length: 10 },
@@ -34,9 +41,9 @@ function isPresetBoardNumber(value: string) {
     return BOARD_NUMBER_OPTIONS.includes(value.trim());
 }
 
-export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location }: Props) {
+export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location, tournament = "" }: Props) {
     const { t } = useT();
-    const { token } = useAuth();
+    const { token, isAdmin } = useAuth();
     const [open, setOpen] = useState(false);
     const [white, setWhite] = useState(whiteName);
     const [black, setBlack] = useState(blackName);
@@ -49,12 +56,25 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         !isPresetBoardNumber(initialBoardNumber.trim())
     );
     const [gameLocation, setGameLocation] = useState(location);
+    const [tournamentName, setTournamentName] = useState(tournament);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [remoteUpdate, setRemoteUpdate] = useState<string | null>(null);
     const [excelImport, setExcelImport] = useState<ExcelGameImport | null>(null);
     const [selectedExcelRow, setSelectedExcelRow] = useState("");
     const [excelError, setExcelError] = useState<string | null>(null);
     const excelInputRef = useRef<HTMLInputElement>(null);
+    const serverSetupSignature = JSON.stringify({
+        whiteName,
+        blackName,
+        initialTimeMs,
+        incrementMs,
+        round,
+        boardNumber: initialBoardNumber,
+        location,
+        tournament,
+    });
+    const previousServerSetupRef = useRef(serverSetupSignature);
     const clockLabel = (value: number) => value >= 3_600_000
         ? t("sg.hourOption", { n: value / 3_600_000 })
         : t(value === 60_000 ? "sg.minuteOption" : "sg.minutesOption", { n: value / 60_000 });
@@ -73,11 +93,51 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             !isPresetBoardNumber(initialBoardNumber.trim())
         );
         setGameLocation(location);
+        setTournamentName(tournament);
         setError(null);
-        setExcelImport(null);
-        setSelectedExcelRow("");
+        setRemoteUpdate(null);
+        const draft = readBulkGameSetupDraft();
+        const assignedRowIndex = draft
+            ? Object.entries(draft.boardAssignments).find(([, assignedGameID]) => assignedGameID === gameID)?.[0]
+            : undefined;
+        const assignedRow = assignedRowIndex !== undefined
+            ? draft?.imported.rows[Number(assignedRowIndex)]
+            : undefined;
+        if (draft && assignedRow && assignedRow.whiteName.trim() && assignedRow.blackName.trim()) {
+            const importedBoardNumber = String(assignedRow.boardNumber || "").trim();
+            setExcelImport(draft.imported);
+            setSelectedExcelRow(assignedRowIndex ?? "");
+            setWhite(assignedRow.whiteName);
+            setBlack(assignedRow.blackName);
+            setBoardNumber(importedBoardNumber);
+            setIsCustomBoardNumber(importedBoardNumber !== "" && !isPresetBoardNumber(importedBoardNumber));
+            setGameLocation(assignedRow.location ?? draft.imported.location ?? location);
+            setTournamentName(draft.tournamentName || assignedRow.tournament || draft.imported.tournament || tournament);
+            setSelectedRound(draft.selectedMatchIndex + 1);
+            if (draft.applyClock) {
+                setTime(draft.initialTimeMs);
+                setIncrement(draft.incrementMs);
+            }
+        } else {
+            setExcelImport(null);
+            setSelectedExcelRow("");
+        }
         setExcelError(null);
-    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location, initialBoardNumber]);
+    }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location, initialBoardNumber, gameID, tournament]);
+
+    /* game:renamed updates these props through the shared game store. If a
+     * second administrator saves while this dialog is open, retain the
+     * server-authoritative values loaded by the effect above and make the
+     * concurrent update visible instead of silently overwriting the form. */
+    useEffect(() => {
+        const previous = previousServerSetupRef.current;
+        previousServerSetupRef.current = serverSetupSignature;
+        if (!open || loading || previous === serverSetupSignature) return;
+        setRemoteUpdate(t("sg.setupUpdatedByAnotherAdmin", {
+            white: whiteName,
+            black: blackName,
+        }));
+    }, [serverSetupSignature, open, loading, t, whiteName, blackName]);
 
     const applyExcelRow = (index: string, imported = excelImport) => {
         setSelectedExcelRow(index);
@@ -92,6 +152,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             !isPresetBoardNumber(importedBoardNumber)
         );
         if (row.location || imported?.location) setGameLocation(row.location ?? imported?.location ?? "");
+        setTournamentName(row.tournament ?? imported?.tournament ?? tournament);
         setExcelError(null);
     };
 
@@ -129,15 +190,33 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         try {
             const first = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
+<<<<<<< HEAD
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber }),
+=======
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ color: "White", name: white.trim(), initialTimeMs: time, incrementMs: increment, round: selectedRound, location: gameLocation.trim(), boardNumber: normalizedBoardNumber, tournament: tournamentName.trim() }),
+>>>>>>> origin/master
             });
-            if (!first.ok) throw new Error((await first.json().catch(() => null))?.error ?? t("sg.saveClockError"));
+            const firstData = await first.json().catch(() => null) as {
+                error?: string;
+                whiteRemainingMs?: number;
+                blackRemainingMs?: number;
+                activeClockSide?: "white" | "black";
+                clockStartedAt?: string | null;
+                serverNow?: number;
+            } | null;
+            if (!first.ok) throw new Error(firstData?.error ?? t("sg.saveClockError"));
 
             const second = await fetch(`/games/${gameID}/rename`, {
                 method: "POST",
+<<<<<<< HEAD
                 headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
                 body: JSON.stringify({ color: "Black", name: black.trim() }),
+=======
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ color: "Black", name: black.trim(), tournament: tournamentName.trim() }),
+>>>>>>> origin/master
             });
             if (!second.ok) throw new Error((await second.json().catch(() => null))?.error ?? t("sg.savePlayerError"));
 
@@ -149,7 +228,14 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                 round: selectedRound,
                 boardNumber: normalizedBoardNumber,
                 location: gameLocation.trim(),
+                tournament: tournamentName.trim(),
+                ...(typeof firstData?.whiteRemainingMs === "number" ? { whiteRemainingMs: firstData.whiteRemainingMs } : {}),
+                ...(typeof firstData?.blackRemainingMs === "number" ? { blackRemainingMs: firstData.blackRemainingMs } : {}),
+                ...(firstData?.activeClockSide ? { activeClockSide: firstData.activeClockSide } : {}),
+                ...(firstData?.clockStartedAt !== undefined ? { clockStartedAt: firstData.clockStartedAt } : {}),
+                ...(typeof firstData?.serverNow === "number" ? { serverNow: firstData.serverNow } : {}),
             });
+            saveLastTimeControl({ initialTimeMs: time, incrementMs: increment });
             invalidateFetchCache(`/games/${gameID}`);
             invalidateFetchCache("/games/current");
             setOpen(false);
@@ -159,6 +245,8 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             setLoading(false);
         }
     };
+
+    if (!isAdmin) return null;
 
     return (
         <Dialog open={open} onOpenChange={(nextOpen) => !loading && setOpen(nextOpen)}>
@@ -189,6 +277,11 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                         </div>
                     )}
                     {excelError && <p className="text-xs text-destructive">{excelError}</p>}
+                    {remoteUpdate && (
+                        <div role="status" className="rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs text-foreground">
+                            {remoteUpdate}
+                        </div>
+                    )}
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2"><Label htmlFor="board-setup-white">{t("sg.whiteSide")}</Label><Input id="board-setup-white" value={white} onChange={(event) => setWhite(event.target.value)} disabled={loading} /></div>
                         <div className="space-y-2"><Label htmlFor="board-setup-black">{t("sg.blackSide")}</Label><Input id="board-setup-black" value={black} onChange={(event) => setBlack(event.target.value)} disabled={loading} /></div>

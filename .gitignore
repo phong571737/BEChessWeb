@@ -14,6 +14,7 @@ frontend/node_modules
 
 # next js
 frontend/.next
+frontend/next-env.d.ts
 
 # package
 package-lock.json
@@ -34,11 +35,16 @@ mongodb_data/
 dist/
 build/
 .codegraph/
+.archguard/history/
+.archguard/metrics.json
 *.log
 chessserver.exe
 
-# Documentation is maintained locally and must not be published.
-/docs/
+# Keep maintained Markdown documentation available on GitHub while ignoring
+# generated diagram exports and local visual-check artifacts.
+/docs/*
+!/docs/
+!/docs/**/*.md
 /recover_service_v2/
 /recover_service_v4/backup/stockfish
 /recover_service_v4/stockfish/

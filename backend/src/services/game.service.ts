@@ -2,7 +2,6 @@ import { Chess } from "chess.js";
 import { createGame, destroyBoard, setCurrentGame } from "../game/game.manager.js";
 import { acquireBoardCreationLock, closeActiveGamesForBoard, getLatestGameByBoardID, releaseBoardCreationLock, saveGame } from "../models/game.model.js";
 import { executeMove } from "../utils/chess.utils.js";
-import { activeBranches, games, gameSeq, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { gameState } from "../game/game.state.js";
 import { MoveLike, Branch } from "../types/chess.types.js";
 import { classifyTimeControl, DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";
@@ -10,7 +9,7 @@ import { classifyTimeControl, DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS } fr
 export const GameService = {
   // Only one creator may initialize a physical board at a time. Each
   // successful creation starts a fresh session with a new game ID.
-  async create(boardID: string, gameID: string, round: number = 1, whiteName = "", blackName = "", initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS) {
+  async create(boardID: string, gameID: string, round: number = 1, whiteName = "", blackName = "", initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, tournament = "") {
     if (!await acquireBoardCreationLock(boardID, gameID)) {
       throw new Error("BOARD_CREATION_IN_PROGRESS");
     }
@@ -28,6 +27,7 @@ export const GameService = {
         pgn: "",
         lastMove: null,
         round,
+        tournament,
         status: "waiting",
         version: 0,
         whiteName,

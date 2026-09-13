@@ -1,8 +1,9 @@
 import { Collection, Filter, UpdateFilter, Document, ObjectId } from "mongodb";
 import { getDB } from "../config/database.js";
-import { GameDoc, SaveGameOptions } from "../types/game.types.js"
-import { classifyTimeControl } from "../utils/time-control.js";
+import { GameDoc, LiveBoardDataWarning, SaveGameOptions } from "../types/game.types.js"
+import { classifyTimeControl, DEFAULT_INITIAL_TIME_MS } from "../utils/time-control.js";
 import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
+import { getCurrentClock } from "../services/clock.service.js";
 
 
 const games = (): Collection<GameDoc> => getDB().collection<GameDoc>("games");
@@ -76,6 +77,7 @@ export async function saveActiveGameHistorySnapshot(game: GameDoc): Promise<void
         boardID: game.boardID,
         boardNumber: game.boardNumber,
         location: game.location,
+        tournament: game.tournament,
         pgn: game.pgn ?? "",
         fen: currentHistoryFen(game),
         currentFen: currentHistoryFen(game),
@@ -163,11 +165,12 @@ export type UpdateHistoryFenResult = AppendHistoryFenResult | { status: "invalid
 export type ReplaceHistoryFensResult = AppendHistoryFenResult;
 
 /**
- * Appends one administrator-corrected FEN snapshot. The original array is
+ * Adds one administrator-corrected FEN snapshot. The original array is
  * included in the update predicate so concurrent editors cannot silently
- * overwrite each other.
+ * overwrite each other. An optional index inserts it directly after an
+ * existing snapshot instead of appending it at the end.
  */
-export async function appendHistoryFen(id: string, fen: string): Promise<AppendHistoryFenResult> {
+export async function appendHistoryFen(id: string, fen: string, afterIndex?: number): Promise<AppendHistoryFenResult | { status: "invalid_index" }> {
     const filter = historyIdFilter(id, false);
     const record = await pgnGames().findOne(filter, { projection: { fenHistory: 1, fenHistoryEdited: 1, historyStatus: 1, result: 1, Result: 1 } });
     if (!record) return { status: "not_found" };
@@ -178,7 +181,11 @@ export async function appendHistoryFen(id: string, fen: string): Promise<AppendH
     const fenHistory = Array.isArray(sourceHistory)
         ? (sourceHistory as unknown[]).filter((value): value is string => typeof value === "string")
         : [];
-    const nextFenHistory = [...fenHistory, fen];
+    if (afterIndex !== undefined && (!Number.isInteger(afterIndex) || afterIndex < -1 || afterIndex >= fenHistory.length)) {
+        return { status: "invalid_index" };
+    }
+    const nextFenHistory = [...fenHistory];
+    nextFenHistory.splice(afterIndex === undefined ? nextFenHistory.length : afterIndex + 1, 0, fen);
     const fenPredicate = hasEditedHistory
         ? { fenHistoryEdited: record.fenHistoryEdited }
         : { fenHistoryEdited: { $exists: false } };
@@ -326,6 +333,10 @@ export async function saveGame(
             updateAt: new Date()
         };
 
+        if (typeof seq === "number" && Number.isInteger(seq) && seq >= 0) {
+            setFields.lastSeq = seq;
+        }
+
         // Reset feild
         if (Array.isArray(uciHistory)) setFields.uciHistory = uciHistory;
         if (Array.isArray(fenHistory)) setFields.fenHistory = fenHistory;
@@ -381,8 +392,36 @@ export async function saveGame(
     }
 }
 
+/** Persists the latest electronic-board payload warning without advancing the game revision. */
+export async function saveLiveBoardDataWarning(gameID: string, warning: LiveBoardDataWarning) {
+    return games().updateOne(
+        { gameID } as Filter<GameDoc>,
+        { $set: { liveDataWarning: warning } } as UpdateFilter<GameDoc>,
+    );
+}
+
 export async function getAllGame(limit = 200) {
-    return games().find({ status: { $ne: "finished" } } as Filter<GameDoc>).limit(limit).toArray();
+    // Only live sessions belong in the active-games response.  Ended sessions
+    // remain persisted for recovery/diagnostics but must not be rendered as
+    // duplicate cards on the home page.
+    const liveGames = await games()
+        .find({ status: { $in: ["waiting", "ready", "playing", "active"] } } as Filter<GameDoc>)
+        .sort({ updateAt: -1, lastMoveAt: -1, createdAt: -1 })
+        .limit(limit)
+        .toArray();
+
+    // A physical board can own only one live session. Legacy rows created by
+    // an interrupted restart may still coexist in MongoDB, so retain the most
+    // recently updated row for each board when rebuilding runtime state or
+    // returning the admin live-games list.
+    const seenBoards = new Set<string>();
+    return liveGames.filter((game) => {
+        const boardKey = typeof game.boardID === "string" ? game.boardID.trim().toLowerCase() : "";
+        if (!boardKey) return true;
+        if (seenBoards.has(boardKey)) return false;
+        seenBoards.add(boardKey);
+        return true;
+    });
 }
 
 /**This function is used to load game by id */
@@ -651,8 +690,31 @@ export async function renamePlayer(
     incrementMs?: number,
     round?: number,
     location?: string,
-    boardNumber?: string
+    boardNumber?: string,
+    tournament?: string
 ) {
+    const current = await games().findOne(
+        { gameID } as Filter<GameDoc>,
+        {
+            projection: {
+                initialTimeMs: 1,
+                incrementMs: 1,
+                status: 1,
+                lastSeq: 1,
+                uciHistory: 1,
+                fenHistory: 1,
+                whiteRemainingMs: 1,
+                blackRemainingMs: 1,
+                whiteRemainingTimeMs: 1,
+                blackRemainingTimeMs: 1,
+                activeClockSide: 1,
+                clockStartedAt: 1,
+                version: 1,
+            },
+        },
+    );
+    if (!current) throw new Error("GAME_STATE_CONFLICT");
+
     const field = color === "Black" ? "blackName" : "whiteName";
     const update: Record<string, unknown> = {
         [field]: name,
@@ -661,45 +723,54 @@ export async function renamePlayer(
     if (initialTimeMs !== undefined) update.initialTimeMs = initialTimeMs;
     if (incrementMs !== undefined) update.incrementMs = incrementMs;
     if (initialTimeMs !== undefined || incrementMs !== undefined) {
-        const current = await games().findOne(
-            { gameID } as Filter<GameDoc>,
-            {
-                projection: {
-                    initialTimeMs: 1,
-                    incrementMs: 1,
-                    status: 1,
-                    lastSeq: 1,
-                    uciHistory: 1,
-                    fenHistory: 1,
-                },
-            },
-        );
         update.timeControlType = classifyTimeControl(
             initialTimeMs ?? current?.initialTimeMs,
             incrementMs ?? current?.incrementMs,
         );
 
-        // A clock setting change before the first move must also update the
-        // persisted clock values. Otherwise an old 60-minute remaining value
-        // can override a newly selected 45-minute configuration on reload.
-        // Never reset a game that already has moves or is currently active.
         const hasMoves = Boolean(
             (current?.lastSeq ?? 0) > 0
             || (current?.uciHistory?.length ?? 0) > 0
             || (current?.fenHistory?.length ?? 0) > 0,
         );
         const isActive = ["playing", "active"].includes(String(current?.status ?? ""));
-        if (initialTimeMs !== undefined && !hasMoves && !isActive) {
-            update.whiteRemainingMs = initialTimeMs;
-            update.blackRemainingMs = initialTimeMs;
-            update.activeClockSide = "white";
-            update.clockStartedAt = null;
+        if (initialTimeMs !== undefined && current) {
+            const now = Date.now();
+            const clock = getCurrentClock(current, now);
+            const previousInitialTimeMs = Number(current.initialTimeMs ?? DEFAULT_INITIAL_TIME_MS);
+            const deltaMs = initialTimeMs - previousInitialTimeMs;
+
+            // Preserve elapsed thinking time: the new setting adjusts each
+            // remaining clock by the difference between old and new base time.
+            update.whiteRemainingMs = Math.max(0, Math.min(initialTimeMs, clock.whiteRemainingMs + deltaMs));
+            update.blackRemainingMs = Math.max(0, Math.min(initialTimeMs, clock.blackRemainingMs + deltaMs));
+            update.activeClockSide = clock.activeClockSide;
+            // Snapshot the running clock once, then continue from this exact
+            // server timestamp so elapsed time is never charged twice.
+            update.clockStartedAt = isActive ? new Date(now) : null;
+
+            if (!hasMoves && !isActive) {
+                update.whiteRemainingMs = initialTimeMs;
+                update.blackRemainingMs = initialTimeMs;
+                update.activeClockSide = "white";
+            }
         }
     }
     if (round !== undefined) update.round = round;
     if (boardNumber !== undefined) update.boardNumber = boardNumber.trim();
     if (location !== undefined) update.location = location;
-    return games().updateOne({ gameID } as Filter<GameDoc>, {
-        $set: update,
-    } as UpdateFilter<GameDoc>);
+    if (tournament !== undefined) update.tournament = tournament.trim();
+    const versionFilter = current.version === undefined
+        ? { gameID, version: { $exists: false } }
+        : { gameID, version: current.version };
+    const updatedGame = await games().findOneAndUpdate(
+        versionFilter as Filter<GameDoc>,
+        {
+            $set: update,
+            $inc: { version: 1 },
+        } as unknown as UpdateFilter<GameDoc>,
+        { returnDocument: "after" },
+    );
+    if (!updatedGame) throw new Error("GAME_STATE_CONFLICT");
+    return updatedGame;
 }

@@ -7,7 +7,7 @@ export const GAME_STATUS = {
     ENDED: "ended",
     WAITING: "waiting",
     READY: "ready",
-    CHECK_INIT: "check_init",
+    CHECK_INIT: "checkinit",
 } as const;
 
 export const GAME_ACTIONS = {

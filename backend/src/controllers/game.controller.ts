@@ -1,13 +1,15 @@
 import { Request, Response } from "express";
-import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen, updateHistoryTraces } from "../models/game.model.js";
+import { appendHistoryFen, deleteHistoryFen, getPGNCollections, getAllGame, getGame, getGameCollections, moveHistoryToTrash, permanentlyDeleteAllHistoryFromTrash, permanentlyDeleteHistoryFromTrash, replaceHistoryFens as replaceHistoryFenList, restoreHistoryFromTrash, saveHistoryAnalysis, updateHistoryFen, updateHistoryTraces } from "../models/game.model.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
 import { gameState } from "../game/game.state.js";
 import { GameIdParams } from "../types/game.types.js";
 import type { Document as MongoDocument, WithId } from "mongodb";
 import { getBoardIDByGame } from "../game/game.manager.js";
 import { resolveTimeControlType } from "../utils/time-control.js";
-import { countHistoryPlies, currentHistoryFen } from "../utils/history-metrics.js";
+import { currentHistoryFen } from "../utils/history-metrics.js";
 import { getCurrentClock } from "../services/clock.service.js";
+import type { OptionalAuthRequest } from "../middleware/auth.middleware.js";
+import { getPublicGameSnapshots } from "../services/spectator-delay.service.js";
 
 /** Normalizes an administrator-supplied snapshot without enforcing chess legality. */
 function storedFen(value: unknown): string | null {
@@ -39,9 +41,9 @@ function serializeHistoryRecord(record: WithId<MongoDocument>): MongoDocument & 
 
 export const GameController = {
     // Get current state
-    async getCurrent(req: Request, res: Response): Promise<void> {
+    async getCurrent(req: OptionalAuthRequest, res: Response): Promise<void> {
         try {
-            const game = await getAllGame();
+            const game = req.auth?.role === "admin" ? await getAllGame() : await getPublicGameSnapshots();
             if (!game) {
                 res.json(null);
                 return;
@@ -59,8 +61,60 @@ export const GameController = {
     // get history of game
     async getHistory(req: Request, res: Response): Promise<void> {
         try {
+<<<<<<< HEAD
             const history = (await getPGNCollections()
                 .find({ deletedAt: { $exists: false } })
+=======
+            const hasPagination = req.query.page !== undefined || req.query.pageSize !== undefined;
+            const page = Math.max(1, Number.parseInt(String(req.query.page ?? "1"), 10) || 1);
+            const pageSize = Math.min(50, Math.max(1, Number.parseInt(String(req.query.pageSize ?? "25"), 10) || 25));
+            // History is an archive view: include every non-deleted document,
+            // including legacy rows that only contain PGN/totalMoves.
+            const baseHistoryFilter: Record<string, unknown> = { deletedAt: { $exists: false } };
+            const historyConditions: Record<string, unknown>[] = [baseHistoryFilter];
+            const search = String(req.query.search ?? "").trim().slice(0, 160);
+            const board = String(req.query.board ?? "").trim().slice(0, 160);
+            if (search) {
+                const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const namePattern = new RegExp(escapedSearch, "i");
+                historyConditions.push({
+                    $or: [
+                        { whiteName: namePattern }, { blackName: namePattern },
+                        { White: namePattern }, { Black: namePattern },
+                    ],
+                });
+            }
+            if (board) {
+                historyConditions.push({ $or: [{ boardID: board }, { boardNumber: board }] });
+            }
+            const historyFilter: Record<string, unknown> = historyConditions.length === 1
+                ? baseHistoryFilter
+                : { $and: historyConditions };
+            const collection = getPGNCollections();
+            const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
+            // The history list is paginated, but the summary must describe the
+            // complete archive rather than only the records on the current page.
+            const summaryRows = await collection.find(historyFilter, {
+                projection: { result: 1, Result: 1, pgn: 1 },
+            }).toArray();
+            // Read filter choices from the archive with one compatible find()
+            // query. Some deployed Mongo-compatible servers reject distinct()
+            // with the soft-delete filter, which must never make history fail.
+            const summaryWithOptions = await collection.find(baseHistoryFilter, {
+                projection: { boardID: 1, boardNumber: 1, location: 1 },
+            }).toArray();
+            const allBoards = summaryWithOptions.flatMap((record) => [record.boardID, record.boardNumber]);
+            const allLocations = summaryWithOptions.map((record) => record.location);
+            const summary = summaryRows.reduce((counts, record) => {
+                const result = historyResult(record);
+                if (result === "1-0") counts.whiteWins += 1;
+                else if (result === "0-1") counts.blackWins += 1;
+                else if (result === "1/2-1/2") counts.draws += 1;
+                return counts;
+            }, { whiteWins: 0, blackWins: 0, draws: 0 });
+            const history = await collection
+                .find(historyFilter)
+>>>>>>> origin/master
                 .sort({ createdAt: -1 }) // newest
                 .toArray())
                 .filter((row) => {
@@ -110,7 +164,34 @@ export const GameController = {
                 };
             });
 
+<<<<<<< HEAD
             res.json(games.map(serializeHistoryRecord));
+=======
+            const serialized = games.map(serializeHistoryRecord);
+            if (hasPagination) {
+                res.json({
+                    items: serialized,
+                    page,
+                    pageSize,
+                    total,
+                    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+                    summary: { ...summary, total: summaryRows.length },
+                    filterOptions: {
+                        boards: Array.from(new Set(allBoards))
+                            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                            .map((value) => value.trim())
+                            .sort(),
+                        locations: allLocations
+                            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                            .map((value) => value.trim())
+                            .sort(),
+                    },
+                });
+                return;
+            }
+            // Keep the legacy array response for the review page and older clients.
+            res.json(serialized);
+>>>>>>> origin/master
         } catch (e) {
             console.error(e);
             res.status(500).json({ error: "Unable to load game history" });
@@ -229,7 +310,7 @@ export const GameController = {
         }
     },
 
-    /** Appends one administrator-supplied FEN snapshot without legality checks. */
+    /** Adds one administrator-supplied FEN snapshot without legality checks. */
     async appendHistoryFen(req: Request<GameIdParams>, res: Response): Promise<void> {
         try {
             const fen = storedFen(req.body?.fen);
@@ -237,13 +318,23 @@ export const GameController = {
                 res.status(400).json({ error: "FEN value must be a non-empty string", code: "INVALID_FEN" });
                 return;
             }
-            const result = await appendHistoryFen(req.params.id, fen);
+            const requestedAfterIndex = req.body?.afterIndex;
+            const afterIndex = requestedAfterIndex === undefined ? undefined : Number(requestedAfterIndex);
+            if (requestedAfterIndex !== undefined && !Number.isInteger(afterIndex)) {
+                res.status(400).json({ error: "Invalid FEN insertion index", code: "INVALID_FEN_INDEX" });
+                return;
+            }
+            const result = await appendHistoryFen(req.params.id, fen, afterIndex);
             if (result.status === "not_found") {
                 res.status(404).json({ error: "History record not found" });
                 return;
             }
             if (result.status === "active") {
                 res.status(409).json({ error: "Cannot edit an active game" });
+                return;
+            }
+            if (result.status === "invalid_index") {
+                res.status(400).json({ error: "Invalid FEN insertion index", code: "INVALID_FEN_INDEX" });
                 return;
             }
             if (result.status === "conflict") {
@@ -393,7 +484,11 @@ export const GameController = {
     async initcheck(req: Request<GameIdParams>, res: Response): Promise<Response | void> {
         try {
             const gameID = req.params.id;
-            const boardID = getBoardIDByGame(gameID);
+            // The in-memory reverse map can be empty after a backend restart.
+            // Fall back to the persisted game-to-board relation so the board
+            // page reads the same initcheck state as the home page.
+            const persistedGame = await getGame(gameID);
+            const boardID = getBoardIDByGame(gameID) ?? persistedGame?.boardID;
             const state = boardID ? gameState.get(boardID) : undefined;
 
             // no state yet

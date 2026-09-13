@@ -1,14 +1,20 @@
 "use client"
 
-import { ActiveGame } from "@/types/game.types";
+import { ActiveGame, PhysicalBoard } from "@/types/game.types";
 import dynamic from "next/dynamic"
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState, useEffect } from "react";
+import { memo, useRef, useState, useEffect, useMemo } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { useT } from "@/lib/i18n";
 import { resolveTimeControlType } from "@/lib/time-control";
+import { GameActions } from "@/components/board/game-actions";
+import { apiFetch } from "@/lib/api-fetch";
+import { invalidateFetchCache } from "@/lib/fetch-cache";
+import type { Square } from "chess.js";
+import { useHomeMoveSuggestion } from "@/hooks/use-home-move-suggestion";
+import { getSuggestionColor } from "@/components/board/chess-board-view";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -17,14 +23,26 @@ const Chessboard = dynamic(
 
 interface Props {
     game: ActiveGame;
+    physicalBoard?: PhysicalBoard;
+    showStatus?: boolean;
+    isAdmin?: boolean;
 }
 
-export function GameCard({ game }: Props) {
+export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors } = useBoardDisplay();
+  const [showMoveSuggestion, setShowMoveSuggestion] = useState(false);
+  useEffect(() => {
+    setShowMoveSuggestion(localStorage.getItem(`live-show-suggestions-${game.gameID}`) !== "false");
+  }, [game.gameID]);
+  const suggestedMove = useHomeMoveSuggestion(game.fen, showMoveSuggestion);
+  const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
+  const suggestionArrows = useMemo(() => suggestedMove
+    ? [[suggestedMove.from, suggestedMove.to, suggestionColor]] as [Square, Square, string][]
+    : [], [suggestedMove, suggestionColor]);
   const { t } = useT();
   const timeControl = resolveTimeControlType(game.initialTimeMs, game.incrementMs, game.timeControlType);
   const timeControlLabel = {
@@ -33,6 +51,79 @@ export function GameCard({ game }: Props) {
     classical: t("timeControl.classical"),
   }[timeControl];
   const boardLabel = game.boardID?.trim();
+  const boardNumber = game.boardNumber?.trim();
+  const restart = async () => {
+    const response = await apiFetch(`/games/${encodeURIComponent(game.gameID)}/restart`, { method: "POST" });
+    if (!response.ok) throw new Error(`Restart failed with ${response.status}`);
+    invalidateFetchCache("/games/current");
+    invalidateFetchCache(`/games/${game.gameID}`);
+  };
+  const resign = async (resignSide: "white" | "black" | "draw", branchId: string | null) => {
+    const response = await apiFetch(`/games/${encodeURIComponent(game.gameID)}/resign`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ resignSide, branchId }),
+    });
+    if (!response.ok) throw new Error(`Resign failed with ${response.status}`);
+    invalidateFetchCache("/games/current");
+    invalidateFetchCache("/games/history");
+    invalidateFetchCache(`/games/${game.gameID}`);
+  };
+  const hasInitialPositionError = Boolean(
+    physicalBoard?.missingSquares?.length
+    || physicalBoard?.extraSquares?.length
+    || physicalBoard?.wrongPieceSquares?.length,
+  );
+  // A live game's Mongo status remains "waiting" until the first move. The
+  // physical-board initcheck is therefore the authoritative source for the
+  // pre-game chip: it must win over that stale persistence status.
+  const boardStatus = game.status === "playing"
+    ? { label: t("home.boardPlaying"), className: "bg-emerald-500/12 text-emerald-700 dark:text-emerald-300" }
+    : hasInitialPositionError || game.status === "scan_failed"
+      ? { label: t("home.boardCheck"), className: "bg-destructive/10 text-destructive" }
+      : physicalBoard?.initStatus === "ready"
+        ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
+        : physicalBoard?.initStatus === "waiting_button"
+          ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+          : physicalBoard?.initStatus === "idle" || physicalBoard?.initStatus === "checkinit"
+            ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
+            : game.status === "ready" || game.status === "active"
+              ? { label: t("home.boardReady"), className: "bg-sky-500/12 text-sky-700 dark:text-sky-300" }
+              : game.status === "waiting_button"
+                ? { label: t("home.boardPressButton"), className: "bg-amber-500/12 text-amber-700 dark:text-amber-300" }
+                : game.status === "waiting" || game.status === "waiting_scan" || game.status === "checkinit" || game.status === "idle"
+                  ? { label: t("home.boardChecking"), className: "bg-muted text-muted-foreground" }
+                  : { label: t("home.boardWaiting"), className: "bg-muted text-muted-foreground" };
+  const warningReasons = game.liveDataWarning?.issues.map((issue) => t(
+    issue === "invalid_fen"
+      ? "board.invalidFenWarning"
+      : issue === "fen_uci_mismatch"
+        ? "board.fenUciMismatchWarning"
+        : "board.uciXWarning",
+  )) ?? [];
+  const warningReason = warningReasons.reduce<string | undefined>((combined, reason) =>
+    combined ? t("board.dataWarningMultiple", { first: combined, second: reason }) : reason,
+  undefined);
+  const warningLabel = warningReason && game.liveDataWarning?.seq !== undefined
+    ? t("board.dataWarningAtSeq", { reason: warningReason, seq: game.liveDataWarning.seq })
+    : warningReason;
+  const cardWarningLabel = game.liveDataWarning?.issues.includes("invalid_fen")
+    ? t("home.invalidFen")
+    : warningLabel;
+  const cardStatus = isAdmin && cardWarningLabel
+    ? { label: cardWarningLabel, className: "bg-destructive/10 text-destructive" }
+    : boardStatus;
+  const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
+    const styles: Record<string, React.CSSProperties> = {};
+    if (!isAdmin) return styles;
+    physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
+    physicalBoard?.extraSquares?.forEach((square) => { styles[square] = { background: "rgba(255,165,0,0.60)" }; });
+    physicalBoard?.wrongPieceSquares?.forEach((item) => {
+      const square = typeof item === "string" ? item : item.square;
+      if (square) styles[square] = { background: "rgba(255,230,0,0.65)" };
+    });
+    return styles;
+  }, [isAdmin, physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -62,6 +153,10 @@ export function GameCard({ game }: Props) {
       onFocus={() => router.prefetch(boardUrl)}
       aria-label={t("home.openGame", { players: `${game.whiteName} vs ${game.blackName}` })}
     >
+      <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
+        {boardNumber ? <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span className="flex-1" />}
+        {showStatus ? <span role={isAdmin && cardWarningLabel ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 max-w-[55%] shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${cardStatus.className}`}>{cardStatus.label}</span> : null}
+      </div>
       {/* Mini board */}
       <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
         {boardWidth >= 80 ? (
@@ -70,6 +165,10 @@ export function GameCard({ game }: Props) {
             arePiecesDraggable={false}
             customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
             customLightSquareStyle={{ backgroundColor: boardColors.light }}
+            customSquareStyles={initSquareStyles}
+            customArrows={suggestionArrows}
+            customArrowColor={suggestionColor}
+            areArrowsAllowed={false}
             boardWidth={boardWidth}
           />
         ) : (
@@ -93,16 +192,27 @@ export function GameCard({ game }: Props) {
       </div>
       <div className="border-t border-border/70 bg-muted/30 px-3 py-1.5">
         <div className="flex items-center justify-between gap-2">
-          <span className="inline-flex rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[10px] font-semibold text-primary shadow-sm">
+          <span className="inline-flex min-w-0 flex-1 justify-center whitespace-nowrap rounded-full border border-primary/35 bg-primary/12 px-2.5 py-1 text-[9px] font-semibold text-primary shadow-sm sm:text-[10px]">
             {timeControlLabel}
           </span>
           {boardLabel ? (
-            <span className="inline-flex max-w-[9rem] truncate rounded-full border border-accent/40 bg-accent/30 px-2.5 py-1 text-[10px] font-semibold text-accent-foreground shadow-sm">
+            <span className="inline-flex min-w-0 flex-1 justify-center truncate whitespace-nowrap rounded-full border border-accent/40 bg-accent/30 px-2.5 py-1 text-[9px] font-semibold text-accent-foreground shadow-sm sm:text-[10px]">
               {boardLabel}
             </span>
           ) : null}
         </div>
       </div>
+      {isAdmin && (
+        <div onClick={(event) => { event.preventDefault(); event.stopPropagation(); }}>
+          <GameActions
+            gameID={game.gameID}
+            onRestart={restart}
+            onResign={resign}
+            isAuthenticated
+            compact
+          />
+        </div>
+      )}
     </Link>
   );
-}
+});

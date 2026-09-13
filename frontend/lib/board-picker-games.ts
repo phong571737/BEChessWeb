@@ -39,7 +39,7 @@ function toPickerGame(
 
 /**
  * Merge active games, live board store, physical boards, and URL slot ids.
- * Returns at most 3 unique games for the header picker.
+ * Returns at most 4 unique games for the header picker.
  */
 export function buildPickerGames(
     activeGames: ActiveGame[],
@@ -89,7 +89,7 @@ export function buildPickerGames(
         upsert(id, b.whiteName, b.blackName);
     }
 
-    return Array.from(map.values()).slice(0, 3);
+    return Array.from(map.values()).slice(0, 4);
 }
 
 export function pickerGameMap(games: PickerGame[]): Map<string, PickerGame> {

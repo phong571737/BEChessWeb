@@ -15,11 +15,15 @@ export const SOCKET_CONSTANTS = {
 export const CLIENT_EVENT = {
     JOIN: "join",
     REQUEST_CURRENT: "request_current_game",
+    REQUEST_ACTIVE_GAMES: "request_active_games",
     REQUEST_EVAL: "request_eval",
     RESTORED: "restore_game",
 } as const;
 
 export const SERVER_EVENT = {
     ESP_MOVE: "esp_move",
+    GAME_STATE: "game_state",
+    ACTIVE_GAMES_SNAPSHOT: "active_games_snapshot",
+    BOARD_DATA_WARNING: "board_data_warning",
 
 } as const;

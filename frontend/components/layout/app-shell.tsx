@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, FileUp, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -68,7 +68,7 @@ function AppSidebar({
                 <Button
                     variant="ghost"
                     size="icon"
-                    className={cn("size-7 md:hidden shrink-0", !collapsed && "ml-auto")}
+                    className={cn("size-7 lg:hidden shrink-0", !collapsed && "ml-auto")}
                     onClick={onCloseMobile}
                 >
                     <X className="size-3.5" />
@@ -133,12 +133,25 @@ function AppSidebar({
 
     return (
         <>
-            <div className="hidden md:block h-screen sticky top-0">{base}</div>
+            <div className="hidden lg:block h-screen sticky top-0">{base}</div>
             {mobileOpen && (
+<<<<<<< HEAD
                 <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCloseMobile}>
                 <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                     {base}
                 </div>
+=======
+                <div
+                    className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+                    onClick={onCloseMobile}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label={t("app.mobileNavigation")}
+                >
+                    <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
+                        {base}
+                    </div>
+>>>>>>> origin/master
                 </div>
             )}
         </>
@@ -212,7 +225,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="size-8 md:hidden"
+                                className="size-8 lg:hidden"
                                 onClick={() => setMobileOpen(true)}
                             >
                                 <Menu className="size-4" />  
@@ -222,7 +235,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             <Button
                                 variant="ghost"
                                 size="icon"
-                                className="size-8 hidden md:inline-flex"
+                                className="size-8 hidden lg:inline-flex"
                                 onClick={() => setCollapsed((v) => !v)}
                             >
                                 <ChevronRight className={cn(
@@ -232,7 +245,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             </Button>
 
                             {/* Breadcrumb — desktop */}
-                            <div className="hidden md:flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
+                            <div className="hidden lg:flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
                                 <Castle className="size-4 shrink-0 opacity-60" />
                                 <Separator orientation="vertical" className="h-3.5 mx-0.5" />
                                 {crumbLinks.map((c, i) => (
@@ -250,7 +263,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                             </div>
 
                             {/* Mobile title */}
-                            <div className="md:hidden text-sm font-semibold truncate">{t("app.name")}</div>
+                            <div className="lg:hidden text-sm font-semibold truncate">{t("app.name")}</div>
 
                             {/* Right actions */}
                             <div className="ml-auto flex items-center gap-0.5">

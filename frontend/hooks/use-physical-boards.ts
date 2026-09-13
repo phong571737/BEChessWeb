@@ -4,11 +4,17 @@ import { useEffect, useState } from "react";
 import { useGameStore } from "@/lib/store";
 import { useSocket } from "@/components/providers/socket-provider";
 import type { PhysicalBoard } from "@/types/game.types";
-import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
+import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
 
 export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean } {
-  const { physicalBoards, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID } = useGameStore();
+  // Physical-board events must not subscribe this hook to every chess-board
+  // state update; only the physical-board slice is relevant here.
+  const physicalBoards = useGameStore((state) => state.physicalBoards);
+  const patchPhysicalBoard = useGameStore((state) => state.patchPhysicalBoard);
+  const patchPhysicalBoardGameStatus = useGameStore((state) => state.patchPhysicalBoardGameStatus);
+  const removePhysicalBoard = useGameStore((state) => state.removePhysicalBoard);
+  const clearPhysicalBoardGameID = useGameStore((state) => state.clearPhysicalBoardGameID);
   const socket = useSocket();
   const [loading, setLoading] = useState(true);
 
@@ -39,6 +45,10 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
                 ? "active"
                 : g.status,
             online: true,
+            initStatus: g.initStatus,
+            missingSquares: Array.isArray(g.missingSquares) ? g.missingSquares : [],
+            extraSquares: Array.isArray(g.extraSquares) ? g.extraSquares : [],
+            wrongPieceSquares: Array.isArray(g.wrongPieceSquares) ? g.wrongPieceSquares : [],
           };
 
           patchPhysicalBoard(board);
@@ -67,10 +77,6 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
 
   // Live updates via Socket.io
   useEffect(() => {
-    // Dev: log socket presence so we can see when client connects
-    try {
-      // eslint-disable-next-line no-console
-    } catch (e) {}
     if (!socket) return;
 
     const unwrap = (rawData: any) => (Array.isArray(rawData) && rawData.length === 1 ? rawData[0] : rawData);
@@ -79,14 +85,7 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       const payload = unwrap(rawData);
       if (!payload || typeof payload.boardID !== "string") return;
       const { boardID } = payload;
-      // Dev: log offline events
-      try {
-        // eslint-disable-next-line no-console
-      } catch (e) {}
       removePhysicalBoard(boardID);
-      try {
-        // eslint-disable-next-line no-console
-      } catch (e) {}
     };
 
     const onGameStatusUpdate = (rawData: any) => {
@@ -115,14 +114,48 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       patchPhysicalBoard(board);
     };
 
+    const onBoardReset = (rawData: any) => {
+      const payload = unwrap(rawData);
+      if (!payload || typeof payload.boardID !== "string") return;
+      patchPhysicalBoard({
+        boardID: payload.boardID,
+        online: true,
+        initStatus: "checkinit",
+        resetConfirmedAt: typeof payload.confirmedAt === "number" ? payload.confirmedAt : Date.now(),
+      });
+    };
+
+    // Initial-position validation is emitted for every connected client.
+    // Keep it with the physical board so the home-card can show errors before
+    // an administrator opens the individual board page.
+    const onGameState = (rawData: any) => {
+      const payload = unwrap(rawData);
+      const boardID = typeof payload?.boardID === "string"
+        ? payload.boardID
+        : typeof payload?.gameID === "string" ? payload.gameID : null;
+      if (!boardID) return;
+      patchPhysicalBoard({
+        boardID,
+        online: true,
+        initStatus: typeof payload.initResultStatus === "string" ? payload.initResultStatus : payload.gameStatus,
+        missingSquares: Array.isArray(payload.missingSquares) ? payload.missingSquares : [],
+        extraSquares: Array.isArray(payload.extraSquares) ? payload.extraSquares : [],
+        wrongPieceSquares: Array.isArray(payload.wrongPieceSquares) ? payload.wrongPieceSquares : [],
+      });
+    };
+
     socket.on(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
     socket.on(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
     socket.on(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+    socket.on("board_reset", onBoardReset);
+    socket.on(SERVER_EVENT.GAME_STATE, onGameState);
 
     return () => {
       socket.off(SOCKET_CONSTANTS.BOARD_OFFLINE, onOffline);
       socket.off(SOCKET_CONSTANTS.GAME_STATUS_UPDATE, onGameStatusUpdate);
       socket.off(SOCKET_CONSTANTS.BOARD_SCAN_OK, onScanOk);
+      socket.off("board_reset", onBoardReset);
+      socket.off(SERVER_EVENT.GAME_STATE, onGameState);
     };
   }, [socket, patchPhysicalBoard, patchPhysicalBoardGameStatus, removePhysicalBoard, clearPhysicalBoardGameID]);
 

@@ -30,7 +30,7 @@ export class FetchNotFoundError extends Error {
 export function invalidateFetchCache(prefix = ""): void {
   pruneExpiredEntries();
   for (const key of memoryCache.keys()) {
-    if (!prefix || key.startsWith(prefix)) {
+    if (!prefix || key.startsWith(prefix) || key.startsWith(`authenticated:${prefix}`) || key.startsWith(`public:${prefix}`)) {
       memoryCache.delete(key);
     }
   }
@@ -39,15 +39,19 @@ export function invalidateFetchCache(prefix = ""): void {
 export async function fetchJSONCached<T>(url: string, ttlMs: number, init?: RequestInit): Promise<T> {
   const now = Date.now();
   pruneExpiredEntries(now);
-  const cached = memoryCache.get(url) as CacheEntry<T> | undefined;
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+  const cacheKey = `${token ? "authenticated" : "public"}:${url}`;
+  const cached = memoryCache.get(cacheKey) as CacheEntry<T> | undefined;
   if (cached && cached.expiresAt > now) return cached.value;
 
-  const res = await fetch(url, { cache: "no-store", ...init });
+  const headers = new Headers(init?.headers);
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+  const res = await fetch(url, { cache: "no-store", ...init, headers });
   if (!res.ok) throw new Error(`Request failed: ${res.status} — ${url}`);
   const data = (await res.json()) as T;
 
   enforceEntryLimit();
-  memoryCache.set(url, { value: data, expiresAt: now + ttlMs });
+  memoryCache.set(cacheKey, { value: data, expiresAt: now + ttlMs });
   return data;
 }
 

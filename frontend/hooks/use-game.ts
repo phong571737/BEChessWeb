@@ -5,16 +5,20 @@ import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { Chess } from "chess.js"
 import { CLIENT_EVENT, SERVER_EVENT, SOCKET_CONSTANTS } from "@/lib/constants/socket";
 import { GAME_STATUS } from "@/lib/constants/game";
-import { Branch } from "@/types/game.types";
+import { BoardState, Branch, LiveBoardDataWarning } from "@/types/game.types";
 import { extractSanMoves } from "@/lib/custom-chess";
 
-export interface boardAlert {
+export interface BoardAlert {
     code: string;
     detail: string;
 }
 
 export function useGame(gameID: string) {
-    const { patchBoard, boards, patchPhysicalBoard } = useGameStore();
+    // A multi-board page creates one hook per slot. Select the current game
+    // only, otherwise a move on one board rerenders every open board.
+    const patchBoard = useGameStore((state) => state.patchBoard);
+    const patchPhysicalBoard = useGameStore((state) => state.patchPhysicalBoard);
+    const board = useGameStore((state) => state.boards[gameID]);
     const socket = useSocket();
     const chessRef = useRef<Chess>(new Chess());
     const initialMoveCountRef = useRef<number>(0);
@@ -24,7 +28,7 @@ export function useGame(gameID: string) {
     const [moveTimesMap, setMoveTimesMap] = useState<Record<number, number>>({});
     const [loadError, setLoadError] = useState<"not-found" | "error" | null>(null);
 
-    const cachedBoard = boards[gameID];
+    const cachedBoard = board;
     const resetRevision = cachedBoard?.resetRevision;
 
     // ------- Branch state ----------------------------------------
@@ -73,8 +77,11 @@ export function useGame(gameID: string) {
     useEffect(() => {
         if (!socket || !gameID) return;
         const join = () => {
-            socket.emit("join", { gameID });
-            socket.emit("request_clock_state", { gameID });
+            socket.emit("join", { gameID }, (result: { ok?: boolean } | undefined) => {
+                if (!result?.ok) return;
+                socket.emit("request_clock_state", { gameID });
+                socket.emit(CLIENT_EVENT.REQUEST_CURRENT, { gameID });
+            });
         };
         join();
         socket.on("connect", join);
@@ -82,7 +89,10 @@ export function useGame(gameID: string) {
         // snapshot. This keeps long-running and newly opened clients aligned
         // without continuously writing the clock to MongoDB.
         const clockSyncInterval = window.setInterval(() => {
-            if (socket.connected) socket.emit("request_clock_state", { gameID });
+            if (socket.connected) {
+                socket.emit("request_clock_state", { gameID });
+                socket.emit(CLIENT_EVENT.REQUEST_CURRENT, { gameID });
+            }
         }, 15_000);
 
         return () => {
@@ -136,8 +146,15 @@ export function useGame(gameID: string) {
                     } catch { }
                 }
 
-                let boardStatus;
-                if (game.status === GAME_STATUS.FINISHED) boardStatus = GAME_STATUS.ENDED;
+                const boardStatus = game.status === GAME_STATUS.FINISHED || game.status === GAME_STATUS.ENDED
+                    ? GAME_STATUS.ENDED
+                    : game.status === GAME_STATUS.PLAYING || game.status === GAME_STATUS.ACTIVE
+                        ? GAME_STATUS.PLAYING
+                        : game.status === GAME_STATUS.WAITING_SCAN
+                            ? GAME_STATUS.WAITING_SCAN
+                            : game.status === GAME_STATUS.SCAN_FAIL
+                                ? GAME_STATUS.SCAN_FAIL
+                                : GAME_STATUS.WAITING;
 
                 patchBoard(gameID, {
                     fen: game.fen || chessRef.current.fen(),
@@ -161,6 +178,7 @@ export function useGame(gameID: string) {
                     activeClockSide: game.activeClockSide,
                     clockStartedAt: game.clockStartedAt ?? null,
                     serverNow: game.serverNow,
+                    liveDataWarning: game.liveDataWarning,
                 })
                 setIsLoaded(true);
             })
@@ -198,7 +216,7 @@ export function useGame(gameID: string) {
                 if (!res.ok) return;
                 const data = await res.json();
 
-                const initStatus = data.status === "checkinit" ? GAME_STATUS.CHECK_INIT : data.status;
+                const initStatus = data.status;
                 patchBoard(gameID, {
                     initStatus,
                     buttonReady: data.buttonReady === true,
@@ -229,7 +247,7 @@ export function useGame(gameID: string) {
             controller.abort();
             if (interval) clearInterval(interval);
         };
-    }, [gameID, isLoaded, resetRevision]);
+    }, [gameID, isLoaded, patchBoard, resetRevision]);
 
     const applyGameReset = useCallback((data: { resetAt?: number; boardID?: string; initialTimeMs?: number; incrementMs?: number; whiteRemainingMs?: number; blackRemainingMs?: number } = {}) => {
         const resetAt = data.resetAt ?? Date.now();
@@ -278,7 +296,10 @@ export function useGame(gameID: string) {
 
     // ---- Game socket listeners (after load) -------------------------------
     useEffect(() => {
-        if (!socket || !gameID || !isLoaded) return;
+        // Subscribe as soon as Socket.IO is available. Waiting for the REST
+        // game request to finish creates a race where an ESP32 move can arrive
+        // before this listener exists and only become visible after reload.
+        if (!socket || !gameID) return;
 
         // onMove event 
         const onMove = (data: any) => {
@@ -302,7 +323,13 @@ export function useGame(gameID: string) {
             // }
 
             const incomingBranches: Branch[] = data.branches ?? [];
-            const newPgn = data.pgn || chessRef.current.pgn();
+            // Loading a FEN clears chess.js move history. Preserve the PGN
+            // currently rendered before loading the incoming position so an
+            // older/partial move payload cannot make the PGN table disappear.
+            const currentPgn = useGameStore.getState().boards[gameID]?.pgn ?? chessRef.current.pgn();
+            const newPgn = typeof data.pgn === "string" && data.pgn.trim()
+                ? data.pgn
+                : currentPgn;
 
             try {
                 // if (data.pgn) chessRef.current.loadPgn(data.pgn);
@@ -344,7 +371,7 @@ export function useGame(gameID: string) {
                         const nextFen = typeof data.fen === "string" ? data.fen.trim() : "";
                         return nextFen && current.at(-1) !== nextFen ? [...current, nextFen] : current;
                     })(),
-                pgn: data.pgn || chessRef.current.pgn(),
+                pgn: newPgn,
                 lastMove: data.lastMove || null,
                 // branches: incomingBranches ?? board?.branches ?? [],
                 branches: incomingBranches,
@@ -380,7 +407,7 @@ export function useGame(gameID: string) {
 
         // Restore game 
         const onRestore = (data: any) => {
-            if (data.game != gameID) return;
+            if (data.gameID !== gameID) return;
             const currentBoard = useGameStore.getState().boards[gameID];
 
             try {
@@ -393,23 +420,33 @@ export function useGame(gameID: string) {
             } catch { }
 
             initialMoveCountRef.current = chessRef.current.history().length;
-            patchBoard(gameID, {
+            const patch: Partial<BoardState> = {
                 fen: data.fen || chessRef.current.fen(),
                 initialFen: data.initialFen ?? currentBoard?.initialFen,
                 fenHistory: Array.isArray(data.fenHistory)
                     ? data.fenHistory
                     : (currentBoard?.fenHistory ?? []),
-                pgn: data.pgn || "",
-                whiteName: data.whiteName || "White",
-                blackName: data.blackName || "Black",
-                lastMove: data.lastMove || null,
-            })
+                pgn: typeof data.pgn === "string" ? data.pgn : (currentBoard?.pgn ?? ""),
+                lastMove: data.lastMove !== undefined ? (data.lastMove || null) : (currentBoard?.lastMove ?? null),
+            };
+            // A partial restore must never erase setup metadata. Older servers
+            // sent only FEN/lastMove, which previously reverted renamed players
+            // to the hard-coded defaults every 15 seconds.
+            if (typeof data.whiteName === "string") patch.whiteName = data.whiteName;
+            if (typeof data.blackName === "string") patch.blackName = data.blackName;
+            if (typeof data.initialTimeMs === "number") patch.initialTimeMs = data.initialTimeMs;
+            if (typeof data.incrementMs === "number") patch.incrementMs = data.incrementMs;
+            if (typeof data.round === "number") patch.round = data.round;
+            if (typeof data.boardNumber === "string") patch.boardNumber = data.boardNumber;
+            if (typeof data.location === "string") patch.location = data.location;
+            if (typeof data.tournament === "string") patch.tournament = data.tournament;
+            patchBoard(gameID, patch);
         }
 
         // Renamed
         const onRenamed = (data: any) => {
             if (data.gameID !== gameID) return;
-            const patch: Partial<{ whiteName: string, blackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string }> = {};
+            const patch: Partial<{ whiteName: string, blackName: string, initialTimeMs: number, incrementMs: number, round: number, boardNumber: string, location: string, tournament: string }> = {};
             if (data.whiteName !== undefined) patch.whiteName = data.whiteName;
             if (data.blackName !== undefined) patch.blackName = data.blackName;
             if (data.initialTimeMs !== undefined) patch.initialTimeMs = data.initialTimeMs;
@@ -417,13 +454,20 @@ export function useGame(gameID: string) {
             if (data.round !== undefined) patch.round = data.round;
             if (data.boardNumber !== undefined) patch.boardNumber = data.boardNumber;
             if (data.location !== undefined) patch.location = data.location;
+            if (data.tournament !== undefined) patch.tournament = data.tournament;
             if (Object.keys(patch).length) patchBoard(gameID, patch);
         }
+
+        const onBoardDataWarning = (data: LiveBoardDataWarning) => {
+            if (!data || data.gameID !== gameID) return;
+            patchBoard(gameID, { liveDataWarning: data });
+        };
 
         socket.on(SERVER_EVENT.ESP_MOVE, onMove);
         socket.on(CLIENT_EVENT.RESTORED, onRestore);
         socket.on(SOCKET_CONSTANTS.GAME_RENAME, onRenamed);
         socket.on("clock_state", onClockState);
+        socket.on(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
 
         const onUpdateAllGame = (data: any) => {
             // Never apply a broadcast without an explicit game identity. A
@@ -486,14 +530,13 @@ export function useGame(gameID: string) {
             socket.off("game_restart", onGameRestart);
             socket.off("game:reset", onGameReset);
             socket.off("clock_state", onClockState);
+            socket.off(SERVER_EVENT.BOARD_DATA_WARNING, onBoardDataWarning);
         }
-    }, [socket, gameID, isLoaded, applyGameReset]);
+    }, [socket, gameID, applyGameReset, patchBoard]);
 
     
 
     // --- PGN history -----------------------------------------
-    const board = boards[gameID];
-
     const branches = board?.branches ?? [];
     const selectedBranchId = board?.selectedBranchId ?? null;
 
@@ -621,6 +664,7 @@ export function useGame(gameID: string) {
         missingSquares: board?.missingSquares ?? [],
         extraSquares: board?.extraSquares ?? [],
         wrongPieceSquares: board?.wrongPieceSquares ?? [],
+        liveDataWarning: board?.liveDataWarning,
 
         // branches
         branches: board?.branches ?? [],
@@ -640,6 +684,7 @@ export function useGame(gameID: string) {
         round: board?.round ?? 1,
         location: board?.location ?? "",
         boardNumber: board?.boardNumber ?? "",
+        tournament: board?.tournament ?? "",
         resetRevision: board?.resetRevision,
     }
 }

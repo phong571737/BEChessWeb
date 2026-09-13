@@ -29,6 +29,22 @@ export async function connectDB(): Promise<Db | undefined> {
       { deleteAfter: 1 },
       { expireAfterSeconds: 0, name: "history_trash_expiry" },
     );
+    await database.collection("game_history").createIndex(
+      { deletedAt: 1, createdAt: -1 },
+      { name: "history_active_created_at" },
+    );
+    await database.collection("board_uptime").createIndex(
+      { boardID: 1 },
+      { unique: true, name: "board_uptime_board_id" },
+    );
+    await database.collection("board_uptime_sessions").createIndex(
+      { boardID: 1, onlineAt: -1 },
+      { name: "board_uptime_sessions_board_started" },
+    );
+    await database.collection("board_uptime_sessions").createIndex(
+      { boardID: 1, status: 1 },
+      { unique: true, partialFilterExpression: { status: "online" }, name: "board_uptime_one_open_session" },
+    );
     return database;
   } catch (err) {
     console.log(err);

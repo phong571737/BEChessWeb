@@ -74,6 +74,7 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
   }, [analysisGame, game, onAnalysisSaved, t, token]);
 
   useEffect(() => {
+<<<<<<< HEAD
     analysisRunRef.current += 1;
     setError(null);
     setProgress({ completed: 0, total: 0 });
@@ -93,6 +94,59 @@ export function MoveAnalysisPanel({ game, analysisGame, currentPly, onSelectPly,
         void runAnalysis(true);
       } else {
         setRunning(false);
+=======
+    let cancelled = false;
+    const pendingAnalysisPromises = analysisPromisesRef.current;
+    let ownsPendingAnalysis = false;
+    let analysisSettled = false;
+    const controller = new AbortController();
+    activeAnalysisKeyRef.current = analysisKey;
+    setError(null);
+    setProgress({ completed: 0, total: 0 });
+    setMoves([]);
+    onAnalysisSaved?.([]);
+
+    const hasMoves = (sourceGame.fenHistory?.length ?? 0) >= 2;
+    if (!hasMoves) {
+      setRunning(false);
+      return () => { cancelled = true; };
+    }
+
+    setRunning(true);
+    let analysisPromise = analysisPromisesRef.current.get(analysisKey);
+    if (!analysisPromise) {
+      ownsPendingAnalysis = true;
+      analysisPromise = analyzeHistoryMoves(sourceGame, (completed, total) => {
+        if (!cancelled && activeAnalysisKeyRef.current === analysisKey) {
+          setProgress({ completed, total });
+        }
+      }, 14, controller.signal);
+      analysisPromisesRef.current.set(analysisKey, analysisPromise);
+    }
+
+    void analysisPromise
+      .then((result) => {
+        if (cancelled || activeAnalysisKeyRef.current !== analysisKey) return;
+        setMoves(result);
+        onAnalysisSaved?.(result);
+      })
+      .catch(() => {
+        pendingAnalysisPromises.delete(analysisKey);
+        if (!cancelled && !controller.signal.aborted && activeAnalysisKeyRef.current === analysisKey) {
+          setError(t("analysis.error"));
+        }
+      })
+      .finally(() => {
+        analysisSettled = true;
+        if (!cancelled && activeAnalysisKeyRef.current === analysisKey) setRunning(false);
+      });
+
+    return () => {
+      cancelled = true;
+      if (ownsPendingAnalysis && !analysisSettled) {
+        controller.abort();
+        pendingAnalysisPromises.delete(analysisKey);
+>>>>>>> origin/master
       }
     }
   }, [branchKey, game.analysis, game._id, runAnalysis]);

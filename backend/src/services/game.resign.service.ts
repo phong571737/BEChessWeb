@@ -1,5 +1,9 @@
 import { Chess } from "chess.js";
+<<<<<<< HEAD
 import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, saveGame } from "../models/game.model.js";
+=======
+import { claimGameResignation, endGame, getGame, markHistoryUnfinished, releaseGameResignationClaim, removeGame } from "../models/game.model.js";
+>>>>>>> origin/master
 import { resetGame } from "../game/game.manager.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { ERROR_STATUS, GAME_STATUS } from "../constant.js";
@@ -15,6 +19,7 @@ interface ResignResult {
     status: "OK";
     oldGameID: string;
     newGameID: string;
+    boardID: string;
     loser: ResignSide;
     winner: "white" | "black" | null;
 }
@@ -123,6 +128,7 @@ export const GameResignService = {
             boardID: game.boardID,
             boardNumber: game.boardNumber,
             location: game.location,
+            tournament: game.tournament,
             pgn: finalPGN,
             initialFen: game.initialFen,
             whiteName: game.whiteName || "White",
@@ -182,8 +188,8 @@ export const GameResignService = {
         if (!game.boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);
         }
-        await GameService.create(game.boardID, newGameID, nextRound);
-        return { status: "OK", oldGameID: gameID, newGameID, loser: resignSide, winner };
+        await GameService.create(game.boardID, newGameID, nextRound, "", "", undefined, undefined, game.tournament ?? "");
+        return { status: "OK", oldGameID: gameID, newGameID, boardID: game.boardID, loser: resignSide, winner };
         } catch (error) {
             try {
                 await releaseGameResignationClaim(gameID, game.status === "resigning" ? "waiting" : game.status);

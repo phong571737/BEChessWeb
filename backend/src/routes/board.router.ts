@@ -1,8 +1,11 @@
 import express from "express";
 import { BoardController } from "../controllers/board.controller.js";
-import { boardCreateRateLimit, boardInitCheckRateLimit } from "../middleware/rate-limit.middleware.js";
+import { boardCreateRateLimit, boardInitCheckRateLimit, gameReadRateLimit } from "../middleware/rate-limit.middleware.js";
+import { requireAdmin } from "../middleware/auth.middleware.js";
 
 export const boardRouter = express.Router();
+
+boardRouter.get("/uptime", gameReadRateLimit, requireAdmin, BoardController.getUptime);
 
 /**
  * POST /boards
