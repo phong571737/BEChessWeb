@@ -11,7 +11,6 @@ export interface ParseCandidatesInput {
 export interface ProcessMoveInput extends ParseCandidatesInput {
     fen?: string;
     boardID: string;
-    seq?: number;
 }
 
 export interface ParsedCandidatesSuccess {

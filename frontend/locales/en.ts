@@ -87,6 +87,7 @@ export const en = {
     "sg.errNoGameID": "Server did not return a gameID",
     "sg.errUnknown": "Unknown error",
     "sg.fillName": "Fill both player names to start a new match.",
+    "sg.setupUpdatedByAnotherAdmin": "Another administrator updated this match (White: {white}, Black: {black}), including players, board, round, clock, location, and tournament. The form now shows the latest server data.",
     "sg.moves": "Moves",
     "sg.branch": "Branch",
     "sg.mainBranch": "Main branch", 

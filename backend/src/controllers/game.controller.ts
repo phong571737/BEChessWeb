@@ -75,8 +75,34 @@ export const GameController = {
             const pageSize = Math.min(50, Math.max(1, Number.parseInt(String(req.query.pageSize ?? "25"), 10) || 25));
             // History is an archive view: include every non-deleted document,
             // including legacy rows that only contain PGN/totalMoves.
-            const historyFilter = { deletedAt: { $exists: false } };
+            const baseHistoryFilter: Record<string, unknown> = { deletedAt: { $exists: false } };
+            const historyConditions: Record<string, unknown>[] = [baseHistoryFilter];
+            const search = String(req.query.search ?? "").trim().slice(0, 160);
+            const board = String(req.query.board ?? "").trim().slice(0, 160);
+            if (search) {
+                const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+                const namePattern = new RegExp(escapedSearch, "i");
+                historyConditions.push({
+                    $or: [
+                        { whiteName: namePattern }, { blackName: namePattern },
+                        { White: namePattern }, { Black: namePattern },
+                    ],
+                });
+            }
+            if (board) {
+                historyConditions.push({ $or: [{ boardID: board }, { boardNumber: board }] });
+            }
+            const historyFilter: Record<string, unknown> = historyConditions.length === 1
+                ? baseHistoryFilter
+                : { $and: historyConditions };
             const collection = getPGNCollections();
+            // Filter choices must cover the complete archive, not only the 25
+            // records loaded for the current page.
+            const [allBoardIDs, allBoardNumbers, allLocations] = await Promise.all([
+                collection.distinct("boardID", baseHistoryFilter),
+                collection.distinct("boardNumber", baseHistoryFilter),
+                collection.distinct("location", baseHistoryFilter),
+            ]);
             const total = hasPagination ? await collection.countDocuments(historyFilter) : 0;
             // The history list is paginated, but the summary must describe the
             // complete archive rather than only the records on the current page.
@@ -148,6 +174,16 @@ export const GameController = {
                     total,
                     totalPages: Math.max(1, Math.ceil(total / pageSize)),
                     summary: { ...summary, total: summaryRows.length },
+                    filterOptions: {
+                        boards: Array.from(new Set([...allBoardIDs, ...allBoardNumbers]))
+                            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                            .map((value) => value.trim())
+                            .sort(),
+                        locations: allLocations
+                            .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
+                            .map((value) => value.trim())
+                            .sort(),
+                    },
                 });
                 return;
             }

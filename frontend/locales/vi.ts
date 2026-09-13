@@ -89,6 +89,7 @@ export const vi: Record<TranslationKeys, string> = {
     "sg.errNoGameID": "Server không trả về gameID",
     "sg.errUnknown": "Lỗi không xác định",
     "sg.fillName": "Điền tên hai người chơi để bắt đầu ván đấu",
+    "sg.setupUpdatedByAnotherAdmin": "Toàn bộ thông tin trận đấu vừa được một quản trị viên khác cập nhật (Trắng: {white}, Đen: {black}), gồm người chơi, bàn, ván, thời gian, địa điểm và giải đấu. Biểu mẫu đã nạp dữ liệu mới nhất từ server.",
     "sg.moves": "moves",
     "sg.branch": "Nhánh",
     "sg.mainBranch": "Nhánh chính", 

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react";
 import { HistoryGame } from "@/types/game.types";
 import { useRouter } from "next/navigation";
 import { useT } from "@/lib/i18n";
@@ -38,6 +38,7 @@ type PaginatedHistoryResponse = {
   total: number;
   totalPages: number;
   summary?: HistorySummary;
+  filterOptions?: { boards?: string[]; locations?: string[] };
 };
 
 const HISTORY_PAGE_SIZE = 25;
@@ -83,6 +84,8 @@ export function GameHistory() {
   const [search, setSearch] = useState("");
   const [boardFilter, setBoardFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
+  const [serverBoardOptions, setServerBoardOptions] = useState<string[]>([]);
+  const [serverLocationOptions, setServerLocationOptions] = useState<string[]>([]);
   const [timeControlFilter, setTimeControlFilter] = useState<"all" | "blitz" | "rapid" | "classical">("all");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
@@ -104,6 +107,7 @@ export function GameHistory() {
   const router = useRouter();
   const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
+  const deferredSearch = useDeferredValue(search.trim());
 
   const normalizeGame = useCallback((g: HistoryGame): HistoryGame => {
     const legacy = g as LegacyHistoryGame;
@@ -145,7 +149,10 @@ export function GameHistory() {
 
   useEffect(() => {
     setLoading(true);
-    const url = `/games/history?page=${page}&pageSize=${HISTORY_PAGE_SIZE}`;
+    const params = new URLSearchParams({ page: String(page), pageSize: String(HISTORY_PAGE_SIZE) });
+    if (deferredSearch) params.set("search", deferredSearch);
+    if (boardFilter) params.set("board", boardFilter);
+    const url = `/games/history?${params.toString()}`;
     fetchJSONCached<PaginatedHistoryResponse | HistoryGame[]>(url, 10_000)
       .then((data) => {
         // Keep the client compatible with an older backend during rolling deploys.
@@ -168,10 +175,12 @@ export function GameHistory() {
         setTotalGames(payload.total);
         setTotalPages(payload.totalPages);
         setHistorySummary(payload.summary ?? { whiteWins: 0, blackWins: 0, draws: 0, total: payload.total });
+        if (payload.filterOptions?.boards) setServerBoardOptions(payload.filterOptions.boards);
+        if (payload.filterOptions?.locations) setServerLocationOptions(payload.filterOptions.locations);
       })
       .catch((e: unknown) => console.warn("[history]", e instanceof Error ? e.message : e))
       .finally(() => setLoading(false));
-  }, [normalizeGame, page]);
+  }, [normalizeGame, page, deferredSearch, boardFilter]);
 
   useEffect(() => {
     if (isAdmin) return;
@@ -344,19 +353,26 @@ export function GameHistory() {
     }
   };
 
-  const boardOptions = useMemo(() => Array.from(new Set(games.map((game) => game.boardID).filter((value): value is string => Boolean(value)))).sort(), [games]);
-  const locationOptions = useMemo(() => Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(), [games]);
+  const boardOptions = useMemo(() => serverBoardOptions.length
+    ? serverBoardOptions
+    : Array.from(new Set(games.flatMap((game) => [game.boardID, game.boardNumber]).filter((value): value is string => Boolean(value)))).sort(),
+  [games, serverBoardOptions]);
+  const locationOptions = useMemo(() => serverLocationOptions.length
+    ? serverLocationOptions
+    : Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(),
+  [games, serverLocationOptions]);
   const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || timeControlFilter !== "all" || statusFilter !== "all");
 
   const clearFilters = () => {
     setResultFilter("all"); setStatusFilter("all"); setSearch(""); setBoardFilter(""); setLocationFilter("");
     setTimeControlFilter("all"); setDateFrom(""); setDateTo("");
+    setPage(1);
   };
 
   const filteredGames = games
     .filter((g) => (resultFilter === "all" ? true : g.Result === resultFilter))
     .filter((g) => statusFilter === "all" ? true : statusFilter === "unfinished" ? !isFinishedResult(g) : isFinishedResult(g))
-    .filter((g) => !boardFilter || g.boardID === boardFilter)
+    .filter((g) => !boardFilter || g.boardID === boardFilter || g.boardNumber === boardFilter)
     .filter((g) => !locationFilter || g.location?.trim() === locationFilter)
     .filter((g) => timeControlFilter === "all" || resolveTimeControlType(g.initialTimeMs, g.incrementMs, g.timeControlType) === timeControlFilter)
     .filter((g) => {
@@ -495,7 +511,7 @@ export function GameHistory() {
               <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2.5">
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("played.player")}</span><div className="relative">
                   <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                  <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t("played.filterPlayers")} className={cn(INPUT_CLS, "pl-8")} />
+                  <input value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} placeholder={t("played.filterPlayers")} className={cn(INPUT_CLS, "pl-8")} />
                 </div></label>
                 <label className="space-y-1 text-xs text-muted-foreground"><span>{t("common.result")}</span><select
                   value={resultFilter}
@@ -512,7 +528,7 @@ export function GameHistory() {
                   <option value="finished">{t("played.finished")}</option>
                   <option value="unfinished">{t("played.unfinished")}</option>
                 </select></label>
-                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("common.chessboard")}</span><select value={boardFilter} onChange={(e) => setBoardFilter(e.target.value)} className={cn(INPUT_CLS, "cursor-pointer")}>
+                <label className="space-y-1 text-xs text-muted-foreground"><span>{t("common.chessboard")}</span><select value={boardFilter} onChange={(e) => { setBoardFilter(e.target.value); setPage(1); }} className={cn(INPUT_CLS, "cursor-pointer")}>
                   <option value="">{t("played.allBoards")}</option>
                   {boardOptions.map((board) => <option key={board} value={board}>{board}</option>)}
                 </select></label>

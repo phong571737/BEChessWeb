@@ -56,10 +56,22 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
     const [tournamentName, setTournamentName] = useState(tournament);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [remoteUpdate, setRemoteUpdate] = useState<string | null>(null);
     const [excelImport, setExcelImport] = useState<ExcelGameImport | null>(null);
     const [selectedExcelRow, setSelectedExcelRow] = useState("");
     const [excelError, setExcelError] = useState<string | null>(null);
     const excelInputRef = useRef<HTMLInputElement>(null);
+    const serverSetupSignature = JSON.stringify({
+        whiteName,
+        blackName,
+        initialTimeMs,
+        incrementMs,
+        round,
+        boardNumber: initialBoardNumber,
+        location,
+        tournament,
+    });
+    const previousServerSetupRef = useRef(serverSetupSignature);
     const clockLabel = (value: number) => value >= 3_600_000
         ? t("sg.hourOption", { n: value / 3_600_000 })
         : t(value === 60_000 ? "sg.minuteOption" : "sg.minutesOption", { n: value / 60_000 });
@@ -80,6 +92,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         setGameLocation(location);
         setTournamentName(tournament);
         setError(null);
+        setRemoteUpdate(null);
         const draft = readBulkGameSetupDraft();
         const assignedRowIndex = draft
             ? Object.entries(draft.boardAssignments).find(([, assignedGameID]) => assignedGameID === gameID)?.[0]
@@ -108,6 +121,20 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
         }
         setExcelError(null);
     }, [open, whiteName, blackName, initialTimeMs, incrementMs, round, location, initialBoardNumber, gameID, tournament]);
+
+    /* game:renamed updates these props through the shared game store. If a
+     * second administrator saves while this dialog is open, retain the
+     * server-authoritative values loaded by the effect above and make the
+     * concurrent update visible instead of silently overwriting the form. */
+    useEffect(() => {
+        const previous = previousServerSetupRef.current;
+        previousServerSetupRef.current = serverSetupSignature;
+        if (!open || loading || previous === serverSetupSignature) return;
+        setRemoteUpdate(t("sg.setupUpdatedByAnotherAdmin", {
+            white: whiteName,
+            black: blackName,
+        }));
+    }, [serverSetupSignature, open, loading, t, whiteName, blackName]);
 
     const applyExcelRow = (index: string, imported = excelImport) => {
         setSelectedExcelRow(index);
@@ -237,6 +264,11 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                         </div>
                     )}
                     {excelError && <p className="text-xs text-destructive">{excelError}</p>}
+                    {remoteUpdate && (
+                        <div role="status" className="rounded-md border border-info/40 bg-info/10 px-3 py-2 text-xs text-foreground">
+                            {remoteUpdate}
+                        </div>
+                    )}
                     <div className="grid gap-3 sm:grid-cols-2">
                         <div className="space-y-2"><Label htmlFor="board-setup-white">{t("sg.whiteSide")}</Label><Input id="board-setup-white" value={white} onChange={(event) => setWhite(event.target.value)} disabled={loading} /></div>
                         <div className="space-y-2"><Label htmlFor="board-setup-black">{t("sg.blackSide")}</Label><Input id="board-setup-black" value={black} onChange={(event) => setBlack(event.target.value)} disabled={loading} /></div>
