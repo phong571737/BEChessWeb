@@ -414,7 +414,6 @@ export const en = {
     "settings.dark": "Dark",
     "settings.flipBoard": "Flip board",
     "settings.evaluationBar": "Evaluation bar",
-    "settings.homeEvaluationBar": "Homepage evaluation bars",
     "settings.mobileApp": "Mobile app",
     "settings.downloadApk": "Download TTLab Android app",
     "settings.usageGuide": "Board setup guide",

@@ -163,7 +163,6 @@ export const vi: Record<TranslationKeys, string> = {
     "settings.dark": "Tối",
     "settings.flipBoard": "Lật bàn cờ",
     "settings.evaluationBar": "Thanh đánh giá",
-    "settings.homeEvaluationBar": "Thanh đánh giá trang chủ",
     "settings.mobileApp": "Ứng dụng di động",
     "settings.downloadApk": "Tải ứng dụng TTLab Android",
     "settings.usageGuide": "Hướng dẫn kết nối bàn cờ",

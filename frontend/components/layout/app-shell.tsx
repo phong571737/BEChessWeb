@@ -366,7 +366,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                         onClick={() => setHomeEvaluationVisible(!homeEvaluationVisible)}
                                                         className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                                                     >
-                                                        <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />{t("settings.homeEvaluationBar")}</span>
+                                                        <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />{t("settings.evaluationBar")}</span>
                                                         {homeEvaluationVisible && <Check className="size-3.5 text-primary" />}
                                                     </button>
                                                 </>

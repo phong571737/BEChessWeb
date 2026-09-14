@@ -357,10 +357,13 @@ export function GameHistory() {
     ? serverBoardOptions
     : Array.from(new Set(games.flatMap((game) => [game.boardID, game.boardNumber]).filter((value): value is string => Boolean(value)))).sort(),
   [games, serverBoardOptions]);
-  const locationOptions = useMemo(() => serverLocationOptions.length
-    ? serverLocationOptions
-    : Array.from(new Set(games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))).sort(),
-  [games, serverLocationOptions]);
+  const locationOptions = useMemo(() => Array.from(new Set(
+    (serverLocationOptions.length
+      ? serverLocationOptions
+      : games.map((game) => game.location?.trim()).filter((value): value is string => Boolean(value)))
+      .map((value) => value.trim())
+      .filter(Boolean),
+  )).sort(), [games, serverLocationOptions]);
   const hasAdvancedFilters = Boolean(boardFilter || locationFilter || dateFrom || dateTo || timeControlFilter !== "all" || statusFilter !== "all");
 
   const clearFilters = () => {

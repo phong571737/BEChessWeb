@@ -109,7 +109,7 @@ export const GameController = {
                 projection: { boardID: 1, boardNumber: 1, location: 1 },
             }).toArray();
             const allBoards = summaryWithOptions.flatMap((record) => [record.boardID, record.boardNumber]);
-            const allLocations = summaryWithOptions.map((record) => record.location);
+            const allLocations = Array.from(new Set(summaryWithOptions.map((record) => record.location)));
             const summary = summaryRows.reduce((counts, record) => {
                 const result = historyResult(record);
                 if (result === "1-0") counts.whiteWins += 1;
@@ -183,6 +183,7 @@ export const GameController = {
                         locations: allLocations
                             .filter((value): value is string => typeof value === "string" && value.trim().length > 0)
                             .map((value) => value.trim())
+                            .filter((value, index, values) => values.indexOf(value) === index)
                             .sort(),
                     },
                 });
