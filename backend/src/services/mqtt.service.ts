@@ -2,7 +2,7 @@ import mqtt, { MqttClient } from "mqtt";
 import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { getGame, removeGameByBoardID } from "../models/game.model.js";
+import { getGame, getLatestUnfinishedGameByBoardID, removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
@@ -81,6 +81,15 @@ function cancelPendingCleanup(boardID: string) {
 
 async function cleanupBoard(boardID: string) {
     try {
+        const unfinishedGame = await getLatestUnfinishedGameByBoardID(boardID);
+        if (unfinishedGame) {
+            console.log(
+                `[MQTT] Skipping offline cleanup for ${boardID}: game ${unfinishedGame.gameID}`
+                + ` is still ${unfinishedGame.status}`,
+            );
+            return;
+        }
+
         const result: RemoveGameByBoardResult = await removeGameByBoardID(boardID);
         console.log("[MQTT] Remove result:", result);
         if (result?.gameIDs?.length) {

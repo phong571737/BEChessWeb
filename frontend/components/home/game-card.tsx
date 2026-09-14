@@ -12,9 +12,10 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { GameActions } from "@/components/board/game-actions";
 import { apiFetch } from "@/lib/api-fetch";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
-import type { Square } from "chess.js";
+import { Chess, type Color, type Square } from "chess.js";
 import { useHomeMoveSuggestion } from "@/hooks/use-home-move-suggestion";
 import { getSuggestionColor } from "@/components/board/chess-board-view";
+import { EvalBar } from "@/components/board/eval-bar";
 
 const Chessboard = dynamic(
     () => import("react-chessboard").then((m) => m.Chessboard),
@@ -28,17 +29,46 @@ interface Props {
     isAdmin?: boolean;
 }
 
+interface HomeKingThreat {
+  square: Square;
+  color: Color;
+  checkmate: boolean;
+}
+
+function getHomeKingThreat(fen?: string): HomeKingThreat | null {
+  if (!fen) return null;
+  try {
+    const position = new Chess(fen);
+    if (!position.isCheck()) return null;
+    const color = position.turn();
+    for (const file of "abcdefgh") {
+      for (const rank of "12345678") {
+        const square = `${file}${rank}` as Square;
+        const piece = position.get(square);
+        if (piece?.type === "k" && piece.color === color) {
+          return { square, color, checkmate: position.isCheckmate() };
+        }
+      }
+    }
+  } catch {
+    // Invalid device FEN is surfaced through the existing administrator warning.
+  }
+  return null;
+}
+
 export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
-  const { boardColors } = useBoardDisplay();
+  const { boardColors, homeEvaluationVisible } = useBoardDisplay();
   const [showMoveSuggestion, setShowMoveSuggestion] = useState(false);
   useEffect(() => {
     setShowMoveSuggestion(localStorage.getItem(`live-show-suggestions-${game.gameID}`) !== "false");
   }, [game.gameID]);
-  const suggestedMove = useHomeMoveSuggestion(game.fen, showMoveSuggestion);
+  const homeAnalysis = useHomeMoveSuggestion(game.fen, showMoveSuggestion || homeEvaluationVisible);
+  const suggestedMove = homeAnalysis?.suggestedMove ?? null;
+  const kingThreat = useMemo(() => getHomeKingThreat(game.fen), [game.fen]);
   const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const suggestionArrows = useMemo(() => suggestedMove
     ? [[suggestedMove.from, suggestedMove.to, suggestionColor]] as [Square, Square, string][]
@@ -110,20 +140,37 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const cardWarningLabel = game.liveDataWarning?.issues.includes("invalid_fen")
     ? t("home.invalidFen")
     : warningLabel;
-  const cardStatus = isAdmin && cardWarningLabel
+  const positionStatus = kingThreat
+    ? kingThreat.checkmate
+      ? { label: t("home.checkmate"), className: "bg-destructive text-destructive-foreground" }
+      : { label: t("home.check"), className: "bg-destructive/10 text-destructive" }
+    : null;
+  const cardStatus = positionStatus ?? (isAdmin && cardWarningLabel
     ? { label: cardWarningLabel, className: "bg-destructive/10 text-destructive" }
-    : boardStatus;
+    : boardStatus);
   const initSquareStyles = useMemo<Record<string, React.CSSProperties>>(() => {
     const styles: Record<string, React.CSSProperties> = {};
-    if (!isAdmin) return styles;
-    physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
-    physicalBoard?.extraSquares?.forEach((square) => { styles[square] = { background: "rgba(255,165,0,0.60)" }; });
-    physicalBoard?.wrongPieceSquares?.forEach((item) => {
-      const square = typeof item === "string" ? item : item.square;
-      if (square) styles[square] = { background: "rgba(255,230,0,0.65)" };
-    });
+    if (isAdmin) {
+      physicalBoard?.missingSquares?.forEach((square) => { styles[square] = { background: "rgba(255,0,0,0.55)" }; });
+      physicalBoard?.extraSquares?.forEach((square) => { styles[square] = { background: "rgba(255,165,0,0.60)" }; });
+      physicalBoard?.wrongPieceSquares?.forEach((item) => {
+        const square = typeof item === "string" ? item : item.square;
+        if (square) styles[square] = { background: "rgba(255,230,0,0.65)" };
+      });
+    }
+    if (kingThreat) {
+      styles[kingThreat.square] = {
+        ...styles[kingThreat.square],
+        background: kingThreat.checkmate
+          ? "radial-gradient(circle, hsl(var(--state-checkmate) / 0.35) 12%, hsl(var(--state-checkmate) / 0.95) 100%)"
+          : "radial-gradient(circle, hsl(var(--state-checkmate) / 0.2) 18%, hsl(var(--state-checkmate) / 0.9) 100%)",
+        boxShadow: kingThreat.checkmate
+          ? "inset 0 0 0 3px hsl(var(--state-checkmate)), inset 0 0 0 5px hsl(var(--foreground) / 0.3)"
+          : "inset 0 0 0 2px hsl(var(--state-checkmate))",
+      };
+    }
     return styles;
-  }, [isAdmin, physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
+  }, [isAdmin, kingThreat, physicalBoard?.extraSquares, physicalBoard?.missingSquares, physicalBoard?.wrongPieceSquares]);
 
   useEffect(() => {
     const el = boardWrapRef.current;
@@ -155,24 +202,38 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
     >
       <div className="flex min-h-8 items-center justify-between gap-2 border-b border-border bg-muted/30 px-3 py-1.5">
         {boardNumber ? <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{t("common.boardNumber", { n: boardNumber })}</span> : <span className="flex-1" />}
-        {showStatus ? <span role={isAdmin && cardWarningLabel ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 max-w-[55%] shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${cardStatus.className}`}>{cardStatus.label}</span> : null}
+        {showStatus || positionStatus ? <span role={positionStatus || (isAdmin && cardWarningLabel) ? "alert" : "status"} title={cardStatus.label} className={`min-w-0 max-w-[55%] shrink-0 truncate rounded-full px-2 py-0.5 text-[10px] font-semibold ${cardStatus.className}`}>{cardStatus.label}</span> : null}
       </div>
       {/* Mini board */}
-      <div ref={boardWrapRef} className="w-full aspect-square overflow-hidden">
-        {boardWidth >= 80 ? (
-          <Chessboard
-            position={game.fen || "start"}
-            arePiecesDraggable={false}
-            customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
-            customLightSquareStyle={{ backgroundColor: boardColors.light }}
-            customSquareStyles={initSquareStyles}
-            customArrows={suggestionArrows}
-            customArrowColor={suggestionColor}
-            areArrowsAllowed={false}
-            boardWidth={boardWidth}
-          />
-        ) : (
-          <div className="w-full h-full bg-muted animate-pulse" />
+      <div className="flex w-full items-stretch overflow-hidden">
+        <div ref={boardWrapRef} className="min-w-0 flex-1 aspect-square overflow-hidden">
+          {boardWidth >= 80 ? (
+            <Chessboard
+              position={game.fen || "start"}
+              arePiecesDraggable={false}
+              customDarkSquareStyle={{ backgroundColor: boardColors.dark }}
+              customLightSquareStyle={{ backgroundColor: boardColors.light }}
+              customSquareStyles={initSquareStyles}
+              customArrows={suggestionArrows}
+              customArrowColor={suggestionColor}
+              areArrowsAllowed={false}
+              boardWidth={boardWidth}
+            />
+          ) : (
+            <div className="w-full h-full bg-muted animate-pulse" />
+          )}
+        </div>
+        {homeEvaluationVisible && (
+          <div className="w-[7px] shrink-0 self-stretch sm:w-[9px]">
+            <EvalBar
+              cp={homeAnalysis?.cp ?? null}
+              mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : homeAnalysis?.mate ?? null}
+              orientation="vertical"
+              isAnalyzing={!homeAnalysis}
+              showLabel={false}
+              compact
+            />
+          </div>
         )}
       </div>
 

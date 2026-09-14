@@ -53,6 +53,32 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
     }), [activeGames, boardAssignments, imported]);
 
     useEffect(() => {
+        if (!imported) return;
+        const activeGameIDs = new Set(activeGames.map((game) => game.gameID));
+        setBoardAssignments((current) => {
+            const next = { ...current };
+            let changed = false;
+
+            for (const [rowIndexValue, assignedGameID] of Object.entries(current)) {
+                if (activeGameIDs.has(assignedGameID)) continue;
+
+                const rowIndex = Number(rowIndexValue);
+                const row = imported.rows[rowIndex];
+                const key = boardKey(row?.boardNumber);
+                const replacement = row && activeGames.find((game) =>
+                    boardKey(game.boardNumber) === key || boardKey(game.boardID) === key,
+                );
+
+                if (replacement) next[rowIndex] = replacement.gameID;
+                else delete next[rowIndex];
+                changed = true;
+            }
+
+            return changed ? next : current;
+        });
+    }, [activeGames, imported]);
+
+    useEffect(() => {
         try {
             const draft = readBulkGameSetupDraft();
             if (draft) {
@@ -329,8 +355,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                                             <select aria-label={t("bulk.sourceBoard", { board: game.boardID ?? game.boardNumber ?? "?" })} value={selectedRowIndex} onChange={(event) => assignWorkbookRow(game.gameID, event.target.value)} disabled={loading} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs">
                                                 <option value="">{t("bulk.noBoard")}</option>
                                                 {imported.rows.map((row, rowIndex) => {
-                                                    const assignedElsewhere = boardAssignments[rowIndex] !== undefined && boardAssignments[rowIndex] !== game.gameID;
-                                                    return <option key={`${row.boardNumber}-${rowIndex}`} value={rowIndex} disabled={assignedElsewhere || !row.whiteName.trim() || !row.blackName.trim()}>{t("common.boardNumber", { n: row.boardNumber || String(rowIndex + 1) })}</option>;
+                                                    return <option key={`${row.boardNumber}-${rowIndex}`} value={rowIndex} disabled={!row.whiteName.trim() || !row.blackName.trim()}>{t("common.boardNumber", { n: row.boardNumber || String(rowIndex + 1) })}</option>;
                                                 })}
                                             </select>
                                             <span className="truncate text-xs text-muted-foreground">{selectedRow ? `${selectedRow.whiteName} — ${selectedRow.blackName}` : t("bulk.noPairing")}</span>

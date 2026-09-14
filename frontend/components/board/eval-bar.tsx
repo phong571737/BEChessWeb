@@ -12,6 +12,10 @@ interface Props {
     isAnalyzing?: boolean;
     /** True when the Stockfish worker could not start or communicate. */
     engineUnavailable?: boolean;
+    /** Hides the numeric/mate label while retaining the visual balance. */
+    showLabel?: boolean;
+    /** Uses the narrow variant intended for compact homepage boards. */
+    compact?: boolean;
 }
 
 /** Lichess winning-chances → [0, 1] share for White (see lichess-org/lila). */
@@ -46,7 +50,7 @@ function formatEval(cp: number | null | undefined, mate: number | null | undefin
     return "0.0";
 }
 
-export function EvalBar({ cp = null, mate = null, orientation = "vertical", flipped = false, isAnalyzing = false, engineUnavailable = false }: Props) {
+export function EvalBar({ cp = null, mate = null, orientation = "vertical", flipped = false, isAnalyzing = false, engineUnavailable = false, showLabel = true, compact = false }: Props) {
     const hasEval = mate != null || (cp != null && !Number.isNaN(cp));
     const whitePct = whiteWinShare(cp, mate) * 100;
     const blackPct = 100 - whitePct;
@@ -56,11 +60,11 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
     if (!hasEval) {
         return orientation === "horizontal" ? (
             <div className="eval-bar eval-bar--horizontal relative flex h-5 w-full items-center justify-center overflow-hidden border border-border bg-muted">
-                <span className="font-mono text-[10px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>
+                {showLabel && <span className="font-mono text-[10px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>}
             </div>
         ) : (
-            <div className="eval-bar eval-bar--vertical relative flex h-full w-full items-center justify-center overflow-hidden border border-border bg-muted">
-                <span className="font-mono text-[9px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>
+            <div className={`eval-bar eval-bar--vertical${compact ? " eval-bar--compact" : ""} relative flex h-full w-full items-center justify-center overflow-hidden border border-border bg-muted`}>
+                {showLabel && <span className="font-mono text-[9px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>}
             </div>
         );
     }
@@ -76,7 +80,7 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
                     className="absolute inset-y-0 bg-[#f0f0f0] transition-[width] duration-500 ease-out"
                     style={{ width: `${whitePct}%`, left: flipped ? 0 : "auto", right: flipped ? "auto" : 0 }}
                 />
-                <div
+                {showLabel && <div
                     className="absolute inset-y-0 flex items-center px-1.5 pointer-events-none"
                     style={{
                         left: whiteAhead === flipped ? 0 : "auto",
@@ -89,14 +93,14 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
                     >
                         {label}
                     </span>
-                </div>
+                </div>}
             </div>
         );
     }
 
     // Vertical bar follows the rendered board orientation.
     return (
-        <div className="eval-bar eval-bar--vertical relative h-full w-full overflow-hidden border border-border bg-[#f0f0f0]">
+        <div className={`eval-bar eval-bar--vertical${compact ? " eval-bar--compact" : ""} relative h-full w-full overflow-hidden border border-border bg-[#f0f0f0]`}>
             <div
                 className="absolute inset-x-0 bg-[#403d39] transition-[height] duration-500 ease-out"
                 style={{ height: `${blackPct}%`, top: flipped ? "auto" : 0, bottom: flipped ? 0 : "auto" }}
@@ -104,7 +108,7 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
             {/* Midline tick (equal position) */}
             <div className="absolute inset-x-0 top-1/2 h-px -translate-y-px bg-black/25 pointer-events-none" />
 
-            <div
+            {showLabel && <div
                 className="absolute inset-x-0 flex justify-center pointer-events-none"
                 style={{
                     top: whiteAhead === flipped ? 4 : "auto",
@@ -117,7 +121,7 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
                 >
                     {label}
                 </span>
-            </div>
+            </div>}
         </div>
     );
 }

@@ -1,6 +1,6 @@
 # BEChessWeb Documentation
 
-A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against the current spectator-delay, FEN-editor, and review-layout implementation on 2026-09-09. The source code remains authoritative when a generated diagram or older note disagrees with an implementation detail.
+A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against the current spectator-delay, FEN-editor, board-uptime, dashboard-statistics, and review-layout implementation on 2026-09-13. The source code remains authoritative when a generated diagram or older note disagrees with an implementation detail.
 
 ## Overview
 
@@ -45,6 +45,16 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 | [27-debugging-guide.md](27-debugging-guide.md) | Practical debugging commands and root-cause workflow for this repository |
 | [28-fen-recovery-and-history-analysis.md](28-fen-recovery-and-history-analysis.md) | Report-ready explanation of FEN candidate recovery and complete-game history analysis |
 | [29-current-runtime-contract.md](29-current-runtime-contract.md) | Canonical current-state contract for REST, Socket.IO, MQTT, initcheck, clocks, and lifecycle transitions |
+| [30-history-storage-and-check.md](30-history-storage-and-check.md) | FEN/PGN/UCI persistence, validation, recovery, and administrator editing |
+
+## Recent runtime updates
+
+- MQTT `online`/`offline` transitions persist all-time per-board uptime summaries and individual sessions in `board_uptime` and `board_uptime_sessions`; administrators can read them through `GET /boards/uptime`.
+- Dashboard statistics combine active games, completed history, and persisted uptime so each board can show playing, completed, online, offline, and total-duration values.
+- Spectator delivery remains sequential: administrators receive accepted moves immediately, while public viewers receive each move after the configured delay. A zero-second delay is the default.
+- Initcheck diagnostics (status text and square-level colors) are administrator-only. Public viewers still receive the playable board state without internal validation overlays.
+- FEN corrections are stored separately from raw ESP32 snapshots. The history editor supports an administrator-only Ctrl/Cmd+Z stack for persisted FEN edits (up to 50 actions).
+- Active-game snapshots are deduplicated and sorted by physical board number, with a stable fallback order after reload/reconnect.
 
 The former `recover_service/evaluate_engines/plan.md` content is now maintained
 in [`recover_service/evaluate_engines/README.md`](../recover_service/evaluate_engines/README.md),
@@ -77,7 +87,10 @@ The diagrams and the relevant documentation were checked against the current imp
 - Administrator FEN corrections are stored separately from raw electronic-board snapshots; the review UI can duplicate a row in place and edit it on the standard chessboard.
 - Vertical evaluation bars use the exact rendered board height, and narrow review layouts group evaluation, suggestion, and annotation controls in a menu.
 
-The repository intentionally keeps `docs/` ignored, so these local documentation artifacts are not included in application builds or Git commits unless explicitly force-added.
+The documentation Markdown files are tracked separately from application builds;
+they are not bundled into the frontend or backend runtime. Generated diagrams
+and local report artifacts may remain untracked when they are not part of the
+maintained documentation set.
 
 ## Runtime flow
 

@@ -447,6 +447,15 @@ export async function getLatestGameByBoardID(boardID: string): Promise<GameDoc |
         .next();
 }
 
+/** Returns a live or transitioning session that must survive board disconnect cleanup. */
+export async function getLatestUnfinishedGameByBoardID(boardID: string): Promise<GameDoc | null> {
+    return games()
+        .find({ boardID, status: { $in: ["waiting", "ready", "playing", "active", "resigning"] } } as Filter<GameDoc>)
+        .sort({ updateAt: -1, createdAt: -1 })
+        .limit(1)
+        .next();
+}
+
 /** Retires the previous live session while preserving its history snapshot. */
 export async function closeActiveGamesForBoard(boardID: string): Promise<number> {
     const now = new Date();

@@ -9,16 +9,24 @@ export interface HomeMoveSuggestion {
   to: Square;
 }
 
-type Listener = (move: HomeMoveSuggestion | null) => void;
+export interface HomePositionAnalysis {
+  suggestedMove: HomeMoveSuggestion | null;
+  cp: number | null;
+  mate: number | null;
+}
+
+type Listener = (analysis: HomePositionAnalysis | null) => void;
 
 interface SearchTask {
   fen: string;
   listeners: Set<Listener>;
+  cp: number | null;
+  mate: number | null;
 }
 
 const SEARCH_DEPTH = 16;
 const MOVE_PATTERN = /^[a-h][1-8][a-h][1-8][qrbn]?$/;
-const suggestionCache = new Map<string, HomeMoveSuggestion | null>();
+const suggestionCache = new Map<string, HomePositionAnalysis | null>();
 const searchQueue: SearchTask[] = [];
 let currentSearch: SearchTask | null = null;
 let worker: Worker | null = null;
@@ -26,9 +34,9 @@ let workerReady = false;
 let workerRetryCount = 0;
 let workerRetryTimer: number | null = null;
 
-function cacheSuggestion(fen: string, move: HomeMoveSuggestion | null) {
+function cacheSuggestion(fen: string, analysis: HomePositionAnalysis | null) {
   suggestionCache.delete(fen);
-  suggestionCache.set(fen, move);
+  suggestionCache.set(fen, analysis);
   if (suggestionCache.size > 100) {
     const oldestFen = suggestionCache.keys().next().value;
     if (oldestFen) suggestionCache.delete(oldestFen);
@@ -72,15 +80,35 @@ function ensureWorker() {
         startNextSearch();
         continue;
       }
+      if (line.startsWith("info ") && currentSearch) {
+        const multiPv = line.match(/\bmultipv (\d+)/);
+        if (multiPv && Number(multiPv[1]) !== 1) continue;
+        const blackToMove = currentSearch.fen.split(" ")[1] === "b";
+        const cpMatch = line.match(/\bscore cp (-?\d+)/);
+        if (cpMatch) {
+          const raw = Number(cpMatch[1]);
+          currentSearch.cp = blackToMove ? -raw : raw;
+          currentSearch.mate = null;
+          continue;
+        }
+        const mateMatch = line.match(/\bscore mate (-?\d+)/);
+        if (mateMatch) {
+          const raw = Number(mateMatch[1]);
+          currentSearch.mate = blackToMove ? -raw : raw;
+          currentSearch.cp = null;
+        }
+        continue;
+      }
       if (!line.startsWith("bestmove ") || !currentSearch) continue;
 
       const task = currentSearch;
       const bestMove = line.trim().split(/\s+/)[1] ?? "";
-      const move = MOVE_PATTERN.test(bestMove)
+      const suggestedMove = MOVE_PATTERN.test(bestMove)
         ? { from: bestMove.slice(0, 2) as Square, to: bestMove.slice(2, 4) as Square }
         : null;
-      cacheSuggestion(task.fen, move);
-      task.listeners.forEach((listener) => listener(move));
+      const analysis = { suggestedMove, cp: task.cp, mate: task.mate };
+      cacheSuggestion(task.fen, analysis);
+      task.listeners.forEach((listener) => listener(analysis));
       currentSearch = null;
       startNextSearch();
     }
@@ -113,7 +141,7 @@ function subscribeToSuggestion(fen: string, listener: Listener) {
   const existingTask = currentSearch?.fen === fen
     ? currentSearch
     : searchQueue.find((task) => task.fen === fen);
-  const task = existingTask ?? { fen, listeners: new Set<Listener>() };
+  const task = existingTask ?? { fen, listeners: new Set<Listener>(), cp: null, mate: null };
   task.listeners.add(listener);
   if (!existingTask) searchQueue.push(task);
   ensureWorker();
@@ -127,13 +155,13 @@ function subscribeToSuggestion(fen: string, listener: Listener) {
 
 /** Uses one shared, queued Stockfish worker for all mini boards on the homepage. */
 export function useHomeMoveSuggestion(fen: string | undefined, enabled: boolean) {
-  const [suggestion, setSuggestion] = useState<HomeMoveSuggestion | null>(null);
+  const [analysis, setAnalysis] = useState<HomePositionAnalysis | null>(null);
 
   useEffect(() => {
-    setSuggestion(null);
+    setAnalysis(null);
     if (!enabled || !fen) return;
-    return subscribeToSuggestion(fen, setSuggestion);
+    return subscribeToSuggestion(fen, setAnalysis);
   }, [enabled, fen]);
 
-  return suggestion;
+  return analysis;
 }

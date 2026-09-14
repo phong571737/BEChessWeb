@@ -122,13 +122,21 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     }
 
     const firstCell = cells.get(1) ?? "";
+    const genericNameColumns: number[] = [];
     for (const [column, value] of cells) {
       const header = normalizedHeader(value);
 
       if (/^(white|trang|quan trang)$/.test(header)) whiteColumn = column;
       if (/^(black|den|quan den)$/.test(header)) blackColumn = column;
+      if (/^(name|player|ten|ho va ten)$/.test(header)) genericNameColumns.push(column);
       if (/^(dia diem|location|venue)$/.test(header)) locationColumn = column;
-      if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
+      if (/^(bo|ban|board|board number|ban so)$/.test(header)) boardColumn = column;
+    }
+    // Chess-Results pairing sheets commonly label both player columns "Name"
+    // instead of explicitly using White/Black.
+    if (genericNameColumns.length >= 2) {
+      whiteColumn = genericNameColumns[0];
+      blackColumn = genericNameColumns[genericNameColumns.length - 1];
     }
     // Chess-Results usually exports the tournament title on row 2. Some
     // workbooks insert/remove a note, so use the first five rows as a
@@ -146,8 +154,10 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     const whiteName = whiteColumn !== undefined ? cells.get(whiteColumn) ?? "" : "";
     const blackName = blackColumn !== undefined ? cells.get(blackColumn) ?? "" : "";
     if (!whiteName && !blackName) continue;
+    const boardNumber = cells.get(boardColumn ?? 1) ?? "";
+    if (/^(bo|ban|board|board number|ban so)$/.test(normalizedHeader(boardNumber))) continue;
     rows.push({
-      boardNumber: cells.get(boardColumn ?? 1) ?? "",
+      boardNumber,
       whitePlayerNumber: cells.get(2) || undefined,
       whiteName,
       blackPlayerNumber: cells.get(14) || undefined,

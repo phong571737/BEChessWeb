@@ -1,7 +1,7 @@
 # 29. Current Runtime Contract
 
 This is the compact, implementation-oriented contract for the runtime checked on
-2026-09-07 at commit `069334c`. It is intended to resolve ambiguity when an
+2026-09-13. It is intended to resolve ambiguity when an
 older page, diagram, or report sentence uses a previous command name or event
 scope.
 
@@ -43,6 +43,7 @@ The backend mounts routes directly, without an `/api` prefix:
 | `GET /boards` | Read physical-board/game status | Public read |
 | `GET /broadcast-settings` | Read spectator delay in milliseconds | Admin |
 | `PATCH /broadcast-settings` | Set spectator delay from `delaySeconds` (0–3600) | Admin |
+| `GET /boards/uptime` | Read persisted per-board MQTT online/offline totals | Admin |
 | `POST /boards` | Create a board/game association | Device/app flow; rate limited |
 | `POST /boards/:id/initcheck` | Validate initial physical layout and button state | Device/app flow; rate limited |
 | `POST /games/:id/rename` | Update players, clock, round, and location | Authenticated |
@@ -87,6 +88,11 @@ Semantics:
    MongoDB resignation claim prevents concurrent finalization of the same game.
 5. `restart_game_esp` is not a current public command and must not be emitted
    by a maintained ESP32 firmware.
+6. An MQTT `offline` event starts the three-minute cleanup timer, but cleanup
+   is skipped while the board still owns a `waiting`, `ready`, `playing`,
+   `active`, or `resigning` game. The live document and board mapping remain
+   recoverable by `boardID` after reconnect; only terminal/orphaned runtime
+   data is eligible for removal.
 
 ## Socket.IO contract
 
@@ -122,6 +128,10 @@ The UI may show `idle`/`checkinit` while waiting for a first scan, then one of:
 These are readiness states, not chess results. The card can show them without
 opening the board page.
 
+Square-level initcheck diagnostics are administrator-only in the frontend;
+public viewers receive the playable position without missing/extra/wrong-piece
+overlays.
+
 ## FEN recovery and analysis
 
 The review source is selected automatically:
@@ -142,6 +152,10 @@ viewers receive delayed snapshots according to the MongoDB-backed setting from
 `GET/PATCH /broadcast-settings`. The frontend accepts manual seconds and quick
 presets; `0` disables the delay. The backend clamps values to the inclusive
 range `0..3600` seconds and keeps the original game/history records unchanged.
+
+Delayed snapshots are released in sequence, one move at a time. The delay is
+measured from server receipt/release scheduling, not applied as a single batch
+to the whole game.
 
 ## Clock contract
 

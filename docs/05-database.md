@@ -185,6 +185,28 @@ A single collection would be possible, but this codebase separates:
 
 That separation supports faster active-session operations while keeping historical review queries relatively clean.
 
+## Board connectivity telemetry
+
+### `board_uptime`
+
+One summary document per physical `boardID`, maintained from MQTT lifecycle
+events. It stores all-time `totalOnlineSec` and `totalOfflineSec`, the current
+`online` flag, `onlineSince`, the latest online/offline timestamps, and a
+`sessionCount`. The summary is updated asynchronously so a telemetry write
+cannot block move processing or board lifecycle handling.
+
+### `board_uptime_sessions`
+
+One document per observed online session. An online event opens a session;
+offline (or a later reset/offline transition) closes it and records
+`durationSec`. A unique partial index prevents more than one open session for a
+board. These records are operational telemetry, not game history, and begin
+accumulating after deployment starts observing MQTT transitions; MongoDB
+cannot reconstruct uptime that occurred before telemetry was enabled.
+
+The administrator dashboard reads the summary endpoint and joins it by
+`boardID`. Public viewers do not receive uptime telemetry.
+
 ## Persistence rules
 
 ### `saveGame`
@@ -201,7 +223,11 @@ This means the game document stays current without replacing the whole doc on ev
 
 ### `removeGameByBoardID`
 
-This method is used when delayed MQTT offline cleanup discards game records associated with a disconnected board ID. An in-place restart does not call this cleanup and retains the current `gameID`.
+This method is used by delayed MQTT cleanup only after the service has verified
+that the disconnected board has no `waiting`, `ready`, `playing`, `active`, or
+`resigning` game. An unfinished game therefore survives an offline period and
+can be restored by `boardID` when the ESP32 sends its next move. An in-place
+restart also retains the current `gameID`.
 
 ## Business invariants
 

@@ -290,6 +290,14 @@ Administrator-only. Completes the final PGN entry in `game_history`.
 
 Returns the latest initialization-check state for the board.
 
+### `GET /boards/uptime`
+
+Administrator-only. Returns persisted MQTT connectivity telemetry for physical
+boards. Each row is keyed by `boardID` and includes `online`, `onlineSince`,
+`totalOnlineSec`, `totalOfflineSec`, the last online/offline timestamps, and
+`sessionCount`. The endpoint is read-only; uptime is recorded by MQTT status
+handlers and is not derived from browser polling.
+
 ### `PUT /games/:id/update`
 
 Administrator-only. Finalizes PGN-backed data mutation for a game.

@@ -55,6 +55,26 @@ function boardKey(boardID?: string): string {
     return boardID?.trim().toLowerCase() ?? "";
 }
 
+function boardSortKey(game: ActiveGame): { number: number; label: string; gameID: string } {
+    const boardNumber = game.boardNumber?.trim() ?? "";
+    const boardID = game.boardID?.trim() ?? "";
+    const label = boardNumber || boardID;
+    const match = label.match(/(\d+)(?!.*\d)/);
+    return {
+        number: match ? Number(match[1]) : Number.MAX_SAFE_INTEGER,
+        label: label.toLowerCase(),
+        gameID: game.gameID,
+    };
+}
+
+function compareGamesByBoard(a: ActiveGame, b: ActiveGame): number {
+    const left = boardSortKey(a);
+    const right = boardSortKey(b);
+    return left.number - right.number
+        || left.label.localeCompare(right.label, undefined, { numeric: true, sensitivity: "base" })
+        || left.gameID.localeCompare(right.gameID);
+}
+
 /** Keep one visible live session per physical board, even with stale API data. */
 function uniqueGamesByBoard(games: ActiveGame[]): ActiveGame[] {
     const seenBoards = new Set<string>();
@@ -64,7 +84,7 @@ function uniqueGamesByBoard(games: ActiveGame[]): ActiveGame[] {
         if (seenBoards.has(key)) return false;
         seenBoards.add(key);
         return true;
-    });
+    }).sort(compareGamesByBoard);
 }
 
 export const useGameStore = create<GameStoreState>((set, get) => ({
@@ -74,7 +94,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
         set((state) => ({
             activeGames: state.activeGames.map((g) =>
                 g.gameID === gameID ? { ...g, ...patch } : g
-            ),
+            ).sort(compareGamesByBoard),
         })),
     removeActiveGame: (gameID) =>
         set((state) => ({
@@ -98,7 +118,7 @@ export const useGameStore = create<GameStoreState>((set, get) => ({
                 candidate.gameID !== game.gameID
                 && (!replacementBoardKey || boardKey(candidate.boardID) !== replacementBoardKey),
             );
-            return { activeGames: [game, ...filtered] };
+            return { activeGames: uniqueGamesByBoard([game, ...filtered]) };
         }),
 
     physicalBoards: [],
