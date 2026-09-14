@@ -100,6 +100,7 @@ export const BoardController = {
                 const state = item.boardID ? gameState.get(item.boardID) : undefined;
                 return {
                     ...item,
+                    online: state?.boardStatus !== "offline",
                     initStatus: state?.initResultStatus ?? state?.gameStatus,
                     missingSquares: state?.missingSquares ?? [],
                     extraSquares: state?.extraSquares ?? [],
