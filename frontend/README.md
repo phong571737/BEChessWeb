@@ -82,3 +82,10 @@ Detailed frontend documentation starts at [../docs/10-state-management.md](../do
 Administrator spectator-delay settings are configured in the bulk setup dialog
 and persisted through the `/broadcast-settings` rewrite; the dialog supports
 quick minute/second presets plus manual seconds.
+
+The public `GET /broadcast-settings` endpoint also hydrates shared home-page
+display preferences. Administrators can globally toggle the home evaluation
+bar and move suggestions, and arrange cards by physical board ID. Changes are
+stored in MongoDB and broadcast to open clients with
+`broadcast_settings_updated`; live-board analysis controls remain per client
+and board slot.

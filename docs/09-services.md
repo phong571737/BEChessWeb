@@ -71,6 +71,7 @@ Responsibilities:
 - monitor board online/offline topics,
 - notify the application when board connectivity changes,
 - support board cleanup after offline or destroyed states,
+- choose the MQTT offline cleanup grace period from the game state: 30 minutes for `playing`/`active`, 5 minutes for init-check and other states; online/reset cancels the pending timer,
 - subscribe to `chess/+/command` and process lifecycle commands. `restart_game` resets the active board game in place. A physical long-press sends side-less `resign`; the service evaluates/finalizes the old game, creates the next game, then publishes `restart_game` back to the board. Explicit `resign` accepts `{"command":"resign","side":"white"|"black"}` and `draw` accepts `{"command":"draw"}`. These commands resolve the active game by board, use the same atomic resignation service as the web API, emit the old game result to its room, and create/announce the next waiting game so an open board page and the home board card update consistently.
 - suppress duplicate lifecycle deliveries for 15 seconds using `boardID` plus `requestId` (or the normalized command/side fallback); the short-lived keys remove themselves to avoid an unbounded map.
 

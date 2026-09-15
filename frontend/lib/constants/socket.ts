@@ -25,5 +25,6 @@ export const SERVER_EVENT = {
     GAME_STATE: "game_state",
     ACTIVE_GAMES_SNAPSHOT: "active_games_snapshot",
     BOARD_DATA_WARNING: "board_data_warning",
+    BROADCAST_SETTINGS_UPDATED: "broadcast_settings_updated",
 
 } as const;

@@ -84,3 +84,16 @@ it renders the persisted `fenHistory` snapshots verbatim. It does not replay a
 custom PGN, attach Stockfish classification markers, or show recovery notes.
 Recovered branches continue to use the recovery service's legal move line and
 may include branch metadata.
+
+## Shared home-page display and board order
+
+The administrator settings menu controls whether all home-page cards display
+the evaluation bar and Stockfish best-move arrow. Both settings persist on the
+server and are broadcast through Socket.IO so open browsers update together.
+The live board page keeps its separate per-board evaluation and suggestion
+controls.
+
+Administrators can enable “Arrange boards” in the home-page header and move
+cards earlier or later. The order is stored by physical `boardID`, so it
+survives reloads, moves, and replacement games on the same physical board.
+Boards not yet in the saved order follow the ordered boards.

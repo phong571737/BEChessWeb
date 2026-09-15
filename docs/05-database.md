@@ -207,6 +207,21 @@ cannot reconstruct uptime that occurred before telemetry was enabled.
 The administrator dashboard reads the summary endpoint and joins it by
 `boardID`. Public viewers do not receive uptime telemetry.
 
+### `broadcast_settings`
+
+The singleton document `_id: "spectator-delay"` stores the spectator delay
+and shared home-page settings:
+
+- `delayMs` — public spectator release delay;
+- `homeEvaluationVisible` — whether home cards show an evaluation bar;
+- `homeSuggestionsVisible` — whether home cards show a best-move arrow;
+- `homeBoardOrder` — administrator-defined ordered list of physical `boardID` values.
+
+Visibility fields default to `true` when absent. The order uses physical board
+IDs, rather than temporary game IDs, so a replacement game retains its board's
+position. Administrators write these settings and clients receive updates over
+Socket.IO.
+
 ## Persistence rules
 
 ### `saveGame`
@@ -223,11 +238,12 @@ This means the game document stays current without replacing the whole doc on ev
 
 ### `removeGameByBoardID`
 
-This method is used by delayed MQTT cleanup only after the service has verified
-that the disconnected board has no `waiting`, `ready`, `playing`, `active`, or
-`resigning` game. An unfinished game therefore survives an offline period and
-can be restored by `boardID` when the ESP32 sends its next move. An in-place
-restart also retains the current `gameID`.
+This method is used by MQTT offline cleanup after a status-dependent grace
+period: 30 minutes for a `playing`/`active` game and 5 minutes for init-check,
+waiting, and other states. Reconnection cancels the pending timer. If the board
+remains offline until expiry, active game documents and runtime mappings are
+removed; completed history snapshots remain archived. An in-place restart
+retains the current `gameID`.
 
 ## Business invariants
 

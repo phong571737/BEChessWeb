@@ -15,7 +15,7 @@ export function Providers({children}: {children: React.ReactNode}) {
         disableTransitionOnChange
         >
             <LanguageProvider>
-                <BoardDisplayProvider><SocketProvider>{children}</SocketProvider></BoardDisplayProvider>
+                <SocketProvider><BoardDisplayProvider>{children}</BoardDisplayProvider></SocketProvider>
             </LanguageProvider>
         </ThemeProvider>
     );

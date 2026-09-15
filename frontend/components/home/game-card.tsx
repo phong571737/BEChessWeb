@@ -61,13 +61,9 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardWidth, setBoardWidth] = useState(0);
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
-  const { boardColors, homeEvaluationVisible } = useBoardDisplay();
-  const [showMoveSuggestion, setShowMoveSuggestion] = useState(false);
-  useEffect(() => {
-    setShowMoveSuggestion(localStorage.getItem(`live-show-suggestions-${game.gameID}`) !== "false");
-  }, [game.gameID]);
-  const homeAnalysis = useHomeMoveSuggestion(game.fen, showMoveSuggestion || homeEvaluationVisible);
-  const suggestedMove = homeAnalysis?.suggestedMove ?? null;
+  const { boardColors, homeEvaluationVisible, homeSuggestionsVisible } = useBoardDisplay();
+  const homeAnalysis = useHomeMoveSuggestion(game.fen, homeSuggestionsVisible || homeEvaluationVisible);
+  const suggestedMove = homeSuggestionsVisible ? homeAnalysis?.suggestedMove ?? null : null;
   const kingThreat = useMemo(() => getHomeKingThreat(game.fen), [game.fen]);
   const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const suggestionArrows = useMemo(() => suggestedMove

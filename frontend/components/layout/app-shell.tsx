@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, Lightbulb, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -158,7 +158,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const { setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
     const { user, isAuthenticated, isAdmin, logout } = useAuth();
-    const { boardColorTheme, boardColors, homeEvaluationVisible, setBoardColorTheme, setCustomBoardColors, setHomeEvaluationVisible } = useBoardDisplay();
+    const { boardColorTheme, boardColors, homeEvaluationVisible, homeSuggestionsVisible, setBoardColorTheme, setCustomBoardColors, setHomeEvaluationVisible, setHomeSuggestionsVisible } = useBoardDisplay();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -368,6 +368,16 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                     >
                                                         <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />{t("settings.evaluationBar")}</span>
                                                         {homeEvaluationVisible && <Check className="size-3.5 text-primary" />}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        role="menuitemcheckbox"
+                                                        aria-checked={homeSuggestionsVisible}
+                                                        onClick={() => setHomeSuggestionsVisible(!homeSuggestionsVisible)}
+                                                        className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                                                    >
+                                                        <span className="flex items-center gap-2"><Lightbulb className="size-3.5" />{t("settings.moveSuggestions")}</span>
+                                                        {homeSuggestionsVisible && <Check className="size-3.5 text-primary" />}
                                                     </button>
                                                 </>
                                             )}

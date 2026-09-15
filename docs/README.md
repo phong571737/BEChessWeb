@@ -1,6 +1,6 @@
 # BEChessWeb Documentation
 
-A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against the current spectator-delay, FEN-editor, board-uptime, dashboard-statistics, and review-layout implementation on 2026-09-13. The source code remains authoritative when a generated diagram or older note disagrees with an implementation detail.
+A maintained architecture and operating guide for BEChessWeb. This documentation set was reviewed against the current spectator-delay, FEN-editor, board-uptime, dashboard-statistics, shared home-display settings, administrator board ordering, and offline-cleanup implementation on 2026-09-15. The source code remains authoritative when a generated diagram or older note disagrees with an implementation detail.
 
 ## Overview
 
@@ -55,6 +55,9 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 - Initcheck diagnostics (status text and square-level colors) are administrator-only. Public viewers still receive the playable board state without internal validation overlays.
 - FEN corrections are stored separately from raw ESP32 snapshots. The history editor supports an administrator-only Ctrl/Cmd+Z stack for persisted FEN edits (up to 50 actions).
 - Active-game snapshots are deduplicated and sorted by physical board number, with a stable fallback order after reload/reconnect.
+- Home-page evaluation-bar and move-suggestion visibility are stored in MongoDB. Administrators control both globally; changes reach open browsers through `broadcast_settings_updated`.
+- Administrators can arrange home-page cards. The order is stored by physical `boardID`, so a new game session on the same board keeps its position across reloads and browsers.
+- MQTT offline cleanup waits 30 minutes for `playing`/`active` games and 5 minutes for init-check, waiting, and other states. Reconnection cancels the timer; a board is removed from live views when cleanup runs.
 
 The former `recover_service/evaluate_engines/plan.md` content is now maintained
 in [`recover_service/evaluate_engines/README.md`](../recover_service/evaluate_engines/README.md),

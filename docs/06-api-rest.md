@@ -8,6 +8,7 @@ The backend exposes a small HTTP surface mounted from [backend/src/server.ts](..
 - `/games`
 - `/boards`
 - `/auth`
+- `/broadcast-settings`
 
 The root service also exposes a simple health endpoint.
 
@@ -137,6 +138,28 @@ Returns:
 ### `GET /games/current`
 
 Returns active games used by the homepage grid.
+
+### `/broadcast-settings`
+
+`GET /broadcast-settings` is public and returns the shared spectator delay and
+home-page display configuration:
+
+```json
+{
+  "delayMs": 0,
+  "homeEvaluationVisible": true,
+  "homeSuggestionsVisible": true,
+  "homeBoardOrder": ["Board_01", "Board_02"]
+}
+```
+
+`PATCH /broadcast-settings` requires an administrator bearer token. It accepts
+one or more partial fields: `delaySeconds` (0–3600),
+`homeEvaluationVisible` (boolean), `homeSuggestionsVisible` (boolean), and
+`homeBoardOrder` (array of physical board IDs). A successful update returns the
+full current configuration and emits `broadcast_settings_updated` to connected
+clients. These home-page visibility preferences do not change per-board
+analysis controls on the live board page.
 
 ### `GET /games/history`
 
