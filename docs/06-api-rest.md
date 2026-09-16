@@ -317,9 +317,17 @@ Returns the latest initialization-check state for the board.
 
 Administrator-only. Returns persisted MQTT connectivity telemetry for physical
 boards. Each row is keyed by `boardID` and includes `online`, `onlineSince`,
-`totalOnlineSec`, `totalOfflineSec`, the last online/offline timestamps, and
-`sessionCount`. The endpoint is read-only; uptime is recorded by MQTT status
+`totalOnlineSec`, the last online/offline timestamps, and `sessionCount`.
+Offline duration is not included. The endpoint is read-only; uptime is recorded by MQTT status
 handlers and is not derived from browser polling.
+
+### `GET /boards/uptime/sessions?days=<1..90>`
+
+Administrator-only. Returns persisted board-online intervals overlapping the
+requested number of days. Every item contains `boardID`, `onlineAt`,
+`offlineAt`, `durationSec`, and `online`. An open session has `offlineAt: null`;
+its duration is calculated up to the API response time. This endpoint powers
+the dashboard's daily online chart and exact from/to session list.
 
 ### `PUT /games/:id/update`
 

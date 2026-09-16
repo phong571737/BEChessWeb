@@ -190,9 +190,9 @@ That separation supports faster active-session operations while keeping historic
 ### `board_uptime`
 
 One summary document per physical `boardID`, maintained from MQTT lifecycle
-events. It stores all-time `totalOnlineSec` and `totalOfflineSec`, the current
-`online` flag, `onlineSince`, the latest online/offline timestamps, and a
-`sessionCount`. The summary is updated asynchronously so a telemetry write
+events. It stores accumulated online time, the current `online` flag,
+`onlineSince`, the latest online/offline timestamps, and a `sessionCount`.
+Offline duration is not accumulated. The summary is updated asynchronously so a telemetry write
 cannot block move processing or board lifecycle handling.
 
 ### `board_uptime_sessions`
@@ -203,6 +203,12 @@ offline (or a later reset/offline transition) closes it and records
 board. These records are operational telemetry, not game history, and begin
 accumulating after deployment starts observing MQTT transitions; MongoDB
 cannot reconstruct uptime that occurred before telemetry was enabled.
+
+`GET /boards/uptime/sessions?days=7|30` returns sessions overlapping the
+requested reporting window. Each row contains the exact `onlineAt`, optional
+`offlineAt`, duration, and whether the session is still open. Dashboard totals
+and charts use these online intervals only; gaps between sessions are not
+counted.
 
 The administrator dashboard reads the summary endpoint and joins it by
 `boardID`. Public viewers do not receive uptime telemetry.

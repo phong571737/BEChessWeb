@@ -43,7 +43,8 @@ The backend mounts routes directly, without an `/api` prefix:
 | `GET /boards` | Read physical-board/game status | Public read |
 | `GET /broadcast-settings` | Read spectator delay and shared home display/order settings | Public |
 | `PATCH /broadcast-settings` | Partially update delay, home visibility, or board order | Admin |
-| `GET /boards/uptime` | Read persisted per-board MQTT online/offline totals | Admin |
+| `GET /boards/uptime` | Read per-board online state and accumulated online time | Admin |
+| `GET /boards/uptime/sessions?days=7` | Read exact persisted online-to-offline intervals | Admin |
 | `POST /boards` | Create a board/game association | Device/app flow; rate limited |
 | `POST /boards/:id/initcheck` | Validate initial physical layout and button state | Device/app flow; rate limited |
 | `POST /games/:id/rename` | Update players, clock, round, and location | Authenticated |

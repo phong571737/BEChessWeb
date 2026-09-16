@@ -41,7 +41,7 @@ The same Excel picker is available in the in-game **Cài đặt trận / Game se
 
 ### `/dashboard`
 
-The administrator dashboard summarizes retained history for a selectable 7- or 30-day window. It shows total, active, completed, and duration metrics; board and player activity; result distribution; and a daily game chart. It derives data from the existing history and board endpoints without treating browser metrics as durable game truth. The page is available only in the administrator UI and uses the shared semantic theme tokens.
+The administrator dashboard summarizes retained history for a selectable 7- or 30-day window. It shows total, active, completed, and duration metrics; board and player activity; result distribution; and a daily game chart. MQTT telemetry adds an online-time-by-day chart plus an exact session list with physical board, online date/time, offline date/time, and duration. Only online intervals are totaled; gaps while a board is offline are excluded. The page is available only in the administrator UI and uses the shared semantic theme tokens.
 
 ### `/board`
 

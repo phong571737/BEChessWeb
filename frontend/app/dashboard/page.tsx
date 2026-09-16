@@ -13,16 +13,46 @@ type RangeDays = 7 | 30;
 interface BoardUptimeSummary {
     boardID: string;
     online: boolean;
+    onlineSince?: string | null;
+    lastOnlineAt?: string | null;
+    lastOfflineAt?: string | null;
     totalOnlineSec: number;
-    totalOfflineSec: number;
     sessionCount: number;
 }
 
-function historyDate(game: HistoryGame): Date | null {
-    const raw = game.startedAt || game.createdAt || game.endedAt || game.Date;
-    if (!raw) return null;
-    const date = new Date(typeof raw === "string" ? raw.replace(/\./g, "-") : raw);
+interface BoardOnlineSession {
+    boardID: string;
+    onlineAt: string;
+    offlineAt: string | null;
+    durationSec: number;
+    online: boolean;
+}
+
+function validDate(value?: string | null): Date | null {
+    if (!value) return null;
+    const date = new Date(value);
     return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function historyDate(game: HistoryGame): Date | null {
+    for (const raw of [game.startedAt, game.createdAt, game.endedAt, game.Date]) {
+        if (!raw) continue;
+
+        // Mongo dates are serialized as ISO strings containing a millisecond
+        // separator (for example, `...00.123Z`). Replacing every dot before
+        // parsing corrupts that otherwise valid value. Parse it unchanged
+        // first, then support the legacy PGN `YYYY.MM.DD` representation.
+        const direct = new Date(raw);
+        if (!Number.isNaN(direct.getTime())) return direct;
+
+        const legacyPgnDate = /^(\d{4})\.(\d{2})\.(\d{2})$/.exec(raw);
+        if (legacyPgnDate) {
+            const [, year, month, day] = legacyPgnDate;
+            const normalized = new Date(`${year}-${month}-${day}T00:00:00`);
+            if (!Number.isNaN(normalized.getTime())) return normalized;
+        }
+    }
+    return null;
 }
 
 function durationOf(game: HistoryGame): number {
@@ -45,6 +75,7 @@ export default function DashboardPage() {
     const [liveGames, setLiveGames] = useState<ActiveGame[]>([]);
     const [boards, setBoards] = useState<PhysicalBoard[]>([]);
     const [boardUptime, setBoardUptime] = useState<BoardUptimeSummary[]>([]);
+    const [onlineSessions, setOnlineSessions] = useState<BoardOnlineSession[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(false);
 
@@ -76,6 +107,36 @@ export default function DashboardPage() {
             .finally(() => { if (!cancelled) setLoading(false); });
         return () => { cancelled = true; };
     }, [isAdmin]);
+
+    useEffect(() => {
+        if (!isAdmin) return;
+        let cancelled = false;
+        const loadConnectivity = async () => {
+            try {
+                const [uptimeResponse, sessionsResponse] = await Promise.all([
+                    apiFetch("/boards/uptime"),
+                    apiFetch(`/boards/uptime/sessions?days=${range}`),
+                ]);
+                if (!uptimeResponse.ok || !sessionsResponse.ok) throw new Error("board connectivity");
+                const [uptime, sessions] = await Promise.all([
+                    uptimeResponse.json() as Promise<BoardUptimeSummary[]>,
+                    sessionsResponse.json() as Promise<BoardOnlineSession[]>,
+                ]);
+                if (!cancelled) {
+                    setBoardUptime(Array.isArray(uptime) ? uptime : []);
+                    setOnlineSessions(Array.isArray(sessions) ? sessions : []);
+                }
+            } catch {
+                if (!cancelled) setError(true);
+            }
+        };
+        void loadConnectivity();
+        const refreshTimer = window.setInterval(() => void loadConnectivity(), 30_000);
+        return () => {
+            cancelled = true;
+            window.clearInterval(refreshTimer);
+        };
+    }, [isAdmin, range]);
 
     const data = useMemo(() => {
         const now = new Date();
@@ -109,6 +170,19 @@ export default function DashboardPage() {
             return { day, count };
         });
         const maxDaily = Math.max(1, ...daily.map((item) => item.count));
+        const onlineDaily = daily.map(({ day }) => {
+            const dayEnd = new Date(day);
+            dayEnd.setDate(dayEnd.getDate() + 1);
+            const seconds = onlineSessions.reduce((total, session) => {
+                const onlineAt = validDate(session.onlineAt);
+                const offlineAt = validDate(session.offlineAt) ?? now;
+                if (!onlineAt) return total;
+                const overlapMs = Math.max(0, Math.min(dayEnd.getTime(), offlineAt.getTime()) - Math.max(day.getTime(), onlineAt.getTime()));
+                return total + Math.floor(overlapMs / 1_000);
+            }, 0);
+            return { day, seconds };
+        });
+        const maxOnlineDaily = Math.max(1, ...onlineDaily.map((item) => item.seconds));
         const statsByBoard = games.reduce((map, game) => {
             const id = game.boardID || t("dashboard.unknownBoard");
             const current = map.get(id) ?? { id, games: 0, playing: 0, completed: 0, moves: 0, duration: 0 };
@@ -142,7 +216,7 @@ export default function DashboardPage() {
             .map((board) => ({
                 ...board,
                 onlineDuration: uptimeByBoard.get(board.id)?.totalOnlineSec ?? 0,
-                offlineDuration: uptimeByBoard.get(board.id)?.totalOfflineSec ?? 0,
+                sessionCount: uptimeByBoard.get(board.id)?.sessionCount ?? 0,
             }))
             .sort((a, b) => b.games - a.games);
         const players = Array.from(games.reduce((map, game) => {
@@ -155,8 +229,11 @@ export default function DashboardPage() {
             }
             return map;
         }, new Map<string, { name: string; games: number; wins: number; draws: number }>()).values()).sort((a, b) => b.games - a.games).slice(0, 6);
-        return { games, totalGames: games.length + liveGamesWithoutHistory.length, completedGames: completedGames.length, duration, results, maxResult, daily, maxDaily, boardStats, players };
-    }, [boardUptime, history, liveGames, range, t]);
+        const sessions = onlineSessions
+            .filter((session) => validDate(session.onlineAt) !== null)
+            .sort((a, b) => (validDate(b.onlineAt)?.getTime() ?? 0) - (validDate(a.onlineAt)?.getTime() ?? 0));
+        return { games, totalGames: games.length + liveGamesWithoutHistory.length, completedGames: completedGames.length, duration, results, maxResult, daily, maxDaily, onlineDaily, maxOnlineDaily, boardStats, players, sessions };
+    }, [boardUptime, history, liveGames, onlineSessions, range, t]);
 
     if (!isAdmin) return <div className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.accessDenied")}</div>;
     if (loading) return <div className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.loading")}</div>;
@@ -167,8 +244,12 @@ export default function DashboardPage() {
         { label: t("dashboard.activeGames"), value: data.results.active, icon: Radio, tone: "text-info bg-info/10" },
         { label: t("dashboard.completedGames"), value: data.completedGames, icon: Trophy, tone: "text-success bg-success/10" },
         { label: t("dashboard.totalDuration"), value: formatDuration(data.duration), icon: Clock3, tone: "text-warning bg-warning/10" },
-        { label: t("dashboard.boardsOnline"), value: boards.length, icon: MonitorCog, tone: "text-accent-foreground bg-accent" },
+        { label: t("dashboard.boardsOnline"), value: boardUptime.filter((board) => board.online).length, icon: MonitorCog, tone: "text-accent-foreground bg-accent" },
     ];
+    const formatDateTime = (value?: string | null) => validDate(value)?.toLocaleString(
+        locale === "vi" ? "vi-VN" : "en-US",
+        { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" },
+    ) ?? "—";
 
     return <main className="mx-auto w-full max-w-7xl space-y-5 p-4 sm:p-6">
         <header className="flex flex-col gap-3 rounded-lg border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between sm:p-5">
@@ -181,6 +262,44 @@ export default function DashboardPage() {
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]">
             <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.gamesByDay")}</h2>{data.games.length === 0 ? <p className="py-14 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : <div className="mt-5 flex h-48 items-end gap-1.5 sm:gap-2">{data.daily.map(({ day, count }) => <div key={day.toISOString()} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center"><span className="text-[10px] tabular-nums text-muted-foreground">{count || ""}</span><div className="min-h-1 rounded-t-sm bg-primary/80 transition-[height]" style={{ height: `${Math.max(count ? 8 : 2, (count / data.maxDaily) * 100)}%` }} /><span className="truncate text-[10px] text-muted-foreground">{day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short" })}</span></div>)}</div>}</article>
             <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.resultBreakdown")}</h2><div className="mt-5 space-y-4">{[[t("dashboard.whiteWins"), data.results.white, "bg-muted-foreground"], [t("dashboard.blackWins"), data.results.black, "bg-foreground"], [t("dashboard.draws"), data.results.draw, "bg-warning"], [t("dashboard.unfinished"), data.results.active, "bg-info"]].map(([label, value, color]) => <div key={String(label)}><div className="mb-1.5 flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-medium tabular-nums">{value}</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${color}`} style={{ width: `${(Number(value) / data.maxResult) * 100}%` }} /></div></div>)}</div></article>
+        </section>
+        <section className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]">
+            <article className="rounded-lg border border-border bg-card p-4 shadow-sm">
+                <h2 className="font-semibold">{t("dashboard.onlineByDay")}</h2>
+                {data.onlineDaily.every((item) => item.seconds === 0) ? (
+                    <p className="py-14 text-center text-sm text-muted-foreground">{t("dashboard.noOnlineSessions")}</p>
+                ) : (
+                    <div className="mt-5 flex h-48 items-end gap-1.5 sm:gap-2">
+                        {data.onlineDaily.map(({ day, seconds }) => (
+                            <div key={day.toISOString()} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center" title={`${day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US")}: ${formatDuration(seconds)}`}>
+                                <span className="truncate text-[10px] tabular-nums text-muted-foreground">{seconds > 0 ? formatDuration(seconds) : ""}</span>
+                                <div className="min-h-1 rounded-t-sm bg-success/80 transition-[height]" style={{ height: `${Math.max(seconds ? 8 : 2, (seconds / data.maxOnlineDaily) * 100)}%` }} />
+                                <span className="truncate text-[10px] text-muted-foreground">{day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short", day: "2-digit", month: "2-digit" })}</span>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </article>
+            <article className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+                <div className="border-b border-border p-4">
+                    <h2 className="font-semibold">{t("dashboard.onlineSessions")}</h2>
+                    <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.onlineSessionsDescription")}</p>
+                </div>
+                {data.sessions.length === 0 ? (
+                    <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noOnlineSessions")}</p>
+                ) : (
+                    <div className="max-h-80 divide-y divide-border overflow-y-auto">
+                        {data.sessions.map((session) => (
+                            <div key={`${session.boardID}-${session.onlineAt}`} className="grid grid-cols-2 gap-x-4 gap-y-2 p-4 text-xs sm:grid-cols-[minmax(90px,0.7fr)_minmax(150px,1.2fr)_minmax(150px,1.2fr)_minmax(90px,0.7fr)] sm:items-center">
+                                <div><span className="block text-[10px] uppercase tracking-wide text-muted-foreground sm:hidden">{t("common.chessboard")}</span><span className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${session.online ? "bg-success" : "bg-muted-foreground"}`} />{session.boardID}</span></div>
+                                <div><span className="block text-[10px] uppercase tracking-wide text-muted-foreground">{t("dashboard.onlineFrom")}</span><span className="mt-0.5 block tabular-nums">{formatDateTime(session.onlineAt)}</span></div>
+                                <div><span className="block text-[10px] uppercase tracking-wide text-muted-foreground">{t("dashboard.onlineTo")}</span><span className="mt-0.5 block tabular-nums">{session.online ? t("dashboard.stillOnline") : formatDateTime(session.offlineAt)}</span></div>
+                                <div><span className="block text-[10px] uppercase tracking-wide text-muted-foreground">{t("dashboard.sessionDuration")}</span><span className="mt-0.5 block font-medium tabular-nums">{formatDuration(session.durationSec)}</span></div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </article>
         </section>
         <section className="grid gap-5 lg:grid-cols-2">
             <article className="rounded-lg border border-border bg-card shadow-sm">
@@ -200,7 +319,7 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${online ? "bg-success" : "bg-muted-foreground"}`} />{board.id}</div>
                                         <p className="mt-1 text-xs text-muted-foreground">{board.playing} {t("dashboard.playing")} · {board.completed} {t("dashboard.completed")} · {board.moves} {t("common.moves")}</p>
                                     </div>
-                                    <div className="shrink-0 text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOfflineDuration")}: {formatDuration(board.offlineDuration)}</p><p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
+                                    <div className="shrink-0 text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs text-muted-foreground">{board.sessionCount} {t("dashboard.onlineSessionCount")}</p><p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
                                 </div>;
                             })}</div></article>
             <article className="rounded-lg border border-border bg-card shadow-sm"><div className="border-b border-border p-4"><h2 className="font-semibold">{t("dashboard.playerActivity")}</h2></div><div className="divide-y divide-border">{data.players.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : data.players.map((player) => <div key={player.name} className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground"><Users className="size-3.5" /></span><div><p className="text-sm font-medium">{player.name}</p><p className="text-xs text-muted-foreground">{player.games} {t("dashboard.games")}</p></div></div><div className="flex gap-3 text-right text-xs"><span><b className="block text-foreground">{player.wins}</b><span className="text-muted-foreground">{t("dashboard.wins")}</span></span><span><b className="block text-foreground">{player.draws}</b><span className="text-muted-foreground">{t("dashboard.draws")}</span></span></div></div>)}</div></article>

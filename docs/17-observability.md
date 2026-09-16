@@ -70,7 +70,7 @@ If any of those stages fail, the logs should reveal the boundary where the probl
 - confirm `game:reset` and `game_status_update` are emitted after restart
 - confirm `update_all_game`, the old `finished` mapping, and the new `waiting`/`board_scan_ok` mapping are emitted after MQTT resignation or draw
 - confirm `/games/:id/initcheck` reports `READY` when the board is correctly configured
-- confirm `GET /boards/uptime` returns the expected online/offline totals for an administrator
+- confirm `GET /boards/uptime` returns the expected accumulated online totals and `GET /boards/uptime/sessions?days=7` returns exact online-to-offline intervals for an administrator
 - after an MQTT status transition, confirm the corresponding `board_uptime` summary and session document are updated without delaying move handling
 
 ### Browser-only `reportAllChanges` errors

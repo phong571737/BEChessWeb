@@ -5,6 +5,7 @@ import { requireAdmin } from "../middleware/auth.middleware.js";
 
 export const boardRouter = express.Router();
 
+boardRouter.get("/uptime/sessions", gameReadRateLimit, requireAdmin, BoardController.getUptimeSessions);
 boardRouter.get("/uptime", gameReadRateLimit, requireAdmin, BoardController.getUptime);
 
 /**

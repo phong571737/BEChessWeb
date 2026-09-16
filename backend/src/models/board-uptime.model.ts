@@ -8,8 +8,15 @@ interface BoardUptimeDocument extends Document {
     lastOnlineAt?: Date | null;
     lastOfflineAt?: Date | null;
     accumulatedOnlineMs: number;
-    accumulatedOfflineMs: number;
     sessionCount: number;
+}
+
+interface BoardUptimeSessionDocument extends Document {
+    boardID: string;
+    onlineAt: Date;
+    offlineAt?: Date | null;
+    durationSec?: number | null;
+    status: "online" | "offline";
 }
 
 export interface BoardUptimeSummary {
@@ -19,14 +26,21 @@ export interface BoardUptimeSummary {
     lastOnlineAt: Date | null;
     lastOfflineAt: Date | null;
     totalOnlineSec: number;
-    totalOfflineSec: number;
     sessionCount: number;
+}
+
+export interface BoardOnlineSession {
+    boardID: string;
+    onlineAt: Date;
+    offlineAt: Date | null;
+    durationSec: number;
+    online: boolean;
 }
 
 const uptimeCollection = (): Collection<BoardUptimeDocument> =>
     getDB().collection<BoardUptimeDocument>("board_uptime");
-const uptimeSessions = (): Collection<Document> =>
-    getDB().collection("board_uptime_sessions");
+const uptimeSessions = (): Collection<BoardUptimeSessionDocument> =>
+    getDB().collection<BoardUptimeSessionDocument>("board_uptime_sessions");
 
 /** Starts a persisted uptime session only when the board changes to online. */
 export async function markBoardOnline(boardID: string, now = new Date()): Promise<void> {
@@ -40,7 +54,6 @@ export async function markBoardOnline(boardID: string, now = new Date()): Promis
                 lastOnlineAt: null,
                 lastOfflineAt: null,
                 accumulatedOnlineMs: 0,
-                accumulatedOfflineMs: 0,
                 sessionCount: 0,
             },
         },
@@ -51,18 +64,6 @@ export async function markBoardOnline(boardID: string, now = new Date()): Promis
         [
             {
                 $set: {
-                    accumulatedOfflineMs: {
-                        $add: [
-                            { $ifNull: ["$accumulatedOfflineMs", 0] },
-                            {
-                                $cond: [
-                                    { $eq: [{ $type: "$lastOfflineAt" }, "date"] },
-                                    { $max: [0, { $subtract: [now, "$lastOfflineAt"] }] },
-                                    0,
-                                ],
-                            },
-                        ],
-                    },
                     online: true,
                     currentOnlineSince: now,
                     lastOnlineAt: now,
@@ -72,22 +73,6 @@ export async function markBoardOnline(boardID: string, now = new Date()): Promis
         ],
     );
     if (transition.modifiedCount === 1) {
-        const previousSession = await uptimeSessions()
-            .find({ boardID, status: "offline", nextOnlineAt: { $exists: false } })
-            .sort({ offlineAt: -1 })
-            .limit(1)
-            .next();
-        if (previousSession?._id && previousSession.offlineAt instanceof Date) {
-            await uptimeSessions().updateOne(
-                { _id: previousSession._id },
-                {
-                    $set: {
-                        nextOnlineAt: now,
-                        offlineDurationSec: Math.floor(Math.max(0, now.getTime() - previousSession.offlineAt.getTime()) / 1_000),
-                    },
-                },
-            );
-        }
         await uptimeSessions().insertOne({ boardID, onlineAt: now, offlineAt: null, durationSec: null, status: "online" });
     }
 }
@@ -135,9 +120,6 @@ export async function getBoardUptimeSummaries(now = new Date()): Promise<BoardUp
         const openSessionMs = row.online && row.currentOnlineSince instanceof Date
             ? Math.max(0, now.getTime() - row.currentOnlineSince.getTime())
             : 0;
-        const openOfflineMs = !row.online && row.lastOfflineAt instanceof Date
-            ? Math.max(0, now.getTime() - row.lastOfflineAt.getTime())
-            : 0;
         return {
             boardID: row.boardID,
             online: row.online === true,
@@ -145,8 +127,39 @@ export async function getBoardUptimeSummaries(now = new Date()): Promise<BoardUp
             lastOnlineAt: row.lastOnlineAt instanceof Date ? row.lastOnlineAt : null,
             lastOfflineAt: row.lastOfflineAt instanceof Date ? row.lastOfflineAt : null,
             totalOnlineSec: Math.floor((Math.max(0, row.accumulatedOnlineMs ?? 0) + openSessionMs) / 1_000),
-            totalOfflineSec: Math.floor((Math.max(0, row.accumulatedOfflineMs ?? 0) + openOfflineMs) / 1_000),
             sessionCount: Math.max(0, row.sessionCount ?? 0),
         };
+    });
+}
+
+/** Returns online intervals that overlap the requested reporting window. */
+export async function getBoardOnlineSessions(
+    since: Date,
+    now = new Date(),
+): Promise<BoardOnlineSession[]> {
+    const rows = await uptimeSessions()
+        .find({
+            onlineAt: { $lte: now },
+            $or: [
+                { offlineAt: { $gte: since } },
+                { offlineAt: null },
+                { offlineAt: { $exists: false } },
+            ],
+        })
+        .sort({ onlineAt: -1 })
+        .limit(2_000)
+        .toArray();
+
+    return rows.flatMap((row) => {
+        if (!(row.onlineAt instanceof Date)) return [];
+        const offlineAt = row.offlineAt instanceof Date ? row.offlineAt : null;
+        const endAt = offlineAt ?? now;
+        return [{
+            boardID: row.boardID,
+            onlineAt: row.onlineAt,
+            offlineAt,
+            durationSec: Math.floor(Math.max(0, endAt.getTime() - row.onlineAt.getTime()) / 1_000),
+            online: !offlineAt && row.status === "online",
+        }];
     });
 }

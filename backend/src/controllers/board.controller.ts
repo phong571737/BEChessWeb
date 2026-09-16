@@ -9,7 +9,7 @@ import { getIO } from "../sockets/index.js";
 import { CreateBoardBody, InitCheckBody, NFCBoard } from "../types/board.types.js";
 import { GameIdParams } from "../types/game.types.js";
 import { ensurePublicGameSnapshot } from "../services/spectator-delay.service.js";
-import { getBoardUptimeSummaries } from "../models/board-uptime.model.js";
+import { getBoardOnlineSessions, getBoardUptimeSummaries } from "../models/board-uptime.model.js";
 
 type BoardCheckResult = ReturnType<typeof checkInitialBoard> | ReturnType<typeof checkInitialBoardNFC>;
 
@@ -28,6 +28,22 @@ function runInitialBoardCheck(boardType: unknown, board: unknown): BoardCheckRes
 }
 
 export const BoardController = {
+    async getUptimeSessions(req: Request, res: Response): Promise<void> {
+        try {
+            const requestedDays = Number(req.query.days ?? 7);
+            const days = Number.isFinite(requestedDays)
+                ? Math.min(90, Math.max(1, Math.round(requestedDays)))
+                : 7;
+            const now = new Date();
+            const since = new Date(now);
+            since.setDate(since.getDate() - days);
+            res.json(await getBoardOnlineSessions(since, now));
+        } catch (error) {
+            console.error("Unable to load board online sessions:", error);
+            res.status(500).json({ error: "Unable to load board online sessions" });
+        }
+    },
+
     async getUptime(_req: Request, res: Response): Promise<void> {
         try {
             res.json(await getBoardUptimeSummaries());

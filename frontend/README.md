@@ -40,7 +40,7 @@ Docker Compose supplies equivalent build arguments from root `BACKEND_PUBLIC_URL
 | --- | --- |
 | `/` | Active games and physical boards |
 | `/board?id=<encoded-gameID>` | Live physical-board game |
-| `/dashboard` | History summaries by board, player, result, and time |
+| `/dashboard` | History summaries plus per-board online intervals and online-time charts |
 | `/played` | Searchable game history and administrator recycle bin |
 | `/played/review/[id]` | Move replay, notation, statistics, and saved Stockfish analysis |
 | `/paste` | UCI/PGN import and branch preview |

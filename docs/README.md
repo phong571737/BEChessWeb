@@ -49,7 +49,7 @@ BEChessWeb is a real-time chess platform made of four major runtime parts:
 
 ## Recent runtime updates
 
-- MQTT `online`/`offline` transitions persist all-time per-board uptime summaries and individual sessions in `board_uptime` and `board_uptime_sessions`; administrators can read them through `GET /boards/uptime`.
+- MQTT `online`/`offline` transitions persist accumulated online time and exact online-to-offline sessions in `board_uptime` and `board_uptime_sessions`; administrators can read summaries through `GET /boards/uptime` and intervals through `GET /boards/uptime/sessions`.
 - Dashboard statistics combine active games, completed history, and persisted uptime so each board can show playing, completed, online, offline, and total-duration values.
 - Spectator delivery remains sequential: administrators receive accepted moves immediately, while public viewers receive each move after the configured delay. A zero-second delay is the default.
 - Initcheck diagnostics (status text and square-level colors) are administrator-only. Public viewers still receive the playable board state without internal validation overlays.
