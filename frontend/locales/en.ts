@@ -536,6 +536,8 @@ export const en = {
     "dashboard.stillOnline": "Still online",
     "dashboard.sessionDuration": "Duration",
     "dashboard.onlineSessionCount": "online sessions",
+    "dashboard.battery": "Battery",
+    "dashboard.batteryUnknown": "No reading",
     "analysis.title": "Move analysis",
     "analysis.showEvaluation": "Show evaluation bar",
     "analysis.hideEvaluation": "Hide evaluation bar",

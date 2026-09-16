@@ -9,6 +9,10 @@ interface BoardUptimeDocument extends Document {
     lastOfflineAt?: Date | null;
     accumulatedOnlineMs: number;
     sessionCount: number;
+    batteryVoltage?: number | null;
+    batteryPercent?: number | null;
+    batteryState?: "normal" | "low" | "critical" | null;
+    batteryUpdatedAt?: Date | null;
 }
 
 interface BoardUptimeSessionDocument extends Document {
@@ -27,6 +31,40 @@ export interface BoardUptimeSummary {
     lastOfflineAt: Date | null;
     totalOnlineSec: number;
     sessionCount: number;
+    batteryVoltage: number | null;
+    batteryPercent: number | null;
+    batteryState: "normal" | "low" | "critical" | null;
+    batteryUpdatedAt: Date | null;
+}
+
+export async function updateBoardBattery(
+    boardID: string,
+    voltage: number,
+    percent: number,
+    state: "normal" | "low" | "critical",
+    now = new Date(),
+): Promise<void> {
+    await uptimeCollection().updateOne(
+        { boardID },
+        {
+            $set: {
+                batteryVoltage: voltage,
+                batteryPercent: percent,
+                batteryState: state,
+                batteryUpdatedAt: now,
+            },
+            $setOnInsert: {
+                boardID,
+                online: false,
+                currentOnlineSince: null,
+                lastOnlineAt: null,
+                lastOfflineAt: null,
+                accumulatedOnlineMs: 0,
+                sessionCount: 0,
+            },
+        },
+        { upsert: true },
+    );
 }
 
 export interface BoardOnlineSession {
@@ -128,6 +166,11 @@ export async function getBoardUptimeSummaries(now = new Date()): Promise<BoardUp
             lastOfflineAt: row.lastOfflineAt instanceof Date ? row.lastOfflineAt : null,
             totalOnlineSec: Math.floor((Math.max(0, row.accumulatedOnlineMs ?? 0) + openSessionMs) / 1_000),
             sessionCount: Math.max(0, row.sessionCount ?? 0),
+            batteryVoltage: Number.isFinite(row.batteryVoltage) ? row.batteryVoltage! : null,
+            batteryPercent: Number.isFinite(row.batteryPercent) ? row.batteryPercent! : null,
+            batteryState: row.batteryState === "normal" || row.batteryState === "low" || row.batteryState === "critical"
+                ? row.batteryState : null,
+            batteryUpdatedAt: row.batteryUpdatedAt instanceof Date ? row.batteryUpdatedAt : null,
         };
     });
 }

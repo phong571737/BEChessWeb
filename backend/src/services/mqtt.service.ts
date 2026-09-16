@@ -11,12 +11,15 @@ import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
 import { emitWithSpectatorDelay, schedulePublicBoardCleanup } from "./spectator-delay.service.js";
-import { markBoardOffline, markBoardOnline } from "../models/board-uptime.model.js";
+import { markBoardOffline, markBoardOnline, updateBoardBattery } from "../models/board-uptime.model.js";
 
 let mqttClient: MqttClient | null = null;
 
 interface StatusPayload {
     status: "online" | "offline" | string;
+    batteryVoltage?: number;
+    batteryPercent?: number;
+    batteryState?: "normal" | "low" | "critical";
 }
 
 const ACTIVE_GAME_OFFLINE_CLEANUP_DELAY_MS = 30 * 60 * 1000;
@@ -265,6 +268,14 @@ async function handleMessage(topic: string, message: Buffer) {
         if (!boardID) return;
         try {
             const payload = JSON.parse(message.toString()) as StatusPayload;
+
+            if (Number.isFinite(payload.batteryVoltage)
+                && Number.isFinite(payload.batteryPercent)
+                && ["normal", "low", "critical"].includes(payload.batteryState ?? "")) {
+                const voltage = Math.min(6, Math.max(0, payload.batteryVoltage!));
+                const percent = Math.min(100, Math.max(0, Math.round(payload.batteryPercent!)));
+                await updateBoardBattery(boardID, voltage, percent, payload.batteryState!);
+            }
 
             // if status is online(board connected)
             if (payload.status === 'online') {

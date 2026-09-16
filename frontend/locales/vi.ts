@@ -285,6 +285,8 @@ export const vi: Record<TranslationKeys, string> = {
     "dashboard.stillOnline": "Đang online",
     "dashboard.sessionDuration": "Thời lượng",
     "dashboard.onlineSessionCount": "phiên online",
+    "dashboard.battery": "Pin",
+    "dashboard.batteryUnknown": "Chưa có dữ liệu",
     "board.layout4": "4 bàn cờ",
     "board.layoutNeedMore": "Cần thêm ván đang chơi cho bố cục này",
     "board.selectGame": "Chọn ván cờ",

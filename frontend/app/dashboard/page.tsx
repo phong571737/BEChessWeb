@@ -18,6 +18,10 @@ interface BoardUptimeSummary {
     lastOfflineAt?: string | null;
     totalOnlineSec: number;
     sessionCount: number;
+    batteryVoltage?: number | null;
+    batteryPercent?: number | null;
+    batteryState?: "normal" | "low" | "critical" | null;
+    batteryUpdatedAt?: string | null;
 }
 
 interface BoardOnlineSession {
@@ -217,6 +221,9 @@ export default function DashboardPage() {
                 ...board,
                 onlineDuration: uptimeByBoard.get(board.id)?.totalOnlineSec ?? 0,
                 sessionCount: uptimeByBoard.get(board.id)?.sessionCount ?? 0,
+                batteryVoltage: uptimeByBoard.get(board.id)?.batteryVoltage ?? null,
+                batteryPercent: uptimeByBoard.get(board.id)?.batteryPercent ?? null,
+                batteryState: uptimeByBoard.get(board.id)?.batteryState ?? null,
             }))
             .sort((a, b) => b.games - a.games);
         const players = Array.from(games.reduce((map, game) => {
@@ -319,7 +326,7 @@ export default function DashboardPage() {
                                         <div className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${online ? "bg-success" : "bg-muted-foreground"}`} />{board.id}</div>
                                         <p className="mt-1 text-xs text-muted-foreground">{board.playing} {t("dashboard.playing")} · {board.completed} {t("dashboard.completed")} · {board.moves} {t("common.moves")}</p>
                                     </div>
-                                    <div className="shrink-0 text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs text-muted-foreground">{board.sessionCount} {t("dashboard.onlineSessionCount")}</p><p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
+                                    <div className="shrink-0 text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs text-muted-foreground">{board.sessionCount} {t("dashboard.onlineSessionCount")}</p>{board.batteryPercent !== null && board.batteryVoltage !== null ? <p className={`mt-1 text-xs font-medium ${board.batteryState === "critical" ? "text-destructive" : board.batteryState === "low" ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>{t("dashboard.battery")}: {board.batteryPercent}% · {board.batteryVoltage.toFixed(2)} V</p> : <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.battery")}: {t("dashboard.batteryUnknown")}</p>}<p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
                                 </div>;
                             })}</div></article>
             <article className="rounded-lg border border-border bg-card shadow-sm"><div className="border-b border-border p-4"><h2 className="font-semibold">{t("dashboard.playerActivity")}</h2></div><div className="divide-y divide-border">{data.players.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : data.players.map((player) => <div key={player.name} className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground"><Users className="size-3.5" /></span><div><p className="text-sm font-medium">{player.name}</p><p className="text-xs text-muted-foreground">{player.games} {t("dashboard.games")}</p></div></div><div className="flex gap-3 text-right text-xs"><span><b className="block text-foreground">{player.wins}</b><span className="text-muted-foreground">{t("dashboard.wins")}</span></span><span><b className="block text-foreground">{player.draws}</b><span className="text-muted-foreground">{t("dashboard.draws")}</span></span></div></div>)}</div></article>
