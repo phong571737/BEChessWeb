@@ -4,6 +4,7 @@ import { getAllGame } from "../models/game.model.js";
 import { getSpectatorDelayMs, setSpectatorDelayMs } from "../models/broadcast-setting.model.js";
 import { getIO } from "../sockets/index.js";
 import type { GameDoc } from "../types/game.types.js";
+import { calculateDelayedReleaseAt } from "../utils/spectator-delay.js";
 
 type BroadcastScope = "global" | "game";
 
@@ -133,8 +134,11 @@ async function releaseDueEvents(): Promise<void> {
 
 function nextReleaseAt(delayMs: number, options: BroadcastOptions): Date {
     const stream = options.gameID ?? "global";
-    const requested = Date.now() + delayMs;
-    const releaseAt = Math.max(requested, (lastReleaseByStream.get(stream) ?? 0) + 1);
+    const releaseAt = calculateDelayedReleaseAt(
+        Date.now(),
+        delayMs,
+        lastReleaseByStream.get(stream) ?? 0,
+    );
     lastReleaseByStream.set(stream, releaseAt);
     return new Date(releaseAt);
 }

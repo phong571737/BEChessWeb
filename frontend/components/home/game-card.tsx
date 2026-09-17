@@ -12,9 +12,9 @@ import { resolveTimeControlType } from "@/lib/time-control";
 import { GameActions } from "@/components/board/game-actions";
 import { apiFetch } from "@/lib/api-fetch";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
-import { Chess, type Color, type Square } from "chess.js";
+import { type Square } from "chess.js";
 import { useHomeMoveSuggestion } from "@/hooks/use-home-move-suggestion";
-import { getSuggestionColor } from "@/components/board/chess-board-view";
+import { findKingThreat, getSuggestionColor } from "@/components/board/chess-board-view";
 import { EvalBar } from "@/components/board/eval-bar";
 
 const Chessboard = dynamic(
@@ -29,33 +29,6 @@ interface Props {
     isAdmin?: boolean;
 }
 
-interface HomeKingThreat {
-  square: Square;
-  color: Color;
-  checkmate: boolean;
-}
-
-function getHomeKingThreat(fen?: string): HomeKingThreat | null {
-  if (!fen) return null;
-  try {
-    const position = new Chess(fen);
-    if (!position.isCheck()) return null;
-    const color = position.turn();
-    for (const file of "abcdefgh") {
-      for (const rank of "12345678") {
-        const square = `${file}${rank}` as Square;
-        const piece = position.get(square);
-        if (piece?.type === "k" && piece.color === color) {
-          return { square, color, checkmate: position.isCheckmate() };
-        }
-      }
-    }
-  } catch {
-    // Invalid device FEN is surfaced through the existing administrator warning.
-  }
-  return null;
-}
-
 export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus = true, isAdmin = false }: Props) {
   const router = useRouter();
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
@@ -64,7 +37,7 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const { boardColors, homeEvaluationVisible, homeSuggestionsVisible } = useBoardDisplay();
   const homeAnalysis = useHomeMoveSuggestion(game.fen, homeSuggestionsVisible || homeEvaluationVisible);
   const suggestedMove = homeSuggestionsVisible ? homeAnalysis?.suggestedMove ?? null : null;
-  const kingThreat = useMemo(() => getHomeKingThreat(game.fen), [game.fen]);
+  const kingThreat = useMemo(() => game.fen ? findKingThreat(game.fen) : null, [game.fen]);
   const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const suggestionArrows = useMemo(() => suggestedMove
     ? [[suggestedMove.from, suggestedMove.to, suggestionColor]] as [Square, Square, string][]

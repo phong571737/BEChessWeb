@@ -32,6 +32,7 @@ export const en = {
     "home.gamesLive": "{n} games",
     "home.physicalBoards": "Physical Boards",
     "home.tournament": "Tournament",
+    "home.tournamentRound": "{tournament} - Game {n}",
     "home.noGames": "No active games",
     "home.noGamesHint": "Games will appear when a physical board connects",
     "home.boardPlaying": "Playing",

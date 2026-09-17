@@ -238,7 +238,8 @@ export default function DashboardPage() {
         }, new Map<string, { name: string; games: number; wins: number; draws: number }>()).values()).sort((a, b) => b.games - a.games).slice(0, 6);
         const sessions = onlineSessions
             .filter((session) => validDate(session.onlineAt) !== null)
-            .sort((a, b) => (validDate(b.onlineAt)?.getTime() ?? 0) - (validDate(a.onlineAt)?.getTime() ?? 0));
+            .sort((a, b) => Number(b.online) - Number(a.online)
+                || (validDate(b.onlineAt)?.getTime() ?? 0) - (validDate(a.onlineAt)?.getTime() ?? 0));
         return { games, totalGames: games.length + liveGamesWithoutHistory.length, completedGames: completedGames.length, duration, results, maxResult, daily, maxDaily, onlineDaily, maxOnlineDaily, boardStats, players, sessions };
     }, [boardUptime, history, liveGames, onlineSessions, range, t]);
 
@@ -267,7 +268,7 @@ export default function DashboardPage() {
         </header>
         <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{cards.map(({ label, value, icon: Icon, tone }) => <article key={label} className="rounded-lg border border-border bg-card p-4 shadow-sm"><div className={`mb-3 flex size-8 items-center justify-center rounded-md ${tone}`}><Icon className="size-4" /></div><p className="text-xs text-muted-foreground">{label}</p><p className="mt-1 text-xl font-semibold tabular-nums">{value}</p></article>)}</section>
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.45fr)_minmax(280px,0.75fr)]">
-            <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.gamesByDay")}</h2>{data.games.length === 0 ? <p className="py-14 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : <div className="mt-5 flex h-48 items-end gap-1.5 sm:gap-2">{data.daily.map(({ day, count }) => <div key={day.toISOString()} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center"><span className="text-[10px] tabular-nums text-muted-foreground">{count || ""}</span><div className="min-h-1 rounded-t-sm bg-primary/80 transition-[height]" style={{ height: `${Math.max(count ? 8 : 2, (count / data.maxDaily) * 100)}%` }} /><span className="truncate text-[10px] text-muted-foreground">{day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short" })}</span></div>)}</div>}</article>
+            <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.gamesByDay")}</h2>{data.games.length === 0 ? <p className="py-14 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : <div className="mt-5 overflow-x-auto"><div className={`flex h-48 items-end gap-1.5 sm:gap-2 ${range === 30 ? "min-w-[720px] lg:min-w-0" : "min-w-0"}`}>{data.daily.map(({ day, count }) => <div key={day.toISOString()} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center"><span className="text-[10px] tabular-nums text-muted-foreground">{count || ""}</span><div className="min-h-1 rounded-t-sm bg-primary/80 transition-[height]" style={{ height: `${Math.max(count ? 8 : 2, (count / data.maxDaily) * 100)}%` }} /><span className="truncate text-[10px] text-muted-foreground">{day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short" })}</span></div>)}</div></div>}</article>
             <article className="rounded-lg border border-border bg-card p-4 shadow-sm"><h2 className="font-semibold">{t("dashboard.resultBreakdown")}</h2><div className="mt-5 space-y-4">{[[t("dashboard.whiteWins"), data.results.white, "bg-muted-foreground"], [t("dashboard.blackWins"), data.results.black, "bg-foreground"], [t("dashboard.draws"), data.results.draw, "bg-warning"], [t("dashboard.unfinished"), data.results.active, "bg-info"]].map(([label, value, color]) => <div key={String(label)}><div className="mb-1.5 flex justify-between text-xs"><span className="text-muted-foreground">{label}</span><span className="font-medium tabular-nums">{value}</span></div><div className="h-2 overflow-hidden rounded-full bg-muted"><div className={`h-full rounded-full ${color}`} style={{ width: `${(Number(value) / data.maxResult) * 100}%` }} /></div></div>)}</div></article>
         </section>
         <section className="grid gap-5 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)]">
@@ -276,7 +277,8 @@ export default function DashboardPage() {
                 {data.onlineDaily.every((item) => item.seconds === 0) ? (
                     <p className="py-14 text-center text-sm text-muted-foreground">{t("dashboard.noOnlineSessions")}</p>
                 ) : (
-                    <div className="mt-5 flex h-48 items-end gap-1.5 sm:gap-2">
+                    <div className="mt-5 overflow-x-auto">
+                    <div className={`flex h-48 items-end gap-1.5 sm:gap-2 ${range === 30 ? "min-w-[720px] lg:min-w-0" : "min-w-0"}`}>
                         {data.onlineDaily.map(({ day, seconds }) => (
                             <div key={day.toISOString()} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-2 text-center" title={`${day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US")}: ${formatDuration(seconds)}`}>
                                 <span className="truncate text-[10px] tabular-nums text-muted-foreground">{seconds > 0 ? formatDuration(seconds) : ""}</span>
@@ -284,6 +286,7 @@ export default function DashboardPage() {
                                 <span className="truncate text-[10px] text-muted-foreground">{day.toLocaleDateString(locale === "vi" ? "vi-VN" : "en-US", { weekday: "short", day: "2-digit", month: "2-digit" })}</span>
                             </div>
                         ))}
+                    </div>
                     </div>
                 )}
             </article>
@@ -321,12 +324,12 @@ export default function DashboardPage() {
                             {t("dashboard.noData")}</p> : data.boardStats.map((board) => {
                                 const online = boardUptime.find((item) => item.boardID === board.id)?.online
                                     ?? boards.some((item) => item.boardID === board.id);
-                                return <div key={board.id} className="flex items-center justify-between gap-3 p-4">
+                                return <div key={board.id} className="flex flex-col items-stretch gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="min-w-0">
                                         <div className="flex items-center gap-2 font-medium"><span className={`size-2 rounded-full ${online ? "bg-success" : "bg-muted-foreground"}`} />{board.id}</div>
                                         <p className="mt-1 text-xs text-muted-foreground">{board.playing} {t("dashboard.playing")} · {board.completed} {t("dashboard.completed")} · {board.moves} {t("common.moves")}</p>
                                     </div>
-                                    <div className="shrink-0 text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs text-muted-foreground">{board.sessionCount} {t("dashboard.onlineSessionCount")}</p>{board.batteryPercent !== null && board.batteryVoltage !== null ? <p className={`mt-1 text-xs font-medium ${board.batteryState === "critical" ? "text-destructive" : board.batteryState === "low" ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>{t("dashboard.battery")}: {board.batteryPercent}% · {board.batteryVoltage.toFixed(2)} V</p> : <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.battery")}: {t("dashboard.batteryUnknown")}</p>}<p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
+                                    <div className="shrink-0 text-left sm:text-right"><p className="text-xs font-medium">{t("dashboard.totalDuration")}: {formatDuration(board.duration)}</p><p className="mt-1 text-xs font-medium">{t("dashboard.totalOnlineDuration")}: {formatDuration(board.onlineDuration)}</p><p className="mt-1 text-xs text-muted-foreground">{board.sessionCount} {t("dashboard.onlineSessionCount")}</p>{board.batteryPercent !== null && board.batteryVoltage !== null ? <p className={`mt-1 text-xs font-medium ${board.batteryState === "critical" ? "text-destructive" : board.batteryState === "low" ? "text-amber-600 dark:text-amber-400" : "text-foreground"}`}>{t("dashboard.battery")}: {board.batteryPercent}% · {board.batteryVoltage.toFixed(2)} V</p> : <p className="mt-1 text-xs text-muted-foreground">{t("dashboard.battery")}: {t("dashboard.batteryUnknown")}</p>}<p className="mt-1 text-[11px] text-muted-foreground">{online ? t("dashboard.online") : t("dashboard.offline")}</p></div>
                                 </div>;
                             })}</div></article>
             <article className="rounded-lg border border-border bg-card shadow-sm"><div className="border-b border-border p-4"><h2 className="font-semibold">{t("dashboard.playerActivity")}</h2></div><div className="divide-y divide-border">{data.players.length === 0 ? <p className="p-6 text-center text-sm text-muted-foreground">{t("dashboard.noData")}</p> : data.players.map((player) => <div key={player.name} className="flex items-center justify-between gap-3 p-4"><div className="flex items-center gap-2"><span className="flex size-8 items-center justify-center rounded-full bg-secondary text-secondary-foreground"><Users className="size-3.5" /></span><div><p className="text-sm font-medium">{player.name}</p><p className="text-xs text-muted-foreground">{player.games} {t("dashboard.games")}</p></div></div><div className="flex gap-3 text-right text-xs"><span><b className="block text-foreground">{player.wins}</b><span className="text-muted-foreground">{t("dashboard.wins")}</span></span><span><b className="block text-foreground">{player.draws}</b><span className="text-muted-foreground">{t("dashboard.draws")}</span></span></div></div>)}</div></article>

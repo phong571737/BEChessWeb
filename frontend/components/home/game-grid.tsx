@@ -1,7 +1,7 @@
 "use client"
 
 import { useActiveGames } from "@/hooks/use-active-games";
-import { ChevronLeft, ChevronRight, ListOrdered, RefreshCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ListOrdered } from 'lucide-react';
 import { cn } from "@/lib/utils";
 import { usePhysicalBoards } from "@/hooks/use-physical-boards";
 import { SOCKET_CONSTANTS } from "@/lib/constants/socket";
@@ -23,7 +23,7 @@ function homeBoardKey(game: { boardID?: string; gameID: string }): string {
 }
 
 function GameGridContent() {
-    const { loading, refresh, refreshSilently, activeGames } = useActiveGames();
+    const { loading, refreshSilently, activeGames } = useActiveGames();
     const {boards: physicalBoards} = usePhysicalBoards();
     const { t } = useT();
     const { isAdmin } = useAuth();
@@ -71,7 +71,11 @@ function GameGridContent() {
         setHomeBoardOrder(completeOrder);
     };
 
-    const tournamentName = orderedCardGames.find((game) => game.tournament?.trim())?.tournament?.trim();
+    const tournamentGame = orderedCardGames.find((game) => game.tournament?.trim());
+    const tournamentName = tournamentGame?.tournament?.trim();
+    const tournamentHeading = tournamentName
+        ? t("home.tournamentRound", { tournament: tournamentName, n: tournamentGame?.round ?? 1 })
+        : "";
     const requestedLayout = Number(searchParams.get("homeLayout"));
     const homeLayout = requestedLayout === 2 || requestedLayout === 4 ? requestedLayout : 1;
     const homeSlotIds = searchParams.get("homeIds")?.split(",").map((value) => {
@@ -116,10 +120,6 @@ function GameGridContent() {
                                 <span className="hidden sm:inline">{arrangingBoards ? t("settings.done") : t("home.arrangeBoards")}</span>
                             </button>
                         )}
-                        <button type="button" onClick={refresh} disabled={loading} title={t("home.refresh")}
-                            className="hidden size-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground sm:flex">
-                            <RefreshCw className={cn("h-3.5 w-3.5", loading && "animate-spin")} />
-                        </button>
                     </div>
                 </div>
             )}
@@ -130,7 +130,7 @@ function GameGridContent() {
                         <p className="hidden text-[11px] font-semibold text-muted-foreground uppercase tracking-widest mb-3 lg:block">
                             {t("home.tournament")}
                         </p>
-                        <h2 className="text-center text-sm font-semibold text-foreground lg:text-left lg:text-lg">{tournamentName}</h2>
+                        <h2 className="text-center text-sm font-semibold text-foreground lg:text-left lg:text-lg">{tournamentHeading}</h2>
                     </div>
                 )}
 

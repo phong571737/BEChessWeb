@@ -71,7 +71,7 @@ export interface GamePanelHandle {
 export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
     gameID, whiteName, blackName, fen, pgn, initialFen, timelineFens = [], lastMoveAt, moveTimesMap, onRestart, onResign, onNavigate, status,
     branches = [], mainPgnBeforeBranch = "", onBranchSelect, selectedBranchId,
-    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, flipped = false, initialTimeMs, incrementMs, round, location, tournament, boardNumber, boardID,
+    whiteClockMs, blackClockMs, activeClockSide, isAuthenticated = false, isAdmin = false, flipped = false, initialTimeMs, incrementMs, round, location, tournament, boardNumber, boardID,
     showBoardDisplayControls = false, showLiveEvaluation = true, showLiveSuggestions = true,
     onToggleBoardFlip, onToggleLiveEvaluation, onToggleLiveSuggestions,
 }, ref) {
@@ -279,14 +279,14 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                                     <FlipHorizontal className="size-3.5" />
                                     {t("settings.flipBoard")}
                                 </Button>
-                                <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveEvaluation?.(); setMobileControlsOpen(false); }}>
+                                {isAdmin && <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveEvaluation?.(); setMobileControlsOpen(false); }}>
                                     <BarChart3 className="size-3.5" />
                                     {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-                                </Button>
-                                <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveSuggestions?.(); setMobileControlsOpen(false); }}>
+                                </Button>}
+                                {isAdmin && <Button type="button" variant="ghost" size="sm" className="justify-start gap-2" onClick={() => { onToggleLiveSuggestions?.(); setMobileControlsOpen(false); }}>
                                     {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                                     {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-                                </Button>
+                                </Button>}
                             </div>
                         )}
                     </div>
@@ -336,6 +336,7 @@ export const GamePanel = forwardRef<GamePanelHandle, Props>(function GamePanel({
                         incrementMs={incrementMs}
                         round={round}
                         boardNumber={boardNumber}
+                        boardID={boardID}
                         location={location}
                         tournament={tournament}
                     />

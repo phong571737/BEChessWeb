@@ -117,7 +117,7 @@ game state after reconnect. The main events are:
 game rooms. The board page and `use-active-games` filter by `gameID`; this is
 why a physical move updates the card without a manual reload.
 
-Shared home-page evaluation visibility, move-suggestion visibility, and board
+Shared home/live-board evaluation visibility, move-suggestion visibility, and home board
 order are read from `GET /broadcast-settings`. Administrators update them with
 `PATCH /broadcast-settings`; connected clients receive the full setting
 snapshot via `broadcast_settings_updated`. Home ordering is keyed by physical

@@ -34,6 +34,7 @@ export const vi: Record<TranslationKeys, string> = {
     "home.gamesLive": "{n} ván",
     "home.physicalBoards": "Bàn cờ vật lý",
     "home.tournament": "Giải đấu",
+    "home.tournamentRound": "{tournament} - Trận {n}",
     "home.noGames": "Chưa có ván cờ nào",
     "home.noGamesHint": "Ván cờ sẽ xuất hiện khi có bàn cờ vật lý kết nối",
     "home.boardPlaying": "Đang chơi",

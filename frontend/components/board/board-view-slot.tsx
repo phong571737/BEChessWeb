@@ -9,6 +9,7 @@ import { useT } from "@/lib/i18n";
 import { GamePanel } from "@/components/board/game-panel";
 import { GameActions } from "@/components/board/game-actions";
 import { useSocket } from "@/components/providers/socket-provider";
+import { useBoardDisplay } from "@/components/providers/board-display-provider";
 import { SOCKET_CONSTANTS, SERVER_EVENT } from "@/lib/constants/socket";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -237,19 +238,20 @@ export function BoardViewSlot({
 }: Props) {
     const { t } = useT();
     const { isAdmin, isAuthenticated } = useAuth();
+    const {
+        homeEvaluationVisible: showLiveEvaluation,
+        homeSuggestionsVisible: showLiveSuggestions,
+        setHomeEvaluationVisible,
+        setHomeSuggestionsVisible,
+    } = useBoardDisplay();
     const router = useRouter();
     const socket = useSocket();
-    // These switches are local to the currently viewed game, so multi-board
-    // layouts can configure each board independently.
-    const [showLiveEvaluation, setShowLiveEvaluation] = useState(true);
-    const [showLiveSuggestions, setShowLiveSuggestions] = useState(true);
     const [boardFlipped, setBoardFlipped] = useState(false);
     useEffect(() => {
-        setShowLiveEvaluation(localStorage.getItem(`live-show-evaluation-${gameID}`) !== "false");
-        setShowLiveSuggestions(localStorage.getItem(`live-show-suggestions-${gameID}`) !== "false");
         setBoardFlipped(localStorage.getItem(`board-flipped-${gameID}`) === "true");
     }, [gameID]);
-    // Evaluation and suggestions are controlled independently per board slot.
+    // Analysis visibility is a server-backed administrator setting shared by
+    // the home page and every live board, so public clients cannot override it.
     const evaluationEnabled = enableEval && (showLiveEvaluation || showLiveSuggestions);
     const evaluationBarVisible = evaluationEnabled && showLiveEvaluation;
     const { workerRef, onMessageRef, isReady, hasError: stockfishUnavailable } = useStockfish(evaluationEnabled);
@@ -563,25 +565,21 @@ export function BoardViewSlot({
     }, []);
 
     const toggleLiveEvaluation = useCallback(() => {
-        setShowLiveEvaluation((visible) => {
-            const next = !visible;
-            localStorage.setItem(`live-show-evaluation-${gameID}`, String(next));
-            if (!next) {
-                setCp(null);
-                setMate(null);
-            }
-            return next;
-        });
-    }, [gameID]);
+        if (!isAdmin) return;
+        const next = !showLiveEvaluation;
+        setHomeEvaluationVisible(next);
+        if (!next) {
+            setCp(null);
+            setMate(null);
+        }
+    }, [isAdmin, setHomeEvaluationVisible, showLiveEvaluation]);
 
     const toggleLiveSuggestions = useCallback(() => {
-        setShowLiveSuggestions((visible) => {
-            const next = !visible;
-            localStorage.setItem(`live-show-suggestions-${gameID}`, String(next));
-            if (!next) setPredictedMove(null);
-            return next;
-        });
-    }, [gameID]);
+        if (!isAdmin) return;
+        const next = !showLiveSuggestions;
+        setHomeSuggestionsVisible(next);
+        if (!next) setPredictedMove(null);
+    }, [isAdmin, setHomeSuggestionsVisible, showLiveSuggestions]);
 
     if (offlineNotice && !compact) {
         return (
@@ -769,14 +767,14 @@ export function BoardViewSlot({
                                 <FlipHorizontal className="size-3.5" />
                                 {t("settings.flipBoard")}
                             </Button>
-                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
+                            {isAdmin && <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveEvaluation}>
                                 <BarChart3 className="size-3.5" />
                                 {showLiveEvaluation ? t("analysis.hideEvaluation") : t("analysis.showEvaluation")}
-                            </Button>
-                            <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
+                            </Button>}
+                            {isAdmin && <Button type="button" variant="outline" size="sm" className="h-8 shrink-0 gap-1.5 whitespace-nowrap" onClick={toggleLiveSuggestions}>
                                 {showLiveSuggestions ? <EyeOff className="size-3.5" /> : <Lightbulb className="size-3.5" />}
                                 {showLiveSuggestions ? t("analysis.hideMoveSuggestions") : t("analysis.showMoveSuggestions")}
-                            </Button>
+                            </Button>}
                         </div>
                     )}
                 </div>

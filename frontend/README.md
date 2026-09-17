@@ -83,9 +83,10 @@ Administrator spectator-delay settings are configured in the bulk setup dialog
 and persisted through the `/broadcast-settings` rewrite; the dialog supports
 quick minute/second presets plus manual seconds.
 
-The public `GET /broadcast-settings` endpoint also hydrates shared home-page
-display preferences. Administrators can globally toggle the home evaluation
-bar and move suggestions, and arrange cards by physical board ID. Changes are
+The public `GET /broadcast-settings` endpoint also hydrates shared live-display
+preferences. Administrators can globally toggle the evaluation bar
+and move suggestions for both home cards and live board pages, and arrange
+cards by physical board ID. Changes are
 stored in MongoDB and broadcast to open clients with
-`broadcast_settings_updated`; live-board analysis controls remain per client
-and board slot.
+`broadcast_settings_updated`; public clients cannot override these analysis
+visibility controls with browser-local settings.

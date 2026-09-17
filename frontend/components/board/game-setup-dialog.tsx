@@ -8,7 +8,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
 import { useT } from "@/lib/i18n";
 import { useGameStore } from "@/lib/store";
-import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
+import { parseExcelGameFile, ExcelGameImport, findExcelBoardRow } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Settings2, Upload } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
@@ -26,6 +26,7 @@ interface Props {
     incrementMs?: number;
     round: number;
     boardNumber?: string;
+    boardID?: string;
     location: string;
     tournament?: string;
 }
@@ -38,7 +39,7 @@ function isPresetBoardNumber(value: string) {
     return BOARD_NUMBER_OPTIONS.includes(value.trim());
 }
 
-export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", location, tournament = "" }: Props) {
+export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = DEFAULT_INITIAL_TIME_MS, incrementMs = DEFAULT_INCREMENT_MS, round, boardNumber: initialBoardNumber = "", boardID, location, tournament = "" }: Props) {
     const { t } = useT();
     const { token, isAdmin } = useAuth();
     const [open, setOpen] = useState(false);
@@ -160,7 +161,8 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
             const imported = await parseExcelGameFile(file);
             if (!imported.rows.length) throw new Error("No player pairings were found in this workbook.");
             setExcelImport(imported);
-            applyExcelRow("0", imported);
+            const matchedRow = findExcelBoardRow(imported, boardNumber, initialBoardNumber, boardID);
+            applyExcelRow(String(matchedRow >= 0 ? matchedRow : 0), imported);
         } catch {
             setExcelImport(null);
             setSelectedExcelRow("");
@@ -258,7 +260,7 @@ export function GameSetupDialog({ gameID, whiteName, blackName, initialTimeMs = 
                         <div className="space-y-2 rounded-md border border-border bg-muted/30 p-3">
                             <Label htmlFor="board-setup-excel-row">{t("sg.excelChooseGame")}</Label>
                             <select id="board-setup-excel-row" value={selectedExcelRow} onChange={(event) => applyExcelRow(event.target.value)} disabled={loading} className="h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm">
-                                {excelImport.rows.map((row, index) => <option key={`${row.boardNumber}-${index}`} value={index}>{t("sg.excelGameOption", { n: row.boardNumber || String(index + 1), white: row.whiteName || t("sg.unknownPlayer"), black: row.blackName || t("sg.unknownPlayer") })}</option>)}
+                                {excelImport.rows.map((row, index) => <option key={`${row.boardNumber}-${index}`} value={index} disabled={!row.whiteName.trim() || !row.blackName.trim()}>{t("sg.excelGameOption", { n: row.boardNumber || String(index + 1), white: row.whiteName || t("sg.unknownPlayer"), black: row.blackName || t("sg.unknownPlayer") })}</option>)}
                             </select>
                             <p className="text-[11px] text-muted-foreground">{[t("common.boardNumber", { n: excelImport.rows[Number(selectedExcelRow)]?.boardNumber || t("sg.unknownPlayer") }), excelImport.tournament, excelImport.scheduledAt, excelImport.rows[Number(selectedExcelRow)]?.location].filter(Boolean).join(" · ")}</p>
                         </div>

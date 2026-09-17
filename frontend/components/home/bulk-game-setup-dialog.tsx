@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-fetch";
-import { ExcelGameImport, parseExcelGameFile } from "@/lib/excel-game-import";
+import { ExcelGameImport, excelBoardKey, parseExcelGameFile } from "@/lib/excel-game-import";
 import { useT } from "@/lib/i18n";
 import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
 import { readBulkGameSetupDraft, removeBulkGameSetupDraft, writeBulkGameSetupDraft, type BulkGameSetupDraft } from "@/lib/bulk-game-setup-draft";
@@ -20,12 +20,6 @@ const MATCH_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 interface Props {
     activeGames: ActiveGame[];
     onApplied: () => void;
-}
-
-function boardKey(value?: string): string {
-    const normalized = String(value ?? "").trim().toLowerCase();
-    const number = normalized.match(/\d+$/)?.[0];
-    return number ? String(Number(number)) : normalized;
 }
 
 export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
@@ -64,10 +58,12 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
 
                 const rowIndex = Number(rowIndexValue);
                 const row = imported.rows[rowIndex];
-                const key = boardKey(row?.boardNumber);
-                const replacement = row && activeGames.find((game) =>
-                    boardKey(game.boardNumber) === key || boardKey(game.boardID) === key,
-                );
+                const key = excelBoardKey(row?.boardNumber);
+                const replacement = row && key
+                    ? activeGames.find((game) =>
+                        excelBoardKey(game.boardNumber) === key || excelBoardKey(game.boardID) === key,
+                    )
+                    : undefined;
 
                 if (replacement) next[rowIndex] = replacement.gameID;
                 else delete next[rowIndex];
@@ -177,9 +173,11 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
             const used = new Set<string>();
             const defaults: Record<number, string> = {};
             workbook.rows.forEach((row, rowIndex) => {
-                const key = boardKey(row.boardNumber);
-                const game = activeGames.find((candidate) => !used.has(candidate.gameID)
-                    && (boardKey(candidate.boardNumber) === key || boardKey(candidate.boardID) === key));
+                const key = excelBoardKey(row.boardNumber);
+                const game = key
+                    ? activeGames.find((candidate) => !used.has(candidate.gameID)
+                        && (excelBoardKey(candidate.boardNumber) === key || excelBoardKey(candidate.boardID) === key))
+                    : undefined;
                 if (game && row.whiteName.trim() && row.blackName.trim()) {
                     used.add(game.gameID);
                     defaults[rowIndex] = game.gameID;

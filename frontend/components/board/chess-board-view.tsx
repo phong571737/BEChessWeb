@@ -110,8 +110,9 @@ function updateEditorFen(fen: string, targetSquare: string, piece: EditorPiece |
   return [placement, fields[1] === "b" ? "b" : "w", fields[2] || "-", fields[3] || "-", fields[4] || "0", fields[5] || "1"].join(" ");
 }
 
-interface KingThreat {
+export interface KingThreat {
   square: Square;
+  color: Color;
   checkmate: boolean;
 }
 
@@ -173,6 +174,7 @@ export function findKingThreat(fen: string): KingThreat | null {
 
       return {
         square: kingSquare,
+        color,
         // Evaluate mate from the attacked king's perspective even when the
         // persisted active-color field points at the wrong side.
         checkmate: isThreatCheckmate(position, kingSquare, color),

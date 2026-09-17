@@ -47,7 +47,7 @@ This room-based structure gives the system three important properties:
 | `board_offline` | Server → All clients | Removes an unavailable physical board from live UI |
 | `game:destroyed` | Server → All clients | Invalidates pages for games removed by delayed board cleanup |
 | `game_state` | Server → All clients | Publishes the latest physical-board readiness state |
-| `broadcast_settings_updated` | Server → All clients | Publishes shared home evaluation, suggestion, and board-order settings |
+| `broadcast_settings_updated` | Server → All clients | Publishes shared home/live-board evaluation, suggestion, and home board-order settings |
 | `action_error` | Server → Requesting client | Rejects restart/resign socket actions without a valid user JWT |
 
 ## Event details
@@ -114,7 +114,7 @@ The home dashboard requests a snapshot on initial load and after a socket reconn
 
 After an administrator patches `/broadcast-settings`, the backend emits the
 complete shared configuration to every connected client. It synchronizes the
-home evaluation bar, move suggestions, and administrator-defined physical
+home/live-board evaluation bar, move suggestions, and administrator-defined physical
 board order. New or reloaded clients hydrate the same values from the public
 `GET /broadcast-settings` endpoint.
 

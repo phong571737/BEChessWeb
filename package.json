@@ -25,6 +25,8 @@
   "scripts": {
     "dev": "powershell -NoProfile -ExecutionPolicy Bypass -File tools/start-dev.ps1",
     "build": "tsc",
+    "test:excel-import": "node --experimental-strip-types tools/verify-excel-board-matching.ts",
+    "test:spectator-delay": "node --experimental-strip-types tools/verify-spectator-delay.ts",
     "test:time-control": "node --experimental-strip-types tools/verify-time-control.ts",
     "start": "node dist/server.js"
   },

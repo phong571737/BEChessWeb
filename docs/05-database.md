@@ -216,11 +216,11 @@ The administrator dashboard reads the summary endpoint and joins it by
 ### `broadcast_settings`
 
 The singleton document `_id: "spectator-delay"` stores the spectator delay
-and shared home-page settings:
+and shared live-display settings:
 
 - `delayMs` — public spectator release delay;
-- `homeEvaluationVisible` — whether home cards show an evaluation bar;
-- `homeSuggestionsVisible` — whether home cards show a best-move arrow;
+- `homeEvaluationVisible` — whether public home cards and live board pages show an evaluation bar;
+- `homeSuggestionsVisible` — whether public home cards and live board pages show a best-move arrow;
 - `homeBoardOrder` — administrator-defined ordered list of physical `boardID` values.
 
 Visibility fields default to `true` when absent. The order uses physical board
