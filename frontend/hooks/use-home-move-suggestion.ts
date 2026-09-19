@@ -155,13 +155,12 @@ function subscribeToSuggestion(fen: string, listener: Listener) {
 
 /** Uses one shared, queued Stockfish worker for all mini boards on the homepage. */
 export function useHomeMoveSuggestion(fen: string | undefined, enabled: boolean) {
-  const [analysis, setAnalysis] = useState<HomePositionAnalysis | null>(null);
+  const [resolved, setResolved] = useState<{ fen: string; analysis: HomePositionAnalysis | null } | null>(null);
 
   useEffect(() => {
-    setAnalysis(null);
     if (!enabled || !fen) return;
-    return subscribeToSuggestion(fen, setAnalysis);
+    return subscribeToSuggestion(fen, (analysis) => setResolved({ fen, analysis }));
   }, [enabled, fen]);
 
-  return analysis;
+  return enabled && fen && resolved?.fen === fen ? resolved.analysis : null;
 }

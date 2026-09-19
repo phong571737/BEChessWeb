@@ -36,7 +36,17 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
   const boardUrl = `/board?id=${encodeGameID(game.gameID)}`;
   const { boardColors, homeEvaluationVisible, homeSuggestionsVisible } = useBoardDisplay();
   const homeAnalysis = useHomeMoveSuggestion(game.fen, homeSuggestionsVisible || homeEvaluationVisible);
+  const [lastEvaluation, setLastEvaluation] = useState<{ cp: number | null; mate: number | null }>({ cp: null, mate: null });
+  useEffect(() => {
+    if (!homeAnalysis) return;
+    setLastEvaluation({ cp: homeAnalysis.cp, mate: homeAnalysis.mate });
+  }, [homeAnalysis]);
   const suggestedMove = homeSuggestionsVisible ? homeAnalysis?.suggestedMove ?? null : null;
+  // Keep the previous score visible while Stockfish evaluates the new FEN.
+  // The suggestion arrow intentionally does not use this fallback because an
+  // arrow calculated for the previous position would point to a stale move.
+  const displayedCp = homeAnalysis?.cp ?? lastEvaluation.cp;
+  const displayedMate = homeAnalysis?.mate ?? lastEvaluation.mate;
   const kingThreat = useMemo(() => game.fen ? findKingThreat(game.fen) : null, [game.fen]);
   const suggestionColor = useMemo(() => getSuggestionColor(boardColors), [boardColors]);
   const suggestionArrows = useMemo(() => suggestedMove
@@ -193,10 +203,10 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
           )}
         </div>
         {homeEvaluationVisible && (
-          <div className="w-[7px] shrink-0 self-stretch sm:w-[9px]">
+          <div className="hidden w-[9px] shrink-0 self-stretch sm:block">
             <EvalBar
-              cp={homeAnalysis?.cp ?? null}
-              mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : homeAnalysis?.mate ?? null}
+              cp={displayedCp}
+              mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : displayedMate}
               orientation="vertical"
               isAnalyzing={!homeAnalysis}
               showLabel={false}
@@ -205,6 +215,19 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
           </div>
         )}
       </div>
+      {homeEvaluationVisible && (
+        <div className="sm:hidden">
+          <EvalBar
+            cp={displayedCp}
+            mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : displayedMate}
+            orientation="horizontal"
+            flipped
+            isAnalyzing={!homeAnalysis}
+            showLabel={false}
+            compact
+          />
+        </div>
+      )}
 
       {/* Player names footer */}
       <div className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
