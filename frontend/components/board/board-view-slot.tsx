@@ -838,7 +838,7 @@ export function BoardViewSlot({
 
                             {evaluationBarVisible && (
                                 <div className="sm:hidden">
-                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped={boardFlipped} isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
+                                    <EvalBar cp={cp} mate={mate} orientation="horizontal" flipped isAnalyzing={isAnalyzing} engineUnavailable={stockfishUnavailable} />
                                 </div>
                             )}
                         </div>

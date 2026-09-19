@@ -59,7 +59,7 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
 
     if (!hasEval) {
         return orientation === "horizontal" ? (
-            <div className={`eval-bar eval-bar--horizontal relative flex w-full items-center justify-center overflow-hidden border border-border bg-muted ${compact ? "h-[7px]" : "h-5"}`}>
+            <div className="eval-bar eval-bar--horizontal relative flex h-5 w-full items-center justify-center overflow-hidden border border-border bg-muted">
                 {showLabel && <span className="font-mono text-[10px] leading-none text-muted-foreground tabular-nums">{isAnalyzing ? "…" : engineUnavailable ? "!" : "|"}</span>}
             </div>
         ) : (
@@ -71,7 +71,7 @@ export function EvalBar({ cp = null, mate = null, orientation = "vertical", flip
 
     if (orientation === "horizontal") {
         return (
-            <div className={`eval-bar eval-bar--horizontal relative w-full overflow-hidden border border-border ${compact ? "h-[7px]" : "h-5"}`}>
+            <div className="eval-bar eval-bar--horizontal relative h-5 w-full overflow-hidden border border-border">
                 <div
                     className="absolute inset-y-0 bg-[#403d39] transition-[width] duration-500 ease-out"
                     style={{ width: `${blackPct}%`, left: flipped ? "auto" : 0, right: flipped ? 0 : "auto" }}

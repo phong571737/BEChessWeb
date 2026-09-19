@@ -203,7 +203,7 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
           )}
         </div>
         {homeEvaluationVisible && (
-          <div className="hidden w-[9px] shrink-0 self-stretch sm:block">
+          <div className="w-[7px] shrink-0 self-stretch sm:w-[9px]">
             <EvalBar
               cp={displayedCp}
               mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : displayedMate}
@@ -215,19 +215,6 @@ export const GameCard = memo(function GameCard({ game, physicalBoard, showStatus
           </div>
         )}
       </div>
-      {homeEvaluationVisible && (
-        <div className="sm:hidden">
-          <EvalBar
-            cp={displayedCp}
-            mate={kingThreat?.checkmate ? (kingThreat.color === "w" ? -1 : 1) : displayedMate}
-            orientation="horizontal"
-            flipped
-            isAnalyzing={!homeAnalysis}
-            showLabel={false}
-            compact
-          />
-        </div>
-      )}
 
       {/* Player names footer */}
       <div className="flex items-center gap-2 border-t border-border bg-card px-3 py-2">
