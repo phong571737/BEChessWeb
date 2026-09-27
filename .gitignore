@@ -32,6 +32,8 @@ htmlcov/
 
 mongodb_data/
 .DS_Store
+.cursor/
+.vscode/
 dist/
 build/
 .codegraph/
