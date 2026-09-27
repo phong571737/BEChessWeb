@@ -111,7 +111,6 @@ export const GameResignService = {
         const resultTag = buildResultTag(resignSide);
         const finalPGN = await buildFinalPGN(game, uciHistory, fenHistory, resultTag);
         const currentRound = game.round ?? 1;
-        const nextRound = currentRound + 1;
 
         // Save to game played
         const endedAt = new Date();
@@ -162,12 +161,15 @@ export const GameResignService = {
         rawFenHistory.delete(gameID);
         pgnBaseFen.delete(gameID);
 
-        // Create a new game for the next round
+        // A tournament round is fixed by the administrator's setup. Finishing
+        // one physical board must not advance that board ahead of the others.
+        // The replacement session keeps the configured round until the admin
+        // explicitly applies another tournament setup.
         const newGameID = crypto.randomUUID();
         if (!game.boardID) {
             throw new Error(`Game ${gameID} is missing boardID`);
         }
-        await GameService.create(game.boardID, newGameID, nextRound, "", "", undefined, undefined, game.tournament ?? "");
+        await GameService.create(game.boardID, newGameID, currentRound, "", "", undefined, undefined, game.tournament ?? "");
         return { status: "OK", oldGameID: gameID, newGameID, boardID: game.boardID, loser: resignSide, winner };
         } catch (error) {
             try {
