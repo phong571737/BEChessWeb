@@ -16,6 +16,9 @@ frontend/node_modules
 frontend/.next
 frontend/next-env.d.ts
 
+# package
+package-lock.json
+
 # Python local environments and generated caches
 .venv/
 __pycache__/
@@ -36,11 +39,6 @@ build/
 .archguard/metrics.json
 *.log
 chessserver.exe
-*.tsbuildinfo
-
-# Local editor/MCP configuration (may contain private workspace URLs)
-/.cursor/mcp.json
-/.vscode/mcp.json
 
 # Keep maintained Markdown documentation available on GitHub while ignoring
 # generated diagram exports and local visual-check artifacts.
@@ -48,4 +46,6 @@ chessserver.exe
 !/docs/
 !/docs/**/*.md
 /recover_service_v2/
-AGENTS.md
+/recover_service_v4/backup/stockfish
+/recover_service_v4/stockfish/
+/stockfish_recommend/stockfish/

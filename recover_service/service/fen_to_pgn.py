@@ -31,7 +31,40 @@ def _same_moving_piece(before: chess.Piece, after: chess.Piece) -> bool:
     )
 
 
-def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
+InferredMove = chess.Move | tuple[chess.Move, ...] | None
+
+
+def _boards_for_both_turns(fen: str) -> tuple[chess.Board, ...]:
+    """Build legality boards from one placement while ignoring an unreliable turn."""
+    fields = str(fen).strip().split()
+    if not fields:
+        raise FenConversionError("FEN must not be empty")
+    placement = fields[0]
+    castling = fields[2] if len(fields) > 2 else "-"
+    en_passant = fields[3] if len(fields) > 3 else "-"
+    boards: list[chess.Board] = []
+    for turn in ("w", "b"):
+        try:
+            boards.append(
+                chess.Board(f"{placement} {turn} {castling} {en_passant} 0 1")
+            )
+        except ValueError:
+            # Bad auxiliary FEN fields must not prevent validating the position.
+            boards.append(chess.Board(f"{placement} {turn} - - 0 1"))
+    return tuple(boards)
+
+
+def _legal_in_either_turn(move: chess.Move, boards: tuple[chess.Board, ...]) -> bool:
+    return any(move in board.legal_moves for board in boards)
+
+
+def infer_move_from_fen(before_fen: str, after_fen: str) -> InferredMove:
+    """Infer changed-square candidates, then retain only legal moves.
+
+    The side-to-move field is intentionally not trusted. A unique legal result
+    is returned as ``chess.Move``; multiple legal results are returned together
+    so callers can preserve all branches instead of converting ambiguity to X.
+    """
     before = _piece_board(before_fen)
     after = _piece_board(after_fen)
     changed = [
@@ -43,6 +76,8 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
     if not changed:
         return None
 
+    candidates: list[chess.Move] = []
+    castling_candidate: chess.Move | None = None
     king_from = next(
         (
             square
@@ -67,9 +102,13 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
             None,
         )
         if king_to is not None:
-            return chess.Move(king_from, king_to)
+            king_move = chess.Move(king_from, king_to)
+            if abs(
+                chess.square_file(king_to) - chess.square_file(king_from)
+            ) == 2:
+                castling_candidate = king_move
+            candidates.append(king_move)
 
-    candidates: list[chess.Move] = []
     for from_square in changed:
         moving_piece = before.piece_at(from_square)
         if moving_piece is None or after.piece_at(from_square) == moving_piece:
@@ -89,11 +128,23 @@ def infer_move_from_fen(before_fen: str, after_fen: str) -> chess.Move | None:
             )
             candidates.append(chess.Move(from_square, to_square, promotion=promotion))
 
-    unique = list(dict.fromkeys(candidates))
-    if len(unique) == 1:
-        return unique[0]
+    legality_boards = _boards_for_both_turns(before_fen)
+    if castling_candidate is not None and _legal_in_either_turn(
+        castling_candidate, legality_boards
+    ):
+        # Castling changes both king and rook squares but is one atomic move.
+        return castling_candidate
+    legal = tuple(
+        move
+        for move in dict.fromkeys(candidates)
+        if _legal_in_either_turn(move, legality_boards)
+    )
+    if len(legal) == 1:
+        return legal[0]
+    if len(legal) > 1:
+        return legal
     raise FenConversionError(
-        "Cannot infer one unambiguous move from piece placement:\n"
+        "Cannot infer a legal move from piece placement:\n"
         f"before: {before_fen}\nafter:  {after_fen}"
     )
 
@@ -178,6 +229,11 @@ def fens_to_pgn(
             move = infer_move_from_fen(previous_fen, next_fen)
             if move is None:
                 move_tokens.append(_missing_move_token(previous_fen, next_fen))
+            elif isinstance(move, tuple):
+                alternatives = "|".join(
+                    _san_for_inferred_move(previous_fen, item) for item in move
+                )
+                move_tokens.append(f"{{{alternatives}}}")
             else:
                 move_tokens.append(_san_for_inferred_move(previous_fen, move))
         except (FenConversionError, ValueError):

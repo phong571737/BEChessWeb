@@ -1,0 +1,4 @@
+python-chess
+PyQt6
+fastapi
+uvicorn[standard]

@@ -48,7 +48,12 @@ export function buildPgnFromBoardHistory({
         const uci = uciHistory[index]?.trim() ?? "";
         if (!afterFen?.trim()) continue;
 
-        const move = uciToMove(uci) ?? (previousFen ? inferMoveFromFen(previousFen, afterFen) : null);
+        const inferred = previousFen ? inferMoveFromFen(previousFen, afterFen) : null;
+        const move = uciToMove(uci) ?? (inferred ? {
+            from: inferred.from as Square,
+            to: inferred.to as Square,
+            promotion: inferred.promotion as PieceSymbol | undefined,
+        } : null);
 
         if (move) {
             resolvedMoves.push({ move, afterFen });

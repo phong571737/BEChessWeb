@@ -30,6 +30,8 @@ import { useT } from "@/lib/i18n";
 import type { HistoryGame } from "@/types/game.types";
 import { MoveAnalysisPanel } from "@/components/played/move-analysis-panel";
 import type { MoveAnalysis } from "@/lib/post-game-analysis";
+import { RecoveryExplorer } from "@/components/recovery/recovery-explorer";
+import { isTreeLine, type RecoveryTreeLine } from "@/lib/recovery-tree";
 import { useAuth } from "@/components/providers/auth-provider";
 import { apiFetch } from "@/lib/api-fetch";
 import { EDITOR_FILES, EDITOR_RANKS, FEN_EDITOR_PIECES, fenEditorPosition, fenWithEditorPosition, type FenEditorPiece } from "@/lib/fen-editor";
@@ -47,13 +49,7 @@ interface ReviewProps {
   onAnalysisChange?: (moves: MoveAnalysis[]) => void;
 }
 
-interface RecoveryLine {
-  uciMoves: string[];
-  sanMoves: string[];
-  assumedFens: string[];
-  moveSources?: string[];
-  movetext?: string;
-}
+type RecoveryLine = RecoveryTreeLine;
 
 interface RecoveryStep {
   effectivePly?: number;
@@ -87,11 +83,7 @@ function buildAnalysisTimeline(
 }
 
 function isRecoveryLine(value: unknown): value is RecoveryLine {
-  if (!value || typeof value !== "object") return false;
-  const line = value as Partial<RecoveryLine>;
-  return Array.isArray(line.uciMoves)
-    && Array.isArray(line.sanMoves)
-    && Array.isArray(line.assumedFens);
+  return isTreeLine(value);
 }
 
 function isRecoveryStep(value: unknown): value is RecoveryStep {
@@ -206,6 +198,7 @@ function readPgnHeaders(pgn: string): Record<string, string> {
 const DEFAULT_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
 
 function recoveryLineToPgn(game: HistoryGame, line: RecoveryLine): string {
+  if (line.pgn.trim()) return line.pgn;
   const savedHeaders = readPgnHeaders(game.pgn ?? "");
   const headerValues: Record<string, string> = {
     Event: savedHeaders.Event || "?",
@@ -393,6 +386,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
   const [undoingFen, setUndoingFen] = useState(false);
   const [recoveryStatus, setRecoveryStatus] = useState<RecoveryStatus>("idle");
   const [recoveryLines, setRecoveryLines] = useState<RecoveryLine[]>([]);
+  const [recoveryComplete, setRecoveryComplete] = useState(true);
+  const [recoveredCount, setRecoveredCount] = useState(0);
   const [recoverySteps, setRecoverySteps] = useState<RecoveryStep[]>([]);
   const [processedToInputIndexes, setProcessedToInputIndexes] = useState<number[][]>([]);
   const [selectedSource, setSelectedSource] = useState<ReviewSource>("base");
@@ -451,6 +446,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     setBasePgn(null);
     setEditedFenHistory(game.fenHistoryEdited ?? []);
     setRecoveryLines([]);
+    setRecoveryComplete(true);
+    setRecoveredCount(0);
     setRecoverySteps([]);
     setProcessedToInputIndexes([]);
     setSelectedSource("base");
@@ -488,9 +485,11 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
           : (game.fenHistoryEdited ?? []));
         setBasePgn(typeof data.bestPgn === "string" && data.bestPgn.trim() ? data.bestPgn : data.pgn as string);
         setRecoveryLines(bestMoveLists);
+        setRecoveryComplete(data.fullyRecovered !== false);
+        setRecoveredCount(typeof data.longestRecoveredPly === "number" ? data.longestRecoveredPly : 0);
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
-        setSelectedSource("base");
+        setSelectedSource(bestMoveLists.length > 0 ? 0 : "base");
         setRecoveryStatus("ready");
       })
       .catch((error: unknown) => {
@@ -527,7 +526,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       : selectedSource === "base"
         ? preferredFenHistory
         : (selectedRecoveryLine?.assumedFens ?? []);
-    const initialFen = game.initialFen ?? DEFAULT_FEN;
+    const initialFen = selectedRecoveryLine?.startFen ?? game.initialFen ?? DEFAULT_FEN;
     const initial: ReviewMove = { fen: initialFen, san: "start", lastMove: null, originalPly: 0 };
     if (sourceFens.length > 0) {
       if (!isFenSource && (recoveryStatus !== "ready" || !reviewPgn)) {
@@ -566,7 +565,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
       if (!selectedRecoveryLine) return [initial];
       const out: ReviewMove[] = [initial];
       selectedRecoveryLine.sanMoves.forEach((san, index) => {
-        const step = recoverySteps[index];
+        const step = selectedRecoveryLine.steps?.[index] ?? recoverySteps[index];
         const moveSource = selectedRecoveryLine.moveSources?.[index];
         const originalPly = step?.originalPly ?? null;
         const processedIndex = originalPly === null
@@ -689,7 +688,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     } catch {
       sanMoves = [];
     }
-    if (sanMoves.length === 0) sanMoves = selectedRecoveryLine?.sanMoves ?? extractPgnMoveTokens(reviewPgn);
+    if (selectedRecoveryLine) sanMoves = selectedRecoveryLine.sanMoves;
+    if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
     if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
 
     const fields = (game.initialFen ?? DEFAULT_FEN).trim().split(/\s+/);
@@ -1409,6 +1409,19 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         {/* Review board */}
         <ChessboardDnDProvider>
         <div className="px-4 sm:px-5 pb-3 space-y-2">
+          {recoveryStatus === "ready" && recoveryLines.length > 1 && (
+            <RecoveryExplorer
+              key={game._id}
+              lines={recoveryLines}
+              selectedIndex={typeof selectedSource === "number" ? selectedSource : 0}
+              fullyRecovered={recoveryComplete}
+              recoveredCount={recoveredCount}
+              onSelect={(index, nextCursor) => {
+                setSelectedSource(index);
+                setCursor(nextCursor);
+              }}
+            />
+          )}
           <div className="grid grid-cols-1 gap-2 xl:grid-cols-[minmax(320px,520px)_minmax(0,1fr)]">
             <div className="relative flex min-h-10 items-center justify-start sm:justify-center">
               {inlineFenIndex !== null && (

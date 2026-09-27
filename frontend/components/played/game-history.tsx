@@ -7,6 +7,7 @@ import { useT } from "@/lib/i18n";
 import { resolveTimeControlType } from "@/lib/time-control";
 import { fetchJSONCached, invalidateFetchCache } from "@/lib/fetch-cache";
 import { apiFetch } from "@/lib/api-fetch";
+import { analyzeHistoryMoves, analyzePgnMoves } from "@/lib/post-game-analysis";
 import { Skeleton } from "@/components/ui/skeleton";
 import { BrainCircuit, Castle, SlidersHorizontal, Search, ArrowUpDown, Hash, LoaderCircle, RotateCcw, Trash, Trash2, Pencil, ChevronLeft, ChevronRight, ChevronsRight, ChevronsLeft } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -104,6 +105,9 @@ export function GameHistory() {
   const [suggestingResult, setSuggestingResult] = useState(false);
   const [resultSuggestion, setResultSuggestion] = useState<{ result: "1-0" | "0-1" | null; cp: number | null; mate: number | null; depth: number } | null>(null);
   const [trashActionError, setTrashActionError] = useState<string | null>(null);
+  const [analysisId, setAnalysisId] = useState<string | null>(null);
+  const [analysisError, setAnalysisError] = useState<string | null>(null);
+  const [analysisProgress, setAnalysisProgress] = useState<{ completed: number; total: number } | null>(null);
   const router = useRouter();
   const { t, locale } = useT();
   const { isAdmin, token } = useAuth();
@@ -353,6 +357,44 @@ export function GameHistory() {
     }
   };
 
+  const analyzeFromHistory = async (game: HistoryGame) => {
+    if (!isAdmin || !token || analysisId) return;
+    setAnalysisId(game._id);
+    setAnalysisError(null);
+    setAnalysisProgress(null);
+    try {
+      const recordedFens = game.fenHistoryEdited?.length ? game.fenHistoryEdited : game.fenHistory ?? [];
+      const initialFen = game.initialFen ?? "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+      const startsAtInitial = recordedFens[0]?.split(" ")[0] === initialFen.split(" ")[0];
+      const analysisFens = startsAtInitial ? recordedFens : [initialFen, ...recordedFens];
+      const onProgress = (completed: number, total: number) => {
+        setAnalysisProgress({ completed, total });
+      };
+      const moves = recordedFens.length
+        ? await analyzeHistoryMoves({ fenHistory: analysisFens }, onProgress)
+        : await analyzePgnMoves(game.pgn ?? "", onProgress);
+      if (!moves.length) throw new Error(t("analysis.noMoves"));
+      const response = await apiFetch(`/games/history/${encodeURIComponent(game._id)}/analysis`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ moves, depth: 14 }),
+      });
+      if (response.status === 404) throw new Error(t("analysis.backendOutdated"));
+      if (response.status === 401 || response.status === 403) throw new Error(t("analysis.authRequired"));
+      if (response.status === 429) throw new Error(t("analysis.rateLimited"));
+      if (response.status === 400) throw new Error(t("analysis.invalidData"));
+      if (!response.ok) throw new Error(t("analysis.error"));
+      const analysis = { engine: "Stockfish 18 Lite", depth: 14, updatedAt: new Date().toISOString(), moves };
+      setGames((current) => current.map((item) => item._id === game._id ? { ...item, analysis } : item));
+      invalidateFetchCache("/games/history");
+    } catch (error) {
+      setAnalysisError(error instanceof Error ? error.message : t("analysis.error"));
+    } finally {
+      setAnalysisId(null);
+      setAnalysisProgress(null);
+    }
+  };
+
   const boardOptions = useMemo(() => serverBoardOptions.length
     ? serverBoardOptions
     : Array.from(new Set(games.flatMap((game) => [game.boardID, game.boardNumber]).filter((value): value is string => Boolean(value)))).sort(),
@@ -437,6 +479,12 @@ export function GameHistory() {
       </div>
 
       <div className="px-4 sm:px-5 py-4 sm:py-5 space-y-4">
+        {analysisError && <p role="alert" className="text-sm text-destructive">{analysisError}</p>}
+        {analysisId && analysisProgress && (
+          <p role="status" className="text-sm text-muted-foreground">
+            {t("analysis.progress", analysisProgress)}
+          </p>
+        )}
         {loading && games.length === 0 ? (
           <div className="space-y-4">
             <div className="grid grid-cols-3 gap-3">
@@ -679,6 +727,9 @@ export function GameHistory() {
                         </td>
                         {isAdmin && (
                           <td className="px-2 py-3 text-right">
+                            <button type="button" disabled={Boolean(analysisId) || Boolean(busyId)} onClick={(event) => { event.stopPropagation(); void analyzeFromHistory(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50" title={t(game.analysis?.moves?.length ? "analysis.reanalyze" : "analysis.run")} aria-label={t(game.analysis?.moves?.length ? "analysis.reanalyze" : "analysis.run")}>
+                              {analysisId === game._id ? <LoaderCircle className="size-3.5 animate-spin" /> : <BrainCircuit className="size-3.5" />}
+                            </button>
                             {isAdmin && <button type="button" disabled={busyId === game._id} onClick={(event) => { event.stopPropagation(); setTrashActionError(null); setPendingTrashGame(game); }} className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive disabled:opacity-50" title={t("played.moveToTrash")}>
                               <Trash2 className="size-3.5" />
                             </button>}

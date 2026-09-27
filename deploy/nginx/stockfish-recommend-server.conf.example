@@ -1,0 +1,31 @@
+# Include these locations inside the HTTPS `server` block for the website.
+# The trailing slash on proxy_pass strips the public /stockfish-api/ prefix.
+location = /stockfish-api/live {
+    proxy_pass http://stockfish_recommend_api/live;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 3s;
+}
+
+location = /stockfish-api/ready {
+    proxy_pass http://stockfish_recommend_api/ready;
+    proxy_connect_timeout 3s;
+    proxy_read_timeout 3s;
+}
+
+location /stockfish-api/ {
+    limit_req zone=stockfish_recommend_api burst=2 nodelay;
+    client_max_body_size 16k;
+
+    proxy_http_version 1.1;
+    proxy_set_header Connection "";
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_connect_timeout 5s;
+    proxy_send_timeout 15s;
+    proxy_read_timeout 15s;
+    proxy_buffering off;
+    proxy_cache off;
+    proxy_pass http://stockfish_recommend_api/;
+}

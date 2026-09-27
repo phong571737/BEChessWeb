@@ -16,8 +16,47 @@ services:
       context: .
       dockerfile: recover_service/Dockerfile
     container_name: chess-recover-service
+    environment:
+      RECOVERY_WORKER_TIMEOUT_SECONDS: ${RECOVERY_WORKER_TIMEOUT_SECONDS:-50}
+      RECOVERY_CONCURRENCY: ${RECOVERY_CONCURRENCY:-2}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
     expose:
       - "8000"
+
+  stockfish-recommend:
+    build:
+      context: ./stockfish_recommend
+      dockerfile: Dockerfile
+    container_name: chess-stockfish-recommend
+    ports:
+      - "127.0.0.1:${STOCKFISH_RECOMMEND_PORT:-8001}:8000"
+    environment:
+      STOCKFISH_PATH: /usr/games/stockfish
+      STOCKFISH_THREADS: ${STOCKFISH_THREADS:-1}
+      STOCKFISH_HASH_MB: ${STOCKFISH_HASH_MB:-128}
+      ANALYSIS_TIMEOUT_SECONDS: ${STOCKFISH_ANALYSIS_TIMEOUT_SECONDS:-3}
+      ENGINE_STOP_GRACE_SECONDS: ${STOCKFISH_ENGINE_STOP_GRACE_SECONDS:-1}
+      STARTUP_TIMEOUT_SECONDS: ${STOCKFISH_STARTUP_TIMEOUT_SECONDS:-10}
+      READINESS_TIMEOUT_SECONDS: ${STOCKFISH_READINESS_TIMEOUT_SECONDS:-1}
+      QUEUE_WAIT_TIMEOUT_SECONDS: ${STOCKFISH_QUEUE_WAIT_TIMEOUT_SECONDS:-5}
+      MAX_DEPTH: ${STOCKFISH_MAX_DEPTH:-20}
+      QUEUE_SIZE: ${STOCKFISH_QUEUE_SIZE:-8}
+      MAX_REQUEST_BODY_BYTES: ${STOCKFISH_MAX_REQUEST_BODY_BYTES:-2048}
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/ready', timeout=2)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped
+    cpus: "2.0"
+    mem_limit: 512m
+    stop_grace_period: 15s
 
   frontend:
     build:

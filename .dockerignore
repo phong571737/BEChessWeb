@@ -10,3 +10,10 @@ server
 .env.local
 .env.*.local
 mongodb_data
+.venv
+work
+dist
+**/__pycache__
+recover_service_v4/backup
+recover_service_v4/stockfish
+stockfish_recommend/stockfish

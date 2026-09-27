@@ -5,8 +5,8 @@ WORKDIR /app
 COPY recover_service/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY recover_service ./recover_service
-COPY recover_service_v3 ./recover_service_v3
+COPY recover_service/app ./recover_service/app
+COPY recover_service_v5/*.py ./recover_service_v5/
 
 RUN addgroup --system appgroup \
  && adduser --system --ingroup appgroup appuser \

@@ -84,7 +84,7 @@ export function StatCards({ summary }: Props) {
         <div className="rounded-sm border border-border bg-card p-4">
           <div className="flex justify-between text-xs text-muted-foreground mb-3">
             <span className="font-medium text-foreground">{t("played.performance")}</span>
-            <span>{total} games</span>
+          <span>{t("played.gamesPlayed", { n: total })}</span>
           </div>
           <ChartContainer config={chartConfig} className={isMobile ? "h-[160px] w-full" : "h-[84px] w-full"}>
             <ResponsiveContainer width="100%" height="100%">

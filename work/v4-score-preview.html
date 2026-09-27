@@ -1,0 +1,68 @@
+<div id="v4-score-preview">
+  <style>
+    #v4-score-preview { color-scheme: light dark; font: 14px/1.5 system-ui, sans-serif; color: light-dark(#192323,#ecf1ef); }
+    #v4-score-preview .panel { background: light-dark(#f8faf9,#182220); border: 1px solid light-dark(#d5ded9,#45534c); border-radius: 12px; padding: 18px; }
+    #v4-score-preview h3 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+    #v4-score-preview .secondary { color: light-dark(#54665d,#b2c2b8); }
+    #v4-score-preview .controls { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 18px 0 12px; }
+    #v4-score-preview button { font: inherit; cursor: pointer; color: inherit; background: light-dark(#ffffff,#23312b); border: 1px solid light-dark(#abbcaf,#657b6d); border-radius: 6px; padding: 9px 12px; min-height: 44px; }
+    #v4-score-preview button[aria-pressed="true"] { background: light-dark(#244a37,#b9ddc7); color: light-dark(#ffffff,#142c20); }
+    #v4-score-preview table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+    #v4-score-preview th, #v4-score-preview td { padding: 10px 4px; text-align: center; border-bottom: 1px solid light-dark(#d5ded9,#45534c); overflow-wrap: anywhere; }
+    #v4-score-preview th { font-weight: 600; }
+    #v4-score-preview th:first-child, #v4-score-preview td:first-child { text-align: left; width: 26%; }
+    #v4-score-preview .detail { margin-top: 16px; padding-top: 10px; min-height: 76px; }
+    #v4-score-preview .detail strong { display: block; margin-bottom: 4px; }
+    #v4-score-preview .legend { margin-top: 14px; }
+    @media (max-width: 420px) { #v4-score-preview .panel { padding: 12px; } #v4-score-preview td button { padding: 8px; } }
+  </style>
+  <section class="panel" aria-label="Bản xem trước điểm phục hồi V4">
+    <h3>Điểm Stockfish của các nhánh phục hồi</h3>
+    <div class="secondary">Dữ liệu minh họa · Cùng nhóm: 2 nước padding · Depth 15</div>
+    <div class="controls" aria-label="Góc nhìn điểm">
+      <span>Điểm theo:</span>
+      <button type="button" data-pov="mover" aria-pressed="true">Bên vừa đi</button>
+      <button type="button" data-pov="white" aria-pressed="false">Trắng</button>
+    </div>
+    <table aria-label="Thứ hạng cố định của V4 và điểm tại từng nước padding">
+      <thead><tr><th scope="col">Hạng trong nhóm</th><th scope="col">3. Trắng<br><span class="secondary">Ply 5</span></th><th scope="col">3… Đen<br><span class="secondary">Ply 6</span></th></tr></thead>
+      <tbody>
+        <tr><th scope="row">#1 · A</th><td><button type="button" data-row="0" data-point="0" aria-pressed="true">+0.42</button></td><td><button type="button" data-row="0" data-point="1" aria-pressed="false">−0.20</button></td></tr>
+        <tr><th scope="row">#2 · B</th><td><button type="button" data-row="1" data-point="0" aria-pressed="false">+0.35</button></td><td><button type="button" data-row="1" data-point="1" aria-pressed="false">+0.80</button></td></tr>
+        <tr><th scope="row">#3 · C</th><td><button type="button" data-row="2" data-point="0" aria-pressed="false">+0.35</button></td><td><button type="button" data-row="2" data-point="1" aria-pressed="false">+0.65</button></td></tr>
+      </tbody>
+    </table>
+    <div class="legend secondary">Đơn vị: tốt · Chỉ các vị trí sau nước padding</div>
+    <div class="detail" aria-live="polite"><strong data-detail-title>Nhánh A · Sau 3. Trắng</strong><span data-detail-score>+0.42 tốt · Theo bên vừa đi (Trắng)</span></div>
+    <div class="secondary" data-order>A đứng trước B vì điểm đầu tiên: +0.42 &gt; +0.35. B đứng trước C nhờ điểm thứ hai: +0.80 &gt; +0.65.</div>
+  </section>
+  <script>
+    (() => {
+      const root = document.getElementById('v4-score-preview');
+      const scores = [[42, -20], [35, 80], [35, 65]];
+      const names = ['A', 'B', 'C'];
+      let pov = 'mover';
+      let selectedRow = 0;
+      let selectedPoint = 0;
+      const format = value => `${value < 0 ? '−' : '+'}${(Math.abs(value) / 100).toFixed(2)}`;
+      function draw() {
+        root.querySelectorAll('[data-pov]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.pov === pov)));
+        root.querySelectorAll('[data-point]').forEach(button => {
+          const row = Number(button.dataset.row);
+          const point = Number(button.dataset.point);
+          const value = scores[row][point] * (pov === 'white' && point === 1 ? -1 : 1);
+          button.textContent = format(value);
+          button.setAttribute('aria-label', `Nhánh ${names[row]}, ply ${5 + point}, ${format(value)} tốt, theo ${pov === 'white' ? 'Trắng' : 'bên vừa đi'}`);
+          button.setAttribute('aria-pressed', String(row === selectedRow && point === selectedPoint));
+        });
+        const side = selectedPoint === 0 ? 'Trắng' : 'Đen';
+        const value = scores[selectedRow][selectedPoint] * (pov === 'white' && selectedPoint === 1 ? -1 : 1);
+        root.querySelector('[data-detail-title]').textContent = `Nhánh ${names[selectedRow]} · Sau ${selectedPoint === 0 ? '3.' : '3…'} ${side}`;
+        root.querySelector('[data-detail-score]').textContent = `${format(value)} tốt · Theo ${pov === 'white' ? 'Trắng' : `bên vừa đi (${side})`}`;
+      }
+      root.querySelectorAll('[data-pov]').forEach(button => button.addEventListener('click', () => { pov = button.dataset.pov; draw(); }));
+      root.querySelectorAll('[data-point]').forEach(button => button.addEventListener('click', () => { selectedRow = Number(button.dataset.row); selectedPoint = Number(button.dataset.point); draw(); }));
+      draw();
+    })();
+  </script>
+</div>

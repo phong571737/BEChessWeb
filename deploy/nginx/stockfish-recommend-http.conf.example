@@ -1,0 +1,7 @@
+# Include these directives once inside Nginx's `http` context.
+limit_req_zone $binary_remote_addr zone=stockfish_recommend_api:10m rate=6r/m;
+
+upstream stockfish_recommend_api {
+    server 127.0.0.1:8001;
+    keepalive 4;
+}

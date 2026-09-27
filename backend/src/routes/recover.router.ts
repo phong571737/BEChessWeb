@@ -63,7 +63,7 @@ recoverRouter.get("/history/:id/recovered-pgn", gameReadRateLimit, async (req, r
             fenHistoryEdited: editedFenHistory,
             preferredFenHistory: fenHistory,
             fenSource: editedFenHistory.length > 0 ? "edited" : "raw",
-            startFen: startFen ?? null,
+            startFen: recovered.startFen,
         });
     } catch (error) {
         if (error instanceof FenRecoveryServiceError) {
@@ -119,7 +119,7 @@ recoverRouter.post("/recover", gameMutationRateLimit, async (req, res) => {
             fenHistory,
             typeof req.body?.startFen === "string" ? req.body.startFen : undefined,
             typeof req.body?.headers === "object" && req.body.headers !== null ? req.body.headers : {},
-            { nRetry: 5, exposeServiceErrors: true },
+            { exposeServiceErrors: true },
         );
         if (result) return res.json(result);
         return res.status(503).json({ error: "FEN recovery service unavailable" });
