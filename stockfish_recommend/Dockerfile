@@ -6,7 +6,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /service
 
-RUN apt-get update \
+RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' \
+        /etc/apt/sources.list.d/debian.sources \
+    && printf 'Acquire::Retries "5";\nAcquire::http::Timeout "60";\nAcquire::https::Timeout "60";\n' \
+        > /etc/apt/apt.conf.d/80-network-retries \
+    && apt-get update \
     && apt-get install -y --no-install-recommends stockfish \
     && /usr/games/stockfish bench 1 1 1 \
     && rm -rf /var/lib/apt/lists/* \
