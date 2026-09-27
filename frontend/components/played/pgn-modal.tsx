@@ -489,7 +489,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         setRecoveredCount(typeof data.longestRecoveredPly === "number" ? data.longestRecoveredPly : 0);
         setRecoverySteps(steps);
         setProcessedToInputIndexes(readProcessedIndexes(data.preprocessing));
-        setSelectedSource("base");
+        setSelectedSource(bestMoveLists.length > 0 ? 0 : "base");
         setRecoveryStatus("ready");
       })
       .catch((error: unknown) => {
@@ -688,7 +688,8 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
     } catch {
       sanMoves = [];
     }
-    if (sanMoves.length === 0) sanMoves = selectedRecoveryLine?.sanMoves ?? extractPgnMoveTokens(reviewPgn);
+    if (selectedRecoveryLine) sanMoves = selectedRecoveryLine.sanMoves;
+    if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
     if (sanMoves.length === 0) sanMoves = extractPgnMoveTokens(reviewPgn);
 
     const fields = (game.initialFen ?? DEFAULT_FEN).trim().split(/\s+/);
@@ -1408,7 +1409,7 @@ export function PGNReviewContent({ game, onGameUpdate, onAnalysisChange }: Revie
         {/* Review board */}
         <ChessboardDnDProvider>
         <div className="px-4 sm:px-5 pb-3 space-y-2">
-          {recoveryStatus === "ready" && recoveryLines.length > 0 && (
+          {recoveryStatus === "ready" && recoveryLines.length > 1 && (
             <RecoveryExplorer
               key={game._id}
               lines={recoveryLines}

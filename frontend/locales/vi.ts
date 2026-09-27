@@ -44,6 +44,7 @@ export const vi: Record<TranslationKeys, string> = {
     "recoveryTree.hint": "Điểm dùng để xếp gợi ý, không phải độ tin cậy. Bạn có thể chọn mọi nước trong danh sách. Các lựa chọn sau chỉ thuộc những nhánh tương thích.",
     // ---- Nhãn dùng chung -------------------------------------------
     "common.chessboard": "Bàn cờ",
+    "pg.unresolvedX": "Còn {count} nước chưa khôi phục, giữ là X bên dưới. PGN chỉ đến trước X đầu tiên:",
     "common.board": "Bàn",
     "common.boardNumber": "Bàn {n}",
     "common.duration": "Thời gian",

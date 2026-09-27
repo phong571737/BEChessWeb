@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from .runner import RecoveryError, run_recovery
 from .schemas import RecoverRequest
 
-app = FastAPI(title="FEN Recovery Service V4")
+app = FastAPI(title="FEN Recovery Service V5")
 logger = logging.getLogger(__name__)
 
 
@@ -24,11 +24,11 @@ def recover(req: RecoverRequest):
     except RecoveryError as exc:
         return JSONResponse(status_code=exc.status, content={"detail": str(exc), "code": exc.code})
     except Exception:
-        logger.exception("Recover Service V4 failed")
+        logger.exception("Recover Service V5 failed")
         return JSONResponse(status_code=500, content={
             "detail": "Recovery service failed", "code": "RECOVERY_INTERNAL_ERROR"})
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "engineVersion": "recover_service_v4"}
+    return {"status": "ok", "engineVersion": "recover_service_v5"}

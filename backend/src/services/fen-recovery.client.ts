@@ -74,13 +74,13 @@ function postRecovery(url: URL, payload: object): Promise<{ status: number; body
   });
 }
 
-export function validateV4Response(value: unknown): FenRecoveryResult {
+export function validateV5Response(value: unknown): FenRecoveryResult {
   const data = value as FenRecoveryResult | null;
-  if (!data || data.schemaVersion !== 4 || data.engineVersion !== "recover_service_v4"
+  if (!data || data.schemaVersion !== 5 || data.engineVersion !== "recover_service_v5"
     || typeof data.pgn !== "string" || typeof data.bestPgn !== "string"
     || typeof data.fullyRecovered !== "boolean" || !Array.isArray(data.failedPlies)
-    || !Array.isArray(data.bestMoveLists) || !Array.isArray(data.recoveryGroups)) {
-    throw new Error("Invalid V4 recovery response");
+    || !Array.isArray(data.bestMoveLists) || data.bestMoveLists.length !== 1 || !Array.isArray(data.recoveryGroups)) {
+    throw new Error("Invalid V5 recovery response");
   }
   for (const line of data.bestMoveLists) {
     if (!Array.isArray(line.uciMoves) || !line.uciMoves.every(move => typeof move === "string")
@@ -89,18 +89,17 @@ export function validateV4Response(value: unknown): FenRecoveryResult {
       || !Array.isArray(line.steps) || line.steps.length !== line.uciMoves.length
       || typeof line.pgn !== "string" || typeof line.startFen !== "string"
       || !Array.isArray(line.paddingIndices) || !Array.isArray(line.paddingScores)
-      || !Array.isArray(line.scoreSides) || line.scoreSides.length !== line.paddingIndices.length
-      || line.paddingIndices.length !== line.paddingScores.length
-      || !line.paddingScores.every(Number.isFinite)
+      || !Array.isArray(line.scoreSides) || line.scoreSides.length !== 0
+      || line.paddingScores.length !== 0
       || !line.paddingIndices.every((index, i, all) => Number.isInteger(index) && index >= 0
         && index < line.uciMoves.length && (i === 0 || index > all[i - 1]!))) {
-      throw new Error("Invalid V4 recovery line");
+      throw new Error("Invalid V5 recovery line");
     }
   }
   for (const group of data.recoveryGroups) {
     if (!Array.isArray(group.lineIndices) || !Array.isArray(group.paddingIndices)
       || !group.lineIndices.every(index => Number.isInteger(index) && data.bestMoveLists[index]?.groupId === group.id)) {
-      throw new Error("Invalid V4 recovery group");
+      throw new Error("Invalid V5 recovery group");
     }
   }
   return data;
@@ -114,7 +113,7 @@ export async function recoverFenHistory(
   if (!baseUrl || !fenHistory.length) return null;
   try {
     const payload = { fenHistory, startFen, headers, maxBranches: 10000 };
-    if (options.debug) console.log("[FEN RECOVERY V4] Request", payload);
+    if (options.debug) console.log("[FEN RECOVERY V5] Request", payload);
     const response = await postRecovery(new URL(`${baseUrl}/recover`), payload);
     if (response.status < 200 || response.status >= 300) {
       const errorBody = JSON.parse(response.body) as { detail?: unknown; code?: string };
@@ -127,7 +126,7 @@ export async function recoverFenHistory(
         invalid ? "RECOVERY_INVALID_INPUT" : limit ? "RECOVERY_BRANCH_LIMIT" : timeout ? "RECOVERY_TIMEOUT" : unavailable ? "RECOVERY_UNAVAILABLE" : "RECOVERY_REJECTED",
         invalid ? 400 : limit ? 422 : timeout ? 504 : unavailable ? 503 : 502, detail);
     }
-    return validateV4Response(JSON.parse(response.body));
+    return validateV5Response(JSON.parse(response.body));
   } catch (error) {
     if (options.exposeServiceErrors) {
       if (error instanceof FenRecoveryServiceError) throw error;
@@ -135,7 +134,7 @@ export async function recoverFenHistory(
       const timeout = /timed out/i.test(message);
       throw new FenRecoveryServiceError(timeout ? "RECOVERY_TIMEOUT" : "RECOVERY_UNAVAILABLE", timeout ? 504 : 503, message);
     }
-    console.warn("[FEN RECOVERY V4] Recovery unavailable", error instanceof Error ? error.message : String(error));
+    console.warn("[FEN RECOVERY V5] Recovery unavailable", error instanceof Error ? error.message : String(error));
     return null;
   }
 }

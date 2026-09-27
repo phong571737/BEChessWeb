@@ -1,4 +1,7 @@
-# FEN recovery V4 integration
+# Archived: FEN recovery V4 integration
+
+The current website integration uses V5; see [README-v5.md](README-v5.md).
+This document describes the retained V4 implementation only.
 
 The website uses `recover_service.app.main:app` on internal port 8000.
 Its `/recover` adapter calls the V4 pipeline. V4 recovery and ranking are

@@ -83,7 +83,7 @@ function recoveryResult(data: RecoveryApiResponse, fenHistory: string[]): ParseU
     if (!data.pgn) throw new Error("empty");
     const failedPlies = Array.isArray(data.failedPlies) ? data.failedPlies : [];
     const recoveryLines = Array.isArray(data.bestMoveLists)
-        ? data.bestMoveLists.filter(isRecoveryApiLine)
+        ? data.bestMoveLists.filter(isRecoveryApiLine).slice(0, 1)
         : [];
     const branches: BranchResult[] = recoveryLines.map((line) => {
         const skipped = line.uciMoves.flatMap((token, index) =>
@@ -179,7 +179,7 @@ export function PasteGame() {
         });
         if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
         const data = await response.json() as RecoveryApiResponse;
-        setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine) : []);
+        setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine).slice(0, 1) : []);
         setTreeCursor(0);
         setSelectedBranch(0);
         setResult(recoveryResult(data, fenHistory));
@@ -218,7 +218,7 @@ export function PasteGame() {
             });
             if (!response.ok) throw new Error(response.status === 503 ? "unavailable" : "failed");
             const data = await response.json() as RecoveryApiResponse;
-            setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine) : []);
+            setTreeLines(Array.isArray(data.bestMoveLists) ? data.bestMoveLists.filter(isTreeLine).slice(0, 1) : []);
             setTreeCursor(0);
             setResult(recoveryResult(data, fenHistory));
             setShowAllRecoveryBranches(false);
@@ -576,6 +576,12 @@ export function PasteGame() {
                                 </div>
 
                                 {/* PGN Code block */}
+                                {result?.mode === "fen" && activeBranch?.skipped.length ? (
+                                    <p className="text-xs text-warning" role="status">
+                                        {t("pg.unresolvedX", { count: activeBranch.skipped.length })}
+                                        {" "}{activeBranch.sanHistory.join(" ")}
+                                    </p>
+                                ) : null}
                                 <div className="relative min-h-[180px] flex-1 overflow-hidden rounded-md border border-border bg-background-secondary sm:min-h-[220px]">
                                     {activeBranch?.pgn ? (
                                             <div className="max-h-[220px] overflow-auto sm:max-h-[260px]">
@@ -594,7 +600,7 @@ export function PasteGame() {
                                 </div>
 
                                 {/* Branch Selector */}
-                                {result?.mode === "fen" && treeLines.length > 0 && (
+                                {result?.mode === "fen" && treeLines.length > 1 && (
                                     <>
                                         <div className="mx-auto w-[240px]">
                                             <ChessBoardView boardWidth={240}

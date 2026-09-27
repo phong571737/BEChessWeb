@@ -42,6 +42,7 @@ export const en = {
     "recoveryTree.hint": "Scores order suggestions, not confidence. Any listed move can be selected. Later choices follow only compatible paths.",
     // ------ Shared labels -------------------------------------------------
     "common.chessboard": "Board",
+    "pg.unresolvedX": "Unresolved moves ({count}) remain as X below. The PGN preview ends before the first X:",
     "common.board": "Board",
     "common.boardNumber": "Board {n}",
     "common.duration": "Duration",
