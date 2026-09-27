@@ -185,6 +185,49 @@ A single collection would be possible, but this codebase separates:
 
 That separation supports faster active-session operations while keeping historical review queries relatively clean.
 
+## Board connectivity telemetry
+
+### `board_uptime`
+
+One summary document per physical `boardID`, maintained from MQTT lifecycle
+events. It stores accumulated online time, the current `online` flag,
+`onlineSince`, the latest online/offline timestamps, and a `sessionCount`.
+Offline duration is not accumulated. The summary is updated asynchronously so a telemetry write
+cannot block move processing or board lifecycle handling.
+
+### `board_uptime_sessions`
+
+One document per observed online session. An online event opens a session;
+offline (or a later reset/offline transition) closes it and records
+`durationSec`. A unique partial index prevents more than one open session for a
+board. These records are operational telemetry, not game history, and begin
+accumulating after deployment starts observing MQTT transitions; MongoDB
+cannot reconstruct uptime that occurred before telemetry was enabled.
+
+`GET /boards/uptime/sessions?days=7|30` returns sessions overlapping the
+requested reporting window. Each row contains the exact `onlineAt`, optional
+`offlineAt`, duration, and whether the session is still open. Dashboard totals
+and charts use these online intervals only; gaps between sessions are not
+counted.
+
+The administrator dashboard reads the summary endpoint and joins it by
+`boardID`. Public viewers do not receive uptime telemetry.
+
+### `broadcast_settings`
+
+The singleton document `_id: "spectator-delay"` stores the spectator delay
+and shared live-display settings:
+
+- `delayMs` — public spectator release delay;
+- `homeEvaluationVisible` — whether public home cards and live board pages show an evaluation bar;
+- `homeSuggestionsVisible` — whether public home cards and live board pages show a best-move arrow;
+- `homeBoardOrder` — administrator-defined ordered list of physical `boardID` values.
+
+Visibility fields default to `true` when absent. The order uses physical board
+IDs, rather than temporary game IDs, so a replacement game retains its board's
+position. Administrators write these settings and clients receive updates over
+Socket.IO.
+
 ## Persistence rules
 
 ### `saveGame`
@@ -201,7 +244,12 @@ This means the game document stays current without replacing the whole doc on ev
 
 ### `removeGameByBoardID`
 
-This method is used when delayed MQTT offline cleanup discards game records associated with a disconnected board ID. An in-place restart does not call this cleanup and retains the current `gameID`.
+This method is used by MQTT offline cleanup after a status-dependent grace
+period: 30 minutes for a `playing`/`active` game and 5 minutes for init-check,
+waiting, and other states. Reconnection cancels the pending timer. If the board
+remains offline until expiry, active game documents and runtime mappings are
+removed; completed history snapshots remain archived. An in-place restart
+retains the current `gameID`.
 
 ## Business invariants
 

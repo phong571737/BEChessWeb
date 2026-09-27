@@ -2,6 +2,8 @@ import { apiFetch } from "@/lib/api-fetch";
 import type { HistoryGame } from "@/types/game.types";
 
 export interface RecoveryPayload {
+  fullyRecovered?: boolean;
+  longestRecoveredPly?: number;
   pgn?: unknown;
   bestPgn?: unknown;
   fenHistory?: unknown;

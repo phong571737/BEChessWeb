@@ -22,6 +22,23 @@ export interface ExcelGameImport {
   location?: string;
 }
 
+/** Matches workbook board labels such as `5`, `Bàn 5`, and `Board_05`. */
+export function excelBoardKey(value?: string): string {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  const number = normalized.match(/\d+$/)?.[0];
+  return number ? String(Number(number)) : normalized;
+}
+
+/** Returns the workbook row assigned to a physical/logical board, if any. */
+export function findExcelBoardRow(
+  imported: ExcelGameImport,
+  ...boardLabels: Array<string | undefined>
+): number {
+  const keys = new Set(boardLabels.map(excelBoardKey).filter(Boolean));
+  if (!keys.size) return -1;
+  return imported.rows.findIndex((row) => keys.has(excelBoardKey(row.boardNumber)));
+}
+
 const LOCAL_FILE_HEADER = 0x04034b50;
 
 function columnNumber(reference: string): number {
@@ -72,7 +89,29 @@ function parseSchedule(value: string): string | undefined {
 }
 
 function normalizedHeader(value: string): string {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+/** Player-name column headers accepted for the White side. */
+export function isWhitePlayerHeader(value: string): boolean {
+  const header = normalizedHeader(value);
+  return /^(white|trang|quan trang)$/.test(header)
+    || /^(white|trang|quan trang) (name|player|ten|ho va ten)$/.test(header)
+    || /^(name|player|ten|ho va ten) (white|trang|quan trang)$/.test(header);
+}
+
+/** Player-name column headers accepted for the Black side. */
+export function isBlackPlayerHeader(value: string): boolean {
+  const header = normalizedHeader(value);
+  return /^(black|den|quan den)$/.test(header)
+    || /^(black|den|quan den) (name|player|ten|ho va ten)$/.test(header)
+    || /^(name|player|ten|ho va ten) (black|den|quan den)$/.test(header);
 }
 
 function canBeTournamentTitle(value: string): boolean {
@@ -122,13 +161,21 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     }
 
     const firstCell = cells.get(1) ?? "";
+    const genericNameColumns: number[] = [];
     for (const [column, value] of cells) {
       const header = normalizedHeader(value);
 
-      if (/^(white|trang|quan trang)$/.test(header)) whiteColumn = column;
-      if (/^(black|den|quan den)$/.test(header)) blackColumn = column;
+      if (isWhitePlayerHeader(value)) whiteColumn = column;
+      if (isBlackPlayerHeader(value)) blackColumn = column;
+      if (/^(name|player|ten|ho va ten)$/.test(header)) genericNameColumns.push(column);
       if (/^(dia diem|location|venue)$/.test(header)) locationColumn = column;
-      if (/^(ban|board|board number|ban so)$/.test(header)) boardColumn = column;
+      if (/^(bo|ban|board|board number|ban so)$/.test(header)) boardColumn = column;
+    }
+    // Chess-Results pairing sheets commonly label both player columns "Name"
+    // instead of explicitly using White/Black.
+    if (genericNameColumns.length >= 2) {
+      whiteColumn ??= genericNameColumns[0];
+      blackColumn ??= genericNameColumns[genericNameColumns.length - 1];
     }
     // Chess-Results usually exports the tournament title on row 2. Some
     // workbooks insert/remove a note, so use the first five rows as a
@@ -146,8 +193,10 @@ export async function parseExcelGameFile(file: File): Promise<ExcelGameImport> {
     const whiteName = whiteColumn !== undefined ? cells.get(whiteColumn) ?? "" : "";
     const blackName = blackColumn !== undefined ? cells.get(blackColumn) ?? "" : "";
     if (!whiteName && !blackName) continue;
+    const boardNumber = cells.get(boardColumn ?? 1) ?? "";
+    if (/^(bo|ban|board|board number|ban so)$/.test(normalizedHeader(boardNumber))) continue;
     rows.push({
-      boardNumber: cells.get(boardColumn ?? 1) ?? "",
+      boardNumber,
       whitePlayerNumber: cells.get(2) || undefined,
       whiteName,
       blackPlayerNumber: cells.get(14) || undefined,

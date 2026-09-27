@@ -384,7 +384,11 @@ sudo docker compose up -d --force-recreate ttlab-chess-app frontend
 
 ### Không thấy nước đi sau thời gian delay
 
-`GET/PATCH /broadcast-settings` là route quản trị. Giá trị delay được lưu bằng milliseconds và mặc định là `0`; admin nhận ngay, người xem nhận từ hàng đợi `spectator_events` qua `public_game_snapshots`. Hàng đợi phát từng nước theo thứ tự và khoảng cách gốc, không xả toàn bộ sau một lần timeout. Khi kiểm tra lỗi, xác nhận socket public đã kết nối, có `active_games_snapshot`, và `releaseAt` của event đã đến hạn. Reload chỉ hydrate lại snapshot hiện hành, không bỏ qua delay.
+`GET /broadcast-settings` cho phép đọc công khai; `PATCH` yêu cầu quyền admin. Delay được lưu bằng milliseconds và mặc định là `0`; admin nhận ngay, người xem nhận từ hàng đợi `spectator_events` qua `public_game_snapshots`. Hàng đợi phát từng nước theo thứ tự và khoảng cách gốc, không xả toàn bộ sau một lần timeout. Cùng tài liệu MongoDB này lưu tùy chọn ẩn/hiện thanh đánh giá, đề xuất nước đi và thứ tự bàn trang chủ; server phát `broadcast_settings_updated` sau khi admin đổi. Khi kiểm tra lỗi delay, xác nhận socket public đã kết nối, có `active_games_snapshot`, và `releaseAt` của event đã đến hạn. Reload chỉ hydrate lại snapshot hiện hành, không bỏ qua delay.
+
+### Bàn offline chưa bị xóa
+
+Backend bắt đầu đếm khi nhận MQTT `offline`: game `playing`/`active` được giữ 30 phút; init-check, waiting và trạng thái khác được giữ 5 phút. MQTT `online` hoặc `reset` trước hạn sẽ hủy timer. Xem log `[MQTT] Scheduling cleanup` để biết thời hạn dựa trên trạng thái runtime và MongoDB; khi hết hạn, backend phát `game:destroyed` và `board_offline` sau khi dọn game runtime.
 
 Nếu trang chủ hiển thị trùng nhiều thẻ cùng một bàn, kiểm tra `boardID`: backend và frontend đều phải deduplicate theo `boardID`, không theo tên hiển thị `Board_04`.
 

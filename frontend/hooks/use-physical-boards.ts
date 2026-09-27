@@ -44,7 +44,7 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
               g.status === "ok"
                 ? "active"
                 : g.status,
-            online: true,
+            online: g.online !== false,
             initStatus: g.initStatus,
             missingSquares: Array.isArray(g.missingSquares) ? g.missingSquares : [],
             extraSquares: Array.isArray(g.extraSquares) ? g.extraSquares : [],
@@ -136,7 +136,7 @@ export function usePhysicalBoards(): { boards: PhysicalBoard[]; loading: boolean
       if (!boardID) return;
       patchPhysicalBoard({
         boardID,
-        online: true,
+        online: payload.boardStatus === "offline" ? false : true,
         initStatus: typeof payload.initResultStatus === "string" ? payload.initResultStatus : payload.gameStatus,
         missingSquares: Array.isArray(payload.missingSquares) ? payload.missingSquares : [],
         extraSquares: Array.isArray(payload.extraSquares) ? payload.extraSquares : [],

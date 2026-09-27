@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { apiFetch } from "@/lib/api-fetch";
-import { ExcelGameImport, parseExcelGameFile } from "@/lib/excel-game-import";
+import { ExcelGameImport, excelBoardKey, parseExcelGameFile } from "@/lib/excel-game-import";
 import { useT } from "@/lib/i18n";
 import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
 import { readBulkGameSetupDraft, removeBulkGameSetupDraft, writeBulkGameSetupDraft, type BulkGameSetupDraft } from "@/lib/bulk-game-setup-draft";
@@ -20,12 +20,6 @@ const MATCH_OPTIONS = Array.from({ length: 10 }, (_, index) => index);
 interface Props {
     activeGames: ActiveGame[];
     onApplied: () => void;
-}
-
-function boardKey(value?: string): string {
-    const normalized = String(value ?? "").trim().toLowerCase();
-    const number = normalized.match(/\d+$/)?.[0];
-    return number ? String(Number(number)) : normalized;
 }
 
 export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
@@ -51,6 +45,34 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
         const game = activeGames.find((candidate) => candidate.gameID === boardAssignments[rowIndex]);
         return game && row.whiteName.trim() && row.blackName.trim() ? [{ game, row }] : [];
     }), [activeGames, boardAssignments, imported]);
+
+    useEffect(() => {
+        if (!imported) return;
+        const activeGameIDs = new Set(activeGames.map((game) => game.gameID));
+        setBoardAssignments((current) => {
+            const next = { ...current };
+            let changed = false;
+
+            for (const [rowIndexValue, assignedGameID] of Object.entries(current)) {
+                if (activeGameIDs.has(assignedGameID)) continue;
+
+                const rowIndex = Number(rowIndexValue);
+                const row = imported.rows[rowIndex];
+                const key = excelBoardKey(row?.boardNumber);
+                const replacement = row && key
+                    ? activeGames.find((game) =>
+                        excelBoardKey(game.boardNumber) === key || excelBoardKey(game.boardID) === key,
+                    )
+                    : undefined;
+
+                if (replacement) next[rowIndex] = replacement.gameID;
+                else delete next[rowIndex];
+                changed = true;
+            }
+
+            return changed ? next : current;
+        });
+    }, [activeGames, imported]);
 
     useEffect(() => {
         try {
@@ -151,9 +173,11 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
             const used = new Set<string>();
             const defaults: Record<number, string> = {};
             workbook.rows.forEach((row, rowIndex) => {
-                const key = boardKey(row.boardNumber);
-                const game = activeGames.find((candidate) => !used.has(candidate.gameID)
-                    && (boardKey(candidate.boardNumber) === key || boardKey(candidate.boardID) === key));
+                const key = excelBoardKey(row.boardNumber);
+                const game = key
+                    ? activeGames.find((candidate) => !used.has(candidate.gameID)
+                        && (excelBoardKey(candidate.boardNumber) === key || excelBoardKey(candidate.boardID) === key))
+                    : undefined;
                 if (game && row.whiteName.trim() && row.blackName.trim()) {
                     used.add(game.gameID);
                     defaults[rowIndex] = game.gameID;
@@ -329,8 +353,7 @@ export function BulkGameSetupDialog({ activeGames, onApplied }: Props) {
                                             <select aria-label={t("bulk.sourceBoard", { board: game.boardID ?? game.boardNumber ?? "?" })} value={selectedRowIndex} onChange={(event) => assignWorkbookRow(game.gameID, event.target.value)} disabled={loading} className="h-8 w-full rounded-md border border-input bg-background px-2 text-xs">
                                                 <option value="">{t("bulk.noBoard")}</option>
                                                 {imported.rows.map((row, rowIndex) => {
-                                                    const assignedElsewhere = boardAssignments[rowIndex] !== undefined && boardAssignments[rowIndex] !== game.gameID;
-                                                    return <option key={`${row.boardNumber}-${rowIndex}`} value={rowIndex} disabled={assignedElsewhere || !row.whiteName.trim() || !row.blackName.trim()}>{t("common.boardNumber", { n: row.boardNumber || String(rowIndex + 1) })}</option>;
+                                                    return <option key={`${row.boardNumber}-${rowIndex}`} value={rowIndex} disabled={!row.whiteName.trim() || !row.blackName.trim()}>{t("common.boardNumber", { n: row.boardNumber || String(rowIndex + 1) })}</option>;
                                                 })}
                                             </select>
                                             <span className="truncate text-xs text-muted-foreground">{selectedRow ? `${selectedRow.whiteName} — ${selectedRow.blackName}` : t("bulk.noPairing")}</span>

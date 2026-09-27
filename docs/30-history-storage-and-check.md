@@ -52,3 +52,13 @@ Có thể hiểu quy trình như việc camera chụp lại bàn cờ sau mỗi 
 - `backend/src/routes/game.router.ts` — các API đọc lịch sử, sửa FEN/PGN, khôi phục và xóa lịch sử.
 - `frontend/components/played/pgn-modal.tsx` — hiển thị FEN timeline, PGN và các thao tác xem lại/chỉnh sửa.
 - `frontend/lib/post-game-analysis.ts` — đối chiếu FEN liên tiếp và phân tích lịch sử.
+
+## Hoàn tác chỉnh sửa FEN
+
+Màn hình lịch sử của quản trị viên giữ một ngăn xếp tối đa 50 phiên bản trước
+đó trong lúc chỉnh sửa FEN. Mỗi thao tác thêm, sửa, chèn, xóa hoặc thay thế
+hàng đều ghi lại trạng thái trước thao tác. Nhấn `Ctrl+Z` (hoặc `Cmd+Z` trên
+macOS) khi con trỏ không ở trong ô nhập liệu sẽ gọi API thay thế lịch sử và
+khôi phục phiên bản trước trên máy chủ; thao tác hoàn tác của trình duyệt
+trong ô nhập liệu vẫn được giữ nguyên. Nếu API thất bại, ngăn xếp cục bộ được
+khôi phục để không làm mất lịch sử.

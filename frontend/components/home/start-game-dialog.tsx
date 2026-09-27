@@ -5,19 +5,17 @@ import { useEffect, useRef, useState } from "react";
 import { encodeGameID } from "@/lib/id-utils";
 import { useGameStore } from "@/lib/store";
 import { invalidateFetchCache } from "@/lib/fetch-cache";
-<<<<<<< HEAD
-=======
 import { apiFetch } from "@/lib/api-fetch";
 import { getLastTimeControl, saveLastTimeControl } from "@/lib/last-time-control";
->>>>>>> origin/master
 import { Dialog, DialogContent, DialogTitle, DialogHeader, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { DEFAULT_INCREMENT_MS, DEFAULT_INITIAL_TIME_MS, INITIAL_TIME_OPTIONS_MS } from "@/lib/time-control";
 import { parseExcelGameFile, ExcelGameImport } from "@/lib/excel-game-import";
 import { FileSpreadsheet, Upload } from "lucide-react";
+
 
 interface Props {
     board: PhysicalBoard | null;
@@ -89,9 +87,9 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
 
         try {
             // Save names + clock settings in one request
-            const whiteResponse = await fetch(`/games/${gameID}/rename`, {
+            const whiteResponse = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     color: "White",
                     name: white.trim(),
@@ -108,15 +106,10 @@ export function StartGameDialog({ board, gameID , onClose }: Props) {
                 throw new Error(body?.error || t("sg.saveClockError"));
             }
 
-            const blackResponse = await fetch(`/games/${gameID}/rename`, {
+            const blackResponse = await apiFetch(`/games/${gameID}/rename`, {
                 method: "POST",
-<<<<<<< HEAD
-                headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-                body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim() }),
-=======
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ color: "Black", name: black.trim(), boardNumber: boardNumber.trim(), tournament: excelImport?.tournament ?? "" }),
->>>>>>> origin/master
             });
             if (!blackResponse.ok) {
                 const body = await blackResponse.json().catch(() => null);

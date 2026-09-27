@@ -8,6 +8,7 @@ The backend exposes a small HTTP surface mounted from [backend/src/server.ts](..
 - `/games`
 - `/boards`
 - `/auth`
+- `/broadcast-settings`
 
 The root service also exposes a simple health endpoint.
 
@@ -137,6 +138,28 @@ Returns:
 ### `GET /games/current`
 
 Returns active games used by the homepage grid.
+
+### `/broadcast-settings`
+
+`GET /broadcast-settings` is public and returns the shared spectator delay and
+home-page display configuration:
+
+```json
+{
+  "delayMs": 0,
+  "homeEvaluationVisible": true,
+  "homeSuggestionsVisible": true,
+  "homeBoardOrder": ["Board_01", "Board_02"]
+}
+```
+
+`PATCH /broadcast-settings` requires an administrator bearer token. It accepts
+one or more partial fields: `delaySeconds` (0–3600),
+`homeEvaluationVisible` (boolean), `homeSuggestionsVisible` (boolean), and
+`homeBoardOrder` (array of physical board IDs). A successful update returns the
+full current configuration and emits `broadcast_settings_updated` to connected
+clients. These home-page visibility preferences do not change per-board
+analysis controls on the live board page.
 
 ### `GET /games/history`
 
@@ -289,6 +312,22 @@ Administrator-only. Completes the final PGN entry in `game_history`.
 ### `GET /games/:id/initcheck`
 
 Returns the latest initialization-check state for the board.
+
+### `GET /boards/uptime`
+
+Administrator-only. Returns persisted MQTT connectivity telemetry for physical
+boards. Each row is keyed by `boardID` and includes `online`, `onlineSince`,
+`totalOnlineSec`, the last online/offline timestamps, and `sessionCount`.
+Offline duration is not included. The endpoint is read-only; uptime is recorded by MQTT status
+handlers and is not derived from browser polling.
+
+### `GET /boards/uptime/sessions?days=<1..90>`
+
+Administrator-only. Returns persisted board-online intervals overlapping the
+requested number of days. Every item contains `boardID`, `onlineAt`,
+`offlineAt`, `durationSec`, and `online`. An open session has `offlineAt: null`;
+its duration is calculated up to the API response time. This endpoint powers
+the dashboard's daily online chart and exact from/to session list.
 
 ### `PUT /games/:id/update`
 

@@ -9,7 +9,7 @@ import { getIO } from "../sockets/index.js";
 import { CreateBoardBody, InitCheckBody, NFCBoard } from "../types/board.types.js";
 import { GameIdParams } from "../types/game.types.js";
 import { ensurePublicGameSnapshot } from "../services/spectator-delay.service.js";
-import { getBoardUptimeSummaries } from "../models/board-uptime.model.js";
+import { getBoardOnlineSessions, getBoardUptimeSummaries, updateBoardBattery } from "../models/board-uptime.model.js";
 
 type BoardCheckResult = ReturnType<typeof checkInitialBoard> | ReturnType<typeof checkInitialBoardNFC>;
 
@@ -28,6 +28,44 @@ function runInitialBoardCheck(boardType: unknown, board: unknown): BoardCheckRes
 }
 
 export const BoardController = {
+    async updateBattery(req: Request, res: Response): Promise<void> {
+        const boardID = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        const voltage = Number(req.body?.voltage);
+        const percent = Number(req.body?.percent);
+        const state = req.body?.state;
+
+        if (!boardID || !Number.isFinite(voltage) || voltage < 0 || voltage > 6
+            || !Number.isFinite(percent) || percent < 0 || percent > 100
+            || !["normal", "low", "critical"].includes(state)) {
+            res.status(400).json({ error: "INVALID_BATTERY_READING" });
+            return;
+        }
+
+        try {
+            await updateBoardBattery(boardID, voltage, Math.round(percent), state);
+            res.status(204).send();
+        } catch (error) {
+            console.error("Unable to save board battery reading:", error);
+            res.status(500).json({ error: "Unable to save board battery reading" });
+        }
+    },
+
+    async getUptimeSessions(req: Request, res: Response): Promise<void> {
+        try {
+            const requestedDays = Number(req.query.days ?? 7);
+            const days = Number.isFinite(requestedDays)
+                ? Math.min(90, Math.max(1, Math.round(requestedDays)))
+                : 7;
+            const now = new Date();
+            const since = new Date(now);
+            since.setDate(since.getDate() - days);
+            res.json(await getBoardOnlineSessions(since, now));
+        } catch (error) {
+            console.error("Unable to load board online sessions:", error);
+            res.status(500).json({ error: "Unable to load board online sessions" });
+        }
+    },
+
     async getUptime(_req: Request, res: Response): Promise<void> {
         try {
             res.json(await getBoardUptimeSummaries());
@@ -100,6 +138,7 @@ export const BoardController = {
                 const state = item.boardID ? gameState.get(item.boardID) : undefined;
                 return {
                     ...item,
+                    online: state?.boardStatus !== "offline",
                     initStatus: state?.initResultStatus ?? state?.gameStatus,
                     missingSquares: state?.missingSquares ?? [],
                     extraSquares: state?.extraSquares ?? [],

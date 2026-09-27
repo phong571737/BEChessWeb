@@ -2,24 +2,28 @@
 
 import { useState, useEffect } from "react";
 import { useT } from "@/lib/i18n";
-import { HistoryGame } from "@/types/game.types";
 import { Crown } from "lucide-react";
 import {ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { Minus } from "lucide-react";
 import { ResponsiveContainer, Bar, BarChart, PieChart, Pie, Cell, XAxis, YAxis } from "recharts";
 
 interface Props {
-  games: HistoryGame[];
+  summary: {
+    whiteWins: number;
+    blackWins: number;
+    draws: number;
+    total: number;
+  };
 }
 
-export function StatCards({ games }: Props) {
+export function StatCards({ summary }: Props) {
   const { t } = useT();
   const [hoveredKey, setHoveredKey] = useState<"white" | "draw" | "black" | null>(null);
   const [isMobile, setIsMobile] = useState(false);
-  const white = games.filter((g) => g.Result === "1-0").length;
-  const black = games.filter((g) => g.Result === "0-1").length;
-  const draw  = games.filter((g) => g.Result === "1/2-1/2").length;
-  const total = games.length;
+  const white = summary.whiteWins;
+  const black = summary.blackWins;
+  const draw  = summary.draws;
+  const total = summary.total;
 
   const chartData = [{ name: "Results", white, draw, black, total }];
   const pieData = [
@@ -80,7 +84,7 @@ export function StatCards({ games }: Props) {
         <div className="rounded-sm border border-border bg-card p-4">
           <div className="flex justify-between text-xs text-muted-foreground mb-3">
             <span className="font-medium text-foreground">{t("played.performance")}</span>
-            <span>{total} games</span>
+          <span>{t("played.gamesPlayed", { n: total })}</span>
           </div>
           <ChartContainer config={chartConfig} className={isMobile ? "h-[160px] w-full" : "h-[84px] w-full"}>
             <ResponsiveContainer width="100%" height="100%">

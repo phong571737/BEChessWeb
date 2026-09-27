@@ -4,5 +4,5 @@ import { requireAdmin } from "../middleware/auth.middleware.js";
 
 export const broadcastSettingRouter = express.Router();
 
-broadcastSettingRouter.get("/", requireAdmin, BroadcastSettingController.get);
+broadcastSettingRouter.get("/", BroadcastSettingController.get);
 broadcastSettingRouter.patch("/", requireAdmin, BroadcastSettingController.update);

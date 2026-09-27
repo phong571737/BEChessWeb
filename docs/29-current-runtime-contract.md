@@ -1,7 +1,7 @@
 # 29. Current Runtime Contract
 
 This is the compact, implementation-oriented contract for the runtime checked on
-2026-09-07 at commit `069334c`. It is intended to resolve ambiguity when an
+2026-09-15. It is intended to resolve ambiguity when an
 older page, diagram, or report sentence uses a previous command name or event
 scope.
 
@@ -41,8 +41,10 @@ The backend mounts routes directly, without an `/api` prefix:
 | `GET /games/current`, `GET /games/:id` | Read live game state | Public read |
 | `POST /moves` | Submit a physical-board move | Device-scoped payload; rate limited |
 | `GET /boards` | Read physical-board/game status | Public read |
-| `GET /broadcast-settings` | Read spectator delay in milliseconds | Admin |
-| `PATCH /broadcast-settings` | Set spectator delay from `delaySeconds` (0–3600) | Admin |
+| `GET /broadcast-settings` | Read spectator delay and shared home display/order settings | Public |
+| `PATCH /broadcast-settings` | Partially update delay, home visibility, or board order | Admin |
+| `GET /boards/uptime` | Read per-board online state and accumulated online time | Admin |
+| `GET /boards/uptime/sessions?days=7` | Read exact persisted online-to-offline intervals | Admin |
 | `POST /boards` | Create a board/game association | Device/app flow; rate limited |
 | `POST /boards/:id/initcheck` | Validate initial physical layout and button state | Device/app flow; rate limited |
 | `POST /games/:id/rename` | Update players, clock, round, and location | Authenticated |
@@ -87,6 +89,11 @@ Semantics:
    MongoDB resignation claim prevents concurrent finalization of the same game.
 5. `restart_game_esp` is not a current public command and must not be emitted
    by a maintained ESP32 firmware.
+6. An MQTT `offline` event marks the board offline and starts a status-based
+   cleanup timer: 30 minutes for `playing`/`active`, 5 minutes for init-check,
+   waiting, and other states. A subsequent `online` or `reset` event cancels
+   the timer. When it expires, active game/runtime data is removed while
+   completed history remains archived.
 
 ## Socket.IO contract
 
@@ -104,10 +111,17 @@ game state after reconnect. The main events are:
 | `game_status_update` | Global broadcast | Active/finished/waiting lifecycle mapping |
 | `board_scan_ok` | Global broadcast | New or remapped board/game association |
 | `board_offline`, `game:destroyed` | Global broadcast | Board connectivity or delayed cleanup |
+| `broadcast_settings_updated` | Global broadcast | Shared home-page visibility and board-order settings |
 
 `esp_move` is deliberately global because the home dashboard does not join all
 game rooms. The board page and `use-active-games` filter by `gameID`; this is
 why a physical move updates the card without a manual reload.
+
+Shared home/live-board evaluation visibility, move-suggestion visibility, and home board
+order are read from `GET /broadcast-settings`. Administrators update them with
+`PATCH /broadcast-settings`; connected clients receive the full setting
+snapshot via `broadcast_settings_updated`. Home ordering is keyed by physical
+`boardID`, not game session ID.
 
 ## Initcheck states
 
@@ -121,6 +135,10 @@ The UI may show `idle`/`checkinit` while waiting for a first scan, then one of:
 
 These are readiness states, not chess results. The card can show them without
 opening the board page.
+
+Square-level initcheck diagnostics are administrator-only in the frontend;
+public viewers receive the playable position without missing/extra/wrong-piece
+overlays.
 
 ## FEN recovery and analysis
 
@@ -139,9 +157,14 @@ preserved.
 
 The administrator view uses the authoritative game state immediately. Public
 viewers receive delayed snapshots according to the MongoDB-backed setting from
-`GET/PATCH /broadcast-settings`. The frontend accepts manual seconds and quick
-presets; `0` disables the delay. The backend clamps values to the inclusive
-range `0..3600` seconds and keeps the original game/history records unchanged.
+`GET/PATCH /broadcast-settings` (public read, administrator write). The
+frontend accepts manual seconds and quick presets; `0` disables the delay. The
+backend clamps values to the inclusive range `0..3600` seconds and keeps the
+original game/history records unchanged.
+
+Delayed snapshots are released in sequence, one move at a time. The delay is
+measured from server receipt/release scheduling, not applied as a single batch
+to the whole game.
 
 ## Clock contract
 

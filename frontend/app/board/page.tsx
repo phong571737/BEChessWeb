@@ -68,9 +68,13 @@ function BoardContent() {
         () => (primaryID ? buildSlots(primaryID, extraIDs, slotCount) : []),
         [primaryID, extraIDs, slotCount]
     );
-    const tournamentName = slots
-        .map((gameID) => activeGames.find((game) => game.gameID === gameID)?.tournament?.trim())
-        .find(Boolean);
+    const tournamentGame = slots
+        .map((gameID) => activeGames.find((game) => game.gameID === gameID))
+        .find((game) => game?.tournament?.trim());
+    const tournamentName = tournamentGame?.tournament?.trim();
+    const tournamentHeading = tournamentName
+        ? t("home.tournamentRound", { tournament: tournamentName, n: tournamentGame?.round ?? 1 })
+        : "";
 
     const pushState = useCallback(
         (nextSlots: (string | null)[], nextLayout: BoardLayoutMode) => {
@@ -151,7 +155,7 @@ function BoardContent() {
             {effectiveLayout > 1 && tournamentName && (
                 <div className="shrink-0 border-b border-border px-1 py-1 md:px-6 md:py-2">
                     <p className="hidden text-[11px] font-semibold uppercase tracking-widest text-muted-foreground md:block">{t("home.tournament")}</p>
-                    <h1 className="mt-0.5 text-center text-xs font-medium text-foreground md:text-left md:text-sm">{tournamentName}</h1>
+                    <h1 className="mt-0.5 text-center text-xs font-medium text-foreground md:text-left md:text-sm">{tournamentHeading}</h1>
                 </div>
             )}
             <div className="flex-1 min-h-0">

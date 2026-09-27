@@ -171,19 +171,28 @@
   height: 100%;
   align-self: stretch;
 }
+.eval-bar--vertical.eval-bar--compact {
+  min-width: 7px;
+  max-width: 7px;
+}
 
-@media (max-width: 639px) {
-  .active-games-heading:not(.active-games-heading-admin) {
-    display: flex;
-    width: 100%;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
+@media (min-width: 640px) {
+  .eval-bar--vertical.eval-bar--compact {
+    min-width: 9px;
+    max-width: 9px;
   }
+}
 
-  .active-games-heading:not(.active-games-heading-admin) p {
-    margin-top: 0;
-    flex-shrink: 0;
-    white-space: nowrap;
-  }
+.active-games-heading:not(.active-games-heading-admin) {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.active-games-heading:not(.active-games-heading-admin) p {
+  margin-top: 0;
+  flex-shrink: 0;
+  white-space: nowrap;
 }

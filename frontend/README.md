@@ -40,7 +40,7 @@ Docker Compose supplies equivalent build arguments from root `BACKEND_PUBLIC_URL
 | --- | --- |
 | `/` | Active games and physical boards |
 | `/board?id=<encoded-gameID>` | Live physical-board game |
-| `/dashboard` | History summaries by board, player, result, and time |
+| `/dashboard` | History summaries plus per-board online intervals and online-time charts |
 | `/played` | Searchable game history and administrator recycle bin |
 | `/played/review/[id]` | Move replay, notation, statistics, and saved Stockfish analysis |
 | `/paste` | UCI/PGN import and branch preview |
@@ -82,3 +82,11 @@ Detailed frontend documentation starts at [../docs/10-state-management.md](../do
 Administrator spectator-delay settings are configured in the bulk setup dialog
 and persisted through the `/broadcast-settings` rewrite; the dialog supports
 quick minute/second presets plus manual seconds.
+
+The public `GET /broadcast-settings` endpoint also hydrates shared live-display
+preferences. Administrators can globally toggle the evaluation bar
+and move suggestions for both home cards and live board pages, and arrange
+cards by physical board ID. Changes are
+stored in MongoDB and broadcast to open clients with
+`broadcast_settings_updated`; public clients cannot override these analysis
+visibility controls with browser-local settings.

@@ -2,7 +2,7 @@
 
 import { useTheme } from "next-themes";
 import { usePathname } from "next/navigation";
-import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
+import { BarChart3, BookOpen, Check, Download, House, NotebookPen, X, ChevronRight, Menu, Castle, Sun, Moon, History, Languages, Lightbulb, LogOut, Palette, Settings, Smartphone, UserRound } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { useT } from "@/lib/i18n";
 import { Separator } from "@radix-ui/react-separator";
 import { BoardLayoutHeaderControl } from "@/components/board/board-layout-header-control";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/components/providers/auth-provider";
 import { BOARD_COLOR_PRESETS, useBoardDisplay } from "@/components/providers/board-display-provider";
 import { APP_RELEASE_VERSION } from "@/lib/app-version";
 import { publicPath } from "@/lib/public-path";
@@ -23,11 +23,7 @@ const sectionDefs = [
     { key: "nav.guide" as const, url: "/guide", icon: BookOpen},
 ];
 
-function AppSidebar({
-    collapsed,
-    mobileOpen,
-    onCloseMobile
-}: {
+function AppSidebar({ collapsed, mobileOpen, onCloseMobile}: {
     collapsed: boolean,
     mobileOpen: boolean,
     onCloseMobile: () => void
@@ -40,6 +36,8 @@ function AppSidebar({
         : sectionDefs;
     const base = (
         <aside
+            id="app-sidebar"
+            aria-label={t("app.mobileNavigation")}
             className={cn(
                 "h-screen flex flex-col border-r transition-all duration-200",
                 "bg-[hsl(var(--sidebar))] border-[hsl(var(--sidebar-border))]",
@@ -70,6 +68,8 @@ function AppSidebar({
                     size="icon"
                     className={cn("size-7 lg:hidden shrink-0", !collapsed && "ml-auto")}
                     onClick={onCloseMobile}
+                    aria-label={t("app.closeMenu")}
+                    title={t("app.closeMenu")}
                 >
                     <X className="size-3.5" />
                 </Button>
@@ -135,12 +135,6 @@ function AppSidebar({
         <>
             <div className="hidden lg:block h-screen sticky top-0">{base}</div>
             {mobileOpen && (
-<<<<<<< HEAD
-                <div className="md:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" onClick={onCloseMobile}>
-                <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
-                    {base}
-                </div>
-=======
                 <div
                     className="lg:hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
                     onClick={onCloseMobile}
@@ -151,7 +145,6 @@ function AppSidebar({
                     <div className="h-full w-[80%] max-w-[280px] shadow-2xl" onClick={(e) => e.stopPropagation()}>
                         {base}
                     </div>
->>>>>>> origin/master
                 </div>
             )}
         </>
@@ -163,8 +156,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     const pathname = usePathname();
     const { setTheme, resolvedTheme } = useTheme();
     const {t, locale, setLocale} = useT();
-    const { user, isAuthenticated, logout } = useAuth();
-    const { boardColorTheme, boardColors, setBoardColorTheme, setCustomBoardColors } = useBoardDisplay();
+    const { user, isAuthenticated, isAdmin, logout } = useAuth();
+    const { boardColorTheme, boardColors, homeEvaluationVisible, homeSuggestionsVisible, setBoardColorTheme, setCustomBoardColors, setHomeEvaluationVisible, setHomeSuggestionsVisible } = useBoardDisplay();
     const [collapsed, setCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -178,6 +171,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     }, []);
 
     useEffect(() => {
+        document.documentElement.lang = locale;
+    }, [locale]);
+
+    useEffect(() => {
         const closeMenus = (event: MouseEvent) => {
             const target = event.target as Node;
             if (accountMenuRef.current && !accountMenuRef.current.contains(target)) setAccountMenuOpen(false);
@@ -186,6 +183,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         document.addEventListener("mousedown", closeMenus);
         return () => document.removeEventListener("mousedown", closeMenus);
     }, []);
+
+    useEffect(() => {
+        if (!mobileOpen) return;
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setMobileOpen(false);
+        };
+        document.addEventListener("keydown", handleEscape);
+        return () => document.removeEventListener("keydown", handleEscape);
+    }, [mobileOpen]);
 
     const crumbLinks = useMemo(() => {
         const segLabels: Record<string, string> = {
@@ -227,8 +233,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 size="icon"
                                 className="size-8 lg:hidden"
                                 onClick={() => setMobileOpen(true)}
+                                aria-label={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+                                title={mobileOpen ? t("nav.closeMenu") : t("nav.openMenu")}
+                                aria-expanded={mobileOpen}
+                                aria-controls="app-sidebar"
                             >
-                                <Menu className="size-4" />  
+                                <Menu className="size-4" />
                             </Button>
 
                             {/* Desktop collapse toggle */}
@@ -237,6 +247,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                 size="icon"
                                 className="size-8 hidden lg:inline-flex"
                                 onClick={() => setCollapsed((v) => !v)}
+                                aria-label={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
+                                title={collapsed ? t("app.expandSidebar") : t("app.collapseSidebar")}
                             >
                                 <ChevronRight className={cn(
                                 "size-4 transition-transform duration-200",
@@ -343,7 +355,31 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                                                     onLayoutSelected={() => setSettingsMenuOpen(false)}
                                                 />
                                             </div>
-                                            <div className="my-1 border-t border-border" />
+                                            {isAdmin && (
+                                                <>
+                                                    <div className="my-1 border-t border-border" />
+                                                    <button
+                                                        type="button"
+                                                        role="menuitemcheckbox"
+                                                        aria-checked={homeEvaluationVisible}
+                                                        onClick={() => setHomeEvaluationVisible(!homeEvaluationVisible)}
+                                                        className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                                                    >
+                                                        <span className="flex items-center gap-2"><BarChart3 className="size-3.5" />{t("settings.evaluationBar")}</span>
+                                                        {homeEvaluationVisible && <Check className="size-3.5 text-primary" />}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        role="menuitemcheckbox"
+                                                        aria-checked={homeSuggestionsVisible}
+                                                        onClick={() => setHomeSuggestionsVisible(!homeSuggestionsVisible)}
+                                                        className="flex w-full items-center justify-between rounded-sm px-2.5 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                                                    >
+                                                        <span className="flex items-center gap-2"><Lightbulb className="size-3.5" />{t("settings.moveSuggestions")}</span>
+                                                        {homeSuggestionsVisible && <Check className="size-3.5 text-primary" />}
+                                                    </button>
+                                                </>
+                                            )}
                                             <div className="my-1 border-t border-border" />
                                             <p className="flex items-center gap-2 px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground"><Smartphone className="size-3.5" />{t("settings.mobileApp")}</p>
                                             <a href={publicPath("/downloads/TTLab_v1.1-patch2.apk")} download className="flex w-full items-center gap-2 rounded-sm px-2.5 py-2 text-xs text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground">

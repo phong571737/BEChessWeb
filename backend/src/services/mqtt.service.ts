@@ -2,7 +2,7 @@ import mqtt, { MqttClient } from "mqtt";
 import { env } from "../config/environment.js";
 import { getIO } from "../sockets/index.js";
 import { emitGameState, gameState } from "../game/game.state.js";
-import { getGame, removeGameByBoardID } from "../models/game.model.js";
+import { getGame, getLatestUnfinishedGameByBoardID, removeGameByBoardID } from "../models/game.model.js";
 import { games, gameSeq, activeBranches, rawFenHistory, rawMoveHistory, pgnBaseFen } from "../game/game.repository.js";
 import { getOrRestoreCurrentGame, removeCurrenGame } from "../game/game.manager.js";
 import { GameActionService } from "./game.action.service.js";
@@ -11,15 +11,19 @@ import { evaluatePosition } from "./stockfish.service.js";
 import { BOARD_TYPE } from "../constant.js";
 import type { ResignSide } from "../types/game.types.js";
 import { emitWithSpectatorDelay, schedulePublicBoardCleanup } from "./spectator-delay.service.js";
-import { markBoardOffline, markBoardOnline } from "../models/board-uptime.model.js";
+import { markBoardOffline, markBoardOnline, updateBoardBattery } from "../models/board-uptime.model.js";
 
 let mqttClient: MqttClient | null = null;
 
 interface StatusPayload {
     status: "online" | "offline" | string;
+    batteryVoltage?: number;
+    batteryPercent?: number;
+    batteryState?: "normal" | "low" | "critical";
 }
 
-const OFFLINE_CLEANUP_DELAY_MS = 3 * 60 * 1000; // 3 minutes
+const ACTIVE_GAME_OFFLINE_CLEANUP_DELAY_MS = 30 * 60 * 1000;
+const INACTIVE_GAME_OFFLINE_CLEANUP_DELAY_MS = 5 * 60 * 1000;
 const pendingCleanupTimers = new Map<string, NodeJS.Timeout>();
 
 interface RemoveGameByBoardResult {
@@ -81,6 +85,14 @@ function cancelPendingCleanup(boardID: string) {
 
 async function cleanupBoard(boardID: string) {
     try {
+        // Online/reset messages remove this timer entry. Do not depend on the
+        // in-memory game state here because offline states expire after 10m,
+        // before the active-game cleanup window elapses.
+        if (!pendingCleanupTimers.has(boardID)) {
+            console.log(`[MQTT] Skipping cleanup for ${boardID}: cleanup was cancelled`);
+            return;
+        }
+
         const result: RemoveGameByBoardResult = await removeGameByBoardID(boardID);
         console.log("[MQTT] Remove result:", result);
         if (result?.gameIDs?.length) {
@@ -117,6 +129,43 @@ async function cleanupBoard(boardID: string) {
     } finally {
         pendingCleanupTimers.delete(boardID);
     }
+}
+
+async function scheduleOfflineCleanup(boardID: string): Promise<void> {
+    let unfinishedGame: Awaited<ReturnType<typeof getLatestUnfinishedGameByBoardID>> = null;
+    try {
+        unfinishedGame = await getLatestUnfinishedGameByBoardID(boardID);
+    } catch (error) {
+        // Still schedule a cleanup attempt. The database may be available again
+        // when the timer expires.
+        console.error(`[MQTT] Could not read game status for offline board ${boardID}:`, error);
+    }
+    const runtimeStatus = gameState.get(boardID)?.gameStatus;
+    const persistedStatus = unfinishedGame?.status;
+    const isActiveGame = runtimeStatus === "playing"
+        || persistedStatus === "playing"
+        || persistedStatus === "active";
+    const delayMs = isActiveGame
+        ? ACTIVE_GAME_OFFLINE_CLEANUP_DELAY_MS
+        : INACTIVE_GAME_OFFLINE_CLEANUP_DELAY_MS;
+
+    // The board may have reconnected while its persisted game was being read.
+    if (gameState.get(boardID)?.boardStatus !== "offline") return;
+
+    const delayMinutes = Math.round(delayMs / 60_000);
+    console.log(
+        `[MQTT] Scheduling cleanup for ${boardID} after ${delayMinutes}m offline`
+        + ` (runtime=${runtimeStatus ?? "unknown"}, persisted=${persistedStatus ?? "none"})`,
+    );
+    // Multiple retained/offline MQTT messages can arrive close together.
+    // Replace the older timer so only one cleanup can run for this board.
+    cancelPendingCleanup(boardID);
+    const timer = setTimeout(async () => {
+        console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after ${delayMinutes}m offline`);
+        await cleanupBoard(boardID);
+    }, delayMs);
+    timer.unref?.();
+    pendingCleanupTimers.set(boardID, timer);
 }
 
 // This function is used to handle message
@@ -220,6 +269,14 @@ async function handleMessage(topic: string, message: Buffer) {
         try {
             const payload = JSON.parse(message.toString()) as StatusPayload;
 
+            if (Number.isFinite(payload.batteryVoltage)
+                && Number.isFinite(payload.batteryPercent)
+                && ["normal", "low", "critical"].includes(payload.batteryState ?? "")) {
+                const voltage = Math.min(6, Math.max(0, payload.batteryVoltage!));
+                const percent = Math.min(100, Math.max(0, Math.round(payload.batteryPercent!)));
+                await updateBoardBattery(boardID, voltage, percent, payload.batteryState!);
+            }
+
             // if status is online(board connected)
             if (payload.status === 'online') {
                 console.log(`[MQTT] Board ${boardID} online`);
@@ -245,24 +302,13 @@ async function handleMessage(topic: string, message: Buffer) {
                 persistBoardConnection(boardID, false);
                 gameState.set(boardID, { boardStatus: "offline" });
 
-                // Notify frontend immediately that the board is offline
-                try {
-                    console.log(`[MQTT] Emitting board_offline for ${boardID}`);
-                    getIO().emit("board_offline", { boardID });
-                } catch (e) {
-                    // ignore if socket not initialized
-                }
-
                 // Hủy timer cũ nếu có
                 cancelPendingCleanup(boardID);
 
-                // Wait three minutes before deleting the game in case the board reconnects.
-                const timer = setTimeout(async () => {
-                    console.log(`[MQTT] Executing delayed cleanup for board ${boardID} after 3m offline`);
-                    await cleanupBoard(boardID);
-                }, OFFLINE_CLEANUP_DELAY_MS);
-
-                pendingCleanupTimers.set(boardID, timer);
+                // Keep active games longer so a temporary network outage does not
+                // discard an ongoing match. Init-check and other inactive states
+                // use the shorter cleanup window.
+                await scheduleOfflineCleanup(boardID);
             }
 
             emitGameState(boardID);

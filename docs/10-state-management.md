@@ -49,7 +49,7 @@ The active board check results are tracked separately in the `gameState` map.
 
 Runtime state is intentionally limited to active board sessions. Resignation, board destruction, and MQTT offline cleanup remove the corresponding chess, sequence, branch, and raw-history entries. Socket snapshot reads for a game that is not already active use a temporary `Chess` instance and do not add that game to the runtime maps.
 
-Board states marked offline have a 10-minute in-memory safety TTL. MQTT normally starts destructive cleanup after five minutes, while the TTL prevents stale state from remaining in memory if that cleanup is interrupted.
+Board states marked offline have a 10-minute in-memory safety TTL. MQTT schedules destructive cleanup after 30 minutes for a `playing`/`active` game and after 5 minutes for init-check and other states. A new MQTT online/reset status cancels the timer. On expiry, active game documents and runtime state are removed while completed history snapshots remain archived.
 
 ## Frontend state
 
@@ -60,6 +60,12 @@ It keeps three main collections:
 - `activeGames` for home-page cards
 - `physicalBoards` for board status cards and heartbeat state
 - `boards` for per-game board page state
+
+Home-page visibility preferences and board ordering are shared server settings,
+not Zustand-only values. `BoardDisplayProvider` loads them from
+`GET /broadcast-settings` and listens for `broadcast_settings_updated`;
+administrator edits persist in MongoDB. The saved order uses physical
+`boardID` values so replacement game sessions keep their board's position.
 
 ## Authentication state
 
