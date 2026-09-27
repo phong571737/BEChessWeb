@@ -14,6 +14,7 @@ mongodb_data
 work
 dist
 **/__pycache__
-recover_service_v4/backup
-recover_service_v4/stockfish
+recover_service_v2/
+recover_service_v3/
+recover_service_v4/
 stockfish_recommend/stockfish

@@ -15,6 +15,7 @@ services:
     build:
       context: .
       dockerfile: recover_service/Dockerfile
+      network: host
     container_name: chess-recover-service
     environment:
       RECOVERY_WORKER_TIMEOUT_SECONDS: ${RECOVERY_WORKER_TIMEOUT_SECONDS:-50}
@@ -32,6 +33,7 @@ services:
     build:
       context: ./stockfish_recommend
       dockerfile: Dockerfile
+      network: host
     container_name: chess-stockfish-recommend
     ports:
       - "127.0.0.1:${STOCKFISH_RECOMMEND_PORT:-8001}:8000"
