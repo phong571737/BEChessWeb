@@ -59,4 +59,7 @@ async function startServer() {
   });
 }
 
-startServer();
+startServer().catch((error) => {
+  console.error("[startup] Backend failed to start:", error);
+  process.exit(1);
+});
